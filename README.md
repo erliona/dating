@@ -106,6 +106,7 @@ http://localhost:8080. Значения можно изменить в `.env` (�
    source .venv/bin/activate  # Windows: .venv\Scripts\activate
    pip install --upgrade pip
    pip install -r requirements.txt
+   pip install -r requirements-dev.txt  # для локального запуска тестов
    ```
 
 3. Установите переменные окружения:
