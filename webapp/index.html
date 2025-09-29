@@ -13,14 +13,47 @@
       <p class="hint">
         Заполни форму и отправь данные боту прямо из мини-приложения.
       </p>
-      <form id="profile-form">
+      <div class="progress" aria-live="polite">
+        <div
+          class="progress-track"
+          role="progressbar"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="0"
+        >
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <p class="progress-label" id="progress-label">Заполнено 0%</p>
+      </div>
+      <form id="profile-form" novalidate>
         <label>
           Имя
-          <input type="text" name="name" required placeholder="Алиса" />
+          <input
+            type="text"
+            name="name"
+            required
+            minlength="2"
+            maxlength="40"
+            pattern="^[A-Za-zА-Яа-яЁё\-\s]+$"
+            placeholder="Алиса"
+            autocomplete="given-name"
+          />
+          <span class="field-hint">Напиши имя, как ты представляешься новым знакомым.</span>
+          <span class="error-message" aria-live="polite"></span>
         </label>
         <label>
           Возраст
-          <input type="number" name="age" min="18" required placeholder="25" />
+          <input
+            type="number"
+            name="age"
+            min="18"
+            max="120"
+            required
+            placeholder="25"
+            inputmode="numeric"
+          />
+          <span class="field-hint">Минимальный возраст — 18 лет.</span>
+          <span class="error-message" aria-live="polite"></span>
         </label>
         <label>
           Пол
@@ -29,6 +62,8 @@
             <option value="female">Женский</option>
             <option value="other">Другое</option>
           </select>
+          <span class="field-hint">Выбери вариант, который лучше всего описывает тебя.</span>
+          <span class="error-message" aria-live="polite"></span>
         </label>
         <label>
           Кого ищешь
@@ -38,14 +73,31 @@
             <option value="other">Других</option>
             <option value="any">Неважно</option>
           </select>
+          <span class="field-hint">Так мы подскажем, кому показывать твою анкету.</span>
+          <span class="error-message" aria-live="polite"></span>
         </label>
         <label>
           О себе
-          <textarea name="bio" rows="4" placeholder="Коротко о себе"></textarea>
+          <textarea
+            name="bio"
+            rows="4"
+            maxlength="400"
+            placeholder="Коротко о себе"
+          ></textarea>
+          <span class="field-hint">Расскажи о своих увлечениях, целях и что ищешь.</span>
+          <span class="error-message" aria-live="polite"></span>
         </label>
         <label>
           Город или регион
-          <input type="text" name="location" placeholder="Москва" />
+          <input
+            type="text"
+            name="location"
+            maxlength="60"
+            placeholder="Москва"
+            autocomplete="address-level2"
+          />
+          <span class="field-hint">Поможет подобрать людей поблизости.</span>
+          <span class="error-message" aria-live="polite"></span>
         </label>
         <label>
           Интересы
@@ -53,7 +105,10 @@
             type="text"
             name="interests"
             placeholder="Музыка, спорт, путешествия"
+            maxlength="120"
           />
+          <span class="field-hint">Через запятую перечисли хобби или любимые занятия.</span>
+          <span class="error-message" aria-live="polite"></span>
         </label>
         <label>
           Цель знакомства
@@ -64,6 +119,8 @@
             <option value="networking">Общение</option>
             <option value="casual">Лёгкие встречи</option>
           </select>
+          <span class="field-hint">Если не уверен(а), оставь поле пустым.</span>
+          <span class="error-message" aria-live="polite"></span>
         </label>
         <label>
           Фото (ссылка)
@@ -71,11 +128,15 @@
             type="url"
             name="photo_url"
             placeholder="https://example.com/photo.jpg"
+            inputmode="url"
           />
+          <span class="field-hint">Укажи публичную ссылку на фото, чтобы собеседникам было проще узнать тебя.</span>
+          <span class="error-message" aria-live="polite"></span>
         </label>
         <button type="submit" class="primary">Отправить</button>
       </form>
       <p class="status" id="status"></p>
+      <p class="autosave-status" id="autosave-status" aria-live="polite"></p>
     </main>
     <script src="js/app.js"></script>
   </body>
