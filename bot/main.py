@@ -90,8 +90,9 @@ class ProfileStore:
             return
 
         try:
+            payload = self._ensure_mapping(data)
             self._profiles = {
-                int(user_id): Profile(**profile) for user_id, profile in data.items()
+                int(user_id): Profile(**profile) for user_id, profile in payload.items()
             }
         except (TypeError, ValueError) as exc:
             LOGGER.warning(
@@ -129,6 +130,26 @@ class ProfileStore:
     @staticmethod
     def _is_compatible(profile: Profile, other: Profile) -> bool:
         return other.gender == profile.preference or profile.preference == "any"
+
+    @staticmethod
+    def _ensure_mapping(data: object) -> dict[str, dict]:
+        """Coerce the loaded JSON payload into a mapping of profiles."""
+
+        if isinstance(data, dict):
+            return data
+
+        if isinstance(data, list):
+            mapping: dict[str, dict] = {}
+            for item in data:
+                if not isinstance(item, dict):
+                    raise ValueError("Profile list must contain JSON objects")
+                user_id = item.get("user_id")
+                if user_id is None:
+                    raise ValueError("Profile entries must contain user_id")
+                mapping[str(user_id)] = item
+            return mapping
+
+        raise ValueError("Unsupported profile store format")
 
 
 PROFILE_STORE: ProfileStore
