@@ -5,9 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-from dataclasses import asdict, dataclass, field
-from pathlib import Path
-from typing import Dict, Optional
+from dataclasses import dataclass, field
 
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.client.default import DefaultBotProperties
@@ -19,7 +17,10 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup, Message,
                            ReplyKeyboardRemove, WebAppData, WebAppInfo)
 
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
 from .config import BotConfig, load_config
+from .db import ProfileRepository
 
 
 LOGGER = logging.getLogger(__name__)
@@ -56,105 +57,21 @@ class Questionnaire(StatesGroup):
     waiting_for_photo = State()
 
 
-class ProfileStore:
-    """A very small persistence layer for user profiles."""
-
-    def __init__(self, path: Path | None):
-        self._path = path
-        self._profiles: Dict[int, Profile] = {}
-        if path:
-            self._path.parent.mkdir(parents=True, exist_ok=True)
-
-    def load(self) -> None:
-        if not self._path or not self._path.exists():
-            return
-        try:
-            raw_payload = self._path.read_text(encoding="utf-8")
-        except OSError as exc:
-            LOGGER.warning("Could not read profiles from %s: %s", self._path, exc)
-            return
-
-        if not raw_payload.strip():
-            LOGGER.info("Profile store %s is empty", self._path)
-            self._profiles = {}
-            return
-
-        try:
-            data = json.loads(raw_payload)
-        except json.JSONDecodeError as exc:
-            LOGGER.warning(
-                "Ignoring invalid profile store %s due to JSON error: %s",
-                self._path,
-                exc,
-            )
-            return
-
-        try:
-            payload = self._ensure_mapping(data)
-            self._profiles = {
-                int(user_id): Profile(**profile) for user_id, profile in payload.items()
-            }
-        except (TypeError, ValueError) as exc:
-            LOGGER.warning(
-                "Ignoring invalid profile payload in %s: %s", self._path, exc
-            )
-            return
-
-    def save(self) -> None:
-        if not self._path:
-            return
-        payload = {user_id: asdict(profile) for user_id, profile in self._profiles.items()}
-        try:
-            self._path.write_text(
-                json.dumps(payload, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
-        except OSError as exc:
-            LOGGER.error("Failed to persist profiles to %s: %s", self._path, exc)
-
-    def upsert(self, profile: Profile) -> None:
-        self._profiles[profile.user_id] = profile
-        self.save()
-
-    def get(self, user_id: int) -> Optional[Profile]:
-        return self._profiles.get(user_id)
-
-    def find_mutual_match(self, profile: Profile) -> Optional[Profile]:
-        for other in self._profiles.values():
-            if other.user_id == profile.user_id:
-                continue
-            if self._is_compatible(profile, other) and self._is_compatible(other, profile):
-                return other
-        return None
-
-    @staticmethod
-    def _is_compatible(profile: Profile, other: Profile) -> bool:
-        return other.gender == profile.preference or profile.preference == "any"
-
-    @staticmethod
-    def _ensure_mapping(data: object) -> dict[str, dict]:
-        """Coerce the loaded JSON payload into a mapping of profiles."""
-
-        if isinstance(data, dict):
-            return data
-
-        if isinstance(data, list):
-            mapping: dict[str, dict] = {}
-            for item in data:
-                if not isinstance(item, dict):
-                    raise ValueError("Profile list must contain JSON objects")
-                user_id = item.get("user_id")
-                if user_id is None:
-                    raise ValueError("Profile entries must contain user_id")
-                mapping[str(user_id)] = item
-            return mapping
-
-        raise ValueError("Unsupported profile store format")
-
-
-PROFILE_STORE: ProfileStore
-CONFIG: BotConfig
+PROFILE_REPOSITORY: ProfileRepository | None = None
+CONFIG: BotConfig | None = None
 ROUTER = Router()
+
+
+def get_config() -> BotConfig:
+    if CONFIG is None:
+        raise RuntimeError("Bot configuration is not loaded")
+    return CONFIG
+
+
+def get_repository() -> ProfileRepository:
+    if PROFILE_REPOSITORY is None:
+        raise RuntimeError("Profile repository is not initialized")
+    return PROFILE_REPOSITORY
 
 
 def normalise_choice(value: str) -> str:
@@ -300,8 +217,9 @@ def build_profile_from_payload(user_id: int, payload: dict[str, object]) -> Prof
 
 
 async def finalize_profile(message: Message, profile: Profile) -> None:
-    PROFILE_STORE.upsert(profile)
-    match = PROFILE_STORE.find_mutual_match(profile)
+    repository = get_repository()
+    await repository.upsert(profile)
+    match = await repository.find_mutual_match(profile)
 
     if match:
         await message.answer(
@@ -326,6 +244,7 @@ async def finalize_profile(message: Message, profile: Profile) -> None:
 async def start_handler(message: Message, state: FSMContext) -> None:
     """Handle the /start command."""
 
+    config = get_config()
     await state.clear()
     greeting = [
         "Привет! Я бот для знакомств.",
@@ -334,13 +253,13 @@ async def start_handler(message: Message, state: FSMContext) -> None:
     ]
 
     keyboard = ReplyKeyboardRemove()
-    if CONFIG.webapp_url:
+    if config.webapp_url:
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
                     InlineKeyboardButton(
                         text="Открыть мини-приложение",
-                        web_app=WebAppInfo(url=CONFIG.webapp_url),
+                        web_app=WebAppInfo(url=config.webapp_url),
                     )
                 ]
             ]
@@ -575,10 +494,11 @@ async def main() -> None:
     logging.basicConfig(level=logging.INFO)
 
     config = load_config()
-    storage_path = Path(config.storage_path) if config.storage_path else None
-    global PROFILE_STORE, CONFIG
-    PROFILE_STORE = ProfileStore(storage_path)
-    PROFILE_STORE.load()
+    engine = create_async_engine(config.database_url, future=True)
+    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    global PROFILE_REPOSITORY, CONFIG
+    PROFILE_REPOSITORY = ProfileRepository(session_factory)
     CONFIG = config
 
     bot = Bot(
@@ -589,7 +509,10 @@ async def main() -> None:
     dp.include_router(ROUTER)
 
     logging.info("Starting polling")
-    await dp.start_polling(bot)
+    try:
+        await dp.start_polling(bot)
+    finally:
+        await engine.dispose()
 
 
 if __name__ == "__main__":
