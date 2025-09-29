@@ -1,12 +1,22 @@
 name: Deploy
 
 on:
-  push:
-    branches: ["main"]
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
   workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch or tag to deploy"
+        required: false
+        default: "main"
 
 permissions:
   contents: read
+
+concurrency:
+  group: deploy-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -14,10 +24,18 @@ jobs:
     runs-on: ubuntu-latest
     env:
       DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
+      DEPLOY_REF: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.event.workflow_run.head_branch }}
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_REF || 'main' }}
+          fetch-depth: 0
 
       - name: Create deployment package
         run: |
