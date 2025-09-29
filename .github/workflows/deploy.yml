@@ -26,16 +26,50 @@ jobs:
       DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
       DEPLOY_REF: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.event.workflow_run.head_branch }}
     if: |
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'workflow_run' &&
-       github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main')
+      (
+        github.event_name == 'workflow_dispatch' ||
+        (github.event_name == 'workflow_run' &&
+         github.event.workflow_run.conclusion == 'success' &&
+         github.event.workflow_run.head_branch == 'main')
+      ) &&
+      secrets.DEPLOY_HOST != '' &&
+      secrets.DEPLOY_USER != '' &&
+      secrets.DEPLOY_PATH != '' &&
+      secrets.ENV_FILE != '' &&
+      secrets.DEPLOY_SSH_KEY != ''
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           ref: ${{ env.DEPLOY_REF || 'main' }}
           fetch-depth: 0
+
+      - name: Prepare SSH key
+        id: prepare_ssh_key
+        run: |
+          python - <<'PY'
+          import base64
+          import os
+          from pathlib import Path
+
+          raw_key = os.environ["DEPLOY_SSH_KEY"]
+          key = raw_key.strip()
+          if not key:
+            raise SystemExit("Deployment SSH key is empty")
+
+          # Support secrets stored with escaped newlines or base64 encoding
+          if "BEGIN" not in key:
+            try:
+              key = base64.b64decode(key).decode()
+            except Exception:
+              pass
+
+          key = key.replace("\r\n", "\n").replace("\\n", "\n")
+          Path("deploy_key").write_text(key if key.endswith("\n") else key + "\n")
+          Path("deploy_key").chmod(0o600)
+          PY
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
 
       - name: Write environment file
         run: |
@@ -63,7 +97,7 @@ jobs:
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key_path: deploy_key
           source: release.tar.gz
           target: ${{ secrets.DEPLOY_PATH }}
           overwrite: true
@@ -74,7 +108,7 @@ jobs:
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key_path: deploy_key
           port: ${{ env.DEPLOY_PORT != '' && env.DEPLOY_PORT || '22' }}
           script: |
             set -euo pipefail
@@ -105,4 +139,4 @@ jobs:
 
       - name: Clean up artifacts
         if: always()
-        run: rm -f release.tar.gz .env.deploy
+        run: rm -f release.tar.gz .env.deploy deploy_key
