@@ -20,6 +20,44 @@
     const formData = new FormData(form);
     const payload = Object.fromEntries(formData.entries());
 
+    const trim = (value) => (typeof value === "string" ? value.trim() : value);
+
+    payload.name = trim(payload.name);
+    payload.age = trim(payload.age);
+    payload.bio = trim(payload.bio);
+
+    const location = trim(payload.location);
+    if (location) {
+      payload.location = location;
+    } else {
+      delete payload.location;
+    }
+
+    const interestsRaw = trim(payload.interests);
+    if (interestsRaw) {
+      payload.interests = interestsRaw
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    } else {
+      payload.interests = [];
+    }
+
+    if (!payload.goal) {
+      delete payload.goal;
+    }
+
+    const photoUrl = trim(payload.photo_url);
+    if (photoUrl) {
+      payload.photo_url = photoUrl;
+    } else {
+      delete payload.photo_url;
+    }
+
+    if (!payload.bio) {
+      delete payload.bio;
+    }
+
     if (!tg) {
       showStatus("Невозможно отправить данные без Telegram.", true);
       return;

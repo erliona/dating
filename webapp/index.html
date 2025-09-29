@@ -43,6 +43,36 @@
           О себе
           <textarea name="bio" rows="4" placeholder="Коротко о себе"></textarea>
         </label>
+        <label>
+          Город или регион
+          <input type="text" name="location" placeholder="Москва" />
+        </label>
+        <label>
+          Интересы
+          <input
+            type="text"
+            name="interests"
+            placeholder="Музыка, спорт, путешествия"
+          />
+        </label>
+        <label>
+          Цель знакомства
+          <select name="goal">
+            <option value="">Выбери цель (необязательно)</option>
+            <option value="serious">Серьёзные отношения</option>
+            <option value="friendship">Дружбу</option>
+            <option value="networking">Общение</option>
+            <option value="casual">Лёгкие встречи</option>
+          </select>
+        </label>
+        <label>
+          Фото (ссылка)
+          <input
+            type="url"
+            name="photo_url"
+            placeholder="https://example.com/photo.jpg"
+          />
+        </label>
         <button type="submit" class="primary">Отправить</button>
       </form>
       <p class="status" id="status"></p>
