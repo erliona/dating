@@ -71,7 +71,7 @@ jobs:
           port: ${{ env.DEPLOY_PORT != '' && env.DEPLOY_PORT || '22' }}
 
       - name: Extract release and deploy
-        uses: appleboy/ssh-action@v0.1.11
+        uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
