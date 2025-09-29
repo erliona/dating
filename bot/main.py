@@ -282,7 +282,12 @@ async def cancel_handler(message: Message, state: FSMContext) -> None:
 
 @ROUTER.message(Questionnaire.waiting_for_name)
 async def name_handler(message: Message, state: FSMContext) -> None:
-    await state.update_data(name=message.text.strip())
+    text = (message.text or "").strip()
+    if not text:
+        await message.answer("Пожалуйста, отправь имя текстом.")
+        return
+
+    await state.update_data(name=text)
     await message.answer("Сколько тебе лет?")
     await state.set_state(Questionnaire.waiting_for_age)
 
@@ -290,7 +295,7 @@ async def name_handler(message: Message, state: FSMContext) -> None:
 @ROUTER.message(Questionnaire.waiting_for_age)
 async def age_handler(message: Message, state: FSMContext) -> None:
     try:
-        age = int(message.text.strip())
+        age = int((message.text or "").strip())
         if age < 18:
             raise ValueError
     except ValueError:
@@ -305,7 +310,7 @@ async def age_handler(message: Message, state: FSMContext) -> None:
 @ROUTER.message(Questionnaire.waiting_for_gender)
 async def gender_handler(message: Message, state: FSMContext) -> None:
     try:
-        gender = normalise_choice(message.text)
+        gender = normalise_choice(message.text or "")
         if gender == "any":
             raise ValueError
     except ValueError:
@@ -320,7 +325,7 @@ async def gender_handler(message: Message, state: FSMContext) -> None:
 @ROUTER.message(Questionnaire.waiting_for_preference)
 async def preference_handler(message: Message, state: FSMContext) -> None:
     try:
-        preference = normalise_choice(message.text)
+        preference = normalise_choice(message.text or "")
     except ValueError:
         await message.answer("Напиши 'м', 'ж' или 'любой'.")
         return
@@ -334,7 +339,7 @@ async def preference_handler(message: Message, state: FSMContext) -> None:
 
 @ROUTER.message(Questionnaire.waiting_for_bio)
 async def bio_handler(message: Message, state: FSMContext) -> None:
-    bio_text = message.text.strip()
+    bio_text = (message.text or "").strip()
     bio = None if bio_text == "-" else bio_text
 
     await state.update_data(bio=bio)
