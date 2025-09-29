@@ -6,7 +6,7 @@
 ## Возможности
 
 - Telegram-бот на базе `aiogram` с опросом /start.
-- Хранение анкет в JSON-файле и простая логика взаимного подбора.
+- Хранение анкет в PostgreSQL с ORM (SQLAlchemy) и миграциями (Alembic).
 - Расширенные профили: геолокация, интересы, цели знакомства и фото (файл или ссылка).
 - Интеграция мини-приложения: кнопка в боте открывает WebApp, который отправляет
   анкету обратно боту.
@@ -17,6 +17,7 @@
 
 - Python 3.11+
 - `pip` и `virtualenv` / `venv`
+- PostgreSQL 13+ (или совместимый сервис)
 - Аккаунт Telegram для регистрации бота через [@BotFather](https://t.me/BotFather)
 - Веб-сервер или хостинг для раздачи содержимого каталога `webapp/`
 
@@ -26,7 +27,7 @@
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
 pip install --upgrade pip
-pip install aiogram~=3.3
+pip install -r requirements.txt
 ```
 
 ## Конфигурация
@@ -35,18 +36,29 @@ pip install aiogram~=3.3
 в процессе деплоя:
 
 - `BOT_TOKEN` — токен, полученный у BotFather (обязательный).
+- `BOT_DATABASE_URL` — строка подключения к PostgreSQL (например,
+  `postgresql+asyncpg://user:pass@host:5432/dating`). Поддерживается также
+  переменная `DATABASE_URL`.
 - `WEBAPP_URL` — публичный URL, где будет доступен миниапп (например,
   `https://example.com/webapp/index.html`).
-- `BOT_STORAGE_PATH` — путь до файла для сохранения анкет. По умолчанию данные
-  хранятся только в оперативной памяти.
 
 Пример запуска с переменными окружения:
 
 ```bash
 export BOT_TOKEN="1234567890:ABC..."
+export BOT_DATABASE_URL="postgresql+asyncpg://user:pass@localhost:5432/dating"
 export WEBAPP_URL="https://example.com/webapp/index.html"
-export BOT_STORAGE_PATH="data/profiles.json"
 ```
+
+## Миграции базы данных
+
+Перед запуском бота примените миграции Alembic:
+
+```bash
+alembic upgrade head
+```
+
+Команда использует переменную окружения `BOT_DATABASE_URL` (или `DATABASE_URL`).
 
 ## Запуск локально
 
@@ -83,10 +95,17 @@ WebApp уже включает интерактивную валидацию, п
 
 ```
 .
+├── alembic.ini
 ├── bot/
 │   ├── __init__.py
 │   ├── config.py
+│   ├── db.py
 │   └── main.py
+├── migrations/
+│   ├── env.py
+│   └── versions/
+│       └── 20240611_0001_create_profiles_table.py
+├── requirements.txt
 ├── webapp/
 │   ├── css/
 │   │   └── style.css
