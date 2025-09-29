@@ -1,0 +1,91 @@
+name: Deploy
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+    env:
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create deployment package
+        run: |
+          tar -czf release.tar.gz \
+            Dockerfile \
+            docker-compose.yml \
+            requirements.txt \
+            alembic.ini \
+            BACKLOG.md \
+            bot \
+            docker \
+            migrations \
+            webapp
+
+      - name: Write environment file
+        run: |
+          cat <<'ENV_EOF' > .env.deploy
+          ${{ secrets.ENV_FILE }}
+          ENV_EOF
+          chmod 600 .env.deploy
+
+      - name: Upload application bundle
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: |
+            release.tar.gz
+            .env.deploy
+          target: ${{ secrets.DEPLOY_PATH }}
+          overwrite: true
+          port: ${{ env.DEPLOY_PORT != '' && env.DEPLOY_PORT || '22' }}
+
+      - name: Extract release and deploy
+        uses: appleboy/ssh-action@v0.1.11
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ env.DEPLOY_PORT != '' && env.DEPLOY_PORT || '22' }}
+          script: |
+            set -euo pipefail
+            if ! command -v docker >/dev/null 2>&1; then
+              curl -fsSL https://get.docker.com | sudo sh
+            fi
+            if ! command -v docker compose >/dev/null 2>&1 && ! docker compose version >/dev/null 2>&1; then
+              sudo mkdir -p /usr/local/lib/docker/cli-plugins
+              sudo curl -SL https://github.com/docker/compose/releases/download/v2.24.7/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
+              sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+            fi
+            mkdir -p "${{ secrets.DEPLOY_PATH }}"
+            cd "${{ secrets.DEPLOY_PATH }}"
+            tar -xzf release.tar.gz --overwrite
+            rm -f release.tar.gz
+            mv .env.deploy .env
+            run_docker() {
+              if docker info >/dev/null 2>&1; then
+                docker "$@"
+              else
+                sudo docker "$@"
+              fi
+            }
+            run_docker compose pull || true
+            run_docker compose build --pull
+            run_docker compose up -d --remove-orphans
+            run_docker image prune -f
+
+      - name: Clean up artifacts
+        if: always()
+        run: rm -f release.tar.gz .env.deploy
