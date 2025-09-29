@@ -37,6 +37,13 @@ jobs:
           ref: ${{ env.DEPLOY_REF || 'main' }}
           fetch-depth: 0
 
+      - name: Write environment file
+        run: |
+          cat <<'ENV_EOF' > .env.deploy
+          ${{ secrets.ENV_FILE }}
+          ENV_EOF
+          chmod 600 .env.deploy
+
       - name: Create deployment package
         run: |
           tar -czf release.tar.gz \
@@ -48,14 +55,8 @@ jobs:
             bot \
             docker \
             migrations \
-            webapp
-
-      - name: Write environment file
-        run: |
-          cat <<'ENV_EOF' > .env.deploy
-          ${{ secrets.ENV_FILE }}
-          ENV_EOF
-          chmod 600 .env.deploy
+            webapp \
+            .env.deploy
 
       - name: Upload application bundle
         uses: appleboy/scp-action@v0.1.7
@@ -63,9 +64,7 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: |
-            release.tar.gz
-            .env.deploy
+          source: release.tar.gz
           target: ${{ secrets.DEPLOY_PATH }}
           overwrite: true
           port: ${{ env.DEPLOY_PORT != '' && env.DEPLOY_PORT || '22' }}
