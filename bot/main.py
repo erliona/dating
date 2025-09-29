@@ -22,6 +22,9 @@ from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup, Message,
 from .config import BotConfig, load_config
 
 
+LOGGER = logging.getLogger(__name__)
+
+
 @dataclass(slots=True)
 class Profile:
     """User profile collected from the in-bot questionnaire."""
@@ -65,16 +68,48 @@ class ProfileStore:
     def load(self) -> None:
         if not self._path or not self._path.exists():
             return
-        data = json.loads(self._path.read_text(encoding="utf-8"))
-        self._profiles = {
-            int(user_id): Profile(**profile) for user_id, profile in data.items()
-        }
+        try:
+            raw_payload = self._path.read_text(encoding="utf-8")
+        except OSError as exc:
+            LOGGER.warning("Could not read profiles from %s: %s", self._path, exc)
+            return
+
+        if not raw_payload.strip():
+            LOGGER.info("Profile store %s is empty", self._path)
+            self._profiles = {}
+            return
+
+        try:
+            data = json.loads(raw_payload)
+        except json.JSONDecodeError as exc:
+            LOGGER.warning(
+                "Ignoring invalid profile store %s due to JSON error: %s",
+                self._path,
+                exc,
+            )
+            return
+
+        try:
+            self._profiles = {
+                int(user_id): Profile(**profile) for user_id, profile in data.items()
+            }
+        except (TypeError, ValueError) as exc:
+            LOGGER.warning(
+                "Ignoring invalid profile payload in %s: %s", self._path, exc
+            )
+            return
 
     def save(self) -> None:
         if not self._path:
             return
         payload = {user_id: asdict(profile) for user_id, profile in self._profiles.items()}
-        self._path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        try:
+            self._path.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+        except OSError as exc:
+            LOGGER.error("Failed to persist profiles to %s: %s", self._path, exc)
 
     def upsert(self, profile: Profile) -> None:
         self._profiles[profile.user_id] = profile
