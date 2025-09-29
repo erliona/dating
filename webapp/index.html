@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dating WebApp</title>
+    <link rel="stylesheet" href="css/style.css" />
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  </head>
+  <body>
+    <main class="container">
+      <h1>Мини-анкета</h1>
+      <p class="hint">
+        Заполни форму и отправь данные боту прямо из мини-приложения.
+      </p>
+      <form id="profile-form">
+        <label>
+          Имя
+          <input type="text" name="name" required placeholder="Алиса" />
+        </label>
+        <label>
+          Возраст
+          <input type="number" name="age" min="18" required placeholder="25" />
+        </label>
+        <label>
+          Пол
+          <select name="gender" required>
+            <option value="male">Мужской</option>
+            <option value="female">Женский</option>
+            <option value="other">Другое</option>
+          </select>
+        </label>
+        <label>
+          Кого ищешь
+          <select name="preference" required>
+            <option value="female">Девушек</option>
+            <option value="male">Парней</option>
+            <option value="other">Других</option>
+            <option value="any">Неважно</option>
+          </select>
+        </label>
+        <label>
+          О себе
+          <textarea name="bio" rows="4" placeholder="Коротко о себе"></textarea>
+        </label>
+        <button type="submit" class="primary">Отправить</button>
+      </form>
+      <p class="status" id="status"></p>
+    </main>
+    <script src="js/app.js"></script>
+  </body>
+</html>
