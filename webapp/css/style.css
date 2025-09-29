@@ -41,6 +41,34 @@ label {
   gap: 6px;
 }
 
+.progress {
+  margin-bottom: 20px;
+}
+
+.progress-track {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.15);
+  overflow: hidden;
+}
+
+.progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 0;
+  background: var(--tg-theme-button-color, #2563eb);
+  transition: width 0.3s ease;
+}
+
+.progress-label {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+  color: var(--tg-theme-hint-color, #64748b);
+}
+
 input,
 select,
 textarea {
@@ -49,6 +77,30 @@ textarea {
   border: 1px solid var(--tg-theme-secondary-bg-color, #cbd5f5);
   background-color: var(--tg-theme-secondary-bg-color, #fff);
   font-size: 1rem;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid rgba(37, 99, 235, 0.35);
+  outline-offset: 2px;
+}
+
+.field-hint {
+  font-size: 0.8rem;
+  color: var(--tg-theme-hint-color, #64748b);
+}
+
+.error-message {
+  font-size: 0.8rem;
+  color: var(--tg-theme-destructive-text-color, #ef4444);
+  min-height: 1.1em;
+}
+
+.invalid input,
+.invalid select,
+.invalid textarea {
+  border-color: var(--tg-theme-destructive-text-color, #ef4444);
 }
 
 .primary {
@@ -71,4 +123,12 @@ textarea {
   text-align: center;
   margin-top: 16px;
   color: var(--tg-theme-link-color, #2563eb);
+}
+
+.autosave-status {
+  min-height: 20px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--tg-theme-hint-color, #64748b);
+  margin-top: 6px;
 }
