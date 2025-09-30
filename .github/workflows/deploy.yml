@@ -1,9 +1,9 @@
 name: Deploy
 
 on:
-  workflow_dispatch:          # запуск руками из Actions → Run workflow
+  workflow_dispatch:
   push:
-    branches: [ main ]        # автодеплой при пуше в main (можешь убрать)
+    branches: [ main ]
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -14,61 +14,67 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    env:
+      KEY_PATH: ${{ github.workspace }}/.ssh/ci_key
+
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      # 1) Проверяем SSH-доступ (ключ берётся из секрета DEPLOY_SSH_KEY)
+      # Пишем приватный ключ из секрета в файл (исправляем CRLF, даём читаемые права)
+      - name: Prepare SSH key
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/.ssh"
+          printf "%s" "${{ secrets.DEPLOY_SSH_KEY }}" > "$KEY_PATH"
+          # на случай, если в секрете CRLF
+          sed -i 's/\r$//' "$KEY_PATH"
+          # appleboy-контейнеру нужно чтение из workspace → 0644
+          chmod 644 "$KEY_PATH"
+          head -n1 "$KEY_PATH" | sed 's/.\{20\}$/.../'  # маленькая проверка заголовка
+
       - name: Test SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.DEPLOY_HOST }}     # напр. dating.serge.cc или IP
-          username: ${{ secrets.DEPLOY_USER }} # deploy
-          key: ${{ secrets.DEPLOY_SSH_KEY }}   # -----BEGIN OPENSSH PRIVATE KEY----- …
-          script: 'echo "SSH OK on $(hostname) as $(whoami)"'
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key_path: ${{ env.KEY_PATH }}
+          # при желании можно закрепить хост по отпечатку:
+          # fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
+          script: 'whoami'
 
-      # 2) Создаём папку деплоя на сервере (если нет) и выставляем права
       - name: Prepare deploy directory
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key_path: ${{ env.KEY_PATH }}
           script: |
             set -euo pipefail
             sudo mkdir -p "${{ secrets.DEPLOY_PATH }}"
             sudo chown -R "${USER}:${USER}" "${{ secrets.DEPLOY_PATH }}"
 
-      # 3) Копируем код на сервер
       - name: Upload application bundle
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key_path: ${{ env.KEY_PATH }}
           source: "."
           target: ${{ secrets.DEPLOY_PATH }}
           overwrite: true
 
-      # 4) Пишем .env и поднимаем контейнеры
       - name: Write .env and compose up
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          key_path: ${{ env.KEY_PATH }}
           script: |
             set -euo pipefail
             cd "${{ secrets.DEPLOY_PATH }}"
-
-            # Записываем .env из секрета (многострочно)
             cat > .env <<'EOF'
             ${{ secrets.ENV_FILE }}
             EOF
-
-            # На всякий случай: ставим корректные права
             chmod 600 .env
-
-            # Запускаем деплой
             sudo docker compose up -d --build
             sudo docker compose ps
