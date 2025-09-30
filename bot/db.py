@@ -129,6 +129,24 @@ class ProfileRepository:
             )
             return instance.to_profile() if instance else None
 
+    async def delete(self, user_id: int) -> bool:
+        """Delete a profile by user_id. Returns True if deleted, False if not found."""
+        async with self._session_factory() as session:
+            try:
+                instance = await session.scalar(
+                    select(ProfileModel).where(ProfileModel.user_id == user_id)
+                )
+                if instance:
+                    session.delete(instance)
+                    await session.commit()
+                    LOGGER.info("Profile for user_id=%s has been deleted", user_id)
+                    return True
+                return False
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Failed to delete profile for user_id=%s", user_id)
+                raise
+
     async def find_mutual_match(self, profile: "Profile") -> Optional["Profile"]:
         async with self._session_factory() as session:
             stmt = (

@@ -35,6 +35,9 @@ class FakeAsyncSession:
     def add(self, instance) -> None:
         self._session.add(instance)
 
+    def delete(self, instance) -> None:
+        self._session.delete(instance)
+
     async def commit(self) -> None:
         self._session.commit()
 

@@ -9,11 +9,11 @@
   </head>
   <body>
     <main class="container">
-      <h1>Мини-анкета</h1>
-      <p class="hint">
+      <h1 id="page-title">Мини-анкета</h1>
+      <p class="hint" id="page-hint">
         Заполни форму и отправь данные боту прямо из мини-приложения.
       </p>
-      <div class="progress" aria-live="polite">
+      <div class="progress" aria-live="polite" id="progress-container">
         <div
           class="progress-track"
           role="progressbar"
@@ -133,7 +133,8 @@
           <span class="field-hint">Укажи публичную ссылку на фото, чтобы собеседникам было проще узнать тебя.</span>
           <span class="error-message" aria-live="polite"></span>
         </label>
-        <button type="submit" class="primary">Отправить</button>
+        <button type="submit" class="primary" id="submit-btn">Отправить</button>
+        <button type="button" class="danger" id="delete-btn" style="display: none;">Удалить профиль</button>
       </form>
       <p class="status" id="status"></p>
       <p class="autosave-status" id="autosave-status" aria-live="polite"></p>
