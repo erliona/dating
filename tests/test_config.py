@@ -256,3 +256,47 @@ class TestBotConfig:
             config = load_config()
             assert config.token == token
 
+    def test_load_config_accepts_uppercase_https_protocol(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that HTTPS protocol is case-insensitive and normalized."""
+        monkeypatch.setenv("BOT_TOKEN", "123456:ABC-DEF-ghijkl")
+        monkeypatch.setenv(
+            "BOT_DATABASE_URL", "postgresql+asyncpg://user:pass@localhost:5432/dating"
+        )
+        
+        # Test various protocol cases
+        test_cases = [
+            ("HTTPS://example.com", "https://example.com"),
+            ("Https://example.com", "https://example.com"),
+            ("https://example.com", "https://example.com"),
+            ("HTTPS://EXAMPLE.COM/path", "https://EXAMPLE.COM/path"),
+        ]
+        
+        for input_url, expected_url in test_cases:
+            monkeypatch.setenv("WEBAPP_URL", input_url)
+            config = load_config()
+            assert config.webapp_url == expected_url, f"Failed for {input_url}"
+
+    def test_load_config_normalizes_http_protocol_for_localhost(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that HTTP protocol is normalized to lowercase for localhost."""
+        monkeypatch.setenv("BOT_TOKEN", "123456:ABC-DEF-ghijkl")
+        monkeypatch.setenv(
+            "BOT_DATABASE_URL", "postgresql+asyncpg://user:pass@localhost:5432/dating"
+        )
+        
+        # Test various protocol cases for localhost
+        test_cases = [
+            ("HTTP://localhost:8080", "http://localhost:8080"),
+            ("Http://localhost:8080", "http://localhost:8080"),
+            ("http://localhost:8080", "http://localhost:8080"),
+            ("HTTP://127.0.0.1:8080", "http://127.0.0.1:8080"),
+        ]
+        
+        for input_url, expected_url in test_cases:
+            monkeypatch.setenv("WEBAPP_URL", input_url)
+            config = load_config()
+            assert config.webapp_url == expected_url, f"Failed for {input_url}"
+

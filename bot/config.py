@@ -80,11 +80,19 @@ def load_config() -> BotConfig:
         webapp_url = webapp_url.strip()
         # Allow localhost and 127.0.0.1 for development/testing
         is_local = any(x in webapp_url.lower() for x in ["localhost", "127.0.0.1"])
-        if not webapp_url.startswith("https://") and not is_local:
+        # Check protocol case-insensitively
+        webapp_url_lower = webapp_url.lower()
+        if not webapp_url_lower.startswith("https://") and not is_local:
             raise RuntimeError(
                 "WEBAPP_URL must use HTTPS protocol for security. "
                 "Only localhost URLs are allowed to use HTTP for local development."
             )
+        
+        # Normalize protocol to lowercase for consistency
+        # Replace the protocol part (everything before ://) with lowercase version
+        if "://" in webapp_url:
+            protocol, rest = webapp_url.split("://", 1)
+            webapp_url = protocol.lower() + "://" + rest
     
     database_url_raw = os.getenv("BOT_DATABASE_URL") or os.getenv("DATABASE_URL")
     if not database_url_raw:
