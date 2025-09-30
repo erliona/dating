@@ -117,9 +117,28 @@ echo "🔧 Generating environment configuration"
 
 POSTGRES_DB="${POSTGRES_DB:-dating}"
 POSTGRES_USER="${POSTGRES_USER:-dating}"
-# Generate a URL-safe password to avoid special characters that need encoding
-# Use alphanumeric characters only to prevent issues with URL parsing
-POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)}"
+
+# Try to get existing POSTGRES_PASSWORD from server to avoid database connection issues
+EXISTING_PASSWORD=""
+echo "🔍 Checking for existing database password on server..."
+if ssh "${SSH_ARGS[@]}" "$REMOTE" "test -f $REMOTE_PATH/.env" 2>/dev/null; then
+  EXISTING_PASSWORD=$(ssh "${SSH_ARGS[@]}" "$REMOTE" "grep '^POSTGRES_PASSWORD=' $REMOTE_PATH/.env 2>/dev/null | cut -d'=' -f2-" || echo "")
+  if [ -n "$EXISTING_PASSWORD" ]; then
+    echo "✓ Found existing database password, reusing it to maintain database connectivity"
+  fi
+fi
+
+# Use existing password if found, otherwise use provided or generate new one
+if [ -n "$EXISTING_PASSWORD" ]; then
+  POSTGRES_PASSWORD="$EXISTING_PASSWORD"
+elif [ -n "${POSTGRES_PASSWORD:-}" ]; then
+  POSTGRES_PASSWORD="${POSTGRES_PASSWORD}"
+else
+  # Generate a URL-safe password to avoid special characters that need encoding
+  # Use alphanumeric characters only to prevent issues with URL parsing
+  POSTGRES_PASSWORD="$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)"
+  echo "⚠️  Generated new database password (this may require database reset on first deployment)"
+fi
 
 cat > "$TMP_DIR/.env.deploy" <<EOF
 # Bot Configuration (Required)
