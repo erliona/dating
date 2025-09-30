@@ -61,37 +61,37 @@ jobs:
           mkdir -p ~/.ssh
 
           python - <<'PY'
-import base64
-import binascii
-import os
-import sys
+          import base64
+          import binascii
+          import os
+          import sys
 
-key = os.environ["DEPLOY_SSH_KEY"].strip()
+          key = os.environ["DEPLOY_SSH_KEY"].strip()
 
-if "-----BEGIN" in key:
-    data = key
-else:
-    try:
-        decoded = base64.b64decode(key, validate=True)
-    except binascii.Error as exc:
-        print("::error::DEPLOY_SSH_KEY must be a valid PEM block or a base64-encoded PEM", file=sys.stderr)
-        raise SystemExit(1) from exc
-    try:
-        data = decoded.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        print("::error::Decoded DEPLOY_SSH_KEY is not valid UTF-8 text", file=sys.stderr)
-        raise SystemExit(1) from exc
+          if "-----BEGIN" in key:
+              data = key
+          else:
+              try:
+                  decoded = base64.b64decode(key, validate=True)
+              except binascii.Error as exc:
+                  print("::error::DEPLOY_SSH_KEY must be a valid PEM block or a base64-encoded PEM", file=sys.stderr)
+                  raise SystemExit(1) from exc
+              try:
+                  data = decoded.decode("utf-8")
+              except UnicodeDecodeError as exc:
+                  print("::error::Decoded DEPLOY_SSH_KEY is not valid UTF-8 text", file=sys.stderr)
+                  raise SystemExit(1) from exc
 
-if "-----BEGIN" not in data:
-    print("::error::DEPLOY_SSH_KEY does not look like a PEM-formatted key", file=sys.stderr)
-    raise SystemExit(1)
+          if "-----BEGIN" not in data:
+              print("::error::DEPLOY_SSH_KEY does not look like a PEM-formatted key", file=sys.stderr)
+              raise SystemExit(1)
 
-data = data.replace("\r\n", "\n").rstrip("\n") + "\n"
+          data = data.replace("\r\n", "\n").rstrip("\n") + "\n"
 
-path = os.path.expanduser("~/.ssh/id_deploy")
-with open(path, "w", encoding="utf-8") as fh:
-    fh.write(data)
-PY
+          path = os.path.expanduser("~/.ssh/id_deploy")
+          with open(path, "w", encoding="utf-8") as fh:
+              fh.write(data)
+          PY
 
           chmod 600 ~/.ssh/id_deploy
 
