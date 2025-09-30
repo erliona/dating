@@ -130,3 +130,59 @@ class TestBotConfig:
         config = load_config()
 
         assert "postgresql+asyncpg://" in config.database_url
+
+    def test_load_config_requires_https_for_webapp_url(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that WEBAPP_URL must use HTTPS for non-localhost URLs."""
+        monkeypatch.setenv("BOT_TOKEN", "test-token")
+        monkeypatch.setenv(
+            "BOT_DATABASE_URL", "postgresql+asyncpg://user:pass@localhost:5432/dating"
+        )
+        monkeypatch.setenv("WEBAPP_URL", "http://example.com/webapp")
+
+        with pytest.raises(RuntimeError, match="must use HTTPS protocol"):
+            load_config()
+
+    def test_load_config_allows_http_for_localhost(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that HTTP is allowed for localhost development."""
+        monkeypatch.setenv("BOT_TOKEN", "test-token")
+        monkeypatch.setenv(
+            "BOT_DATABASE_URL", "postgresql+asyncpg://user:pass@localhost:5432/dating"
+        )
+        monkeypatch.setenv("WEBAPP_URL", "http://localhost:8080")
+
+        config = load_config()
+
+        assert config.webapp_url == "http://localhost:8080"
+
+    def test_load_config_allows_http_for_127_0_0_1(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that HTTP is allowed for 127.0.0.1 development."""
+        monkeypatch.setenv("BOT_TOKEN", "test-token")
+        monkeypatch.setenv(
+            "BOT_DATABASE_URL", "postgresql+asyncpg://user:pass@localhost:5432/dating"
+        )
+        monkeypatch.setenv("WEBAPP_URL", "http://127.0.0.1:8080")
+
+        config = load_config()
+
+        assert config.webapp_url == "http://127.0.0.1:8080"
+
+    def test_load_config_accepts_https_webapp_url(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that HTTPS webapp URLs are accepted."""
+        monkeypatch.setenv("BOT_TOKEN", "test-token")
+        monkeypatch.setenv(
+            "BOT_DATABASE_URL", "postgresql+asyncpg://user:pass@localhost:5432/dating"
+        )
+        monkeypatch.setenv("WEBAPP_URL", "https://my-domain.com")
+
+        config = load_config()
+
+        assert config.webapp_url == "https://my-domain.com"
+

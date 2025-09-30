@@ -51,7 +51,7 @@ jobs:
             exit 1
           fi
           
-          required_vars="BOT_TOKEN POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD WEBAPP_URL"
+          required_vars="BOT_TOKEN POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD WEBAPP_URL DOMAIN ACME_EMAIL"
           for var in $required_vars; do
             if ! grep -q "^[# ]*$var" .env.example; then
               echo "Error: $var not found in .env.example"
