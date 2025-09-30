@@ -137,7 +137,7 @@ class ProfileRepository:
                     select(ProfileModel).where(ProfileModel.user_id == user_id)
                 )
                 if instance:
-                    await session.delete(instance)
+                    session.delete(instance)
                     LOGGER.info("Profile for user_id=%s has been deleted", user_id)
                     return True
                 return False
