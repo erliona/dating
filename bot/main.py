@@ -18,6 +18,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup, Message,
                            ReplyKeyboardRemove, WebAppData, WebAppInfo)
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from .config import BotConfig, load_config
@@ -589,6 +590,19 @@ async def main() -> None:
     config = load_config()
     engine = create_async_engine(config.database_url, future=True)
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    # Test database connection before starting the bot
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text("SELECT 1"))
+        logging.info("Database connection successful")
+    except Exception as exc:
+        logging.error("Failed to connect to database: %s", exc)
+        await engine.dispose()
+        raise RuntimeError(
+            "Cannot connect to database. Please check your BOT_DATABASE_URL "
+            "and ensure the database server is running."
+        ) from exc
 
     bot = Bot(
         token=config.token,

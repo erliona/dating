@@ -25,14 +25,21 @@ def load_config() -> BotConfig:
         BotConfig: Populated configuration instance.
 
     Raises:
-        RuntimeError: If the bot token is missing.
+        RuntimeError: If the bot token is missing or configuration is invalid.
     """
 
     token = os.getenv("BOT_TOKEN")
     if not token:
         raise RuntimeError("BOT_TOKEN environment variable is required to start the bot")
+    
+    # Validate token format (basic check)
+    if not token.strip():
+        raise RuntimeError("BOT_TOKEN cannot be empty or whitespace")
 
     webapp_url = os.getenv("WEBAPP_URL")
+    if webapp_url and not webapp_url.strip():
+        raise RuntimeError("WEBAPP_URL cannot be empty if set; unset it or provide a valid URL")
+    
     database_url_raw = os.getenv("BOT_DATABASE_URL") or os.getenv("DATABASE_URL")
     if not database_url_raw:
         raise RuntimeError(
@@ -51,6 +58,13 @@ def load_config() -> BotConfig:
             "Only PostgreSQL databases are supported; "
             "set BOT_DATABASE_URL to a postgresql+asyncpg URL"
         )
+    
+    # Validate database URL has required components
+    if not database_url.host:
+        raise RuntimeError("BOT_DATABASE_URL must include a database host")
+    
+    if not database_url.database:
+        raise RuntimeError("BOT_DATABASE_URL must include a database name")
 
     return BotConfig(
         token=token, database_url=str(database_url), webapp_url=webapp_url

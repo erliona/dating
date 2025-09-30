@@ -54,3 +54,41 @@ def test_load_config_only_accepts_postgres(monkeypatch: pytest.MonkeyPatch) -> N
 
     with pytest.raises(RuntimeError, match="Only PostgreSQL"):
         load_config()
+
+
+def test_load_config_rejects_empty_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("BOT_TOKEN", "   ")
+    monkeypatch.setenv(
+        "BOT_DATABASE_URL", "postgresql+asyncpg://user:pass@localhost:5432/dating"
+    )
+    
+    with pytest.raises(RuntimeError, match="BOT_TOKEN cannot be empty"):
+        load_config()
+
+
+def test_load_config_rejects_empty_webapp_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("BOT_TOKEN", "test-token")
+    monkeypatch.setenv(
+        "BOT_DATABASE_URL", "postgresql+asyncpg://user:pass@localhost:5432/dating"
+    )
+    monkeypatch.setenv("WEBAPP_URL", "   ")
+    
+    with pytest.raises(RuntimeError, match="WEBAPP_URL cannot be empty"):
+        load_config()
+
+
+def test_load_config_requires_database_host(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("BOT_TOKEN", "test-token")
+    monkeypatch.setenv("BOT_DATABASE_URL", "postgresql+asyncpg:///dating")
+    
+    with pytest.raises(RuntimeError, match="database host"):
+        load_config()
+
+
+def test_load_config_requires_database_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("BOT_TOKEN", "test-token")
+    monkeypatch.setenv("BOT_DATABASE_URL", "postgresql+asyncpg://user:pass@localhost:5432/")
+    
+    with pytest.raises(RuntimeError, match="database name"):
+        load_config()
+
