@@ -15,7 +15,7 @@ class BotConfig:
 
     token: str
     database_url: str
-    webapp_url: str | None = None
+    webapp_url: str
 
 
 def load_config() -> BotConfig:
@@ -37,8 +37,12 @@ def load_config() -> BotConfig:
         raise RuntimeError("BOT_TOKEN cannot be empty or whitespace")
 
     webapp_url = os.getenv("WEBAPP_URL")
-    if webapp_url and not webapp_url.strip():
-        raise RuntimeError("WEBAPP_URL cannot be empty if set; unset it or provide a valid URL")
+    if webapp_url is None:
+        raise RuntimeError("WEBAPP_URL environment variable is required to start the bot")
+
+    webapp_url = webapp_url.strip()
+    if not webapp_url:
+        raise RuntimeError("WEBAPP_URL cannot be empty or whitespace")
     
     database_url_raw = os.getenv("BOT_DATABASE_URL") or os.getenv("DATABASE_URL")
     if not database_url_raw:

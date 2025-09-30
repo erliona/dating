@@ -45,7 +45,7 @@
 | Переменная | Назначение |
 | --- | --- |
 | `BOT_TOKEN` | Токен Telegram-бота. Обязателен всегда. |
-| `WEBAPP_URL` | Публичный URL мини-приложения. Нужен, чтобы показать кнопку «Открыть мини-приложение». |
+| `WEBAPP_URL` | Обязателен. Публичный URL мини-приложения, который бот будет открывать по кнопке. |
 | `WEBAPP_PORT` | Порт публикации WebApp в Docker Compose (по умолчанию `8080`). |
 | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT` | Настройки PostgreSQL для Compose. |
 | `BOT_DATABASE_URL` | Строка подключения SQLAlchemy в формате `postgresql+asyncpg://`. Нужна при запуске вне Compose. |
@@ -75,8 +75,8 @@
 - `webapp` — nginx, раздаёт статический каталог `webapp/`.
 
 После запуска WebApp доступен по адресу `http://localhost:8080/`, а база — на порту,
-указанном в `.env` (по умолчанию `5432`). Не забудьте настроить `WEBAPP_URL` на публичный
-URL, если бот работает не локально.
+указанном в `.env` (по умолчанию `5432`). Бот не запустится без `WEBAPP_URL`, поэтому
+обновите переменную на публичный URL, если бот работает не локально.
 
 ## Локальный запуск без Docker
 
@@ -92,7 +92,7 @@ URL, если бот работает не локально.
    ```bash
    export BOT_TOKEN="1234567890:ABC..."
    export BOT_DATABASE_URL="postgresql+asyncpg://user:pass@localhost:5432/dating"
-   export WEBAPP_URL="https://example.com/webapp"  # необязательно
+   export WEBAPP_URL="https://example.com/webapp"
    ```
 3. Примените миграции:
    ```bash
