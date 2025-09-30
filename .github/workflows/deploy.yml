@@ -1,17 +1,45 @@
+name: Deploy
+
+on:
+  workflow_dispatch:          # запуск руками из Actions → Run workflow
+  push:
+    branches: [ main ]        # автодеплой при пуше в main (можешь убрать)
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    timeout-minutes: 30
 
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      # 1) Проверяем SSH-доступ (ключ берётся из секрета DEPLOY_SSH_KEY)
       - name: Test SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}     # напр. dating.serge.cc или IP
+          username: ${{ secrets.DEPLOY_USER }} # deploy
+          key: ${{ secrets.DEPLOY_SSH_KEY }}   # -----BEGIN OPENSSH PRIVATE KEY----- …
+          script: 'echo "SSH OK on $(hostname) as $(whoami)"'
+
+      # 2) Создаём папку деплоя на сервере (если нет) и выставляем права
+      - name: Prepare deploy directory
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: 'whoami'
+          script: |
+            set -euo pipefail
+            sudo mkdir -p "${{ secrets.DEPLOY_PATH }}"
+            sudo chown -R "${USER}:${USER}" "${{ secrets.DEPLOY_PATH }}"
 
+      # 3) Копируем код на сервер
       - name: Upload application bundle
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -22,6 +50,7 @@ jobs:
           target: ${{ secrets.DEPLOY_PATH }}
           overwrite: true
 
+      # 4) Пишем .env и поднимаем контейнеры
       - name: Write .env and compose up
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -29,9 +58,17 @@ jobs:
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
-            cd ${{ secrets.DEPLOY_PATH }}
+            set -euo pipefail
+            cd "${{ secrets.DEPLOY_PATH }}"
+
+            # Записываем .env из секрета (многострочно)
             cat > .env <<'EOF'
             ${{ secrets.ENV_FILE }}
             EOF
-            docker compose up -d --build
-            docker compose ps
+
+            # На всякий случай: ставим корректные права
+            chmod 600 .env
+
+            # Запускаем деплой
+            sudo docker compose up -d --build
+            sudo docker compose ps
