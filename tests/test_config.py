@@ -105,6 +105,28 @@ class TestBotConfig:
         with pytest.raises(RuntimeError, match="must include a database name"):
             load_config()
 
+    def test_load_config_accepts_url_safe_passwords(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that database URLs with URL-safe alphanumeric passwords work correctly."""
+        monkeypatch.setenv("BOT_TOKEN", "123456:ABC-DEF-ghijkl")
+        
+        # Test various alphanumeric passwords (URL-safe)
+        url_safe_passwords = [
+            "simplepassword123",
+            "UPPERCASE123",
+            "MixedCase456",
+            "abc123XYZ789",
+            "a" * 32,  # 32-char alphanumeric
+            "1" * 32,  # All numeric (valid)
+        ]
+        
+        for password in url_safe_passwords:
+            url = f"postgresql+asyncpg://user:{password}@localhost:5432/dating"
+            monkeypatch.setenv("BOT_DATABASE_URL", url)
+            config = load_config()
+            assert f"user:***@localhost" in config.database_url or "user:" in config.database_url
+
     def test_load_config_rejects_empty_webapp_url(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

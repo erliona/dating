@@ -246,7 +246,7 @@ jobs:
           # Database Configuration
           POSTGRES_DB=${POSTGRES_DB:-dating}
           POSTGRES_USER=${POSTGRES_USER:-dating}
-          POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-$(openssl rand -base64 32)}
+          POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)}
 
           # HTTPS Configuration (Production)
           EOF

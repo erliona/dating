@@ -117,7 +117,9 @@ echo "🔧 Generating environment configuration"
 
 POSTGRES_DB="${POSTGRES_DB:-dating}"
 POSTGRES_USER="${POSTGRES_USER:-dating}"
-POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-$(openssl rand -base64 32)}"
+# Generate a URL-safe password to avoid special characters that need encoding
+# Use alphanumeric characters only to prevent issues with URL parsing
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)}"
 
 cat > "$TMP_DIR/.env.deploy" <<EOF
 # Bot Configuration (Required)
