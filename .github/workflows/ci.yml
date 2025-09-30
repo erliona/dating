@@ -113,6 +113,6 @@ jobs:
         run: |
           # Check for common security issues in dependencies
           pip install safety
-          safety check --json || echo "⚠ Security warnings found (non-blocking)"
+          safety check || echo "⚠ Security warnings found (non-blocking)"
           echo "✓ Security scan completed"
 
