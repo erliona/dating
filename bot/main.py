@@ -30,7 +30,7 @@ LOGGER = logging.getLogger(__name__)
 
 @dataclass(slots=True)
 class Profile:
-    """User profile collected from the in-bot questionnaire."""
+    """User profile collected from the mini-app."""
 
     user_id: int
     name: str
