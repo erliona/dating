@@ -22,7 +22,7 @@ def test_load_config_success(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert isinstance(config, BotConfig)
     assert config.token == "test-token"
-    assert config.database_url.startswith("postgresql+asyncpg://")
+    assert config.database_url == "postgresql+asyncpg://user:***@localhost:5432/dating"
     assert config.webapp_url == "https://example.com"
 
 

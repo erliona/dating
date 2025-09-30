@@ -131,17 +131,30 @@ class ProfileRepository:
 
     async def find_mutual_match(self, profile: "Profile") -> Optional["Profile"]:
         async with self._session_factory() as session:
-            stmt = select(ProfileModel).where(ProfileModel.user_id != profile.user_id)
+            stmt = (
+                select(ProfileModel)
+                .where(ProfileModel.user_id != profile.user_id)
+            )
+            
+            # Filter by mutual compatibility to reduce candidates
             if profile.preference != "any":
                 stmt = stmt.where(ProfileModel.gender == profile.preference)
-            candidates = await session.scalars(stmt)
-            for candidate in candidates:
-                candidate_profile = candidate.to_profile()
-                if self._is_compatible(profile, candidate_profile) and self._is_compatible(
-                    candidate_profile, profile
-                ):
-                    return candidate_profile
-            return None
+            
+            # Also check if the candidate would be interested in this profile
+            if profile.gender != "other":
+                stmt = stmt.where(
+                    (ProfileModel.preference == profile.gender) | (ProfileModel.preference == "any")
+                )
+            else:
+                stmt = stmt.where(
+                    (ProfileModel.preference == "other") | (ProfileModel.preference == "any")
+                )
+            
+            # Limit to first match for performance
+            stmt = stmt.limit(1)
+            
+            result = await session.scalar(stmt)
+            return result.to_profile() if result else None
 
     @staticmethod
     def _is_compatible(profile: "Profile", other: "Profile") -> bool:

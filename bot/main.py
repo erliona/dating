@@ -251,6 +251,9 @@ def build_profile_from_payload(user_id: int, payload: dict[str, object]) -> Prof
     photo_url = str(photo_url_raw).strip() if photo_url_raw is not None else None
     if photo_url == "":
         photo_url = None
+    elif photo_url is not None:
+        if not photo_url.startswith("https://"):
+            raise ValueError("Ссылка на фото должна использовать HTTPS протокол.")
 
     return Profile(
         user_id=user_id,
@@ -494,11 +497,16 @@ async def photo_handler(message: Message, state: FSMContext) -> None:
         text = (message.text or "").strip()
         if not text or text == "-":
             photo_file_id = None
-        elif text.lower().startswith(("http://", "https://")):
+        elif text.startswith("https://"):
             photo_url = text
+        elif text.lower().startswith("http://"):
+            await message.answer(
+                "Используй HTTPS ссылку для безопасности или пришли фото напрямую."
+            )
+            return
         else:
             await message.answer(
-                "Пришли фотографию, ссылку на неё или '-' если хочешь пропустить."
+                "Пришли фотографию, HTTPS-ссылку на неё или '-' если хочешь пропустить."
             )
             return
 

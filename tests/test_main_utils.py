@@ -91,6 +91,30 @@ def test_build_profile_from_payload_validates_required_fields() -> None:
         build_profile_from_payload(1, payload)
 
 
+def test_build_profile_from_payload_validates_https_url() -> None:
+    payload = {
+        "name": "Alice",
+        "age": "25",
+        "gender": "female",
+        "preference": "male",
+        "photo_url": "http://example.com/photo.jpg",
+    }
+    with pytest.raises(ValueError, match="HTTPS"):
+        build_profile_from_payload(1, payload)
+
+
+def test_build_profile_from_payload_accepts_https_url() -> None:
+    payload = {
+        "name": "Alice",
+        "age": "25",
+        "gender": "female",
+        "preference": "male",
+        "photo_url": "https://example.com/photo.jpg",
+    }
+    profile = build_profile_from_payload(1, payload)
+    assert profile.photo_url == "https://example.com/photo.jpg"
+
+
 def test_attach_bot_context(session_factory) -> None:
     repository = ProfileRepository(session_factory)
     config = BotConfig(

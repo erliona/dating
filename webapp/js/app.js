@@ -279,7 +279,17 @@
 
     const photoUrl = trim(payload.photo_url);
     if (photoUrl) {
-      payload.photo_url = photoUrl;
+      try {
+        const url = new URL(photoUrl);
+        if (url.protocol !== 'https:') {
+          showStatus("Ссылка на фото должна использовать HTTPS для безопасности.", true);
+          return;
+        }
+        payload.photo_url = photoUrl;
+      } catch (error) {
+        showStatus("Указан некорректный URL для фото.", true);
+        return;
+      }
     } else {
       delete payload.photo_url;
     }
