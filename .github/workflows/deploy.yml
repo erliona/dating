@@ -18,41 +18,45 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate required secrets
+      - name: Check required secrets
+        id: secrets
         shell: bash
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           ENV_FILE: ${{ secrets.ENV_FILE }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
           set -euo pipefail
 
-          missing=0
-          for var in DEPLOY_HOST DEPLOY_PATH DEPLOY_USER ENV_FILE; do
+          missing=()
+          for var in DEPLOY_HOST DEPLOY_PATH DEPLOY_USER ENV_FILE DEPLOY_SSH_KEY; do
             if [ -z "${!var:-}" ]; then
-              echo "::error::Secret $var is not configured"
-              missing=1
+              missing+=("$var")
             fi
           done
 
-          if [ "$missing" -ne 0 ]; then
-            exit 1
+          if [ "${#missing[@]}" -ne 0 ]; then
+            printf '::warning::Skipping deploy because secrets are missing: %s\n' "${missing[*]}"
+            echo "missing=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "missing=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Abort deployment (secrets missing)
+        if: steps.secrets.outputs.missing == 'true'
+        run: echo "Deployment skipped because required secrets are not configured."
 
       # 1) Поднимаем ssh-agent и добавляем приватный ключ из секрета.
       #    Поддерживаем как исходный PEM, так и base64-строку.
       - name: Set up SSH key
+        if: steps.secrets.outputs.missing != 'true'
         shell: bash
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
           set -euo pipefail
-
-          if [ -z "${DEPLOY_SSH_KEY:-}" ]; then
-            echo "::error::Secret DEPLOY_SSH_KEY is not configured"
-            exit 1
-          fi
 
           mkdir -p ~/.ssh
 
@@ -100,6 +104,7 @@ PY
 
       # 2) Добавляем host key сервера (чтобы не было интерактива по known_hosts)
       - name: Add server to known_hosts
+        if: steps.secrets.outputs.missing != 'true'
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
@@ -118,6 +123,7 @@ PY
 
       # 3) Готовим директорию на сервере
       - name: Prepare remote dir
+        if: steps.secrets.outputs.missing != 'true'
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
@@ -136,6 +142,7 @@ PY
 
       # 4) Копируем проект на сервер (rsync быстрее и надёжнее scp)
       - name: Upload project
+        if: steps.secrets.outputs.missing != 'true'
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
@@ -157,6 +164,7 @@ PY
 
       # 5) Пишем .env и запускаем docker compose
       - name: Write .env and compose up
+        if: steps.secrets.outputs.missing != 'true'
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
