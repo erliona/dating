@@ -106,6 +106,17 @@ def attach_bot_context(bot: Bot, config: BotConfig, repository: ProfileRepositor
 
 
 def get_config(bot: Bot | None) -> BotConfig:
+    """Retrieve bot configuration from the bot context.
+    
+    Args:
+        bot: Bot instance containing the configuration.
+        
+    Returns:
+        BotConfig: The bot configuration object.
+        
+    Raises:
+        RuntimeError: If bot is None or configuration is not loaded.
+    """
     if bot is None:
         raise RuntimeError("Bot instance is not available")
 
@@ -116,6 +127,17 @@ def get_config(bot: Bot | None) -> BotConfig:
 
 
 def get_repository(bot: Bot | None) -> ProfileRepository:
+    """Retrieve profile repository from the bot context.
+    
+    Args:
+        bot: Bot instance containing the repository.
+        
+    Returns:
+        ProfileRepository: The profile repository instance.
+        
+    Raises:
+        RuntimeError: If bot is None or repository is not initialized.
+    """
     if bot is None:
         raise RuntimeError("Bot instance is not available")
 
@@ -126,6 +148,17 @@ def get_repository(bot: Bot | None) -> ProfileRepository:
 
 
 def normalise_choice(value: str) -> str:
+    """Normalize gender or preference choice to a standard value.
+    
+    Args:
+        value: User input string representing gender or preference.
+        
+    Returns:
+        str: Normalized value ('male', 'female', 'other', or 'any').
+        
+    Raises:
+        ValueError: If the input value is not recognized.
+    """
     normalised = value.strip().lower()
     if normalised in {"m", "male", "м", "муж", "мужчина"}:
         return "male"
@@ -193,6 +226,17 @@ GOAL_TITLES: dict[str, str] = {
 
 
 def normalise_goal(value: str) -> str:
+    """Normalize dating goal to a standard value.
+    
+    Args:
+        value: User input string representing their dating goal.
+        
+    Returns:
+        str: Normalized goal value ('serious', 'friendship', 'networking', or 'casual').
+        
+    Raises:
+        ValueError: If the input value is empty or not recognized.
+    """
     normalised = value.strip().lower()
     if not normalised:
         raise ValueError("Empty goal value")
@@ -203,6 +247,18 @@ def normalise_goal(value: str) -> str:
 
 
 def build_profile_from_payload(user_id: int, payload: dict[str, object]) -> Profile:
+    """Build a Profile object from WebApp payload data.
+    
+    Args:
+        user_id: Telegram user ID.
+        payload: Dictionary containing profile data from the WebApp.
+        
+    Returns:
+        Profile: Validated profile object ready for storage.
+        
+    Raises:
+        ValueError: If required fields are missing or data is invalid.
+    """
     try:
         name = str(payload["name"]).strip()
         age = int(payload["age"])
@@ -544,6 +600,14 @@ async def webapp_handler(message: Message, web_app_data: WebAppData) -> None:
 
 
 def _format_match_message(profile: Profile) -> str:
+    """Format a profile into a readable match notification message.
+    
+    Args:
+        profile: Profile object to format.
+        
+    Returns:
+        str: Formatted message text for sending to users.
+    """
     preference = {
         "male": "мужчин",
         "female": "женщин",

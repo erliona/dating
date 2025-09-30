@@ -49,6 +49,11 @@ class ProfileModel(Base):
     photo_url: Mapped[Optional[str]] = mapped_column(Text(), default=None)
 
     def to_profile(self) -> "Profile":
+        """Convert ORM model to Profile dataclass.
+        
+        Returns:
+            Profile: Profile object with data from this model instance.
+        """
         from .main import Profile
 
         return Profile(
@@ -66,6 +71,11 @@ class ProfileModel(Base):
         )
 
     def update_from_profile(self, profile: "Profile") -> None:
+        """Update this model instance with data from a Profile object.
+        
+        Args:
+            profile: Profile object containing updated data.
+        """
         self.name = profile.name
         self.age = profile.age
         self.gender = profile.gender
@@ -79,6 +89,14 @@ class ProfileModel(Base):
 
     @classmethod
     def from_profile(cls, profile: "Profile") -> "ProfileModel":
+        """Create a new ProfileModel instance from a Profile object.
+        
+        Args:
+            profile: Profile object to convert.
+            
+        Returns:
+            ProfileModel: New model instance with data from the profile.
+        """
         instance = cls(
             user_id=profile.user_id,
             name=profile.name,
@@ -96,9 +114,18 @@ class ProfileModel(Base):
 
 
 class ProfileRepository:
-    """Persistence layer backed by PostgreSQL."""
+    """Persistence layer backed by PostgreSQL.
+    
+    This class provides methods to store, retrieve, and match user profiles
+    using an async SQLAlchemy session.
+    """
 
     def __init__(self, session_factory: async_sessionmaker[AsyncSession]):
+        """Initialize the repository with a session factory.
+        
+        Args:
+            session_factory: Async session factory for database operations.
+        """
         self._session_factory = session_factory
 
     async def upsert(self, profile: "Profile") -> None:
