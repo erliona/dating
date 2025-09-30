@@ -118,6 +118,22 @@ textarea:focus {
   transform: scale(0.98);
 }
 
+.danger {
+  padding: 12px;
+  font-size: 1.05rem;
+  border-radius: 999px;
+  border: none;
+  background-color: var(--tg-theme-destructive-text-color, #ef4444);
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  margin-top: 8px;
+}
+
+.danger:active {
+  transform: scale(0.98);
+}
+
 .status {
   min-height: 24px;
   text-align: center;

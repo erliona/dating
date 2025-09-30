@@ -83,3 +83,33 @@ def test_find_mutual_match(session_factory: FakeAsyncSessionMaker) -> None:
 
     mismatch = asyncio.run(repository.find_mutual_match(incompatible))
     assert mismatch is None
+
+
+def test_delete_profile(session_factory: FakeAsyncSessionMaker) -> None:
+    repository = ProfileRepository(session_factory)
+    profile = Profile(
+        user_id=456,
+        name="Bob",
+        age=30,
+        gender="male",
+        preference="female",
+        bio="Test bio",
+    )
+
+    # Create profile
+    asyncio.run(repository.upsert(profile))
+    stored = asyncio.run(repository.get(profile.user_id))
+    assert stored is not None
+    assert stored.user_id == profile.user_id
+
+    # Delete profile
+    deleted = asyncio.run(repository.delete(profile.user_id))
+    assert deleted is True
+
+    # Verify profile is gone
+    stored_after_delete = asyncio.run(repository.get(profile.user_id))
+    assert stored_after_delete is None
+
+    # Try to delete non-existent profile
+    deleted_again = asyncio.run(repository.delete(profile.user_id))
+    assert deleted_again is False

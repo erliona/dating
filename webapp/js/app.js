@@ -6,7 +6,13 @@
   const progressTrack = document.querySelector(".progress-track");
   const progressFill = document.getElementById("progress-fill");
   const progressLabel = document.getElementById("progress-label");
+  const deleteBtn = document.getElementById("delete-btn");
+  const submitBtn = document.getElementById("submit-btn");
+  const pageTitle = document.getElementById("page-title");
+  const pageHint = document.getElementById("page-hint");
+  const progressContainer = document.getElementById("progress-container");
   const STORAGE_KEY = "dating-webapp-profile-draft";
+  const PROFILE_KEY = "dating-webapp-profile-data";
   const saveDelay = 600;
 
   if (tg) {
@@ -228,7 +234,91 @@
     updateProgress();
   }
 
-  restoreDraft();
+  function checkExistingProfile() {
+    // Check if we have a saved profile (would be set when form is submitted)
+    if (typeof localStorage === "undefined") {
+      return false;
+    }
+    
+    const profileData = localStorage.getItem(PROFILE_KEY);
+    if (profileData) {
+      try {
+        const profile = JSON.parse(profileData);
+        loadProfile(profile);
+        return true;
+      } catch (error) {
+        console.error("Failed to load existing profile", error);
+      }
+    }
+    return false;
+  }
+
+  function loadProfile(profile) {
+    // Update UI for editing mode
+    if (pageTitle) {
+      pageTitle.textContent = "Мой профиль";
+    }
+    if (pageHint) {
+      pageHint.textContent = "Здесь ты можешь изменить информацию своего профиля или удалить его.";
+    }
+    if (submitBtn) {
+      submitBtn.textContent = "Сохранить изменения";
+    }
+    if (deleteBtn) {
+      deleteBtn.style.display = "block";
+    }
+    
+    // Hide progress bar for editing
+    if (progressContainer) {
+      progressContainer.style.display = "none";
+    }
+
+    // Populate form fields
+    fields.forEach((field) => {
+      const value = profile[field.name];
+      if (value !== undefined && value !== null) {
+        if (field.type === "checkbox" || field.type === "radio") {
+          field.checked = Boolean(value);
+        } else if (field.name === "interests" && Array.isArray(value)) {
+          field.value = value.join(", ");
+        } else {
+          field.value = value;
+        }
+      }
+    });
+  }
+
+  // Check for existing profile on load
+  const hasProfile = checkExistingProfile();
+  if (!hasProfile) {
+    restoreDraft();
+  }
+
+  // Delete button handler
+  if (deleteBtn) {
+    deleteBtn.addEventListener("click", () => {
+      if (!confirm("Вы действительно хотите удалить свой профиль? Это действие нельзя отменить.")) {
+        return;
+      }
+
+      if (!tg) {
+        showStatus("Невозможно удалить профиль без Telegram.", true);
+        return;
+      }
+
+      const payload = { action: "delete" };
+      tg.sendData(JSON.stringify(payload));
+      
+      // Clear local storage
+      if (typeof localStorage !== "undefined") {
+        localStorage.removeItem(PROFILE_KEY);
+        localStorage.removeItem(STORAGE_KEY);
+      }
+      
+      tg.close();
+      showStatus("Профиль удаляется...");
+    });
+  }
 
   form.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -304,12 +394,16 @@
     }
 
     tg.sendData(JSON.stringify(payload));
+    
+    // Save profile data for future editing
+    if (typeof localStorage !== "undefined") {
+      localStorage.setItem(PROFILE_KEY, JSON.stringify(payload));
+      localStorage.removeItem(STORAGE_KEY);
+    }
+    
     tg.close();
     showStatus("Анкета отправлена, спасибо!");
 
-    if (typeof localStorage !== "undefined") {
-      localStorage.removeItem(STORAGE_KEY);
-    }
     if (autosaveStatus) {
       autosaveStatus.textContent = "";
     }

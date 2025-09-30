@@ -30,7 +30,7 @@ LOGGER = logging.getLogger(__name__)
 
 @dataclass(slots=True)
 class Profile:
-    """User profile collected from the in-bot questionnaire."""
+    """User profile collected from the mini-app."""
 
     user_id: int
     name: str
@@ -45,18 +45,7 @@ class Profile:
     photo_url: str | None = None
 
 
-class Questionnaire(StatesGroup):
-    """Conversation states for the onboarding questionnaire."""
 
-    waiting_for_name = State()
-    waiting_for_age = State()
-    waiting_for_gender = State()
-    waiting_for_preference = State()
-    waiting_for_bio = State()
-    waiting_for_location = State()
-    waiting_for_interests = State()
-    waiting_for_goal = State()
-    waiting_for_photo = State()
 
 
 ROUTER = Router()
@@ -270,7 +259,7 @@ def build_profile_from_payload(user_id: int, payload: dict[str, object]) -> Prof
     )
 
 
-async def finalize_profile(message: Message, profile: Profile) -> None:
+async def finalize_profile(message: Message, profile: Profile, is_update: bool = False) -> None:
     bot = message.bot
     try:
         repository = get_repository(bot)
@@ -281,6 +270,9 @@ async def finalize_profile(message: Message, profile: Profile) -> None:
             reply_markup=ReplyKeyboardRemove(),
         )
         return
+    
+    # Check if profile exists before saving
+    existing_profile = await repository.get(profile.user_id)
 
     try:
         await repository.upsert(profile)
@@ -295,6 +287,16 @@ async def finalize_profile(message: Message, profile: Profile) -> None:
         return
 
     LOGGER.info("Profile save completed for user_id=%s", profile.user_id)
+    
+    # If this was an update, just confirm
+    if existing_profile:
+        await message.answer(
+            "Профиль обновлён!",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        return
+    
+    # For new profiles, look for matches
     match = await repository.find_mutual_match(profile)
 
     if match:
@@ -330,203 +332,42 @@ async def start_handler(message: Message, state: FSMContext) -> None:
         )
         return
     await state.clear()
+    
+    if not config.webapp_url:
+        await message.answer(
+            "Привет! Для использования этого бота необходимо настроить мини-приложение.",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        return
+    
     greeting = [
         "Привет! Я бот для знакомств.",
-        "Ответь на несколько вопросов, чтобы мы могли подобрать тебе пару.",
-        "Как тебя зовут?",
+        "Открой мини-приложение, чтобы создать анкету или управлять профилем.",
     ]
 
-    keyboard = ReplyKeyboardRemove()
-    if config.webapp_url:
-        keyboard = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text="Открыть мини-приложение",
-                        web_app=WebAppInfo(url=config.webapp_url),
-                    )
-                ]
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="Открыть мини-приложение",
+                    web_app=WebAppInfo(url=config.webapp_url),
+                )
             ]
-        )
+        ]
+    )
 
     await message.answer("\n".join(greeting), reply_markup=keyboard)
-    await state.set_state(Questionnaire.waiting_for_name)
 
 
 @ROUTER.message(Command(commands={"cancel", "reset"}))
 async def cancel_handler(message: Message, state: FSMContext) -> None:
-    """Allow users to cancel the questionnaire."""
+    """Allow users to cancel any ongoing state."""
 
     await state.clear()
     await message.answer(
-        "Анкета сброшена. Напиши /start, чтобы пройти её заново.",
+        "Все операции отменены. Напиши /start, чтобы начать.",
         reply_markup=ReplyKeyboardRemove(),
     )
-
-
-@ROUTER.message(Questionnaire.waiting_for_name)
-async def name_handler(message: Message, state: FSMContext) -> None:
-    text = (message.text or "").strip()
-    if not text:
-        await message.answer("Пожалуйста, отправь имя текстом.")
-        return
-
-    await state.update_data(name=text)
-    await message.answer("Сколько тебе лет?")
-    await state.set_state(Questionnaire.waiting_for_age)
-
-
-@ROUTER.message(Questionnaire.waiting_for_age)
-async def age_handler(message: Message, state: FSMContext) -> None:
-    try:
-        age = int((message.text or "").strip())
-        if age < 18:
-            raise ValueError
-    except ValueError:
-        await message.answer("Пожалуйста, введи реальный возраст (не моложе 18 лет).")
-        return
-
-    await state.update_data(age=age)
-    await message.answer("Как ты себя идентифицируешь? (м/ж/другой)")
-    await state.set_state(Questionnaire.waiting_for_gender)
-
-
-@ROUTER.message(Questionnaire.waiting_for_gender)
-async def gender_handler(message: Message, state: FSMContext) -> None:
-    try:
-        gender = normalise_choice(message.text or "")
-        if gender == "any":
-            raise ValueError
-    except ValueError:
-        await message.answer("Напиши 'м', 'ж' или 'другой'.")
-        return
-
-    await state.update_data(gender=gender)
-    await message.answer("Кто тебе интересен? (м/ж/любой)")
-    await state.set_state(Questionnaire.waiting_for_preference)
-
-
-@ROUTER.message(Questionnaire.waiting_for_preference)
-async def preference_handler(message: Message, state: FSMContext) -> None:
-    try:
-        preference = normalise_choice(message.text or "")
-    except ValueError:
-        await message.answer("Напиши 'м', 'ж' или 'любой'.")
-        return
-
-    await state.update_data(preference=preference)
-    await message.answer(
-        "Расскажи коротко о себе (или напиши '-' если хочешь пропустить)."
-    )
-    await state.set_state(Questionnaire.waiting_for_bio)
-
-
-@ROUTER.message(Questionnaire.waiting_for_bio)
-async def bio_handler(message: Message, state: FSMContext) -> None:
-    bio_text = (message.text or "").strip()
-    bio = None if bio_text == "-" else bio_text
-
-    await state.update_data(bio=bio)
-    await message.answer(
-        "Где ты находишься? Укажи город или пришли геолокацию (можно '-' чтобы пропустить)."
-    )
-    await state.set_state(Questionnaire.waiting_for_location)
-
-
-@ROUTER.message(Questionnaire.waiting_for_location)
-async def location_handler(message: Message, state: FSMContext) -> None:
-    if message.location:
-        location_value = f"{message.location.latitude:.4f}, {message.location.longitude:.4f}"
-    else:
-        location_text = (message.text or "").strip()
-        if not location_text or location_text == "-":
-            location_value = None
-        else:
-            location_value = location_text
-
-    await state.update_data(location=location_value)
-    await message.answer(
-        "Расскажи о своих интересах (через запятую) или '-' если хочешь пропустить."
-    )
-    await state.set_state(Questionnaire.waiting_for_interests)
-
-
-@ROUTER.message(Questionnaire.waiting_for_interests)
-async def interests_handler(message: Message, state: FSMContext) -> None:
-    text = (message.text or "").strip()
-    if not text or text == "-":
-        interests: list[str] = []
-    else:
-        interests = [part.strip() for part in text.split(",") if part.strip()]
-
-    await state.update_data(interests=interests)
-    await message.answer(
-        "Какова твоя цель знакомства? Напиши: серьёзные отношения, дружба, общение или лёгкие встречи (или '-' чтобы пропустить)."
-    )
-    await state.set_state(Questionnaire.waiting_for_goal)
-
-
-@ROUTER.message(Questionnaire.waiting_for_goal)
-async def goal_handler(message: Message, state: FSMContext) -> None:
-    text = (message.text or "").strip()
-    if not text or text == "-":
-        goal_value: str | None = None
-    else:
-        try:
-            goal_value = normalise_goal(text)
-        except ValueError:
-            await message.answer(
-                "Укажи одну из целей: серьёзные отношения, дружба, общение или лёгкие встречи (можно '-' чтобы пропустить)."
-            )
-            return
-
-    await state.update_data(goal=goal_value)
-    await message.answer(
-        "Пришли своё фото (можно ссылку) или '-' если хочешь пропустить."
-    )
-    await state.set_state(Questionnaire.waiting_for_photo)
-
-
-@ROUTER.message(Questionnaire.waiting_for_photo)
-async def photo_handler(message: Message, state: FSMContext) -> None:
-    photo_file_id: str | None = None
-    photo_url: str | None = None
-
-    if message.photo:
-        photo_file_id = message.photo[-1].file_id
-    else:
-        text = (message.text or "").strip()
-        if not text or text == "-":
-            photo_file_id = None
-        elif text.startswith("https://"):
-            photo_url = text
-        elif text.lower().startswith("http://"):
-            await message.answer(
-                "Используй HTTPS ссылку для безопасности или пришли фото напрямую."
-            )
-            return
-        else:
-            await message.answer(
-                "Пришли фотографию, HTTPS-ссылку на неё или '-' если хочешь пропустить."
-            )
-            return
-
-    data = await state.get_data()
-    profile = Profile(
-        user_id=message.from_user.id,
-        name=data["name"],
-        age=data["age"],
-        gender=data["gender"],
-        preference=data["preference"],
-        bio=data.get("bio"),
-        location=data.get("location"),
-        interests=data.get("interests", []),
-        goal=data.get("goal"),
-        photo_file_id=photo_file_id,
-        photo_url=photo_url,
-    )
-    await state.clear()
-    await finalize_profile(message, profile)
 
 
 @ROUTER.message(F.web_app_data)
@@ -535,6 +376,30 @@ async def webapp_handler(message: Message, web_app_data: WebAppData) -> None:
 
     try:
         payload = json.loads(web_app_data.data)
+        
+        # Check if this is a delete action
+        if payload.get("action") == "delete":
+            try:
+                repository = get_repository(message.bot)
+            except RuntimeError as exc:
+                LOGGER.exception("Profile repository is unavailable: %s", exc)
+                await message.answer(
+                    "Не удалось удалить профиль из-за внутренней ошибки. Попробуйте позже.",
+                )
+                return
+            
+            deleted = await repository.delete(message.from_user.id)
+            if deleted:
+                await message.answer(
+                    "Твой профиль удалён. Напиши /start, если захочешь создать новую анкету."
+                )
+            else:
+                await message.answer(
+                    "Профиль не найден."
+                )
+            return
+        
+        # Handle profile creation/update
         profile = build_profile_from_payload(message.from_user.id, payload)
     except (json.JSONDecodeError, ValueError) as exc:
         await message.answer(f"Не удалось обработать данные мини-приложения: {exc}")

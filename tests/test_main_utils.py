@@ -135,6 +135,7 @@ def test_attach_bot_context(session_factory) -> None:
 def test_finalize_profile_saves_data(monkeypatch: pytest.MonkeyPatch) -> None:
     repository = AsyncMock(spec=ProfileRepository)
     repository.find_mutual_match.return_value = None
+    repository.get.return_value = None  # No existing profile
 
     def fake_get_repository(bot: object) -> ProfileRepository:
         return repository  # type: ignore[return-value]
@@ -156,6 +157,7 @@ def test_finalize_profile_saves_data(monkeypatch: pytest.MonkeyPatch) -> None:
 
     asyncio.run(finalize_profile(message, profile))
 
+    repository.get.assert_awaited_once_with(profile.user_id)
     repository.upsert.assert_awaited_once_with(profile)
     repository.find_mutual_match.assert_awaited_once_with(profile)
     message.answer.assert_awaited()
