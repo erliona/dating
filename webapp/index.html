@@ -8,23 +8,66 @@
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body>
+    <!-- Navigation -->
+    <nav class="nav-bar" id="nav-bar" style="display: none;">
+      <button class="nav-item" data-page="profile">
+        <span class="nav-icon">👤</span>
+        <span class="nav-label">Профиль</span>
+      </button>
+      <button class="nav-item" data-page="matches">
+        <span class="nav-icon">💕</span>
+        <span class="nav-label">Метчи</span>
+      </button>
+      <button class="nav-item" data-page="settings">
+        <span class="nav-icon">⚙️</span>
+        <span class="nav-label">Настройки</span>
+      </button>
+    </nav>
+
     <main class="container">
-      <h1 id="page-title">Мини-анкета</h1>
-      <p class="hint" id="page-hint">
-        Заполни форму и отправь данные боту прямо из мини-приложения.
-      </p>
-      <div class="progress" aria-live="polite" id="progress-container">
-        <div
-          class="progress-track"
-          role="progressbar"
-          aria-valuemin="0"
-          aria-valuemax="100"
-          aria-valuenow="0"
-        >
-          <div class="progress-fill" id="progress-fill"></div>
+      <!-- Onboarding Page -->
+      <div id="onboarding-page" class="page" style="display: none;">
+        <div class="onboarding">
+          <h1>Добро пожаловать! 👋</h1>
+          <div class="onboarding-steps">
+            <div class="onboarding-step">
+              <span class="step-icon">💕</span>
+              <h3>Найди вторую половинку</h3>
+              <p>Познакомься с интересными людьми, которые рядом</p>
+            </div>
+            <div class="onboarding-step">
+              <span class="step-icon">✨</span>
+              <h3>Создай анкету</h3>
+              <p>Расскажи о себе, своих интересах и целях</p>
+            </div>
+            <div class="onboarding-step">
+              <span class="step-icon">🎯</span>
+              <h3>Получай метчи</h3>
+              <p>Мы подберем тебе людей с общими интересами</p>
+            </div>
+          </div>
+          <button class="primary onboarding-btn" id="start-onboarding">Создать анкету</button>
         </div>
-        <p class="progress-label" id="progress-label">Заполнено 0%</p>
       </div>
+
+      <!-- Profile Page -->
+      <div id="profile-page" class="page">
+        <h1 id="page-title">Мини-анкета</h1>
+        <p class="hint" id="page-hint">
+          Заполни форму и отправь данные боту прямо из мини-приложения.
+        </p>
+        <div class="progress" aria-live="polite" id="progress-container">
+          <div
+            class="progress-track"
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
+          >
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <p class="progress-label" id="progress-label">Заполнено 0%</p>
+        </div>
       <form id="profile-form" novalidate>
         <label>
           Имя
@@ -138,6 +181,83 @@
       </form>
       <p class="status" id="status"></p>
       <p class="autosave-status" id="autosave-status" aria-live="polite"></p>
+      </div>
+
+      <!-- Matches Page -->
+      <div id="matches-page" class="page" style="display: none;">
+        <h1>Метчи 💕</h1>
+        <p class="hint">Анкеты людей, которые могут тебе подойти</p>
+        <div id="matches-container" class="matches-container">
+          <div class="loading">Загрузка...</div>
+        </div>
+      </div>
+
+      <!-- Settings Page -->
+      <div id="settings-page" class="page" style="display: none;">
+        <h1>Настройки ⚙️</h1>
+        <div class="settings-container">
+          <div class="settings-section">
+            <h3>Основные</h3>
+            <div class="settings-item">
+              <label for="lang-select">
+                <span>Язык интерфейса</span>
+                <select id="lang-select">
+                  <option value="ru" selected>Русский</option>
+                  <option value="en">English</option>
+                </select>
+              </label>
+            </div>
+          </div>
+          
+          <div class="settings-section">
+            <h3>Приватность</h3>
+            <div class="settings-item">
+              <label class="toggle-label">
+                <input type="checkbox" id="show-location" checked />
+                <span>Показывать мой город</span>
+              </label>
+            </div>
+            <div class="settings-item">
+              <label class="toggle-label">
+                <input type="checkbox" id="show-age" checked />
+                <span>Показывать мой возраст</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3>Уведомления</h3>
+            <div class="settings-item">
+              <label class="toggle-label">
+                <input type="checkbox" id="notify-matches" checked />
+                <span>Уведомления о новых метчах</span>
+              </label>
+            </div>
+            <div class="settings-item">
+              <label class="toggle-label">
+                <input type="checkbox" id="notify-messages" checked />
+                <span>Уведомления о сообщениях</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3>Аккаунт</h3>
+            <button class="secondary" id="logout-btn">Выйти из аккаунта</button>
+          </div>
+
+          <div class="settings-section">
+            <h3>Отладка</h3>
+            <div class="settings-item">
+              <label class="toggle-label">
+                <input type="checkbox" id="debug-mode" />
+                <span>Режим отладки (console.log)</span>
+              </label>
+            </div>
+            <button class="secondary" id="clear-data-btn">Очистить локальные данные</button>
+          </div>
+        </div>
+      </div>
     </main>
     <script src="js/app.js"></script>
   </body>

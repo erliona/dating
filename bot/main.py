@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -261,6 +262,8 @@ def build_profile_from_payload(user_id: int, payload: dict[str, object]) -> Prof
 
 async def finalize_profile(message: Message, profile: Profile, is_update: bool = False) -> None:
     bot = message.bot
+    LOGGER.info("Finalizing profile for user_id=%s", profile.user_id)
+    
     try:
         repository = get_repository(bot)
     except RuntimeError as exc:
@@ -273,9 +276,12 @@ async def finalize_profile(message: Message, profile: Profile, is_update: bool =
     
     # Check if profile exists before saving
     existing_profile = await repository.get(profile.user_id)
+    is_existing = existing_profile is not None
+    LOGGER.debug("Profile exists: %s for user_id=%s", is_existing, profile.user_id)
 
     try:
         await repository.upsert(profile)
+        LOGGER.info("Profile upserted successfully for user_id=%s", profile.user_id)
     except Exception as exc:  # pragma: no cover - debug assistance
         LOGGER.exception(
             "Error while saving profile for user_id=%s: %s", profile.user_id, exc
@@ -290,6 +296,7 @@ async def finalize_profile(message: Message, profile: Profile, is_update: bool =
     
     # If this was an update, just confirm
     if existing_profile:
+        LOGGER.debug("Profile updated (not new) for user_id=%s", profile.user_id)
         await message.answer(
             "Профиль обновлён!",
             reply_markup=ReplyKeyboardRemove(),
@@ -297,9 +304,12 @@ async def finalize_profile(message: Message, profile: Profile, is_update: bool =
         return
     
     # For new profiles, look for matches
+    LOGGER.info("Looking for matches for new profile user_id=%s", profile.user_id)
     match = await repository.find_mutual_match(profile)
 
     if match:
+        LOGGER.info("Match found! user_id=%s matched with user_id=%s", 
+                   profile.user_id, match.user_id)
         await message.answer(
             _format_match_message(match),
             reply_markup=ReplyKeyboardRemove(),
@@ -312,6 +322,7 @@ async def finalize_profile(message: Message, profile: Profile, is_update: bool =
         )
         await _send_profile_photo(bot, match.user_id, profile)
     else:
+        LOGGER.debug("No matches found for user_id=%s", profile.user_id)
         await message.answer(
             "Спасибо! Как только мы найдём подходящую пару, я сразу дам знать.",
             reply_markup=ReplyKeyboardRemove(),
@@ -321,9 +332,13 @@ async def finalize_profile(message: Message, profile: Profile, is_update: bool =
 @ROUTER.message(CommandStart())
 async def start_handler(message: Message, state: FSMContext) -> None:
     """Handle the /start command."""
+    
+    LOGGER.info("Start command received from user_id=%s, username=%s", 
+                message.from_user.id, message.from_user.username)
 
     try:
         config = get_config(message.bot)
+        LOGGER.debug("Config loaded successfully")
     except RuntimeError as exc:
         LOGGER.exception("Bot configuration is unavailable: %s", exc)
         await message.answer(
@@ -334,6 +349,7 @@ async def start_handler(message: Message, state: FSMContext) -> None:
     await state.clear()
     
     if not config.webapp_url:
+        LOGGER.warning("WEBAPP_URL is not configured")
         await message.answer(
             "Привет! Для использования этого бота необходимо настроить мини-приложение.",
             reply_markup=ReplyKeyboardRemove(),
@@ -356,6 +372,8 @@ async def start_handler(message: Message, state: FSMContext) -> None:
         ]
     )
 
+    LOGGER.debug("Sending webapp button to user_id=%s with url=%s", 
+                 message.from_user.id, config.webapp_url)
     await message.answer("\n".join(greeting), reply_markup=keyboard)
 
 
@@ -373,12 +391,16 @@ async def cancel_handler(message: Message, state: FSMContext) -> None:
 @ROUTER.message(F.web_app_data)
 async def webapp_handler(message: Message, web_app_data: WebAppData) -> None:
     """Handle data submitted from the Telegram WebApp."""
+    
+    LOGGER.debug("WebApp data received from user_id=%s", message.from_user.id)
 
     try:
         payload = json.loads(web_app_data.data)
+        LOGGER.debug("Parsed payload: %s", payload)
         
         # Check if this is a delete action
         if payload.get("action") == "delete":
+            LOGGER.info("Delete action requested by user_id=%s", message.from_user.id)
             try:
                 repository = get_repository(message.bot)
             except RuntimeError as exc:
@@ -390,18 +412,23 @@ async def webapp_handler(message: Message, web_app_data: WebAppData) -> None:
             
             deleted = await repository.delete(message.from_user.id)
             if deleted:
+                LOGGER.info("Profile deleted successfully for user_id=%s", message.from_user.id)
                 await message.answer(
                     "Твой профиль удалён. Напиши /start, если захочешь создать новую анкету."
                 )
             else:
+                LOGGER.warning("Profile not found for deletion, user_id=%s", message.from_user.id)
                 await message.answer(
                     "Профиль не найден."
                 )
             return
         
         # Handle profile creation/update
+        LOGGER.info("Processing profile data from user_id=%s", message.from_user.id)
         profile = build_profile_from_payload(message.from_user.id, payload)
+        LOGGER.debug("Profile built successfully: %s", profile)
     except (json.JSONDecodeError, ValueError) as exc:
+        LOGGER.error("Failed to process webapp data from user_id=%s: %s", message.from_user.id, exc)
         await message.answer(f"Не удалось обработать данные мини-приложения: {exc}")
         return
 
@@ -449,10 +476,19 @@ async def _send_profile_photo(bot: Bot, chat_id: int, profile: Profile) -> None:
 
 async def main() -> None:
     """Bootstrap the bot."""
-
-    logging.basicConfig(level=logging.INFO)
+    
+    # Enable debug logging - can be controlled via DEBUG environment variable
+    log_level = logging.DEBUG if os.getenv("DEBUG", "").lower() in ("true", "1", "yes") else logging.INFO
+    logging.basicConfig(
+        level=log_level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    
+    LOGGER.info("Starting bot with log level: %s", logging.getLevelName(log_level))
 
     config = load_config()
+    LOGGER.debug("Configuration loaded: webapp_url=%s", config.webapp_url)
+    
     engine = create_async_engine(config.database_url, future=True)
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
@@ -460,9 +496,9 @@ async def main() -> None:
     try:
         async with engine.begin() as conn:
             await conn.execute(text("SELECT 1"))
-        logging.info("Database connection successful")
+        LOGGER.info("Database connection successful")
     except Exception as exc:
-        logging.error("Failed to connect to database: %s", exc)
+        LOGGER.error("Failed to connect to database: %s", exc)
         await engine.dispose()
         raise RuntimeError(
             "Cannot connect to database. Please check your BOT_DATABASE_URL "
@@ -478,10 +514,11 @@ async def main() -> None:
     dp = Dispatcher(storage=MemoryStorage())
     dp.include_router(ROUTER)
 
-    logging.info("Starting polling")
+    LOGGER.info("Starting polling")
     try:
         await dp.start_polling(bot)
     finally:
+        LOGGER.info("Shutting down bot")
         await engine.dispose()
 
 
