@@ -25,7 +25,7 @@ def load_config() -> BotConfig:
         BotConfig: Populated configuration instance.
 
     Raises:
-        RuntimeError: If the bot token is missing.
+        RuntimeError: If the bot token is missing or database URL is invalid.
     """
 
     token = os.getenv("BOT_TOKEN")
@@ -36,20 +36,25 @@ def load_config() -> BotConfig:
     database_url_raw = os.getenv("BOT_DATABASE_URL") or os.getenv("DATABASE_URL")
     if not database_url_raw:
         raise RuntimeError(
-            "BOT_DATABASE_URL environment variable is required to start the bot"
+            "BOT_DATABASE_URL environment variable is required to start the bot.\n"
+            "Example: export BOT_DATABASE_URL='postgresql+asyncpg://user:password@localhost:5432/dating'\n"
+            "Make sure the PostgreSQL user, password, and database exist and match your configuration."
         )
 
     try:
         database_url = make_url(database_url_raw)
     except ArgumentError as exc:  # pragma: no cover - simple configuration guard
         raise RuntimeError(
-            "BOT_DATABASE_URL must be a valid SQLAlchemy connection string"
+            "BOT_DATABASE_URL must be a valid SQLAlchemy connection string.\n"
+            "Expected format: postgresql+asyncpg://user:password@host:port/database\n"
+            f"Received: {database_url_raw}"
         ) from exc
 
     if not database_url.drivername.startswith("postgresql"):
         raise RuntimeError(
             "Only PostgreSQL databases are supported; "
-            "set BOT_DATABASE_URL to a postgresql+asyncpg URL"
+            "set BOT_DATABASE_URL to a postgresql+asyncpg URL.\n"
+            f"Current driver: {database_url.drivername}"
         )
 
     return BotConfig(

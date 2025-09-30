@@ -28,13 +28,25 @@ if config.config_file_name is not None:
 
 
 def get_database_url() -> str:
-    """Resolve the database URL from environment variables or config."""
+    """Resolve the database URL from environment variables or config.
+    
+    Raises:
+        RuntimeError: If no database URL is configured.
+    """
 
-    return (
+    url = (
         os.getenv("BOT_DATABASE_URL")
         or os.getenv("DATABASE_URL")
         or config.get_main_option("sqlalchemy.url")
     )
+    
+    if not url:
+        raise RuntimeError(
+            "Database URL not found. Please set BOT_DATABASE_URL or DATABASE_URL.\n"
+            "Example: export BOT_DATABASE_URL='postgresql+asyncpg://user:password@localhost:5432/dating'"
+        )
+    
+    return url
 
 
 def run_migrations_offline() -> None:

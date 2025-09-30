@@ -19,6 +19,7 @@ from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup, Message,
                            ReplyKeyboardRemove, WebAppData, WebAppInfo)
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.exc import OperationalError
 
 from .config import BotConfig, load_config
 from .db import ProfileRepository
@@ -586,9 +587,26 @@ async def main() -> None:
 
     logging.basicConfig(level=logging.INFO)
 
-    config = load_config()
-    engine = create_async_engine(config.database_url, future=True)
-    session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    try:
+        config = load_config()
+    except RuntimeError as exc:
+        LOGGER.error("Configuration error: %s", exc)
+        raise
+
+    try:
+        engine = create_async_engine(config.database_url, future=True)
+        session_factory = async_sessionmaker(engine, expire_on_commit=False)
+    except Exception as exc:
+        LOGGER.error("Failed to create database engine: %s", exc)
+        LOGGER.error(
+            "If you see 'password authentication failed', please verify:\n"
+            "  1. PostgreSQL is running and accessible\n"
+            "  2. Database user exists and password is correct\n"
+            "  3. Database exists and user has access to it\n"
+            "  4. BOT_DATABASE_URL environment variable is correctly set\n"
+            "Check your .env file or environment variables configuration."
+        )
+        raise
 
     bot = Bot(
         token=config.token,
@@ -602,6 +620,13 @@ async def main() -> None:
     logging.info("Starting polling")
     try:
         await dp.start_polling(bot)
+    except OperationalError as exc:
+        LOGGER.error("Database connection error during operation: %s", exc)
+        LOGGER.error(
+            "This often indicates authentication or connection issues.\n"
+            "Please verify your database credentials and that PostgreSQL is accessible."
+        )
+        raise
     finally:
         await engine.dispose()
 
