@@ -590,24 +590,42 @@ docker compose up -d
 
 ### Ручной деплой (альтернатива)
 
-Если нужно развернуть вручную, используйте скрипт `scripts/deploy.sh`:
+Если нужно развернуть вручную, используйте упрощенный скрипт `scripts/deploy.sh`:
 
 ```bash
+# Минимальный вариант (только host и user)
+BOT_TOKEN="your-token" scripts/deploy.sh -H server.example.com -u deploy
+
+# С HTTPS
+BOT_TOKEN="your-token" DOMAIN="example.com" ACME_EMAIL="admin@example.com" \
+  scripts/deploy.sh -H server.example.com -u deploy
+
+# Или через параметры командной строки
 scripts/deploy.sh \
   -H server.example.com \
   -u deploy \
-  -d /opt/dating \
-  -e .env.production \
-  -i ~/.ssh/id_ed25519
+  -t "your-token" \
+  -D example.com \
+  -E admin@example.com
 ```
 
-**Параметры**:
+**Обязательные параметры**:
 - `-H` - hostname или IP сервера
-- `-u` - SSH пользователь
-- `-d` - путь на сервере
-- `-e` - локальный `.env` файл для загрузки
+- `-u` - SSH пользователь с sudo правами
+- `-t` или `BOT_TOKEN` - токен Telegram бота
+
+**Опциональные параметры**:
+- `-D` или `DOMAIN` - доменное имя для HTTPS
+- `-E` или `ACME_EMAIL` - email для Let's Encrypt
+- `-d` - путь на сервере (по умолчанию `/opt/dating`)
 - `-i` - путь к SSH ключу (опционально)
-- `-p` - SSH порт (опционально, по умолчанию 22)
+- `-p` - SSH порт (по умолчанию 22)
+
+**Скрипт автоматически**:
+- Устанавливает Docker и Docker Compose если отсутствуют
+- Создает директории с правильными правами
+- Генерирует конфигурацию из переменных окружения
+- Развертывает и запускает все сервисы
 
 ---
 
