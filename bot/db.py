@@ -6,7 +6,9 @@ from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import BigInteger, String, Text, select
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.sqlite import JSON as SQLITE_JSON
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 if TYPE_CHECKING:  # pragma: no cover - only for type checking
@@ -15,6 +17,11 @@ if TYPE_CHECKING:  # pragma: no cover - only for type checking
 
 class Base(DeclarativeBase):
     """Base class for ORM models."""
+
+
+INTERESTS_TYPE = MutableList.as_mutable(
+    JSONB().with_variant(SQLITE_JSON(), "sqlite")
+)
 
 
 class ProfileModel(Base):
@@ -30,7 +37,9 @@ class ProfileModel(Base):
     preference: Mapped[str] = mapped_column(String(16))
     bio: Mapped[Optional[str]] = mapped_column(Text(), default=None)
     location: Mapped[Optional[str]] = mapped_column(String(255), default=None)
-    interests: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)
+    interests: Mapped[list[str]] = mapped_column(
+        INTERESTS_TYPE, default=list, nullable=False
+    )
     goal: Mapped[Optional[str]] = mapped_column(String(32), default=None)
     photo_file_id: Mapped[Optional[str]] = mapped_column(String(255), default=None)
     photo_url: Mapped[Optional[str]] = mapped_column(Text(), default=None)
