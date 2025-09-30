@@ -12,6 +12,22 @@ permissions:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: dating_test
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -27,8 +43,46 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-dev.txt
 
-      - name: Run tests
-        run: python -m pytest
+      - name: Validate environment variables template
+        run: |
+          # Check that .env.example exists and contains required variables
+          if [ ! -f .env.example ]; then
+            echo "Error: .env.example not found"
+            exit 1
+          fi
+          
+          required_vars="BOT_TOKEN POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD WEBAPP_URL"
+          for var in $required_vars; do
+            if ! grep -q "^[# ]*$var" .env.example; then
+              echo "Error: $var not found in .env.example"
+              exit 1
+            fi
+          done
+          echo "✓ .env.example validation passed"
+
+      - name: Run linting checks
+        run: |
+          # Check for common Python issues
+          python -m py_compile bot/*.py tests/*.py
+          echo "✓ Python syntax check passed"
+
+      - name: Run tests with coverage
+        env:
+          BOT_TOKEN: "test-token-for-ci"
+          BOT_DATABASE_URL: "postgresql+asyncpg://test_user:test_password@localhost:5432/dating_test"
+          WEBAPP_URL: "https://example.com"
+        run: |
+          python -m pytest -v --tb=short
+          echo "✓ All tests passed"
+
+      - name: Test database migrations
+        env:
+          BOT_DATABASE_URL: "postgresql+asyncpg://test_user:test_password@localhost:5432/dating_test"
+        run: |
+          # Test that migrations can be applied
+          alembic upgrade head
+          alembic current
+          echo "✓ Database migrations test passed"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -40,3 +94,26 @@ jobs:
           push: false
           tags: local/dating-bot-ci:latest
           load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test Docker image
+        run: |
+          # Verify the image was built successfully
+          docker images | grep dating-bot-ci
+          
+          # Test that the image contains required files
+          # Use --entrypoint to bypass the migration step during testing
+          docker run --rm --entrypoint ls local/dating-bot-ci:latest -la /app/bot
+          docker run --rm --entrypoint ls local/dating-bot-ci:latest -la /app/migrations
+          docker run --rm --entrypoint ls local/dating-bot-ci:latest -la /app/webapp
+          
+          echo "✓ Docker image test passed"
+
+      - name: Security scan (basic)
+        run: |
+          # Check for common security issues in dependencies
+          pip install safety
+          safety check || echo "⚠ Security warnings found (non-blocking)"
+          echo "✓ Security scan completed"
+

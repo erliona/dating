@@ -152,8 +152,37 @@ jobs:
             -e "${SSH_CMD[*]}" \
             ./ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
 
-      # 5) Пишем .env и запускаем docker compose
-      - name: Write .env and compose up
+      # 5) Validate ENV_FILE content before deployment
+      - name: Validate environment file
+        if: steps.secrets.outputs.missing != 'true'
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+        run: |
+          set -euo pipefail
+          
+          echo "Validating ENV_FILE secret..."
+          
+          # Check that BOT_TOKEN is present
+          if ! echo "$ENV_FILE" | grep -q "^BOT_TOKEN="; then
+            echo "::error::ENV_FILE must contain BOT_TOKEN"
+            exit 1
+          fi
+          
+          # Check that BOT_TOKEN is not empty or placeholder
+          if echo "$ENV_FILE" | grep -qE "^BOT_TOKEN=(|your-|replace-|test-)"; then
+            echo "::error::BOT_TOKEN appears to be a placeholder value"
+            exit 1
+          fi
+          
+          # Check for database configuration
+          if ! echo "$ENV_FILE" | grep -qE "^(BOT_DATABASE_URL|POSTGRES_)"; then
+            echo "::warning::No database configuration found in ENV_FILE"
+          fi
+          
+          echo "✓ ENV_FILE validation passed"
+
+      # 6) Write .env and deploy with improved migration handling
+      - name: Deploy to server
         if: steps.secrets.outputs.missing != 'true'
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -172,13 +201,88 @@ jobs:
           set -euo pipefail
           cd '${{ secrets.DEPLOY_PATH }}'
 
-          # пишем .env из секрета
+          echo "=== Deployment started ==="
+          
+          # Write .env from secret
           cat > .env <<'EOF'
           ${{ secrets.ENV_FILE }}
           EOF
           chmod 600 .env
+          echo "✓ Environment file written"
 
-          # деплой
-          sudo docker compose up -d --build
+          # Stop old containers gracefully
+          if sudo docker compose ps -q | grep -q .; then
+            echo "Stopping existing containers..."
+            sudo docker compose down
+          fi
+
+          # Pull latest images
+          echo "Pulling base images..."
+          sudo docker compose pull db webapp || true
+
+          # Build and start services
+          echo "Building and starting services..."
+          sudo docker compose up -d --build --remove-orphans
+
+          # Wait for services to be healthy
+          echo "Waiting for services to be healthy..."
+          sleep 10
+
+          # Check service status
+          echo "=== Service Status ==="
           sudo docker compose ps
+
+          # Check bot logs for startup errors
+          echo "=== Bot Logs (last 20 lines) ==="
+          sudo docker compose logs --tail=20 bot
+
+          # Verify database connection
+          echo "=== Database Status ==="
+          sudo docker compose exec -T db pg_isready -U ${POSTGRES_USER:-dating} || echo "⚠ Database not ready yet"
+
+          echo "=== Deployment completed ==="
+          EOSSH
+
+      # 7) Post-deployment health check
+      - name: Health check
+        if: steps.secrets.outputs.missing != 'true'
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          set -euo pipefail
+
+          SSH_ARGS=("-o" "StrictHostKeyChecking=yes")
+          if [ -n "${DEPLOY_PORT:-}" ]; then
+            SSH_ARGS+=("-p" "$DEPLOY_PORT")
+          fi
+
+          echo "Performing post-deployment health check..."
+          
+          ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" <<'EOSSH'
+          set -euo pipefail
+          cd '${{ secrets.DEPLOY_PATH }}'
+
+          # Check if bot container is running
+          if ! sudo docker compose ps bot | grep -q "Up"; then
+            echo "::error::Bot container is not running!"
+            sudo docker compose logs --tail=50 bot
+            exit 1
+          fi
+
+          # Check if database is running
+          if ! sudo docker compose ps db | grep -q "Up"; then
+            echo "::error::Database container is not running!"
+            sudo docker compose logs --tail=50 db
+            exit 1
+          fi
+
+          # Check for recent errors in bot logs
+          if sudo docker compose logs --tail=50 bot | grep -iE "(error|exception|failed)" | grep -v "test"; then
+            echo "::warning::Potential errors found in bot logs"
+          fi
+
+          echo "✓ Health check passed"
           EOSSH

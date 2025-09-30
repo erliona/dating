@@ -1,73 +1,57 @@
+"""Shared pytest fixtures for the dating bot tests."""
+
 from __future__ import annotations
 
-from collections.abc import Iterator
-from pathlib import Path
-import sys
-
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-
-from bot.db import Base  # noqa: E402
+from bot.db import Base, ProfileRepository
 
 
-class FakeAsyncSession:
-    def __init__(self, sync_session: Session):
-        self._session = sync_session
-
-    async def __aenter__(self) -> "FakeAsyncSession":
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb) -> None:  # type: ignore[override]
-        self._session.close()
-
-    async def scalar(self, statement):
-        return self._session.scalar(statement)
-
-    async def scalars(self, statement):
-        return self._session.scalars(statement)
-
-    def add(self, instance) -> None:
-        self._session.add(instance)
-
-    def delete(self, instance) -> None:
-        self._session.delete(instance)
-
-    async def commit(self) -> None:
-        self._session.commit()
-
-    async def rollback(self) -> None:
-        self._session.rollback()
+@pytest.fixture
+def clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Clear all environment variables that might affect configuration."""
+    for key in (
+        "BOT_TOKEN",
+        "BOT_DATABASE_URL",
+        "DATABASE_URL",
+        "WEBAPP_URL",
+        "DEBUG",
+        "RUN_DB_MIGRATIONS",
+    ):
+        monkeypatch.delenv(key, raising=False)
 
 
-class FakeAsyncSessionMaker:
-    def __init__(self, sync_sessionmaker: sessionmaker):
-        self._sync_sessionmaker = sync_sessionmaker
-
-    def __call__(self) -> FakeAsyncSession:
-        sync_session = self._sync_sessionmaker()
-        return FakeAsyncSession(sync_session)
-
-
-@pytest.fixture()
-def session_factory() -> Iterator[FakeAsyncSessionMaker]:
-    engine = create_engine(
-        "sqlite:///:memory:",
+@pytest.fixture
+async def db_engine():
+    """Create an in-memory SQLite database engine for testing."""
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
         echo=False,
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-        future=True,
     )
-    Base.metadata.create_all(engine)
-    sync_sessionmaker = sessionmaker(engine, expire_on_commit=False)
-    factory = FakeAsyncSessionMaker(sync_sessionmaker)
-    try:
-        yield factory
-    finally:
-        Base.metadata.drop_all(engine)
-        engine.dispose()
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    
+    yield engine
+    
+    await engine.dispose()
+
+
+@pytest.fixture
+async def db_session_factory(db_engine):
+    """Create a session factory for testing."""
+    return async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
+
+
+@pytest.fixture
+async def db_session(db_session_factory):
+    """Provide a database session for tests."""
+    async with db_session_factory() as session:
+        yield session
+
+
+@pytest.fixture
+def profile_repository(db_session_factory):
+    """Create a ProfileRepository instance for testing."""
+    return ProfileRepository(db_session_factory)
