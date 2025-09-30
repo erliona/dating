@@ -155,7 +155,3 @@ class ProfileRepository:
             
             result = await session.scalar(stmt)
             return result.to_profile() if result else None
-
-    @staticmethod
-    def _is_compatible(profile: "Profile", other: "Profile") -> bool:
-        return other.gender == profile.preference or profile.preference == "any"

@@ -90,7 +90,6 @@ tar -czf "$TMP_DIR/release.tar.gz" \
   docker-compose.yml \
   requirements.txt \
   alembic.ini \
-  BACKLOG.md \
   bot \
   docker \
   migrations \
