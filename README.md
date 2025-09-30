@@ -943,9 +943,14 @@ docker compose ps db     # Проверить статус БД
 
 #### 2. База данных не подключается
 
-**Симптом**: `Cannot connect to database`
+**Симптом**: `Cannot connect to database` или `password authentication failed`
 
-**Решение**:
+**Причина**: Пароль базы данных не совпадает с паролем в `.env`
+
+**Решение автоматическое (при использовании GitHub Actions)**: 
+При изменении пароля деплой автоматически пересоздаст базу данных. Все данные будут потеряны, но это происходит только при смене пароля.
+
+**Решение вручную**:
 ```bash
 # Проверить healthcheck БД
 docker compose ps db
@@ -953,7 +958,7 @@ docker compose ps db
 # Перезапустить БД
 docker compose restart db
 
-# Пересоздать с нуля
+# Если пароль изменился, пересоздать с нуля
 docker compose down -v  # ВНИМАНИЕ: удалит данные
 docker compose up -d --build
 ```
