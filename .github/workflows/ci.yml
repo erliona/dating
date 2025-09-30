@@ -103,9 +103,10 @@ jobs:
           docker images | grep dating-bot-ci
           
           # Test that the image contains required files
-          docker run --rm local/dating-bot-ci:latest ls -la /app/bot
-          docker run --rm local/dating-bot-ci:latest ls -la /app/migrations
-          docker run --rm local/dating-bot-ci:latest ls -la /app/webapp
+          # Use --entrypoint to bypass the migration step during testing
+          docker run --rm --entrypoint ls local/dating-bot-ci:latest -la /app/bot
+          docker run --rm --entrypoint ls local/dating-bot-ci:latest -la /app/migrations
+          docker run --rm --entrypoint ls local/dating-bot-ci:latest -la /app/webapp
           
           echo "✓ Docker image test passed"
 
