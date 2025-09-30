@@ -14,67 +14,54 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
-    env:
-      KEY_PATH: ${{ github.workspace }}/.ssh/ci_key
-
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # Пишем приватный ключ из секрета в файл (исправляем CRLF, даём читаемые права)
-      - name: Prepare SSH key
+      # 1) Поднимаем ssh-agent и добавляем приватный ключ из секрета
+      - name: Use SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: |
+            ${{ secrets.DEPLOY_SSH_KEY }}
+
+      # 2) Добавляем host key сервера (чтобы не было интерактива по known_hosts)
+      - name: Add server to known_hosts
         run: |
-          mkdir -p "$GITHUB_WORKSPACE/.ssh"
-          printf "%s" "${{ secrets.DEPLOY_SSH_KEY }}" > "$KEY_PATH"
-          # на случай, если в секрете CRLF
-          sed -i 's/\r$//' "$KEY_PATH"
-          # appleboy-контейнеру нужно чтение из workspace → 0644
-          chmod 644 "$KEY_PATH"
-          head -n1 "$KEY_PATH" | sed 's/.\{20\}$/.../'  # маленькая проверка заголовка
+          mkdir -p ~/.ssh
+          ssh-keyscan -4 -t ed25519 ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+          # отладка: покажем запись (без секрета)
+          tail -n 1 ~/.ssh/known_hosts
 
-      - name: Test SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key_path: ${{ env.KEY_PATH }}
-          # при желании можно закрепить хост по отпечатку:
-          # fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
-          script: 'whoami'
+      # 3) Готовим директорию на сервере
+      - name: Prepare remote dir
+        run: |
+          ssh -o StrictHostKeyChecking=yes ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+            "sudo mkdir -p '${{ secrets.DEPLOY_PATH }}' && sudo chown -R \$USER:\$USER '${{ secrets.DEPLOY_PATH }}'"
 
-      - name: Prepare deploy directory
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key_path: ${{ env.KEY_PATH }}
-          script: |
-            set -euo pipefail
-            sudo mkdir -p "${{ secrets.DEPLOY_PATH }}"
-            sudo chown -R "${USER}:${USER}" "${{ secrets.DEPLOY_PATH }}"
+      # 4) Копируем проект на сервер (rsync быстрее и надёжнее scp)
+      - name: Upload project
+        run: |
+          rsync -az --delete \
+            --exclude '.git' \
+            --exclude '.github' \
+            ./ ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_PATH }}/
 
-      - name: Upload application bundle
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key_path: ${{ env.KEY_PATH }}
-          source: "."
-          target: ${{ secrets.DEPLOY_PATH }}
-          overwrite: true
-
+      # 5) Пишем .env и запускаем docker compose
       - name: Write .env and compose up
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key_path: ${{ env.KEY_PATH }}
-          script: |
-            set -euo pipefail
-            cd "${{ secrets.DEPLOY_PATH }}"
-            cat > .env <<'EOF'
-            ${{ secrets.ENV_FILE }}
-            EOF
-            chmod 600 .env
-            sudo docker compose up -d --build
-            sudo docker compose ps
+        run: |
+          ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} <<'EOSSH'
+          set -euo pipefail
+          cd '${{ secrets.DEPLOY_PATH }}'
+
+          # пишем .env из секрета
+          cat > .env <<'EOF'
+          ${{ secrets.ENV_FILE }}
+          EOF
+          chmod 600 .env
+
+          # деплой
+          sudo docker compose up -d --build
+          sudo docker compose ps
+          EOSSH
