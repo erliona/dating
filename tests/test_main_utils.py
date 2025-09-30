@@ -120,6 +120,7 @@ def test_attach_bot_context(session_factory) -> None:
     config = BotConfig(
         token="token",
         database_url="postgresql+asyncpg://user:pass@localhost:5432/dating",
+        webapp_url="https://example.com",
     )
     bot = SimpleNamespace()
 
