@@ -15,16 +15,16 @@ permissions:
   contents: read
 
 concurrency:
-  group: deploy-${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.event.workflow_run.head_branch }}
+  group: deploy-${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.ref != '' && github.event.inputs.ref || 'manual') || github.event.workflow_run.head_branch || 'main' }}
   cancel-in-progress: false
 
 jobs:
   deploy:
     name: Deploy to production
     runs-on: ubuntu-latest
+    environment: production
     env:
       DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-      DEPLOY_REF: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ref || github.event.workflow_run.head_branch }}
     if: |
       (
         github.event_name == 'workflow_dispatch' ||
@@ -38,10 +38,35 @@ jobs:
       secrets.ENV_FILE != '' &&
       secrets.DEPLOY_SSH_KEY != ''
     steps:
+      - name: Determine deployment ref
+        id: deployment_meta
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_REF: ${{ github.event.inputs.ref }}
+          WORKFLOW_RUN_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          DEFAULT_BRANCH: main
+        run: |
+          set -euo pipefail
+          if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
+            ref="${DISPATCH_REF}"
+            if [[ -z "${ref}" ]]; then
+              ref="${DEFAULT_BRANCH}"
+            fi
+          else
+            ref="${WORKFLOW_RUN_HEAD_BRANCH}"
+          fi
+
+          if [[ -z "${ref}" ]]; then
+            echo "Не удалось определить ref для деплоя" >&2
+            exit 1
+          fi
+
+          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.DEPLOY_REF || 'main' }}
+          ref: ${{ steps.deployment_meta.outputs.ref }}
           fetch-depth: 0
 
       - name: Prepare SSH key
