@@ -558,7 +558,7 @@
       }
 
       matchesContainer.innerHTML = testProfiles.map(profile => `
-        <div class="match-card">
+        <div class="match-card" data-profile-id="${profile.id}">
           <div class="match-header">
             <div class="match-photo">${profile.photo_url ? `<img src="${profile.photo_url}" alt="${profile.name}">` : profile.name.charAt(0)}</div>
             <div class="match-info">
@@ -573,8 +573,8 @@
             </div>
           ` : ""}
           <div class="match-actions">
-            <button class="secondary" onclick="alert('Функция в разработке')">Пропустить</button>
-            <button class="primary" onclick="alert('Лайк отправлен! (функция в разработке)')">Лайк ❤️</button>
+            <button class="secondary" onclick="handleDislike(${profile.id})">Пропустить</button>
+            <button class="primary" onclick="handleLike(${profile.id})">Лайк ❤️</button>
           </div>
         </div>
       `).join("");
@@ -582,6 +582,49 @@
       debug("Matches loaded:", testProfiles.length);
     }, 500);
   }
+
+  function sendInteraction(targetUserId, action) {
+    debug(`Sending ${action} to user ${targetUserId}`);
+    
+    if (!tg) {
+      showStatus(`Невозможно отправить действие без Telegram.`, true);
+      return;
+    }
+
+    const payload = {
+      action: action,
+      target_user_id: targetUserId
+    };
+
+    debug("Sending interaction data", payload);
+    tg.sendData(JSON.stringify(payload));
+  }
+
+  function handleLike(profileId) {
+    debug("Like profile:", profileId);
+    sendInteraction(profileId, "like");
+    removeProfileFromView(profileId);
+  }
+
+  function handleDislike(profileId) {
+    debug("Dislike profile:", profileId);
+    sendInteraction(profileId, "dislike");
+    removeProfileFromView(profileId);
+  }
+
+  function removeProfileFromView(profileId) {
+    // Remove the profile from the test data
+    const index = testProfiles.findIndex(p => p.id === profileId);
+    if (index > -1) {
+      testProfiles.splice(index, 1);
+    }
+    // Reload the matches view
+    loadMatches();
+  }
+
+  // Make functions globally accessible for onclick handlers
+  window.handleLike = handleLike;
+  window.handleDislike = handleDislike;
 
   // ========================================
   // SETTINGS PAGE
@@ -621,13 +664,28 @@
     if (typeof localStorage !== "undefined") {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
       localStorage.setItem(DEBUG_KEY, settings.debugMode.toString());
-      debug("Settings saved", settings);
+      debug("Settings saved to localStorage", settings);
     }
 
     // Update debug mode
     debugMode = settings.debugMode;
     
-    alert("Настройки сохранены!");
+    // Send settings to bot for persistence in database
+    if (tg) {
+      const payload = {
+        action: "update_settings",
+        lang: settings.lang,
+        show_location: settings.showLocation,
+        show_age: settings.showAge,
+        notify_matches: settings.notifyMatches,
+        notify_messages: settings.notifyMessages
+      };
+      debug("Sending settings to bot", payload);
+      tg.sendData(JSON.stringify(payload));
+    } else {
+      debug("Telegram WebApp not available, settings saved locally only");
+      alert("Настройки сохранены локально!");
+    }
   }
 
   // Settings event listeners

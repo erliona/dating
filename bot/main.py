@@ -23,7 +23,12 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from .config import BotConfig, load_config
-from .db import ProfileRepository
+from .db import (
+    InteractionRepository,
+    MatchRepository,
+    ProfileRepository,
+    UserSettingsRepository,
+)
 
 
 LOGGER = logging.getLogger(__name__)
@@ -54,6 +59,9 @@ ROUTER = Router()
 BOT_CONTEXT_STORAGE_ATTR = "_dating_bot_context"
 CONFIG_CONTEXT_KEY = "config"
 REPOSITORY_CONTEXT_KEY = "profile_repository"
+SETTINGS_REPOSITORY_KEY = "settings_repository"
+INTERACTION_REPOSITORY_KEY = "interaction_repository"
+MATCH_REPOSITORY_KEY = "match_repository"
 
 
 def _set_bot_context_value(bot: Bot, key: str, value: Any) -> None:
@@ -88,11 +96,21 @@ def _get_bot_context_value(bot: Bot, key: str) -> Any:
     return None
 
 
-def attach_bot_context(bot: Bot, config: BotConfig, repository: ProfileRepository) -> None:
+def attach_bot_context(
+    bot: Bot,
+    config: BotConfig,
+    repository: ProfileRepository,
+    settings_repository: UserSettingsRepository,
+    interaction_repository: InteractionRepository,
+    match_repository: MatchRepository,
+) -> None:
     """Populate the bot context with common application dependencies."""
 
     _set_bot_context_value(bot, CONFIG_CONTEXT_KEY, config)
     _set_bot_context_value(bot, REPOSITORY_CONTEXT_KEY, repository)
+    _set_bot_context_value(bot, SETTINGS_REPOSITORY_KEY, settings_repository)
+    _set_bot_context_value(bot, INTERACTION_REPOSITORY_KEY, interaction_repository)
+    _set_bot_context_value(bot, MATCH_REPOSITORY_KEY, match_repository)
 
 
 def get_config(bot: Bot | None) -> BotConfig:
@@ -112,6 +130,36 @@ def get_repository(bot: Bot | None) -> ProfileRepository:
     repository = _get_bot_context_value(bot, REPOSITORY_CONTEXT_KEY)
     if not isinstance(repository, ProfileRepository):
         raise RuntimeError("Profile repository is not initialized")
+    return repository
+
+
+def get_settings_repository(bot: Bot | None) -> UserSettingsRepository:
+    if bot is None:
+        raise RuntimeError("Bot instance is not available")
+
+    repository = _get_bot_context_value(bot, SETTINGS_REPOSITORY_KEY)
+    if not isinstance(repository, UserSettingsRepository):
+        raise RuntimeError("Settings repository is not initialized")
+    return repository
+
+
+def get_interaction_repository(bot: Bot | None) -> InteractionRepository:
+    if bot is None:
+        raise RuntimeError("Bot instance is not available")
+
+    repository = _get_bot_context_value(bot, INTERACTION_REPOSITORY_KEY)
+    if not isinstance(repository, InteractionRepository):
+        raise RuntimeError("Interaction repository is not initialized")
+    return repository
+
+
+def get_match_repository(bot: Bot | None) -> MatchRepository:
+    if bot is None:
+        raise RuntimeError("Bot instance is not available")
+
+    repository = _get_bot_context_value(bot, MATCH_REPOSITORY_KEY)
+    if not isinstance(repository, MatchRepository):
+        raise RuntimeError("Match repository is not initialized")
     return repository
 
 
@@ -260,6 +308,70 @@ def build_profile_from_payload(user_id: int, payload: dict[str, object]) -> Prof
     )
 
 
+async def handle_interaction(message: Message, from_user_id: int, to_user_id: int, action: str) -> None:
+    """Handle like/dislike interaction between users."""
+    bot = message.bot
+    LOGGER.info("Processing %s from user %s to user %s", action, from_user_id, to_user_id)
+    
+    try:
+        interaction_repo = get_interaction_repository(bot)
+        match_repo = get_match_repository(bot)
+        profile_repo = get_repository(bot)
+    except RuntimeError as exc:
+        LOGGER.exception("Repositories unavailable: %s", exc)
+        await message.answer("Произошла внутренняя ошибка. Попробуйте позже.")
+        return
+    
+    # Create or update the interaction
+    try:
+        await interaction_repo.create(from_user_id, to_user_id, action)
+    except Exception as exc:
+        LOGGER.exception("Failed to save interaction: %s", exc)
+        await message.answer("Не удалось сохранить действие. Попробуйте позже.")
+        return
+    
+    # If it's a like, check for mutual match
+    if action == "like":
+        is_mutual = await interaction_repo.check_mutual_like(from_user_id, to_user_id)
+        
+        if is_mutual:
+            # Create match
+            try:
+                match = await match_repo.create(from_user_id, to_user_id)
+                LOGGER.info("New match created: %s and %s", from_user_id, to_user_id)
+                
+                # Get both profiles
+                user_profile = await profile_repo.get(from_user_id)
+                matched_profile = await profile_repo.get(to_user_id)
+                
+                if user_profile and matched_profile:
+                    # Notify both users
+                    await message.answer(
+                        "🎉 У вас взаимная симпатия!\n\n" + _format_match_message(matched_profile),
+                        reply_markup=ReplyKeyboardRemove(),
+                    )
+                    await _send_photo_reply(message, matched_profile)
+                    
+                    await bot.send_message(
+                        chat_id=to_user_id,
+                        text="🎉 У вас взаимная симпатия!\n\n" + _format_match_message(user_profile),
+                        reply_markup=ReplyKeyboardRemove(),
+                    )
+                    await _send_profile_photo(bot, to_user_id, user_profile)
+                else:
+                    LOGGER.warning("Could not load profiles for match notification")
+                    await message.answer("🎉 У вас взаимная симпатия!")
+            except Exception as exc:
+                LOGGER.exception("Failed to create match: %s", exc)
+                await message.answer("🎉 У вас взаимная симпатия!")
+        else:
+            # Like sent but no match yet
+            await message.answer("✅ Симпатия отправлена!")
+    else:
+        # Dislike - just confirm
+        await message.answer("👌 Понятно, продолжаем поиск!")
+
+
 async def finalize_profile(message: Message, profile: Profile, is_update: bool = False) -> None:
     bot = message.bot
     LOGGER.info("Finalizing profile for user_id=%s", profile.user_id)
@@ -398,8 +510,11 @@ async def webapp_handler(message: Message, web_app_data: WebAppData) -> None:
         payload = json.loads(web_app_data.data)
         LOGGER.debug("Parsed payload: %s", payload)
         
-        # Check if this is a delete action
-        if payload.get("action") == "delete":
+        # Check action type
+        action = payload.get("action")
+        
+        # Handle delete action
+        if action == "delete":
             LOGGER.info("Delete action requested by user_id=%s", message.from_user.id)
             try:
                 repository = get_repository(message.bot)
@@ -423,7 +538,50 @@ async def webapp_handler(message: Message, web_app_data: WebAppData) -> None:
                 )
             return
         
-        # Handle profile creation/update
+        # Handle interaction actions (like/dislike)
+        if action in ["like", "dislike"]:
+            target_user_id = payload.get("target_user_id")
+            if not target_user_id:
+                await message.answer("Некорректный запрос: не указан пользователь.")
+                return
+            
+            try:
+                target_user_id = int(target_user_id)
+            except (ValueError, TypeError):
+                await message.answer("Некорректный ID пользователя.")
+                return
+            
+            await handle_interaction(message, message.from_user.id, target_user_id, action)
+            return
+        
+        # Handle settings update
+        if action == "update_settings":
+            LOGGER.info("Settings update requested by user_id=%s", message.from_user.id)
+            try:
+                settings_repo = get_settings_repository(message.bot)
+            except RuntimeError as exc:
+                LOGGER.exception("Settings repository is unavailable: %s", exc)
+                await message.answer(
+                    "Не удалось сохранить настройки из-за внутренней ошибки. Попробуйте позже.",
+                )
+                return
+            
+            # Extract settings from payload
+            settings_data = {}
+            for key in ["lang", "show_location", "show_age", "notify_matches", "notify_messages"]:
+                if key in payload:
+                    settings_data[key] = payload[key]
+            
+            try:
+                await settings_repo.upsert(message.from_user.id, **settings_data)
+                LOGGER.info("Settings updated for user_id=%s", message.from_user.id)
+                await message.answer("✅ Настройки сохранены!")
+            except Exception as exc:
+                LOGGER.exception("Failed to save settings: %s", exc)
+                await message.answer("Не удалось сохранить настройки.")
+            return
+        
+        # Handle profile creation/update (default action)
         LOGGER.info("Processing profile data from user_id=%s", message.from_user.id)
         profile = build_profile_from_payload(message.from_user.id, payload)
         LOGGER.debug("Profile built successfully: %s", profile)
@@ -509,8 +667,13 @@ async def main() -> None:
         token=config.token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
-    repository = ProfileRepository(session_factory)
-    attach_bot_context(bot, config, repository)
+    profile_repository = ProfileRepository(session_factory)
+    settings_repository = UserSettingsRepository(session_factory)
+    interaction_repository = InteractionRepository(session_factory)
+    match_repository = MatchRepository(session_factory)
+    attach_bot_context(
+        bot, config, profile_repository, settings_repository, interaction_repository, match_repository
+    )
     dp = Dispatcher(storage=MemoryStorage())
     dp.include_router(ROUTER)
 
