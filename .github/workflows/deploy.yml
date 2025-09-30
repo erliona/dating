@@ -283,9 +283,48 @@ jobs:
           
           echo "✅ Validating deployment configuration..."
           
-          # Check that BOT_TOKEN is not empty or placeholder
-          if grep -qE "^BOT_TOKEN=(|your-|replace-|test-)" /tmp/deploy.env; then
+          # Extract BOT_TOKEN from the generated .env file
+          BOT_TOKEN_VALUE=$(grep "^BOT_TOKEN=" /tmp/deploy.env | cut -d'=' -f2-)
+          
+          # Check that BOT_TOKEN is not empty
+          if [ -z "$BOT_TOKEN_VALUE" ]; then
+            echo "::error::BOT_TOKEN is empty"
+            exit 1
+          fi
+          
+          # Check for common placeholder patterns
+          if echo "$BOT_TOKEN_VALUE" | grep -qiE "(your-|replace-|insert-|paste-|add-|enter-|example|placeholder|token-here|bot-token|from-botfather)"; then
             echo "::error::BOT_TOKEN appears to be a placeholder value"
+            echo ""
+            echo "The BOT_TOKEN secret contains a placeholder value like:"
+            echo "  - 'your-telegram-bot-token-here'"
+            echo "  - 'replace-me-with-token'"
+            echo "  - 'insert-token-here'"
+            echo ""
+            echo "Please set a real Telegram bot token in GitHub Secrets."
+            echo ""
+            echo "How to get a valid token:"
+            echo "  1. Open Telegram and search for @BotFather"
+            echo "  2. Send /newbot and follow the instructions"
+            echo "  3. Copy the token (format: 123456789:ABCdefGHIjkl...)"
+            echo "  4. Go to: Settings → Secrets and variables → Actions"
+            echo "  5. Update the BOT_TOKEN secret with your real token"
+            echo ""
+            exit 1
+          fi
+          
+          # Validate Telegram bot token format: <numeric_id>:<alphanumeric_hash>
+          if ! echo "$BOT_TOKEN_VALUE" | grep -qE "^[0-9]+:[A-Za-z0-9_-]+$"; then
+            echo "::error::BOT_TOKEN has invalid format"
+            echo ""
+            echo "Telegram bot tokens must match the format:"
+            echo "  <numeric_id>:<alphanumeric_hash>"
+            echo ""
+            echo "Example: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz-1234567"
+            echo ""
+            echo "Your token appears to be malformed. Please check that you copied"
+            echo "the complete token from @BotFather on Telegram."
+            echo ""
             exit 1
           fi
           
