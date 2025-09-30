@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import BigInteger, String, Text, select
@@ -13,6 +14,9 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 if TYPE_CHECKING:  # pragma: no cover - only for type checking
     from .main import Profile
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 class Base(DeclarativeBase):
@@ -108,8 +112,14 @@ class ProfileRepository:
                 else:
                     session.add(ProfileModel.from_profile(profile))
                 await session.commit()
+                LOGGER.info(
+                    "Profile for user_id=%s has been saved successfully", profile.user_id
+                )
             except Exception:
                 await session.rollback()
+                LOGGER.exception(
+                    "Failed to save profile for user_id=%s", profile.user_id
+                )
                 raise
 
     async def get(self, user_id: int) -> Optional["Profile"]:

@@ -278,7 +278,19 @@ async def finalize_profile(message: Message, profile: Profile) -> None:
         )
         return
 
-    await repository.upsert(profile)
+    try:
+        await repository.upsert(profile)
+    except Exception as exc:  # pragma: no cover - debug assistance
+        LOGGER.exception(
+            "Error while saving profile for user_id=%s: %s", profile.user_id, exc
+        )
+        await message.answer(
+            f"Не удалось сохранить анкету. Ошибка: {exc}",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        return
+
+    LOGGER.info("Profile save completed for user_id=%s", profile.user_id)
     match = await repository.find_mutual_match(profile)
 
     if match:
