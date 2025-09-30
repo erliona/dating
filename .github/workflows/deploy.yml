@@ -1,167 +1,57 @@
 name: Deploy
 
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
   workflow_dispatch:
-    inputs:
-      ref:
-        description: "Branch or tag to deploy"
-        required: false
-        default: "main"
-
-permissions:
-  contents: read
-
-concurrency:
-  group: deploy-${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.ref != '' && github.event.inputs.ref || 'manual') || github.event.workflow_run.head_branch || 'main' }}
-  cancel-in-progress: false
+  push:
+    branches: [ main ]  # можно убрать, если хочешь только ручной запуск
 
 jobs:
   deploy:
-    name: Deploy to production
     runs-on: ubuntu-latest
-    environment: production
-    env:
-      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-    if: |
-      (
-        github.event_name == 'workflow_dispatch' ||
-        (github.event_name == 'workflow_run' &&
-         github.event.workflow_run.conclusion == 'success' &&
-         github.event.workflow_run.head_branch == 'main')
-      ) &&
-      secrets.DEPLOY_HOST != '' &&
-      secrets.DEPLOY_USER != '' &&
-      secrets.DEPLOY_PATH != '' &&
-      secrets.ENV_FILE != '' &&
-      secrets.DEPLOY_SSH_KEY != ''
     steps:
-      - name: Determine deployment ref
-        id: deployment_meta
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          DISPATCH_REF: ${{ github.event.inputs.ref }}
-          WORKFLOW_RUN_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
-          DEFAULT_BRANCH: main
-        run: |
-          set -euo pipefail
-          if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
-            ref="${DISPATCH_REF}"
-            if [[ -z "${ref}" ]]; then
-              ref="${DEFAULT_BRANCH}"
-            fi
-          else
-            ref="${WORKFLOW_RUN_HEAD_BRANCH}"
-          fi
+      - uses: actions/checkout@v4
 
-          if [[ -z "${ref}" ]]; then
-            echo "Не удалось определить ref для деплоя" >&2
-            exit 1
-          fi
-
-          echo "ref=${ref}" >> "$GITHUB_OUTPUT"
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Test SSH
+        uses: appleboy/ssh-action@v1.0.3
         with:
-          ref: ${{ steps.deployment_meta.outputs.ref }}
-          fetch-depth: 0
-
-      - name: Prepare SSH key
-        id: prepare_ssh_key
-        run: |
-          python - <<'PY'
-          import base64
-          import os
-          from pathlib import Path
-
-          raw_key = os.environ["DEPLOY_SSH_KEY"]
-          key = raw_key.strip()
-          if not key:
-            raise SystemExit("Deployment SSH key is empty")
-
-          # Support secrets stored with escaped newlines or base64 encoding
-          if "BEGIN" not in key:
-            try:
-              key = base64.b64decode(key).decode()
-            except Exception:
-              pass
-
-          key = key.replace("\r\n", "\n").replace("\\n", "\n")
-          Path("deploy_key").write_text(key if key.endswith("\n") else key + "\n")
-          Path("deploy_key").chmod(0o600)
-          PY
-        env:
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-
-      - name: Write environment file
-        run: |
-          cat <<'ENV_EOF' > .env.deploy
-          ${{ secrets.ENV_FILE }}
-          ENV_EOF
-          chmod 600 .env.deploy
-
-      - name: Create deployment package
-        run: |
-          tar -czf release.tar.gz \
-            Dockerfile \
-            docker-compose.yml \
-            requirements.txt \
-            alembic.ini \
-            BACKLOG.md \
-            bot \
-            docker \
-            migrations \
-            webapp \
-            .env.deploy
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # passphrase: ${{ secrets.DEPLOY_SSH_KEY_PASSPHRASE }}
+          script: 'echo "SSH OK on $(hostname) as $(whoami)"'
 
       - name: Upload application bundle
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key_path: deploy_key
-          source: release.tar.gz
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # passphrase: ${{ secrets.DEPLOY_SSH_KEY_PASSPHRASE }}
+          source: "."
           target: ${{ secrets.DEPLOY_PATH }}
           overwrite: true
-          port: ${{ env.DEPLOY_PORT != '' && env.DEPLOY_PORT || '22' }}
 
-      - name: Extract release and deploy
-        uses: appleboy/ssh-action@v0.1.7
+      - name: Write .env on server
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key_path: deploy_key
-          port: ${{ env.DEPLOY_PORT != '' && env.DEPLOY_PORT || '22' }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # passphrase: ${{ secrets.DEPLOY_SSH_KEY_PASSPHRASE }}
           script: |
-            set -euo pipefail
-            if ! command -v docker >/dev/null 2>&1; then
-              curl -fsSL https://get.docker.com | sudo sh
-            fi
-            if ! docker compose version >/dev/null 2>&1; then
-              sudo mkdir -p /usr/local/lib/docker/cli-plugins
-              sudo curl -SL https://github.com/docker/compose/releases/download/v2.24.7/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
-              sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
-            fi
-            mkdir -p "${{ secrets.DEPLOY_PATH }}"
-            cd "${{ secrets.DEPLOY_PATH }}"
-            tar -xzf release.tar.gz --overwrite
-            rm -f release.tar.gz
-            mv .env.deploy .env
-            run_docker() {
-              if docker info >/dev/null 2>&1; then
-                docker "$@"
-              else
-                sudo docker "$@"
-              fi
-            }
-            run_docker compose pull || true
-            run_docker compose build --pull
-            run_docker compose up -d --remove-orphans
-            run_docker image prune -f
+            cd ${{ secrets.DEPLOY_PATH }}
+            cat > .env <<'EOF'
+            ${{ secrets.ENV_FILE }}
+            EOF
+            echo ".env written ($(wc -l < .env) lines)"
 
-      - name: Clean up artifacts
-        if: always()
-        run: rm -f release.tar.gz .env.deploy deploy_key
+      - name: Compose up
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd ${{ secrets.DEPLOY_PATH }}
+            sudo docker compose up -d --build
+            sudo docker compose ps
