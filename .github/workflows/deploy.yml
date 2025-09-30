@@ -1,9 +1,8 @@
 name: Deploy
-
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]  # можно убрать, если хочешь только ручной запуск
+    branches: [ main ]
 
 jobs:
   deploy:
@@ -11,47 +10,40 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Разворачиваем приватный ключ в файл
+      - name: Prepare SSH key
+        run: |
+          echo "${{ secrets.DEPLOY_SSH_KEY_B64 }}" | base64 -d > /tmp/ci_key
+          chmod 600 /tmp/ci_key
+
       - name: Test SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          # passphrase: ${{ secrets.DEPLOY_SSH_KEY_PASSPHRASE }}
-          script: 'echo "SSH OK on $(hostname) as $(whoami)"'
+          key_path: /tmp/ci_key
+          script: 'whoami'
 
       - name: Upload application bundle
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          # passphrase: ${{ secrets.DEPLOY_SSH_KEY_PASSPHRASE }}
+          key_path: /tmp/ci_key
           source: "."
           target: ${{ secrets.DEPLOY_PATH }}
           overwrite: true
 
-      - name: Write .env on server
+      - name: Write .env and compose up
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          # passphrase: ${{ secrets.DEPLOY_SSH_KEY_PASSPHRASE }}
+          key_path: /tmp/ci_key
           script: |
             cd ${{ secrets.DEPLOY_PATH }}
             cat > .env <<'EOF'
             ${{ secrets.ENV_FILE }}
             EOF
-            echo ".env written ($(wc -l < .env) lines)"
-
-      - name: Compose up
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: |
-            cd ${{ secrets.DEPLOY_PATH }}
-            sudo docker compose up -d --build
-            sudo docker compose ps
+            docker compose up -d --build
+            docker compose ps
