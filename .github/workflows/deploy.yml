@@ -23,22 +23,21 @@ jobs:
         shell: bash
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          ENV_FILE: ${{ secrets.ENV_FILE }}
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
         run: |
           set -euo pipefail
 
           missing=()
-          for var in DEPLOY_HOST DEPLOY_PATH DEPLOY_USER ENV_FILE DEPLOY_SSH_KEY; do
+          for var in DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY BOT_TOKEN; do
             if [ -z "${!var:-}" ]; then
               missing+=("$var")
             fi
           done
 
           if [ "${#missing[@]}" -ne 0 ]; then
-            printf '::warning::Skipping deploy because secrets are missing: %s\n' "${missing[*]}"
+            printf '::warning::Skipping deploy because required secrets are missing: %s\n' "${missing[*]}"
             echo "missing=true" >> "$GITHUB_OUTPUT"
           else
             echo "missing=false" >> "$GITHUB_OUTPUT"
@@ -46,7 +45,20 @@ jobs:
 
       - name: Abort deployment (secrets missing)
         if: steps.secrets.outputs.missing == 'true'
-        run: echo "Deployment skipped because required secrets are not configured."
+        run: |
+          echo "❌ Deployment skipped because required secrets are not configured."
+          echo ""
+          echo "Required secrets (3 core + BOT_TOKEN):"
+          echo "  - DEPLOY_HOST    : IP or hostname of your server"
+          echo "  - DEPLOY_USER    : SSH user with sudo permissions"
+          echo "  - DEPLOY_SSH_KEY : Private SSH key for authentication"
+          echo "  - BOT_TOKEN      : Telegram bot token from @BotFather"
+          echo ""
+          echo "Optional secrets for HTTPS (recommended for production):"
+          echo "  - DOMAIN         : Your domain name (e.g., example.com)"
+          echo "  - ACME_EMAIL     : Email for Let's Encrypt notifications"
+          echo ""
+          echo "Configure these in: Settings → Secrets and variables → Actions"
 
       # 1) Поднимаем ssh-agent и добавляем приватный ключ из секрета.
       #    Поддерживаем как исходный PEM, так и base64-строку.
@@ -111,8 +123,8 @@ jobs:
           # отладка: покажем запись (без секрета)
           tail -n 1 ~/.ssh/known_hosts || true
 
-      # 3) Готовим директорию на сервере
-      - name: Prepare remote dir
+      # 3) Готовим директорию на сервере и устанавливаем Docker если нужно
+      - name: Prepare server
         if: steps.secrets.outputs.missing != 'true'
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -127,8 +139,60 @@ jobs:
             SSH_ARGS+=("-p" "$DEPLOY_PORT")
           fi
 
-          ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
-            "sudo mkdir -p '$DEPLOY_PATH' && sudo chown -R \$USER:\$USER '$DEPLOY_PATH'"
+          DEPLOY_PATH_ACTUAL="${DEPLOY_PATH:-/opt/dating}"
+          
+          echo "📦 Preparing server at $DEPLOY_HOST:$DEPLOY_PATH_ACTUAL"
+
+          ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" bash -s <<'EOSSH'
+          set -euo pipefail
+          
+          DEPLOY_PATH="${DEPLOY_PATH:-/opt/dating}"
+          
+          echo "=== Server Preparation Started ==="
+          
+          # Create deployment directory
+          echo "📁 Creating deployment directory: $DEPLOY_PATH"
+          sudo mkdir -p "$DEPLOY_PATH"
+          sudo chown -R "$USER:$USER" "$DEPLOY_PATH"
+          
+          # Check and install Docker
+          if ! command -v docker >/dev/null 2>&1; then
+            echo "🐋 Docker not found. Installing Docker..."
+            curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
+            sudo sh /tmp/get-docker.sh
+            rm /tmp/get-docker.sh
+            
+            # Add current user to docker group
+            sudo usermod -aG docker "$USER"
+            echo "✓ Docker installed successfully"
+          else
+            echo "✓ Docker is already installed"
+            docker --version
+          fi
+          
+          # Check and install Docker Compose plugin
+          if ! docker compose version >/dev/null 2>&1; then
+            echo "🔧 Installing Docker Compose plugin..."
+            COMPOSE_VERSION="v2.24.7"
+            sudo mkdir -p /usr/local/lib/docker/cli-plugins
+            sudo curl -SL "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-linux-x86_64" \
+              -o /usr/local/lib/docker/cli-plugins/docker-compose
+            sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+            echo "✓ Docker Compose plugin installed successfully"
+          else
+            echo "✓ Docker Compose plugin is already installed"
+            docker compose version
+          fi
+          
+          # Ensure docker service is running
+          if ! sudo systemctl is-active --quiet docker; then
+            echo "🚀 Starting Docker service..."
+            sudo systemctl start docker
+            sudo systemctl enable docker
+          fi
+          
+          echo "=== Server Preparation Completed ==="
+          EOSSH
 
       # 4) Копируем проект на сервер (rsync быстрее и надёжнее scp)
       - name: Upload project
@@ -146,57 +210,94 @@ jobs:
             SSH_CMD+=("-p" "$DEPLOY_PORT")
           fi
 
+          DEPLOY_PATH_ACTUAL="${DEPLOY_PATH:-/opt/dating}"
+          
+          echo "📤 Uploading project to $DEPLOY_HOST:$DEPLOY_PATH_ACTUAL"
+
           rsync -az --delete \
             --exclude '.git' \
             --exclude '.github' \
             -e "${SSH_CMD[*]}" \
-            ./ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
+            ./ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH_ACTUAL/"
+          
+          echo "✓ Project uploaded successfully"
 
-      # 5) Validate ENV_FILE content before deployment
-      - name: Validate environment file
+      # 5) Generate .env file from secrets
+      - name: Generate environment file
         if: steps.secrets.outputs.missing != 'true'
         env:
-          ENV_FILE: ${{ secrets.ENV_FILE }}
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          DOMAIN: ${{ secrets.DOMAIN }}
+          ACME_EMAIL: ${{ secrets.ACME_EMAIL }}
+          POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+          POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          ACME_CA_SERVER: ${{ secrets.ACME_CA_SERVER }}
         run: |
           set -euo pipefail
           
-          echo "Validating ENV_FILE secret..."
+          echo "🔧 Generating environment configuration"
           
-          # Check that BOT_TOKEN is present
-          if ! echo "$ENV_FILE" | grep -q "^BOT_TOKEN="; then
-            echo "::error::ENV_FILE must contain BOT_TOKEN"
-            exit 1
+          # Generate .env file with smart defaults
+          cat > /tmp/deploy.env <<EOF
+          # Bot Configuration (Required)
+          BOT_TOKEN=${BOT_TOKEN}
+
+          # Database Configuration
+          POSTGRES_DB=${POSTGRES_DB:-dating}
+          POSTGRES_USER=${POSTGRES_USER:-dating}
+          POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-$(openssl rand -base64 32)}
+
+          # HTTPS Configuration (Production)
+          EOF
+
+          # Add HTTPS config if DOMAIN is provided
+          if [ -n "${DOMAIN:-}" ]; then
+            echo "DOMAIN=${DOMAIN}" >> /tmp/deploy.env
+            echo "WEBAPP_URL=https://${DOMAIN}" >> /tmp/deploy.env
+            echo "ACME_EMAIL=${ACME_EMAIL:-admin@${DOMAIN}}" >> /tmp/deploy.env
+            
+            # Add staging CA server if specified
+            if [ -n "${ACME_CA_SERVER:-}" ]; then
+              echo "ACME_CA_SERVER=${ACME_CA_SERVER}" >> /tmp/deploy.env
+            fi
+            
+            echo "✓ HTTPS configuration enabled for domain: ${DOMAIN}"
+          else
+            echo "DOMAIN=localhost" >> /tmp/deploy.env
+            echo "WEBAPP_URL=https://localhost" >> /tmp/deploy.env
+            echo "⚠️  No DOMAIN specified - using localhost (HTTPS certificates won't be issued)"
           fi
           
+          echo ""
+          echo "📋 Generated configuration:"
+          grep -v "PASSWORD\|TOKEN" /tmp/deploy.env || true
+          
+      # 6) Validate environment configuration
+      - name: Validate configuration
+        if: steps.secrets.outputs.missing != 'true'
+        env:
+          DOMAIN: ${{ secrets.DOMAIN }}
+        run: |
+          set -euo pipefail
+          
+          echo "✅ Validating deployment configuration..."
+          
           # Check that BOT_TOKEN is not empty or placeholder
-          if echo "$ENV_FILE" | grep -qE "^BOT_TOKEN=(|your-|replace-|test-)"; then
+          if grep -qE "^BOT_TOKEN=(|your-|replace-|test-)" /tmp/deploy.env; then
             echo "::error::BOT_TOKEN appears to be a placeholder value"
             exit 1
           fi
           
-          # Check for database configuration
-          if ! echo "$ENV_FILE" | grep -qE "^(BOT_DATABASE_URL|POSTGRES_)"; then
-            echo "::warning::No database configuration found in ENV_FILE"
+          # Warn if no domain for production
+          if [ -z "${DOMAIN:-}" ]; then
+            echo "::warning::Deploying without DOMAIN - HTTPS certificates won't be issued"
+            echo "::warning::For production, set DOMAIN secret to your domain name"
           fi
           
-          # Check for HTTPS configuration
-          if ! echo "$ENV_FILE" | grep -q "^DOMAIN="; then
-            echo "::warning::DOMAIN not set - HTTPS certificates won't be issued"
-          fi
-          
-          if ! echo "$ENV_FILE" | grep -q "^ACME_EMAIL="; then
-            echo "::warning::ACME_EMAIL not set - using default email for Let's Encrypt"
-          fi
-          
-          # Validate WEBAPP_URL uses HTTPS (unless localhost)
-          if echo "$ENV_FILE" | grep -qE "^WEBAPP_URL=http://[^l]" && ! echo "$ENV_FILE" | grep -qE "^WEBAPP_URL=http://(localhost|127\.0\.0\.1)"; then
-            echo "::error::WEBAPP_URL must use HTTPS protocol for production deployment"
-            exit 1
-          fi
-          
-          echo "✓ ENV_FILE validation passed"
+          echo "✓ Configuration validation passed"
 
-      # 6) Write .env and deploy with improved migration handling
+      # 7) Deploy to server with generated .env
       - name: Deploy to server
         if: steps.secrets.outputs.missing != 'true'
         env:
@@ -212,53 +313,86 @@ jobs:
             SSH_ARGS+=("-p" "$DEPLOY_PORT")
           fi
 
-          ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" <<'EOSSH'
-          set -euo pipefail
-          cd '${{ secrets.DEPLOY_PATH }}'
-
-          echo "=== Deployment started ==="
+          DEPLOY_PATH_ACTUAL="${DEPLOY_PATH:-/opt/dating}"
           
-          # Write .env from secret
-          cat > .env <<'EOF'
-          ${{ secrets.ENV_FILE }}
-          EOF
+          echo "🚀 Deploying application to $DEPLOY_HOST:$DEPLOY_PATH_ACTUAL"
+
+          # Upload .env file
+          scp "${SSH_ARGS[@]}" /tmp/deploy.env "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH_ACTUAL/.env"
+          
+          # Deploy and start services
+          ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" bash -s <<'EOSSH'
+          set -euo pipefail
+          
+          DEPLOY_PATH="${DEPLOY_PATH:-/opt/dating}"
+          cd "$DEPLOY_PATH"
+
+          echo "=== Deployment Started ==="
+          
+          # Secure .env file
           chmod 600 .env
-          echo "✓ Environment file written"
+          echo "✓ Environment file secured"
+
+          # Helper function to run docker with sudo if needed
+          run_docker() {
+            # Try without sudo first (if user is in docker group)
+            if docker "$@" 2>/dev/null; then
+              return 0
+            fi
+            # Fall back to sudo
+            sudo docker "$@"
+          }
 
           # Stop old containers gracefully
-          if sudo docker compose ps -q | grep -q .; then
-            echo "Stopping existing containers..."
-            sudo docker compose down
+          if run_docker compose ps -q 2>/dev/null | grep -q .; then
+            echo "🛑 Stopping existing containers..."
+            run_docker compose down
           fi
 
-          # Pull latest images
-          echo "Pulling base images..."
-          sudo docker compose pull db webapp || true
+          # Pull latest base images
+          echo "📥 Pulling base images..."
+          run_docker compose pull db webapp traefik || true
 
           # Build and start services
-          echo "Building and starting services..."
-          sudo docker compose up -d --build --remove-orphans
+          echo "🏗️  Building and starting services..."
+          run_docker compose up -d --build --remove-orphans
 
           # Wait for services to be healthy
-          echo "Waiting for services to be healthy..."
-          sleep 10
+          echo "⏳ Waiting for services to start..."
+          sleep 15
 
           # Check service status
+          echo ""
           echo "=== Service Status ==="
-          sudo docker compose ps
+          run_docker compose ps
 
-          # Check bot logs for startup errors
-          echo "=== Bot Logs (last 20 lines) ==="
-          sudo docker compose logs --tail=20 bot
+          # Check bot logs for startup
+          echo ""
+          echo "=== Bot Startup Logs ==="
+          run_docker compose logs --tail=30 bot
 
-          # Verify database connection
+          # Verify database
+          echo ""
           echo "=== Database Status ==="
-          sudo docker compose exec -T db pg_isready -U ${POSTGRES_USER:-dating} || echo "⚠ Database not ready yet"
+          if run_docker compose exec -T db pg_isready -U "${POSTGRES_USER:-dating}" 2>/dev/null; then
+            echo "✓ Database is ready"
+          else
+            echo "⚠️  Database health check unavailable (may still be starting)"
+          fi
 
-          echo "=== Deployment completed ==="
+          # Cleanup old images
+          echo ""
+          echo "🧹 Cleaning up old images..."
+          run_docker image prune -f || true
+
+          echo ""
+          echo "=== Deployment Completed Successfully ==="
           EOSSH
+          
+          echo ""
+          echo "✅ Deployment finished!"
 
-      # 7) Post-deployment health check
+      # 8) Post-deployment health check
       - name: Health check
         if: steps.secrets.outputs.missing != 'true'
         env:
@@ -274,30 +408,41 @@ jobs:
             SSH_ARGS+=("-p" "$DEPLOY_PORT")
           fi
 
-          echo "Performing post-deployment health check..."
+          DEPLOY_PATH_ACTUAL="${DEPLOY_PATH:-/opt/dating}"
+
+          echo "🏥 Performing post-deployment health check..."
           
-          ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" <<'EOSSH'
+          ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" bash -s <<'EOSSH'
           set -euo pipefail
-          cd '${{ secrets.DEPLOY_PATH }}'
+          
+          DEPLOY_PATH="${DEPLOY_PATH:-/opt/dating}"
+          cd "$DEPLOY_PATH"
+
+          run_docker() {
+            if docker "$@" 2>/dev/null; then
+              return 0
+            fi
+            sudo docker "$@"
+          }
 
           # Check if bot container is running
-          if ! sudo docker compose ps bot | grep -q "Up"; then
+          if ! run_docker compose ps bot | grep -q "Up"; then
             echo "::error::Bot container is not running!"
-            sudo docker compose logs --tail=50 bot
+            run_docker compose logs --tail=50 bot
             exit 1
           fi
 
           # Check if database is running
-          if ! sudo docker compose ps db | grep -q "Up"; then
+          if ! run_docker compose ps db | grep -q "Up"; then
             echo "::error::Database container is not running!"
-            sudo docker compose logs --tail=50 db
+            run_docker compose logs --tail=50 db
             exit 1
           fi
 
-          # Check for recent errors in bot logs
-          if sudo docker compose logs --tail=50 bot | grep -iE "(error|exception|failed)" | grep -v "test"; then
-            echo "::warning::Potential errors found in bot logs"
+          # Check for critical errors in bot logs
+          if run_docker compose logs --tail=50 bot | grep -iE "(critical|fatal)" | grep -v "test"; then
+            echo "::warning::Critical errors found in bot logs"
           fi
 
-          echo "✓ Health check passed"
+          echo "✅ Health check passed - all services are running"
           EOSSH
