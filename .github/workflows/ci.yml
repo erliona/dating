@@ -68,7 +68,7 @@ jobs:
 
       - name: Run tests with coverage
         env:
-          BOT_TOKEN: "test-token-for-ci"
+          BOT_TOKEN: "123456789:ABCdefGHIjklMNOpqrsTUVwxyz-TestToken"
           BOT_DATABASE_URL: "postgresql+asyncpg://test_user:test_password@localhost:5432/dating_test"
           WEBAPP_URL: "https://example.com"
         run: |

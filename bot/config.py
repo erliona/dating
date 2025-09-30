@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 
 from sqlalchemy.engine import make_url
@@ -33,8 +34,42 @@ def load_config() -> BotConfig:
         raise RuntimeError("BOT_TOKEN environment variable is required to start the bot")
     
     # Validate token format (basic check)
-    if not token.strip():
+    token = token.strip()
+    if not token:
         raise RuntimeError("BOT_TOKEN cannot be empty or whitespace")
+    
+    # Check for common placeholder patterns
+    placeholder_patterns = [
+        "your-",
+        "replace-",
+        "insert-",
+        "paste-",
+        "add-",
+        "enter-",
+        "example",
+        "placeholder",
+        "token-here",
+        "bot-token",
+        "from-botfather",
+    ]
+    token_lower = token.lower()
+    if any(pattern in token_lower for pattern in placeholder_patterns):
+        raise RuntimeError(
+            "BOT_TOKEN appears to be a placeholder value. "
+            "Please set a real Telegram bot token from @BotFather. "
+            "Valid tokens have the format: <numeric_id>:<alphanumeric_hash> "
+            "(example: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz-1234567)"
+        )
+    
+    # Validate Telegram bot token format: <numeric_id>:<alphanumeric_hash>
+    # Bot tokens are typically in the format: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz
+    if not re.match(r'^\d+:[A-Za-z0-9_-]+$', token):
+        raise RuntimeError(
+            "BOT_TOKEN has invalid format. "
+            "Telegram bot tokens must match the format: <numeric_id>:<alphanumeric_hash> "
+            "(example: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz-1234567). "
+            "Get a valid token from @BotFather on Telegram."
+        )
 
     webapp_url = os.getenv("WEBAPP_URL")
     if webapp_url and not webapp_url.strip():
