@@ -179,6 +179,21 @@ jobs:
             echo "::warning::No database configuration found in ENV_FILE"
           fi
           
+          # Check for HTTPS configuration
+          if ! echo "$ENV_FILE" | grep -q "^DOMAIN="; then
+            echo "::warning::DOMAIN not set - HTTPS certificates won't be issued"
+          fi
+          
+          if ! echo "$ENV_FILE" | grep -q "^ACME_EMAIL="; then
+            echo "::warning::ACME_EMAIL not set - using default email for Let's Encrypt"
+          fi
+          
+          # Validate WEBAPP_URL uses HTTPS (unless localhost)
+          if echo "$ENV_FILE" | grep -qE "^WEBAPP_URL=http://[^l]" && ! echo "$ENV_FILE" | grep -qE "^WEBAPP_URL=http://(localhost|127\.0\.0\.1)"; then
+            echo "::error::WEBAPP_URL must use HTTPS protocol for production deployment"
+            exit 1
+          fi
+          
           echo "✓ ENV_FILE validation passed"
 
       # 6) Write .env and deploy with improved migration handling

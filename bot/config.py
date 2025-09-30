@@ -40,6 +40,17 @@ def load_config() -> BotConfig:
     if webapp_url and not webapp_url.strip():
         raise RuntimeError("WEBAPP_URL cannot be empty if set; unset it or provide a valid URL")
     
+    # Validate WEBAPP_URL uses HTTPS for production security
+    if webapp_url:
+        webapp_url = webapp_url.strip()
+        # Allow localhost and 127.0.0.1 for development/testing
+        is_local = any(x in webapp_url.lower() for x in ["localhost", "127.0.0.1"])
+        if not webapp_url.startswith("https://") and not is_local:
+            raise RuntimeError(
+                "WEBAPP_URL must use HTTPS protocol for security. "
+                "Only localhost URLs are allowed to use HTTP for local development."
+            )
+    
     database_url_raw = os.getenv("BOT_DATABASE_URL") or os.getenv("DATABASE_URL")
     if not database_url_raw:
         raise RuntimeError(

@@ -5,6 +5,12 @@
 # remote host and restarts the Docker Compose stack. It mirrors the
 # behaviour of the GitHub Actions workflow so you can trigger a
 # deployment from your local machine.
+#
+# IMPORTANT: For production deployments with HTTPS:
+# - Ensure your .env file includes: DOMAIN, ACME_EMAIL, WEBAPP_URL (https://)
+# - DNS must point to your server IP
+# - Ports 80 and 443 must be open in firewall
+# - Traefik will automatically obtain Let's Encrypt SSL certificates
 
 set -euo pipefail
 
@@ -17,6 +23,7 @@ Required arguments:
   -u <user>         SSH user name with Docker permissions.
   -d <remote_path>  Directory on the remote host where the project should live.
   -e <env_file>     Path to the local .env file that will be uploaded.
+                    For HTTPS: Must include DOMAIN, ACME_EMAIL, and WEBAPP_URL (https://)
 
 Optional arguments:
   -p <port>         SSH port (default: 22).
@@ -25,7 +32,10 @@ Optional arguments:
 
 Example:
   scripts/deploy.sh -H server.example.com -u deploy \
-    -d /opt/dating -e .env -i ~/.ssh/id_ed25519
+    -d /opt/dating -e .env.production -i ~/.ssh/id_ed25519
+
+For local development without HTTPS:
+  Use docker-compose.dev.yml instead of this script.
 USAGE
 }
 
