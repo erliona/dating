@@ -1,3 +1,18 @@
+# Production Docker Compose configuration with HTTPS support
+#
+# This configuration includes Traefik as a reverse proxy with automatic
+# Let's Encrypt SSL certificate generation.
+#
+# Requirements for HTTPS:
+# - Set DOMAIN to your public domain name
+# - Set ACME_EMAIL to receive certificate expiration notifications
+# - Set WEBAPP_URL to https://your-domain.com
+# - Ensure DNS points to your server IP
+# - Ensure ports 80 and 443 are open in firewall
+#
+# For local development without HTTPS, use docker-compose.dev.yml instead:
+#   docker compose -f docker-compose.dev.yml up
+
 services:
   traefik:
     image: traefik:v2.11
