@@ -233,10 +233,42 @@ jobs:
           POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           ACME_CA_SERVER: ${{ secrets.ACME_CA_SERVER }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
           set -euo pipefail
           
           echo "🔧 Generating environment configuration"
+          
+          # SSH setup for retrieving existing password
+          SSH_ARGS=("-o" "StrictHostKeyChecking=yes")
+          if [ -n "${DEPLOY_PORT:-}" ]; then
+            SSH_ARGS+=("-p" "$DEPLOY_PORT")
+          fi
+          
+          DEPLOY_PATH_ACTUAL="${DEPLOY_PATH:-/opt/dating}"
+          
+          # Try to get existing POSTGRES_PASSWORD from server to avoid database connection issues
+          EXISTING_PASSWORD=""
+          echo "🔍 Checking for existing database password on server..."
+          if ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" "test -f $DEPLOY_PATH_ACTUAL/.env" 2>/dev/null; then
+            EXISTING_PASSWORD=$(ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" "grep '^POSTGRES_PASSWORD=' $DEPLOY_PATH_ACTUAL/.env 2>/dev/null | cut -d'=' -f2-" || echo "")
+            if [ -n "$EXISTING_PASSWORD" ]; then
+              echo "✓ Found existing database password, reusing it to maintain database connectivity"
+            fi
+          fi
+          
+          # Use existing password if found, otherwise use secret or generate new one
+          if [ -n "$EXISTING_PASSWORD" ]; then
+            POSTGRES_PASSWORD_TO_USE="$EXISTING_PASSWORD"
+          elif [ -n "${POSTGRES_PASSWORD:-}" ]; then
+            POSTGRES_PASSWORD_TO_USE="$POSTGRES_PASSWORD"
+          else
+            POSTGRES_PASSWORD_TO_USE="$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)"
+            echo "⚠️  Generated new database password (this may require database reset on first deployment)"
+          fi
           
           # Generate .env file with smart defaults
           cat > /tmp/deploy.env <<EOF
@@ -246,7 +278,7 @@ jobs:
           # Database Configuration
           POSTGRES_DB=${POSTGRES_DB:-dating}
           POSTGRES_USER=${POSTGRES_USER:-dating}
-          POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)}
+          POSTGRES_PASSWORD=${POSTGRES_PASSWORD_TO_USE}
 
           # HTTPS Configuration (Production)
           EOF
