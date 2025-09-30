@@ -28,14 +28,7 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: Run tests
-        run: |
-          set -o pipefail
-          python -m pytest || exit_code=$?
-          if [ "${exit_code:-0}" -eq 5 ]; then
-            echo "Pytest exited with code 5 (no tests collected). Treating as success."
-          elif [ "${exit_code:-0}" -ne 0 ]; then
-            exit "${exit_code}"
-          fi
+        run: python -m pytest
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
