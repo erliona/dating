@@ -257,17 +257,24 @@ jobs:
             EXISTING_PASSWORD=$(ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" "grep '^POSTGRES_PASSWORD=' $DEPLOY_PATH_ACTUAL/.env 2>/dev/null | cut -d'=' -f2-" || echo "")
             if [ -n "$EXISTING_PASSWORD" ]; then
               echo "✓ Found existing database password, reusing it to maintain database connectivity"
+            else
+              echo "⚠️  .env file exists but no POSTGRES_PASSWORD found"
             fi
+          else
+            echo "ℹ️  No .env file found on server (first deployment)"
           fi
           
           # Use existing password if found, otherwise use secret or generate new one
           if [ -n "$EXISTING_PASSWORD" ]; then
             POSTGRES_PASSWORD_TO_USE="$EXISTING_PASSWORD"
+            echo "Using existing password from server"
           elif [ -n "${POSTGRES_PASSWORD:-}" ]; then
             POSTGRES_PASSWORD_TO_USE="$POSTGRES_PASSWORD"
+            echo "Using password from GitHub secret"
           else
             POSTGRES_PASSWORD_TO_USE="$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)"
-            echo "⚠️  Generated new database password (this may require database reset on first deployment)"
+            echo "⚠️  Generated new random database password"
+            echo "⚠️  Database will be reset if it already exists with a different password"
           fi
           
           # Generate .env file with smart defaults
@@ -414,11 +421,33 @@ jobs:
             sudo docker "$@"
           }
 
+          # Check if database password has changed
+          PASSWORD_CHANGED=false
+          if [ -f .env.previous ]; then
+            OLD_PASSWORD=$(grep "^POSTGRES_PASSWORD=" .env.previous 2>/dev/null | cut -d'=' -f2- || echo "")
+            NEW_PASSWORD=$(grep "^POSTGRES_PASSWORD=" .env 2>/dev/null | cut -d'=' -f2- || echo "")
+            if [ -n "$OLD_PASSWORD" ] && [ -n "$NEW_PASSWORD" ] && [ "$OLD_PASSWORD" != "$NEW_PASSWORD" ]; then
+              echo "⚠️  Database password has changed!"
+              PASSWORD_CHANGED=true
+            fi
+          fi
+
           # Stop old containers gracefully
           if run_docker compose ps -q 2>/dev/null | grep -q .; then
             echo "🛑 Stopping existing containers..."
             run_docker compose down
           fi
+
+          # If password changed, we need to reset the database volume
+          # because PostgreSQL only uses POSTGRES_PASSWORD on initial DB creation
+          if [ "$PASSWORD_CHANGED" = true ]; then
+            echo "🗑️  Removing database volume due to password change..."
+            run_docker volume rm dating_postgres_data 2>/dev/null || true
+            echo "✓ Database will be recreated with new password"
+          fi
+
+          # Save current .env as .env.previous for next deployment
+          cp .env .env.previous
 
           # Pull latest base images
           echo "📥 Pulling base images..."
