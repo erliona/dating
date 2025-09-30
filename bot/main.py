@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 from dataclasses import dataclass, field
+from typing import Any, Optional
 
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.client.default import DefaultBotProperties
@@ -57,21 +58,70 @@ class Questionnaire(StatesGroup):
     waiting_for_photo = State()
 
 
-PROFILE_REPOSITORY: ProfileRepository | None = None
-CONFIG: BotConfig | None = None
 ROUTER = Router()
 
+BOT_CONTEXT_STORAGE_ATTR = "_dating_bot_context"
+CONFIG_CONTEXT_KEY = "config"
+REPOSITORY_CONTEXT_KEY = "profile_repository"
 
-def get_config() -> BotConfig:
-    if CONFIG is None:
+
+def _set_bot_context_value(bot: Bot, key: str, value: Any) -> None:
+    """Store arbitrary data inside the bot instance."""
+
+    if hasattr(bot, "__setitem__"):
+        try:
+            bot[key] = value  # type: ignore[index]
+            return
+        except TypeError:
+            pass
+
+    context: Optional[dict[str, Any]] = getattr(bot, BOT_CONTEXT_STORAGE_ATTR, None)
+    if context is None or not isinstance(context, dict):
+        context = {}
+        setattr(bot, BOT_CONTEXT_STORAGE_ATTR, context)
+    context[key] = value
+
+
+def _get_bot_context_value(bot: Bot, key: str) -> Any:
+    """Retrieve a value from the bot context if available."""
+
+    if hasattr(bot, "__getitem__"):
+        try:
+            return bot[key]  # type: ignore[index]
+        except (KeyError, TypeError):
+            pass
+
+    context: Optional[dict[str, Any]] = getattr(bot, BOT_CONTEXT_STORAGE_ATTR, None)
+    if isinstance(context, dict):
+        return context.get(key)
+    return None
+
+
+def attach_bot_context(bot: Bot, config: BotConfig, repository: ProfileRepository) -> None:
+    """Populate the bot context with common application dependencies."""
+
+    _set_bot_context_value(bot, CONFIG_CONTEXT_KEY, config)
+    _set_bot_context_value(bot, REPOSITORY_CONTEXT_KEY, repository)
+
+
+def get_config(bot: Bot | None) -> BotConfig:
+    if bot is None:
+        raise RuntimeError("Bot instance is not available")
+
+    config = _get_bot_context_value(bot, CONFIG_CONTEXT_KEY)
+    if not isinstance(config, BotConfig):
         raise RuntimeError("Bot configuration is not loaded")
-    return CONFIG
+    return config
 
 
-def get_repository() -> ProfileRepository:
-    if PROFILE_REPOSITORY is None:
+def get_repository(bot: Bot | None) -> ProfileRepository:
+    if bot is None:
+        raise RuntimeError("Bot instance is not available")
+
+    repository = _get_bot_context_value(bot, REPOSITORY_CONTEXT_KEY)
+    if not isinstance(repository, ProfileRepository):
         raise RuntimeError("Profile repository is not initialized")
-    return PROFILE_REPOSITORY
+    return repository
 
 
 def normalise_choice(value: str) -> str:
@@ -217,7 +267,17 @@ def build_profile_from_payload(user_id: int, payload: dict[str, object]) -> Prof
 
 
 async def finalize_profile(message: Message, profile: Profile) -> None:
-    repository = get_repository()
+    bot = message.bot
+    try:
+        repository = get_repository(bot)
+    except RuntimeError as exc:
+        LOGGER.exception("Profile repository is unavailable: %s", exc)
+        await message.answer(
+            "Не удалось сохранить анкету из-за внутренней ошибки. Попробуйте позже.",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        return
+
     await repository.upsert(profile)
     match = await repository.find_mutual_match(profile)
 
@@ -227,12 +287,12 @@ async def finalize_profile(message: Message, profile: Profile) -> None:
             reply_markup=ReplyKeyboardRemove(),
         )
         await _send_photo_reply(message, match)
-        await message.bot.send_message(
+        await bot.send_message(
             chat_id=match.user_id,
             text=_format_match_message(profile),
             reply_markup=ReplyKeyboardRemove(),
         )
-        await _send_profile_photo(message.bot, match.user_id, profile)
+        await _send_profile_photo(bot, match.user_id, profile)
     else:
         await message.answer(
             "Спасибо! Как только мы найдём подходящую пару, я сразу дам знать.",
@@ -244,7 +304,15 @@ async def finalize_profile(message: Message, profile: Profile) -> None:
 async def start_handler(message: Message, state: FSMContext) -> None:
     """Handle the /start command."""
 
-    config = get_config()
+    try:
+        config = get_config(message.bot)
+    except RuntimeError as exc:
+        LOGGER.exception("Bot configuration is unavailable: %s", exc)
+        await message.answer(
+            "Не удалось получить конфигурацию бота. Попробуйте написать позже.",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        return
     await state.clear()
     greeting = [
         "Привет! Я бот для знакомств.",
@@ -502,14 +570,12 @@ async def main() -> None:
     engine = create_async_engine(config.database_url, future=True)
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
-    global PROFILE_REPOSITORY, CONFIG
-    PROFILE_REPOSITORY = ProfileRepository(session_factory)
-    CONFIG = config
-
     bot = Bot(
         token=config.token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
+    repository = ProfileRepository(session_factory)
+    attach_bot_context(bot, config, repository)
     dp = Dispatcher(storage=MemoryStorage())
     dp.include_router(ROUTER)
 
