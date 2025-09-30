@@ -174,3 +174,218 @@ class TestHandleInteraction:
         # Verify error message was sent
         message.answer.assert_called_once()
         assert "Не удалось сохранить" in message.answer.call_args[0][0]
+
+
+@pytest.mark.asyncio
+class TestDebugHandler:
+    """Test suite for the /debug command handler."""
+
+    async def test_debug_shows_bot_status(self) -> None:
+        """Test that debug command shows bot status information."""
+        from bot.main import debug_handler
+        
+        # Mock message and bot
+        message = MagicMock()
+        message.from_user = MagicMock()
+        message.from_user.id = 12345
+        message.bot = MagicMock()
+        message.answer = AsyncMock()
+        
+        # Mock bot.get_me()
+        bot_info = MagicMock()
+        bot_info.id = 123456789
+        bot_info.username = "test_bot"
+        bot_info.first_name = "Test Bot"
+        message.bot.get_me = AsyncMock(return_value=bot_info)
+        
+        # Mock config
+        mock_config = MagicMock()
+        mock_config.webapp_url = "https://example.com/webapp"
+        mock_config.database_url = "postgresql+asyncpg://user:pass@localhost:5432/testdb"
+        
+        # Mock repository
+        mock_repo = MagicMock()
+        mock_repo.get = AsyncMock(return_value=None)
+        mock_repo._session_factory = MagicMock()
+        
+        # Mock session with database counts
+        mock_session = AsyncMock()
+        mock_execute = AsyncMock()
+        mock_scalar_result = MagicMock()
+        mock_scalar_result.scalar = MagicMock(return_value=10)
+        mock_execute.return_value = mock_scalar_result
+        mock_session.execute = mock_execute
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock()
+        mock_repo._session_factory.return_value = mock_session
+        
+        with patch("bot.main.get_config", return_value=mock_config), \
+             patch("bot.main.get_repository", return_value=mock_repo), \
+             patch("bot.main.get_interaction_repository", return_value=mock_repo), \
+             patch("bot.main.get_match_repository", return_value=mock_repo), \
+             patch("bot.main.get_settings_repository", return_value=mock_repo):
+            
+            await debug_handler(message)
+        
+        # Verify message was sent
+        message.answer.assert_called_once()
+        response = message.answer.call_args[0][0]
+        
+        # Check that response contains expected sections
+        assert "Debug Information" in response
+        assert "Bot Status" in response
+        assert "test_bot" in response
+        assert "Configuration" in response
+        assert "Database Connection" in response
+        assert "Connected" in response
+        assert "Database Statistics" in response
+        assert "Environment Variables" in response
+        assert "System Information" in response
+
+    async def test_debug_handles_bot_info_error(self) -> None:
+        """Test that debug command handles bot info retrieval errors gracefully."""
+        from bot.main import debug_handler
+        
+        # Mock message and bot
+        message = MagicMock()
+        message.from_user = MagicMock()
+        message.from_user.id = 12345
+        message.bot = MagicMock()
+        message.answer = AsyncMock()
+        
+        # Mock bot.get_me() to raise error
+        message.bot.get_me = AsyncMock(side_effect=Exception("Network error"))
+        
+        # Mock other dependencies
+        mock_config = MagicMock()
+        mock_config.webapp_url = "https://example.com/webapp"
+        mock_config.database_url = "postgresql+asyncpg://user:pass@localhost:5432/testdb"
+        
+        mock_repo = MagicMock()
+        mock_repo.get = AsyncMock(return_value=None)
+        
+        with patch("bot.main.get_config", return_value=mock_config), \
+             patch("bot.main.get_repository", return_value=mock_repo):
+            
+            await debug_handler(message)
+        
+        # Verify message was sent even with error
+        message.answer.assert_called_once()
+        response = message.answer.call_args[0][0]
+        
+        # Check that error is shown
+        assert "Failed to get bot info" in response
+
+    async def test_debug_handles_config_error(self) -> None:
+        """Test that debug command handles config errors gracefully."""
+        from bot.main import debug_handler
+        
+        # Mock message and bot
+        message = MagicMock()
+        message.from_user = MagicMock()
+        message.from_user.id = 12345
+        message.bot = MagicMock()
+        message.answer = AsyncMock()
+        
+        # Mock bot info
+        bot_info = MagicMock()
+        bot_info.id = 123456789
+        bot_info.username = "test_bot"
+        bot_info.first_name = "Test Bot"
+        message.bot.get_me = AsyncMock(return_value=bot_info)
+        
+        # Mock config to raise error
+        with patch("bot.main.get_config", side_effect=RuntimeError("Config not loaded")):
+            await debug_handler(message)
+        
+        # Verify message was sent
+        message.answer.assert_called_once()
+        response = message.answer.call_args[0][0]
+        
+        # Check that config error is shown
+        assert "Config Error" in response
+
+    async def test_debug_handles_database_error(self) -> None:
+        """Test that debug command handles database connection errors gracefully."""
+        from bot.main import debug_handler
+        
+        # Mock message and bot
+        message = MagicMock()
+        message.from_user = MagicMock()
+        message.from_user.id = 12345
+        message.bot = MagicMock()
+        message.answer = AsyncMock()
+        
+        # Mock bot info
+        bot_info = MagicMock()
+        bot_info.id = 123456789
+        bot_info.username = "test_bot"
+        bot_info.first_name = "Test Bot"
+        message.bot.get_me = AsyncMock(return_value=bot_info)
+        
+        # Mock config
+        mock_config = MagicMock()
+        mock_config.webapp_url = "https://example.com/webapp"
+        mock_config.database_url = "postgresql+asyncpg://user:pass@localhost:5432/testdb"
+        
+        # Mock repository to raise error
+        mock_repo = MagicMock()
+        mock_repo.get = AsyncMock(side_effect=Exception("Connection refused"))
+        
+        with patch("bot.main.get_config", return_value=mock_config), \
+             patch("bot.main.get_repository", return_value=mock_repo):
+            
+            await debug_handler(message)
+        
+        # Verify message was sent
+        message.answer.assert_called_once()
+        response = message.answer.call_args[0][0]
+        
+        # Check that connection failure is shown
+        assert "Connection Failed" in response
+
+    async def test_debug_masks_sensitive_data(self) -> None:
+        """Test that debug command masks sensitive information."""
+        from bot.main import debug_handler
+        
+        # Mock message and bot
+        message = MagicMock()
+        message.from_user = MagicMock()
+        message.from_user.id = 12345
+        message.bot = MagicMock()
+        message.answer = AsyncMock()
+        
+        # Mock bot info
+        bot_info = MagicMock()
+        bot_info.id = 123456789
+        bot_info.username = "test_bot"
+        bot_info.first_name = "Test Bot"
+        message.bot.get_me = AsyncMock(return_value=bot_info)
+        
+        # Mock config with sensitive data
+        mock_config = MagicMock()
+        mock_config.webapp_url = "https://example.com/webapp"
+        mock_config.database_url = "postgresql+asyncpg://myuser:secretpassword@localhost:5432/testdb"
+        
+        # Mock repository
+        mock_repo = MagicMock()
+        mock_repo.get = AsyncMock(return_value=None)
+        
+        with patch("bot.main.get_config", return_value=mock_config), \
+             patch("bot.main.get_repository", return_value=mock_repo), \
+             patch.dict("os.environ", {"BOT_TOKEN": "123456:ABC-secret-token"}):
+            
+            await debug_handler(message)
+        
+        # Verify message was sent
+        message.answer.assert_called_once()
+        response = message.answer.call_args[0][0]
+        
+        # Check that password is masked
+        assert "secretpassword" not in response
+        assert "myuser:***@" in response
+        
+        # Check that token is masked
+        assert "ABC-secret-token" not in response
+        assert "BOT_TOKEN: ***" in response
+

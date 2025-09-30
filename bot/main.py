@@ -6,6 +6,8 @@ import asyncio
 import json
 import logging
 import os
+import platform
+import sys
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
@@ -498,6 +500,164 @@ async def cancel_handler(message: Message, state: FSMContext) -> None:
         "Все операции отменены. Напиши /start, чтобы начать.",
         reply_markup=ReplyKeyboardRemove(),
     )
+
+
+@ROUTER.message(Command(commands={"debug"}))
+async def debug_handler(message: Message) -> None:
+    """Show comprehensive debug information about the bot's status."""
+    
+    LOGGER.info("Debug command received from user_id=%s", message.from_user.id)
+    
+    debug_lines = ["🔧 <b>Debug Information</b>\n"]
+    
+    # Bot Status
+    debug_lines.append("📱 <b>Bot Status:</b>")
+    try:
+        bot_info = await message.bot.get_me()
+        debug_lines.append(f"  ✅ Bot Running")
+        debug_lines.append(f"  • ID: <code>{bot_info.id}</code>")
+        debug_lines.append(f"  • Username: @{bot_info.username}")
+        debug_lines.append(f"  • Name: {bot_info.first_name}")
+    except Exception as exc:
+        debug_lines.append(f"  ❌ Failed to get bot info: {exc}")
+        LOGGER.exception("Failed to get bot info in debug handler")
+    
+    debug_lines.append("")
+    
+    # Configuration Status
+    debug_lines.append("⚙️ <b>Configuration:</b>")
+    try:
+        config = get_config(message.bot)
+        debug_lines.append(f"  ✅ Config Loaded")
+        
+        # Show webapp URL status
+        if config.webapp_url:
+            # Mask part of the URL for security
+            webapp_display = config.webapp_url
+            if len(webapp_display) > 50:
+                webapp_display = webapp_display[:47] + "..."
+            debug_lines.append(f"  • WebApp URL: {webapp_display}")
+        else:
+            debug_lines.append(f"  ⚠️ WebApp URL: Not configured")
+        
+        # Show database URL (masked)
+        db_url_masked = config.database_url
+        # Mask password in DB URL
+        if "@" in db_url_masked and "://" in db_url_masked:
+            parts = db_url_masked.split("://", 1)
+            if len(parts) == 2:
+                protocol, rest = parts
+                if "@" in rest:
+                    credentials, host_part = rest.rsplit("@", 1)
+                    if ":" in credentials:
+                        user, _ = credentials.split(":", 1)
+                        db_url_masked = f"{protocol}://{user}:***@{host_part}"
+        debug_lines.append(f"  • Database: {db_url_masked}")
+        
+    except RuntimeError as exc:
+        debug_lines.append(f"  ❌ Config Error: {exc}")
+        LOGGER.exception("Failed to get config in debug handler")
+    
+    debug_lines.append("")
+    
+    # Database Connection
+    debug_lines.append("🗄️ <b>Database Connection:</b>")
+    db_connected = False
+    try:
+        repository = get_repository(message.bot)
+        # Try to execute a simple query to test connection
+        test_profile = await repository.get(user_id=0)  # Non-existent user
+        debug_lines.append(f"  ✅ Connected")
+        db_connected = True
+    except Exception as exc:
+        debug_lines.append(f"  ❌ Connection Failed: {exc}")
+        LOGGER.exception("Database connection test failed in debug handler")
+    
+    # Database Statistics (only if connected)
+    if db_connected:
+        debug_lines.append("")
+        debug_lines.append("📊 <b>Database Statistics:</b>")
+        
+        try:
+            # Get all repositories
+            profile_repo = get_repository(message.bot)
+            interaction_repo = get_interaction_repository(message.bot)
+            match_repo = get_match_repository(message.bot)
+            settings_repo = get_settings_repository(message.bot)
+            
+            # Count profiles using direct SQL
+            from sqlalchemy import select, func as sql_func
+            from .db import ProfileModel, UserInteractionModel, MatchModel, UserSettingsModel
+            
+            async with profile_repo._session_factory() as session:
+                # Count profiles
+                profile_count_result = await session.execute(
+                    select(sql_func.count()).select_from(ProfileModel)
+                )
+                profile_count = profile_count_result.scalar() or 0
+                
+                # Count interactions
+                interaction_count_result = await session.execute(
+                    select(sql_func.count()).select_from(UserInteractionModel)
+                )
+                interaction_count = interaction_count_result.scalar() or 0
+                
+                # Count matches
+                match_count_result = await session.execute(
+                    select(sql_func.count()).select_from(MatchModel)
+                )
+                match_count = match_count_result.scalar() or 0
+                
+                # Count settings
+                settings_count_result = await session.execute(
+                    select(sql_func.count()).select_from(UserSettingsModel)
+                )
+                settings_count = settings_count_result.scalar() or 0
+            
+            debug_lines.append(f"  • Profiles: {profile_count}")
+            debug_lines.append(f"  • Interactions: {interaction_count}")
+            debug_lines.append(f"  • Matches: {match_count}")
+            debug_lines.append(f"  • User Settings: {settings_count}")
+            
+        except Exception as exc:
+            debug_lines.append(f"  ❌ Failed to get statistics: {exc}")
+            LOGGER.exception("Failed to get database statistics in debug handler")
+    
+    debug_lines.append("")
+    
+    # Environment Variables
+    debug_lines.append("🔐 <b>Environment Variables:</b>")
+    env_vars = [
+        ("BOT_TOKEN", "***" if os.getenv("BOT_TOKEN") else "Not set"),
+        ("BOT_DATABASE_URL", "Set" if os.getenv("BOT_DATABASE_URL") else "Not set"),
+        ("DATABASE_URL", "Set" if os.getenv("DATABASE_URL") else "Not set"),
+        ("WEBAPP_URL", "Set" if os.getenv("WEBAPP_URL") else "Not set"),
+        ("DEBUG", os.getenv("DEBUG", "Not set")),
+    ]
+    for var_name, var_status in env_vars:
+        debug_lines.append(f"  • {var_name}: {var_status}")
+    
+    debug_lines.append("")
+    
+    # System Information
+    debug_lines.append("💻 <b>System Information:</b>")
+    import sys
+    import platform
+    import aiogram
+    import sqlalchemy
+    
+    debug_lines.append(f"  • Python: {sys.version.split()[0]}")
+    debug_lines.append(f"  • Platform: {platform.system()} {platform.release()}")
+    debug_lines.append(f"  • Aiogram: {aiogram.__version__}")
+    debug_lines.append(f"  • SQLAlchemy: {sqlalchemy.__version__}")
+    
+    # Log level
+    current_log_level = logging.getLevelName(LOGGER.getEffectiveLevel())
+    debug_lines.append(f"  • Log Level: {current_log_level}")
+    
+    # Send the debug info
+    debug_message = "\n".join(debug_lines)
+    await message.answer(debug_message, parse_mode=ParseMode.HTML)
 
 
 @ROUTER.message(F.web_app_data)
