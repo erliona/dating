@@ -18,40 +18,159 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 1) Поднимаем ssh-agent и добавляем приватный ключ из секрета
-      - name: Use SSH agent
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: |
-            ${{ secrets.DEPLOY_SSH_KEY }}
+      - name: Validate required secrets
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+        run: |
+          set -euo pipefail
+
+          missing=0
+          for var in DEPLOY_HOST DEPLOY_PATH DEPLOY_USER ENV_FILE; do
+            if [ -z "${!var:-}" ]; then
+              echo "::error::Secret $var is not configured"
+              missing=1
+            fi
+          done
+
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      # 1) Поднимаем ssh-agent и добавляем приватный ключ из секрета.
+      #    Поддерживаем как исходный PEM, так и base64-строку.
+      - name: Set up SSH key
+        shell: bash
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${DEPLOY_SSH_KEY:-}" ]; then
+            echo "::error::Secret DEPLOY_SSH_KEY is not configured"
+            exit 1
+          fi
+
+          mkdir -p ~/.ssh
+
+          python - <<'PY'
+import base64
+import binascii
+import os
+import sys
+
+key = os.environ["DEPLOY_SSH_KEY"].strip()
+
+if "-----BEGIN" in key:
+    data = key
+else:
+    try:
+        decoded = base64.b64decode(key, validate=True)
+    except binascii.Error as exc:
+        print("::error::DEPLOY_SSH_KEY must be a valid PEM block or a base64-encoded PEM", file=sys.stderr)
+        raise SystemExit(1) from exc
+    try:
+        data = decoded.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        print("::error::Decoded DEPLOY_SSH_KEY is not valid UTF-8 text", file=sys.stderr)
+        raise SystemExit(1) from exc
+
+if "-----BEGIN" not in data:
+    print("::error::DEPLOY_SSH_KEY does not look like a PEM-formatted key", file=sys.stderr)
+    raise SystemExit(1)
+
+data = data.replace("\r\n", "\n").rstrip("\n") + "\n"
+
+path = os.path.expanduser("~/.ssh/id_deploy")
+with open(path, "w", encoding="utf-8") as fh:
+    fh.write(data)
+PY
+
+          chmod 600 ~/.ssh/id_deploy
+
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/id_deploy
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> "$GITHUB_ENV"
+          echo "::add-mask::$SSH_AUTH_SOCK"
+          echo "::add-mask::$SSH_AGENT_PID"
 
       # 2) Добавляем host key сервера (чтобы не было интерактива по known_hosts)
       - name: Add server to known_hosts
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
         run: |
+          set -euo pipefail
+
           mkdir -p ~/.ssh
-          ssh-keyscan -4 -t ed25519 ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+          PORT_ARGS=()
+          if [ -n "${DEPLOY_PORT:-}" ]; then
+            PORT_ARGS+=("-p" "$DEPLOY_PORT")
+          fi
+          ssh-keyscan -4 -t ed25519,rsa "${PORT_ARGS[@]}" "$DEPLOY_HOST" >> ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
           # отладка: покажем запись (без секрета)
-          tail -n 1 ~/.ssh/known_hosts
+          tail -n 1 ~/.ssh/known_hosts || true
 
       # 3) Готовим директорию на сервере
       - name: Prepare remote dir
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         run: |
-          ssh -o StrictHostKeyChecking=yes ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-            "sudo mkdir -p '${{ secrets.DEPLOY_PATH }}' && sudo chown -R \$USER:\$USER '${{ secrets.DEPLOY_PATH }}'"
+          set -euo pipefail
+
+          SSH_ARGS=("-o" "StrictHostKeyChecking=yes")
+          if [ -n "${DEPLOY_PORT:-}" ]; then
+            SSH_ARGS+=("-p" "$DEPLOY_PORT")
+          fi
+
+          ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
+            "sudo mkdir -p '$DEPLOY_PATH' && sudo chown -R \$USER:\$USER '$DEPLOY_PATH'"
 
       # 4) Копируем проект на сервер (rsync быстрее и надёжнее scp)
       - name: Upload project
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         run: |
+          set -euo pipefail
+
+          SSH_CMD=(ssh "-o" "StrictHostKeyChecking=yes")
+          if [ -n "${DEPLOY_PORT:-}" ]; then
+            SSH_CMD+=("-p" "$DEPLOY_PORT")
+          fi
+
           rsync -az --delete \
             --exclude '.git' \
             --exclude '.github' \
-            ./ ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_PATH }}/
+            -e "${SSH_CMD[*]}" \
+            ./ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_PATH/"
 
       # 5) Пишем .env и запускаем docker compose
       - name: Write .env and compose up
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         run: |
-          ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} <<'EOSSH'
+          set -euo pipefail
+
+          SSH_ARGS=("-o" "StrictHostKeyChecking=yes")
+          if [ -n "${DEPLOY_PORT:-}" ]; then
+            SSH_ARGS+=("-p" "$DEPLOY_PORT")
+          fi
+
+          ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" <<'EOSSH'
           set -euo pipefail
           cd '${{ secrets.DEPLOY_PATH }}'
 
