@@ -1,27 +1,25 @@
-name: Deploy
-on:
-  workflow_dispatch:
-  push:
-    branches: [ main ]
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # Разворачиваем приватный ключ в файл
+      # распаковываем приватный ключ в каталог workspace (виден внутри контейнера actions)
       - name: Prepare SSH key
         run: |
-          echo "${{ secrets.DEPLOY_SSH_KEY_B64 }}" | base64 -d > /tmp/ci_key
-          chmod 600 /tmp/ci_key
+          mkdir -p "$GITHUB_WORKSPACE/.ssh"
+          echo "${{ secrets.DEPLOY_SSH_KEY_B64 }}" | base64 -d > "$GITHUB_WORKSPACE/.ssh/ci_key"
+          chmod 600 "$GITHUB_WORKSPACE/.ssh/ci_key"
+          ls -l "$GITHUB_WORKSPACE/.ssh/ci_key"  # отладка
 
       - name: Test SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key_path: /tmp/ci_key
+          key_path: ${{ github.workspace }}/.ssh/ci_key
+          # можно добавить защиту по отпечатку хоста:
+          # fingerprint: "SHA256:................."
           script: 'whoami'
 
       - name: Upload application bundle
@@ -29,7 +27,7 @@ jobs:
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key_path: /tmp/ci_key
+          key_path: ${{ github.workspace }}/.ssh/ci_key
           source: "."
           target: ${{ secrets.DEPLOY_PATH }}
           overwrite: true
@@ -39,7 +37,7 @@ jobs:
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
-          key_path: /tmp/ci_key
+          key_path: ${{ github.workspace }}/.ssh/ci_key
           script: |
             cd ${{ secrets.DEPLOY_PATH }}
             cat > .env <<'EOF'
