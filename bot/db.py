@@ -90,7 +90,7 @@ class ProfileRepository:
 
     async def upsert(self, profile: "Profile") -> None:
         async with self._session_factory() as session:
-            async with session.begin():
+            try:
                 instance = await session.scalar(
                     select(ProfileModel).where(ProfileModel.user_id == profile.user_id)
                 )
@@ -98,6 +98,10 @@ class ProfileRepository:
                     instance.update_from_profile(profile)
                 else:
                     session.add(ProfileModel.from_profile(profile))
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
 
     async def get(self, user_id: int) -> Optional["Profile"]:
         async with self._session_factory() as session:
