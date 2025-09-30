@@ -1,12 +1,40 @@
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 .venv/
+venv/
+env/
+*.egg-info/
+
+# Environment files
 .env
+.env.*
+!.env.example
+
+# Git
 .git
+.gitignore
+
+# IDE
 .mypy_cache/
 .pytest_cache/
-*.log
 .idea/
 .vscode/
 .DS_Store
+
+# Logs
+*.log
+
+# Documentation and development files
+README.md
+BACKLOG.md
+.github/
+
+# Test files
+tests/
+pytest.ini
+requirements-dev.txt
+
+# Scripts
+scripts/
