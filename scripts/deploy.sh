@@ -112,6 +112,16 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# Setup SSH connection parameters before using them
+SSH_ARGS=(-p "$PORT")
+SCP_ARGS=(-P "$PORT")
+if [[ -n "$IDENTITY" ]]; then
+  SSH_ARGS+=(-i "$IDENTITY")
+  SCP_ARGS+=(-i "$IDENTITY")
+fi
+
+REMOTE="${USER}@${HOST}"
+
 # Generate .env file
 echo "🔧 Generating environment configuration"
 
@@ -188,15 +198,6 @@ tar -czf "$TMP_DIR/release.tar.gz" \
   migrations \
   webapp \
   -C "$TMP_DIR" .env.deploy
-
-SSH_ARGS=(-p "$PORT")
-SCP_ARGS=(-P "$PORT")
-if [[ -n "$IDENTITY" ]]; then
-  SSH_ARGS+=(-i "$IDENTITY")
-  SCP_ARGS+=(-i "$IDENTITY")
-fi
-
-REMOTE="${USER}@${HOST}"
 
 echo ""
 echo "🚀 Deploying to $REMOTE:$REMOTE_PATH"
