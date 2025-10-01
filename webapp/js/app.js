@@ -9,6 +9,19 @@
     }
   }
 
+  // Utility: Debounce function for performance optimization
+  function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
+
   debug("App initializing...");
 
   // Telegram WebApp API
@@ -230,8 +243,11 @@
     }
   }
 
+  // Use debounced version for input events to improve performance
+  const debouncedHandleFieldChange = debounce(handleFieldChange, 300);
+
   fields.forEach((field) => {
-    field.addEventListener("input", () => handleFieldChange(field));
+    field.addEventListener("input", () => debouncedHandleFieldChange(field));
     field.addEventListener("change", () => handleFieldChange(field));
     field.addEventListener("blur", () => handleFieldBlur(field));
   });
@@ -506,6 +522,54 @@
   // ========================================
   const matchesContainer = document.getElementById("matches-container");
 
+  // Loading state management
+  const LoadingState = {
+    IDLE: 'idle',
+    LOADING: 'loading',
+    SUCCESS: 'success',
+    ERROR: 'error'
+  };
+
+  let currentLoadingState = LoadingState.IDLE;
+
+  function setLoadingState(state) {
+    currentLoadingState = state;
+    debug("Loading state changed to:", state);
+  }
+
+  function renderLoadingState() {
+    if (!matchesContainer) return;
+
+    const loadingHTML = '<div class="loading">Загрузка...</div>';
+    matchesContainer.innerHTML = loadingHTML;
+  }
+
+  function renderEmptyState() {
+    if (!matchesContainer) return;
+
+    const emptyHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">😊</div>
+        <p>Пока нет подходящих анкет</p>
+        <p style="font-size: 0.9rem;">Проверь позже или измени настройки поиска</p>
+      </div>
+    `;
+    matchesContainer.innerHTML = emptyHTML;
+  }
+
+  function renderErrorState(message = "Произошла ошибка при загрузке") {
+    if (!matchesContainer) return;
+
+    const errorHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">😕</div>
+        <p>${message}</p>
+        <button class="primary" onclick="window.retryLoadMatches()">Попробовать снова</button>
+      </div>
+    `;
+    matchesContainer.innerHTML = errorHTML;
+  }
+
   // Test profiles for demo
   const testProfiles = [
     {
@@ -537,51 +601,87 @@
     }
   ];
 
+  // Create profile card HTML
+  function createProfileCard(profile) {
+    const photoHTML = profile.photo_url 
+      ? `<img src="${profile.photo_url}" alt="${profile.name}">`
+      : profile.name.charAt(0);
+    
+    const bioHTML = profile.bio 
+      ? `<p class="match-bio">${profile.bio}</p>` 
+      : "";
+    
+    const interestsHTML = profile.interests && profile.interests.length > 0
+      ? `<div class="match-interests">
+           ${profile.interests.map(interest => `<span class="interest-tag">${interest}</span>`).join("")}
+         </div>`
+      : "";
+
+    return `
+      <div class="match-card" data-profile-id="${profile.id}">
+        <div class="match-header">
+          <div class="match-photo">${photoHTML}</div>
+          <div class="match-info">
+            <h3 class="match-name">${profile.name}, ${profile.age}</h3>
+            <p class="match-meta">${profile.location || "Местоположение не указано"}</p>
+          </div>
+        </div>
+        ${bioHTML}
+        ${interestsHTML}
+        <div class="match-actions">
+          <button class="secondary" data-action="dislike" data-profile-id="${profile.id}">Пропустить</button>
+          <button class="primary" data-action="like" data-profile-id="${profile.id}">Лайк ❤️</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderMatches(profiles) {
+    if (!matchesContainer) return;
+
+    const fragment = document.createDocumentFragment();
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = profiles.map(createProfileCard).join("");
+    
+    while (tempDiv.firstChild) {
+      fragment.appendChild(tempDiv.firstChild);
+    }
+    
+    matchesContainer.innerHTML = "";
+    matchesContainer.appendChild(fragment);
+    
+    debug("Matches rendered:", profiles.length);
+  }
+
   function loadMatches() {
     debug("Loading matches");
     
     if (!matchesContainer) return;
 
-    matchesContainer.innerHTML = '<div class="loading">Загрузка...</div>';
+    setLoadingState(LoadingState.LOADING);
+    renderLoadingState();
 
     // Simulate loading delay
     setTimeout(() => {
-      if (testProfiles.length === 0) {
-        matchesContainer.innerHTML = `
-          <div class="empty-state">
-            <div class="empty-state-icon">😊</div>
-            <p>Пока нет подходящих анкет</p>
-            <p style="font-size: 0.9rem;">Проверь позже или измени настройки поиска</p>
-          </div>
-        `;
-        return;
+      try {
+        if (testProfiles.length === 0) {
+          setLoadingState(LoadingState.SUCCESS);
+          renderEmptyState();
+          return;
+        }
+
+        setLoadingState(LoadingState.SUCCESS);
+        renderMatches(testProfiles);
+      } catch (error) {
+        debug("Error loading matches:", error);
+        setLoadingState(LoadingState.ERROR);
+        renderErrorState();
       }
-
-      matchesContainer.innerHTML = testProfiles.map(profile => `
-        <div class="match-card" data-profile-id="${profile.id}">
-          <div class="match-header">
-            <div class="match-photo">${profile.photo_url ? `<img src="${profile.photo_url}" alt="${profile.name}">` : profile.name.charAt(0)}</div>
-            <div class="match-info">
-              <h3 class="match-name">${profile.name}, ${profile.age}</h3>
-              <p class="match-meta">${profile.location || "Местоположение не указано"}</p>
-            </div>
-          </div>
-          ${profile.bio ? `<p class="match-bio">${profile.bio}</p>` : ""}
-          ${profile.interests && profile.interests.length > 0 ? `
-            <div class="match-interests">
-              ${profile.interests.map(interest => `<span class="interest-tag">${interest}</span>`).join("")}
-            </div>
-          ` : ""}
-          <div class="match-actions">
-            <button class="secondary" onclick="handleDislike(${profile.id})">Пропустить</button>
-            <button class="primary" onclick="handleLike(${profile.id})">Лайк ❤️</button>
-          </div>
-        </div>
-      `).join("");
-
-      debug("Matches loaded:", testProfiles.length);
     }, 500);
   }
+
+  // Retry function for error state
+  window.retryLoadMatches = loadMatches;
 
   function sendInteraction(targetUserId, action) {
     debug(`Sending ${action} to user ${targetUserId}`);
@@ -622,7 +722,26 @@
     loadMatches();
   }
 
-  // Make functions globally accessible for onclick handlers
+  // Event delegation for match actions (better performance)
+  if (matchesContainer) {
+    matchesContainer.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-action]");
+      if (!button) return;
+
+      const action = button.dataset.action;
+      const profileId = parseInt(button.dataset.profileId, 10);
+
+      if (!profileId) return;
+
+      if (action === "like") {
+        handleLike(profileId);
+      } else if (action === "dislike") {
+        handleDislike(profileId);
+      }
+    });
+  }
+
+  // Keep global functions for backward compatibility
   window.handleLike = handleLike;
   window.handleDislike = handleDislike;
 
