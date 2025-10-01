@@ -476,6 +476,9 @@ async def start_handler(message: Message, state: FSMContext) -> None:
         "Открой мини-приложение, чтобы создать анкету или управлять профилем.",
     ]
 
+    # Important: Use KeyboardButton (not InlineKeyboardButton) with web_app parameter
+    # to enable data submission from the WebApp back to the bot via F.web_app_data filter.
+    # InlineKeyboardButton with web_app only opens the app but doesn't send data back.
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
             [
