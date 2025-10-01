@@ -664,7 +664,7 @@ async def debug_handler(message: Message) -> None:
 async def webapp_handler(message: Message) -> None:
     """Handle data submitted from the Telegram WebApp."""
     
-    LOGGER.debug("WebApp data received from user_id=%s", message.from_user.id)
+    LOGGER.info("WebApp data received from user_id=%s", message.from_user.id)
 
     web_app_data = message.web_app_data
     if not web_app_data:
@@ -674,7 +674,7 @@ async def webapp_handler(message: Message) -> None:
 
     try:
         payload = json.loads(web_app_data.data)
-        LOGGER.debug("Parsed payload: %s", payload)
+        LOGGER.info("Parsed payload from user_id=%s, action=%s", message.from_user.id, payload.get("action", "create_profile"))
         
         # Check action type
         action = payload.get("action")
