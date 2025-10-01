@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from bot.cache import get_cache
 from bot.db import Base, ProfileRepository
 
 
@@ -41,6 +42,10 @@ async def db_engine():
 @pytest.fixture
 async def db_session_factory(db_engine):
     """Create a session factory for testing."""
+    # Clear cache before each test to avoid interference
+    cache = get_cache()
+    cache.clear()
+    
     return async_sessionmaker(db_engine, class_=AsyncSession, expire_on_commit=False)
 
 

@@ -1117,38 +1117,24 @@ async def webapp_handler(message: Message) -> None:
                 )
                 return
             
-            # Get user preferences
+            # Get user preferences for filtering
             user_settings = await settings_repo.get(message.from_user.id)
+            age_min = user_settings.age_min if user_settings else None
+            age_max = user_settings.age_max if user_settings else None
             
             # Get already interacted users to exclude them
             liked_users = await interaction_repo.get_liked_users(message.from_user.id)
             disliked_users = await interaction_repo.get_disliked_users(message.from_user.id)
-            interacted_users = set(liked_users + disliked_users)
+            interacted_users = list(set(liked_users + disliked_users))
             
-            # Get best matches
-            profile_obj = user_profile.to_profile()
-            all_matches = await profile_repo.find_best_matches(profile_obj, limit=50)
-            
-            # Filter by user preferences
-            filtered_matches = []
-            for match_profile in all_matches:
-                # Skip already interacted users
-                if match_profile.user_id in interacted_users:
-                    continue
-                
-                # Apply age filter if set
-                if user_settings and user_settings.age_min is not None:
-                    if match_profile.age < user_settings.age_min:
-                        continue
-                if user_settings and user_settings.age_max is not None:
-                    if match_profile.age > user_settings.age_max:
-                        continue
-                
-                filtered_matches.append(match_profile)
-                
-                # Limit to 10 recommendations per request
-                if len(filtered_matches) >= 10:
-                    break
+            # Get best matches with optimized query (filtering at DB level)
+            filtered_matches = await profile_repo.find_best_matches(
+                user_profile, 
+                limit=10,
+                age_min=age_min,
+                age_max=age_max,
+                exclude_user_ids=interacted_users if interacted_users else None
+            )
             
             # Format response
             recommendations = []
