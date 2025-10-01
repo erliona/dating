@@ -101,10 +101,18 @@
       "id": 6,
       "title": "Recent Logs",
       "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
       "targets": [
         {
           "expr": "{job=\"docker\"}",
-          "refId": "A"
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          }
         }
       ],
       "gridPos": {
@@ -116,7 +124,9 @@
       "options": {
         "showLabels": true,
         "showTime": true,
-        "wrapLogMessage": true
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true
       }
     }
   ],
