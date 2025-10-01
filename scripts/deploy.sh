@@ -290,20 +290,42 @@ run_docker() {
 # Stop old containers gracefully
 if run_docker compose ps -q 2>/dev/null | grep -q .; then
   echo "🛑 Stopping existing containers..."
-  run_docker compose down
+  run_docker compose down --timeout 30
 fi
 
-# Pull latest base images
+# Pull latest base images in parallel
 echo "📥 Pulling base images..."
-run_docker compose pull db webapp traefik || true
+run_docker compose pull --parallel db webapp traefik 2>/dev/null || run_docker compose pull db webapp traefik || true
 
 # Build and start services
 echo "🏗️  Building and starting services..."
 run_docker compose up -d --build --remove-orphans
 
-# Wait for services
+# Wait for services with smarter health checking
 echo "⏳ Waiting for services to start..."
-sleep 15
+MAX_WAIT=60
+WAIT_COUNT=0
+ALL_HEALTHY=false
+
+while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
+  if run_docker compose ps --format json 2>/dev/null | grep -q "healthy" || \
+     run_docker compose ps 2>/dev/null | grep -qE "Up.*healthy|Up.*starting"; then
+    sleep 5
+    if run_docker compose ps 2>/dev/null | grep -qE "Up.*healthy"; then
+      ALL_HEALTHY=true
+      break
+    fi
+  fi
+  WAIT_COUNT=$((WAIT_COUNT + 5))
+  echo "   Waiting... ${WAIT_COUNT}s elapsed"
+  sleep 5
+done
+
+if [ "$ALL_HEALTHY" = true ]; then
+  echo "✓ Services are healthy"
+else
+  echo "⚠️  Services started but health status unclear (waited ${WAIT_COUNT}s)"
+fi
 
 # Check service status
 echo ""
@@ -324,10 +346,10 @@ else
   echo "⚠️  Database health check unavailable (may still be starting)"
 fi
 
-# Cleanup
+# Cleanup old images in background
 echo ""
 echo "🧹 Cleaning up old images..."
-run_docker image prune -f || true
+(run_docker image prune -f > /dev/null 2>&1 &)
 
 echo ""
 echo "=== Deployment Completed Successfully ==="

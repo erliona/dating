@@ -29,6 +29,8 @@ env/
 # Documentation and development files
 README.md
 BACKLOG.md
+*.md
+!requirements*.txt
 .github/
 
 # Test files
@@ -38,3 +40,18 @@ requirements-dev.txt
 
 # Scripts
 scripts/
+
+# Monitoring (not needed in app container)
+monitoring/
+
+# Docker files (not needed inside container)
+docker-compose*.yml
+Dockerfile
+.dockerignore
+
+# Temporary files
+*.swp
+*.swo
+*~
+.tmp/
+tmp/

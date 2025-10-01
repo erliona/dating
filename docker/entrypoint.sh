@@ -1,16 +1,32 @@
 #!/bin/sh
 set -eu
 
-# Function to check database connectivity
+# Colors for output (optional, works in most terminals)
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+log_info() {
+  echo "${GREEN}✓${NC} $1"
+}
+
+log_warn() {
+  echo "${YELLOW}⚠️${NC} $1"
+}
+
+log_error() {
+  echo "${RED}✗${NC} $1"
+}
+
+# Function to check database connectivity with timeout
 check_database_connection() {
-  # Extract connection details from BOT_DATABASE_URL
   if [ -z "${BOT_DATABASE_URL:-}" ]; then
-    echo "⚠️  BOT_DATABASE_URL is not set"
+    log_warn "BOT_DATABASE_URL is not set"
     return 1
   fi
   
-  # Parse the database URL to extract user, host, port, and database name
-  # Format: postgresql+asyncpg://user:password@host:port/database
+  # Parse the database URL
   DB_USER=$(echo "$BOT_DATABASE_URL" | sed -n 's|^.*://\([^:]*\):.*@.*$|\1|p')
   DB_HOST=$(echo "$BOT_DATABASE_URL" | sed -n 's|^.*@\([^:]*\):.*$|\1|p')
   DB_PORT=$(echo "$BOT_DATABASE_URL" | sed -n 's|^.*:\([0-9]*\)/.*$|\1|p')
@@ -20,40 +36,72 @@ check_database_connection() {
     echo "🔍 Testing database connection to ${DB_HOST}:${DB_PORT}..."
     echo "   Database: $DB_NAME, User: $DB_USER"
     
-    # Try to connect using psql (we don't have the password here, so we can't test auth)
-    # Instead, check if the database server is reachable
+    # Check if the database server is reachable with timeout
     if command -v nc > /dev/null 2>&1; then
-      if nc -z "$DB_HOST" "$DB_PORT" 2>/dev/null; then
-        echo "✓ Database server is reachable at ${DB_HOST}:${DB_PORT}"
+      if nc -z -w5 "$DB_HOST" "$DB_PORT" 2>/dev/null; then
+        log_info "Database server is reachable at ${DB_HOST}:${DB_PORT}"
+        return 0
       else
-        echo "⚠️  Cannot reach database server at ${DB_HOST}:${DB_PORT}"
+        log_warn "Cannot reach database server at ${DB_HOST}:${DB_PORT}"
         return 1
       fi
+    else
+      log_warn "netcat not available, skipping connectivity check"
     fi
   else
-    echo "⚠️  Could not parse database connection details from BOT_DATABASE_URL"
+    log_warn "Could not parse database connection details from BOT_DATABASE_URL"
   fi
   
   return 0
 }
 
-if [ "${RUN_DB_MIGRATIONS:-true}" = "true" ]; then
+# Wait for database to be ready
+wait_for_database() {
+  MAX_WAIT=30
+  WAIT_COUNT=0
+  
+  echo "⏳ Waiting for database to be ready..."
+  
+  while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
+    if check_database_connection; then
+      log_info "Database is ready"
+      return 0
+    fi
+    WAIT_COUNT=$((WAIT_COUNT + 1))
+    echo "   Attempt $WAIT_COUNT/$MAX_WAIT - waiting 2s..."
+    sleep 2
+  done
+  
+  log_error "Database not ready after ${MAX_WAIT} attempts"
+  return 1
+}
+
+# Run database migrations
+run_migrations() {
+  if [ "${RUN_DB_MIGRATIONS:-true}" != "true" ]; then
+    echo "Skipping database migrations (RUN_DB_MIGRATIONS=${RUN_DB_MIGRATIONS})."
+    return 0
+  fi
+  
   echo "Applying database migrations..."
   
-  # Check database connection first
-  check_database_connection || true
+  # Wait for database first
+  if ! wait_for_database; then
+    log_error "Cannot proceed with migrations - database not available"
+    exit 1
+  fi
   
   # Retry logic for database migrations
   MAX_RETRIES=5
   RETRY_DELAY=3
   
   for i in $(seq 1 $MAX_RETRIES); do
-    if alembic upgrade head; then
-      echo "✓ Database migrations completed successfully"
-      break
+    if alembic upgrade head 2>&1; then
+      log_info "Database migrations completed successfully"
+      return 0
     else
       if [ "$i" -eq "$MAX_RETRIES" ]; then
-        echo "✗ Failed to apply database migrations after $MAX_RETRIES attempts"
+        log_error "Failed to apply database migrations after $MAX_RETRIES attempts"
         echo ""
         echo "Common causes:"
         echo "  1. Password mismatch: The database was initialized with a different password"
@@ -68,13 +116,25 @@ if [ "${RUN_DB_MIGRATIONS:-true}" = "true" ]; then
         echo ""
         exit 1
       fi
-      echo "⚠️  Database migration attempt $i/$MAX_RETRIES failed, retrying in ${RETRY_DELAY}s..."
+      log_warn "Database migration attempt $i/$MAX_RETRIES failed, retrying in ${RETRY_DELAY}s..."
       sleep "$RETRY_DELAY"
     fi
   done
-else
-  echo "Skipping database migrations (RUN_DB_MIGRATIONS=${RUN_DB_MIGRATIONS})."
-fi
+}
 
+# Main execution
+echo "========================================"
+echo "  Dating Bot Startup"
+echo "========================================"
+echo ""
+
+# Run migrations
+run_migrations
+
+echo ""
+echo "========================================"
 echo "Starting bot..."
+echo "========================================"
+
+# Execute the main application
 exec python -m bot.main
