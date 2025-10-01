@@ -118,10 +118,10 @@ jobs:
           
           echo "✓ Docker image test passed"
 
-      - name: Security scan (basic)
+      - name: Security scan (dependencies)
         run: |
-          # Check for common security issues in dependencies
-          pip install safety
-          safety check || echo "⚠ Security warnings found (non-blocking)"
+          # Check for known security vulnerabilities in dependencies
+          pip install pip-audit
+          pip-audit -r requirements.txt -r requirements-dev.txt --desc || echo "⚠ Security warnings found (non-blocking)"
           echo "✓ Security scan completed"
 

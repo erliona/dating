@@ -33,6 +33,12 @@ from .db import (
     ProfileRepository,
     UserSettingsRepository,
 )
+from .security import (
+    RateLimiter,
+    RateLimitConfig,
+    sanitize_user_input,
+    validate_profile_data,
+)
 
 
 LOGGER = logging.getLogger(__name__)
@@ -57,7 +63,6 @@ class Profile:
 
 
 
-
 ROUTER = Router()
 
 BOT_CONTEXT_STORAGE_ATTR = "_dating_bot_context"
@@ -66,6 +71,7 @@ REPOSITORY_CONTEXT_KEY = "profile_repository"
 SETTINGS_REPOSITORY_KEY = "settings_repository"
 INTERACTION_REPOSITORY_KEY = "interaction_repository"
 MATCH_REPOSITORY_KEY = "match_repository"
+RATE_LIMITER_KEY = "rate_limiter"
 
 
 def _set_bot_context_value(bot: Bot, key: str, value: Any) -> None:
@@ -107,6 +113,7 @@ def attach_bot_context(
     settings_repository: UserSettingsRepository,
     interaction_repository: InteractionRepository,
     match_repository: MatchRepository,
+    rate_limiter: RateLimiter,
 ) -> None:
     """Populate the bot context with common application dependencies."""
 
@@ -115,6 +122,7 @@ def attach_bot_context(
     _set_bot_context_value(bot, SETTINGS_REPOSITORY_KEY, settings_repository)
     _set_bot_context_value(bot, INTERACTION_REPOSITORY_KEY, interaction_repository)
     _set_bot_context_value(bot, MATCH_REPOSITORY_KEY, match_repository)
+    _set_bot_context_value(bot, RATE_LIMITER_KEY, rate_limiter)
 
 
 def get_config(bot: Bot | None) -> BotConfig:
@@ -165,6 +173,17 @@ def get_match_repository(bot: Bot | None) -> MatchRepository:
     if not isinstance(repository, MatchRepository):
         raise RuntimeError("Match repository is not initialized")
     return repository
+
+
+def get_rate_limiter(bot: Bot | None) -> RateLimiter:
+    """Get the rate limiter from bot context."""
+    if bot is None:
+        raise RuntimeError("Bot instance is not available")
+
+    rate_limiter = _get_bot_context_value(bot, RATE_LIMITER_KEY)
+    if not isinstance(rate_limiter, RateLimiter):
+        raise RuntimeError("Rate limiter is not initialized")
+    return rate_limiter
 
 
 def normalise_choice(value: str) -> str:
@@ -719,6 +738,23 @@ async def webapp_handler(message: Message) -> None:
     """Handle data submitted from the Telegram WebApp."""
     
     LOGGER.info("WebApp data received from user_id=%s", message.from_user.id)
+    
+    # Apply rate limiting
+    try:
+        rate_limiter = get_rate_limiter(message.bot)
+        if not rate_limiter.is_allowed(message.from_user.id):
+            remaining = rate_limiter.get_remaining_requests(message.from_user.id)
+            LOGGER.warning(
+                "Rate limit exceeded for user_id=%s (remaining: %d)",
+                message.from_user.id, remaining
+            )
+            await message.answer(
+                "Слишком много запросов. Пожалуйста, подождите немного перед следующей попыткой."
+            )
+            return
+    except RuntimeError as exc:
+        LOGGER.warning("Rate limiter unavailable: %s", exc)
+        # Continue without rate limiting if it's not available
 
     web_app_data = message.web_app_data
     if not web_app_data:
@@ -809,6 +845,27 @@ async def webapp_handler(message: Message) -> None:
         
         # Handle profile creation/update (default action)
         LOGGER.info("Processing profile data from user_id=%s", message.from_user.id)
+        
+        # Validate profile data using security module
+        is_valid, error_msg = validate_profile_data(payload)
+        if not is_valid:
+            LOGGER.warning("Profile validation failed for user_id=%s: %s", message.from_user.id, error_msg)
+            await message.answer(f"Некорректные данные профиля: {error_msg}")
+            return
+        
+        # Sanitize text fields
+        if 'name' in payload:
+            payload['name'] = sanitize_user_input(str(payload['name']), max_length=100)
+        if 'bio' in payload:
+            payload['bio'] = sanitize_user_input(str(payload['bio']), max_length=1000)
+        if 'location' in payload:
+            payload['location'] = sanitize_user_input(str(payload['location']), max_length=200)
+        if 'interests' in payload and isinstance(payload['interests'], list):
+            payload['interests'] = [
+                sanitize_user_input(str(interest), max_length=50)
+                for interest in payload['interests']
+            ]
+        
         profile = build_profile_from_payload(message.from_user.id, payload)
         LOGGER.debug("Profile built successfully: %s", profile)
     except (json.JSONDecodeError, ValueError) as exc:
@@ -897,8 +954,19 @@ async def main() -> None:
     settings_repository = UserSettingsRepository(session_factory)
     interaction_repository = InteractionRepository(session_factory)
     match_repository = MatchRepository(session_factory)
+    
+    # Initialize rate limiter with custom configuration
+    rate_limit_config = RateLimitConfig(
+        max_requests=20,  # 20 requests per user
+        window_seconds=60  # per minute
+    )
+    rate_limiter = RateLimiter(rate_limit_config)
+    LOGGER.info("Rate limiter initialized: %d requests per %d seconds", 
+               rate_limit_config.max_requests, rate_limit_config.window_seconds)
+    
     attach_bot_context(
-        bot, config, profile_repository, settings_repository, interaction_repository, match_repository
+        bot, config, profile_repository, settings_repository, 
+        interaction_repository, match_repository, rate_limiter
     )
     dp = Dispatcher(storage=MemoryStorage())
     dp.include_router(ROUTER)
