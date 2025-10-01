@@ -1,9 +1,8 @@
 {
-  "dashboard": {
-    "title": "Dating App - Business Metrics",
-    "tags": ["dating", "business", "analytics"],
-    "timezone": "browser",
-    "panels": [
+  "title": "Dating App - Business Metrics",
+  "tags": ["dating", "business", "analytics"],
+  "timezone": "browser",
+  "panels": [
       {
         "id": 1,
         "title": "Total Users",
@@ -281,13 +280,12 @@
           "h": 8
         }
       }
-    ],
-    "refresh": "30s",
-    "schemaVersion": 27,
-    "version": 1,
-    "time": {
-      "from": "now-6h",
-      "to": "now"
-    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 27,
+  "version": 1,
+  "time": {
+    "from": "now-6h",
+    "to": "now"
   }
 }
