@@ -18,7 +18,8 @@ from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup, Message,
+from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup,
+                           KeyboardButton, Message, ReplyKeyboardMarkup,
                            ReplyKeyboardRemove, WebAppData, WebAppInfo)
 
 from sqlalchemy import text
@@ -475,15 +476,16 @@ async def start_handler(message: Message, state: FSMContext) -> None:
         "Открой мини-приложение, чтобы создать анкету или управлять профилем.",
     ]
 
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
             [
-                InlineKeyboardButton(
+                KeyboardButton(
                     text="Открыть мини-приложение",
                     web_app=WebAppInfo(url=config.webapp_url),
                 )
             ]
-        ]
+        ],
+        resize_keyboard=True,
     )
 
     LOGGER.debug("Sending webapp button to user_id=%s with url=%s", 
