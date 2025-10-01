@@ -467,9 +467,9 @@ jobs:
           echo "📥 Pulling base images..."
           run_docker compose pull db webapp traefik || true
 
-          # Build and start services
-          echo "🏗️  Building and starting services..."
-          run_docker compose up -d --build --remove-orphans
+          # Build and start services (with monitoring stack)
+          echo "🏗️  Building and starting services (including monitoring)..."
+          run_docker compose --profile monitoring up -d --build --remove-orphans
 
           # Wait for services to be healthy
           echo "⏳ Waiting for services to start..."
