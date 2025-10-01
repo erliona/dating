@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import dataclass
+from urllib.parse import quote_plus
 
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
@@ -107,8 +108,11 @@ def load_config() -> BotConfig:
         postgres_db = os.getenv("POSTGRES_DB")
         
         if all([postgres_user, postgres_password, postgres_db]):
+            # URL-encode the username and password to handle special characters
+            encoded_user = quote_plus(postgres_user)
+            encoded_password = quote_plus(postgres_password)
             database_url_raw = (
-                f"postgresql+asyncpg://{postgres_user}:{postgres_password}"
+                f"postgresql+asyncpg://{encoded_user}:{encoded_password}"
                 f"@{postgres_host}:{postgres_port}/{postgres_db}"
             )
         else:
