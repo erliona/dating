@@ -423,6 +423,13 @@ jobs:
 
           # Check if database password has changed
           PASSWORD_CHANGED=false
+          VOLUME_EXISTS=false
+          
+          # Check if database volume exists
+          if run_docker volume inspect dating_postgres_data >/dev/null 2>&1; then
+            VOLUME_EXISTS=true
+          fi
+          
           if [ -f .env.previous ]; then
             OLD_PASSWORD=$(grep "^POSTGRES_PASSWORD=" .env.previous 2>/dev/null | cut -d'=' -f2- || echo "")
             NEW_PASSWORD=$(grep "^POSTGRES_PASSWORD=" .env 2>/dev/null | cut -d'=' -f2- || echo "")
@@ -430,6 +437,13 @@ jobs:
               echo "⚠️  Database password has changed!"
               PASSWORD_CHANGED=true
             fi
+          elif [ "$VOLUME_EXISTS" = true ]; then
+            # No .env.previous but volume exists - this is a problem!
+            # The volume has an unknown password, so we must recreate it
+            echo "⚠️  Database volume exists but no .env.previous file found!"
+            echo "⚠️  This usually means .env was deleted but database wasn't."
+            echo "⚠️  Database will be reset to avoid authentication failures."
+            PASSWORD_CHANGED=true
           fi
 
           # Stop old containers gracefully
