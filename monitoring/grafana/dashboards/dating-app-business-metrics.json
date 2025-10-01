@@ -1,0 +1,293 @@
+{
+  "dashboard": {
+    "title": "Dating App - Business Metrics",
+    "tags": ["dating", "business", "analytics"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Total Users",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "count(rate(app_user_profiles_total[5m]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "value": null,
+                  "color": "green"
+                },
+                {
+                  "value": 100,
+                  "color": "yellow"
+                },
+                {
+                  "value": 1000,
+                  "color": "red"
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 6,
+          "h": 4
+        }
+      },
+      {
+        "id": 2,
+        "title": "Total Matches",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "app_matches_total",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "value": null,
+                  "color": "blue"
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "x": 6,
+          "y": 0,
+          "w": 6,
+          "h": 4
+        }
+      },
+      {
+        "id": 3,
+        "title": "Match Rate (%)",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "(app_matches_total / app_likes_sent_total) * 100",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "value": null,
+                  "color": "red"
+                },
+                {
+                  "value": 20,
+                  "color": "yellow"
+                },
+                {
+                  "value": 40,
+                  "color": "green"
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "x": 12,
+          "y": 0,
+          "w": 6,
+          "h": 4
+        }
+      },
+      {
+        "id": 4,
+        "title": "Engagement Rate (%)",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "(count(app_active_users) / count(app_total_users)) * 100",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "value": null,
+                  "color": "red"
+                },
+                {
+                  "value": 30,
+                  "color": "yellow"
+                },
+                {
+                  "value": 60,
+                  "color": "green"
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "x": 18,
+          "y": 0,
+          "w": 6,
+          "h": 4
+        }
+      },
+      {
+        "id": 5,
+        "title": "Commands Executed Over Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(app_commands_total[5m])",
+            "legendFormat": "Commands/sec",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "short",
+            "label": "Commands/sec"
+          },
+          {
+            "format": "short"
+          }
+        ],
+        "gridPos": {
+          "x": 0,
+          "y": 4,
+          "w": 12,
+          "h": 8
+        }
+      },
+      {
+        "id": 6,
+        "title": "Interactions Over Time",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(app_interactions_total[5m])",
+            "legendFormat": "Interactions/sec",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(app_interaction_like[5m])",
+            "legendFormat": "Likes/sec",
+            "refId": "B"
+          },
+          {
+            "expr": "rate(app_interaction_dislike[5m])",
+            "legendFormat": "Dislikes/sec",
+            "refId": "C"
+          },
+          {
+            "expr": "rate(app_interaction_match[5m])",
+            "legendFormat": "Matches/sec",
+            "refId": "D"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "short",
+            "label": "Interactions/sec"
+          },
+          {
+            "format": "short"
+          }
+        ],
+        "gridPos": {
+          "x": 12,
+          "y": 4,
+          "w": 12,
+          "h": 8
+        }
+      },
+      {
+        "id": 7,
+        "title": "Profile Actions",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(app_profile_create[5m])",
+            "legendFormat": "Creates",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(app_profile_update[5m])",
+            "legendFormat": "Updates",
+            "refId": "B"
+          },
+          {
+            "expr": "rate(app_profile_delete[5m])",
+            "legendFormat": "Deletes",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "short",
+            "label": "Actions/sec"
+          },
+          {
+            "format": "short"
+          }
+        ],
+        "gridPos": {
+          "x": 0,
+          "y": 12,
+          "w": 12,
+          "h": 8
+        }
+      },
+      {
+        "id": 8,
+        "title": "Command Distribution",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "topk(5, app_command_*)",
+            "refId": "A"
+          }
+        ],
+        "gridPos": {
+          "x": 12,
+          "y": 12,
+          "w": 12,
+          "h": 8
+        }
+      }
+    ],
+    "refresh": "30s",
+    "schemaVersion": 27,
+    "version": 1,
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    }
+  }
+}

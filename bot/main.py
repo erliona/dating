@@ -26,6 +26,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from .analytics import track_command, track_interaction, track_profile_action
 from .config import BotConfig, load_config
 from .db import (
     InteractionRepository,
@@ -72,6 +73,7 @@ SETTINGS_REPOSITORY_KEY = "settings_repository"
 INTERACTION_REPOSITORY_KEY = "interaction_repository"
 MATCH_REPOSITORY_KEY = "match_repository"
 RATE_LIMITER_KEY = "rate_limiter"
+ENGINE_CONTEXT_KEY = "engine"
 
 
 def _set_bot_context_value(bot: Bot, key: str, value: Any) -> None:
@@ -114,6 +116,7 @@ def attach_bot_context(
     interaction_repository: InteractionRepository,
     match_repository: MatchRepository,
     rate_limiter: RateLimiter,
+    engine: Any = None,
 ) -> None:
     """Populate the bot context with common application dependencies."""
 
@@ -123,6 +126,8 @@ def attach_bot_context(
     _set_bot_context_value(bot, INTERACTION_REPOSITORY_KEY, interaction_repository)
     _set_bot_context_value(bot, MATCH_REPOSITORY_KEY, match_repository)
     _set_bot_context_value(bot, RATE_LIMITER_KEY, rate_limiter)
+    if engine is not None:
+        _set_bot_context_value(bot, ENGINE_CONTEXT_KEY, engine)
 
 
 def get_config(bot: Bot | None) -> BotConfig:
@@ -355,6 +360,10 @@ async def handle_interaction(message: Message, from_user_id: int, to_user_id: in
     # Create or update the interaction
     try:
         await interaction_repo.create(from_user_id, to_user_id, action)
+        
+        # Track the interaction
+        track_interaction(action)
+        
     except OperationalError as exc:
         LOGGER.error("Database connection error when saving interaction: %s", exc)
         await message.answer("Не удалось подключиться к базе данных. Попробуйте позже.")
@@ -378,6 +387,9 @@ async def handle_interaction(message: Message, from_user_id: int, to_user_id: in
             try:
                 match = await match_repo.create(from_user_id, to_user_id)
                 LOGGER.info("New match created: %s and %s", from_user_id, to_user_id)
+                
+                # Track the match
+                track_interaction("match")
                 
                 # Get both profiles
                 user_profile = await profile_repo.get(from_user_id)
@@ -447,6 +459,12 @@ async def finalize_profile(message: Message, profile: Profile, is_update: bool =
     try:
         await repository.upsert(profile)
         LOGGER.info("Profile upserted successfully for user_id=%s", profile.user_id)
+        
+        # Track profile action
+        if is_existing:
+            track_profile_action("update")
+        else:
+            track_profile_action("create")
     except OperationalError as exc:  # pragma: no cover - debug assistance
         LOGGER.error(
             "Database connection error while saving profile for user_id=%s: %s", profile.user_id, exc
@@ -516,6 +534,8 @@ async def finalize_profile(message: Message, profile: Profile, is_update: bool =
 async def start_handler(message: Message, state: FSMContext) -> None:
     """Handle the /start command."""
     
+    track_command("start")
+    
     LOGGER.info("Start command received from user_id=%s, username=%s", 
                 message.from_user.id, message.from_user.username)
 
@@ -567,6 +587,8 @@ async def start_handler(message: Message, state: FSMContext) -> None:
 @ROUTER.message(Command(commands={"cancel", "reset"}))
 async def cancel_handler(message: Message, state: FSMContext) -> None:
     """Allow users to cancel any ongoing state."""
+    
+    track_command("cancel")
 
     await state.clear()
     await message.answer(
@@ -578,6 +600,8 @@ async def cancel_handler(message: Message, state: FSMContext) -> None:
 @ROUTER.message(Command(commands={"debug"}))
 async def debug_handler(message: Message) -> None:
     """Show comprehensive debug information about the bot's status."""
+    
+    track_command("debug")
     
     LOGGER.info("Debug command received from user_id=%s", message.from_user.id)
     
@@ -737,6 +761,8 @@ async def debug_handler(message: Message) -> None:
 async def matches_handler(message: Message) -> None:
     """Show user's match history."""
     
+    track_command("matches")
+    
     LOGGER.info("Matches command received from user_id=%s", message.from_user.id)
     user_id = message.from_user.id
     
@@ -798,6 +824,8 @@ async def matches_handler(message: Message) -> None:
 @ROUTER.message(Command(commands={"stats"}))
 async def stats_handler(message: Message) -> None:
     """Show user's statistics and analytics."""
+    
+    track_command("stats")
     
     LOGGER.info("Stats command received from user_id=%s", message.from_user.id)
     user_id = message.from_user.id
@@ -864,6 +892,93 @@ async def stats_handler(message: Message) -> None:
         LOGGER.exception("Error getting stats for user_id=%s: %s", user_id, exc)
         await message.answer(
             "Произошла ошибка при получении статистики. Попробуйте позже.",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+
+
+@ROUTER.message(Command(commands={"analytics"}))
+async def analytics_handler(message: Message) -> None:
+    """Show system-wide analytics (admin command)."""
+    
+    track_command("analytics")
+    
+    LOGGER.info("Analytics command received from user_id=%s", message.from_user.id)
+    
+    try:
+        from .analytics import AnalyticsCollector, get_metrics_counter
+        
+        # Get session factory from bot
+        engine_attr = getattr(message.bot, "_dating_bot_context", {}).get("engine")
+        if not engine_attr:
+            await message.answer(
+                "Аналитика недоступна. База данных не подключена.",
+                reply_markup=ReplyKeyboardRemove(),
+            )
+            return
+        
+        from sqlalchemy.ext.asyncio import async_sessionmaker
+        session_factory = async_sessionmaker(engine_attr, expire_on_commit=False)
+        
+        # Get analytics data
+        collector = AnalyticsCollector(session_factory)
+        metrics = await collector.get_overall_metrics()
+        
+        # Get real-time metrics
+        rt_metrics = get_metrics_counter().get_metrics()
+        
+        # Build response
+        response_lines = [
+            "📊 <b>Системная аналитика</b>\n",
+            "<b>👥 Пользователи:</b>",
+            f"  • Всего: {metrics.total_users}",
+            f"  • Средний возраст: {metrics.avg_age:.1f} лет",
+            f"  • Вовлечённость: {metrics.engagement_rate:.1f}%",
+        ]
+        
+        if metrics.gender_distribution:
+            response_lines.append("\n<b>🚹🚺 Распределение по полу:</b>")
+            for gender, count in metrics.gender_distribution.items():
+                response_lines.append(f"  • {gender}: {count}")
+        
+        response_lines.extend([
+            f"\n<b>💑 Взаимодействия:</b>",
+            f"  • Матчей: {metrics.total_matches}",
+            f"  • Лайков: {metrics.likes_sent}",
+            f"  • Дизлайков: {metrics.dislikes_sent}",
+            f"  • Match rate: {metrics.match_rate:.1f}%",
+        ])
+        
+        if metrics.location_distribution:
+            response_lines.append("\n<b>📍 Топ локаций:</b>")
+            for location, count in list(metrics.location_distribution.items())[:5]:
+                response_lines.append(f"  • {location}: {count}")
+        
+        if metrics.goal_distribution:
+            response_lines.append("\n<b>🎯 Цели знакомства:</b>")
+            for goal, count in metrics.goal_distribution.items():
+                response_lines.append(f"  • {goal}: {count}")
+        
+        # Add real-time metrics
+        if rt_metrics["counters"]:
+            response_lines.append("\n<b>⚡ Метрики в реальном времени:</b>")
+            uptime_hours = rt_metrics["uptime_seconds"] / 3600
+            response_lines.append(f"  • Uptime: {uptime_hours:.1f}ч")
+            
+            commands_total = rt_metrics["counters"].get("commands_total", 0)
+            interactions_total = rt_metrics["counters"].get("interactions_total", 0)
+            
+            if commands_total > 0:
+                response_lines.append(f"  • Команд выполнено: {commands_total}")
+            if interactions_total > 0:
+                response_lines.append(f"  • Взаимодействий: {interactions_total}")
+        
+        response_message = "\n".join(response_lines)
+        await message.answer(response_message, parse_mode=ParseMode.HTML)
+        
+    except Exception as exc:
+        LOGGER.exception("Error getting analytics: %s", exc)
+        await message.answer(
+            "Произошла ошибка при получении аналитики. Попробуйте позже.",
             reply_markup=ReplyKeyboardRemove(),
         )
 
@@ -1188,7 +1303,7 @@ async def main() -> None:
     
     attach_bot_context(
         bot, config, profile_repository, settings_repository, 
-        interaction_repository, match_repository, rate_limiter
+        interaction_repository, match_repository, rate_limiter, engine
     )
     dp = Dispatcher(storage=MemoryStorage())
     dp.include_router(ROUTER)
