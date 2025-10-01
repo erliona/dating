@@ -97,6 +97,8 @@ def load_config() -> BotConfig:
     database_url_raw = os.getenv("BOT_DATABASE_URL") or os.getenv("DATABASE_URL")
     
     # Fallback: construct database URL from POSTGRES_* environment variables
+    # This is particularly useful in Docker Compose environments where these
+    # variables are already set for the database container
     if not database_url_raw:
         postgres_user = os.getenv("POSTGRES_USER")
         postgres_password = os.getenv("POSTGRES_PASSWORD")
