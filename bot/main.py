@@ -733,6 +733,141 @@ async def debug_handler(message: Message) -> None:
     await message.answer(debug_message, parse_mode=ParseMode.HTML)
 
 
+@ROUTER.message(Command(commands={"matches"}))
+async def matches_handler(message: Message) -> None:
+    """Show user's match history."""
+    
+    LOGGER.info("Matches command received from user_id=%s", message.from_user.id)
+    user_id = message.from_user.id
+    
+    try:
+        match_repo = get_match_repository(message.bot)
+        profile_repo = get_repository(message.bot)
+    except RuntimeError as exc:
+        LOGGER.exception("Repositories are unavailable: %s", exc)
+        await message.answer(
+            "Не удалось получить данные о матчах. Попробуйте позже.",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        return
+    
+    try:
+        # Get user's matches
+        match_ids = await match_repo.get_matches(user_id)
+        
+        if not match_ids:
+            await message.answer(
+                "У вас пока нет матчей. 💔\n\nОткройте мини-приложение, чтобы начать знакомства!",
+                reply_markup=ReplyKeyboardRemove(),
+            )
+            return
+        
+        # Build response with match info
+        response_lines = [f"💑 <b>Ваши матчи ({len(match_ids)}):</b>\n"]
+        
+        for i, match_id in enumerate(match_ids, 1):
+            try:
+                match_profile = await profile_repo.get(match_id)
+                if match_profile:
+                    response_lines.append(
+                        f"{i}. {match_profile.name}, {match_profile.age} лет"
+                    )
+                    if match_profile.location:
+                        response_lines.append(f"   📍 {match_profile.location}")
+                    if match_profile.interests:
+                        interests_preview = ", ".join(match_profile.interests[:3])
+                        if len(match_profile.interests) > 3:
+                            interests_preview += "..."
+                        response_lines.append(f"   ❤️ {interests_preview}")
+                    response_lines.append("")  # Empty line between matches
+            except Exception as exc:
+                LOGGER.error("Failed to get profile for match %s: %s", match_id, exc)
+                continue
+        
+        response_message = "\n".join(response_lines)
+        await message.answer(response_message, parse_mode=ParseMode.HTML)
+        
+    except Exception as exc:
+        LOGGER.exception("Error getting matches for user_id=%s: %s", user_id, exc)
+        await message.answer(
+            "Произошла ошибка при получении списка матчей. Попробуйте позже.",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+
+
+@ROUTER.message(Command(commands={"stats"}))
+async def stats_handler(message: Message) -> None:
+    """Show user's statistics and analytics."""
+    
+    LOGGER.info("Stats command received from user_id=%s", message.from_user.id)
+    user_id = message.from_user.id
+    
+    try:
+        match_repo = get_match_repository(message.bot)
+        profile_repo = get_repository(message.bot)
+    except RuntimeError as exc:
+        LOGGER.exception("Repositories are unavailable: %s", exc)
+        await message.answer(
+            "Не удалось получить статистику. Попробуйте позже.",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        return
+    
+    try:
+        # Check if user has a profile
+        user_profile = await profile_repo.get(user_id)
+        if not user_profile:
+            await message.answer(
+                "У вас ещё нет анкеты. Откройте мини-приложение, чтобы создать профиль!",
+                reply_markup=ReplyKeyboardRemove(),
+            )
+            return
+        
+        # Get user statistics
+        stats = await match_repo.get_user_stats(user_id)
+        
+        # Calculate success rate
+        total_interactions = stats["likes_sent"] + stats["dislikes_sent"]
+        if total_interactions > 0:
+            match_rate = (stats["matches_count"] / stats["likes_sent"] * 100) if stats["likes_sent"] > 0 else 0
+        else:
+            match_rate = 0
+        
+        # Build response
+        response_lines = [
+            "📊 <b>Ваша статистика:</b>\n",
+            f"💑 <b>Матчи:</b> {stats['matches_count']}",
+            f"❤️ <b>Отправлено симпатий:</b> {stats['likes_sent']}",
+            f"💌 <b>Получено симпатий:</b> {stats['likes_received']}",
+            f"👎 <b>Отправлено дизлайков:</b> {stats['dislikes_sent']}",
+        ]
+        
+        if stats["likes_sent"] > 0:
+            response_lines.append(f"\n📈 <b>Процент успеха:</b> {match_rate:.1f}%")
+        
+        # Add profile info
+        response_lines.append(f"\n👤 <b>Ваш профиль:</b>")
+        response_lines.append(f"  • Имя: {user_profile.name}")
+        response_lines.append(f"  • Возраст: {user_profile.age} лет")
+        if user_profile.location:
+            response_lines.append(f"  • Локация: {user_profile.location}")
+        if user_profile.interests:
+            interests_text = ", ".join(user_profile.interests[:5])
+            if len(user_profile.interests) > 5:
+                interests_text += f" и ещё {len(user_profile.interests) - 5}"
+            response_lines.append(f"  • Интересы: {interests_text}")
+        
+        response_message = "\n".join(response_lines)
+        await message.answer(response_message, parse_mode=ParseMode.HTML)
+        
+    except Exception as exc:
+        LOGGER.exception("Error getting stats for user_id=%s: %s", user_id, exc)
+        await message.answer(
+            "Произошла ошибка при получении статистики. Попробуйте позже.",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+
+
 @ROUTER.message(F.web_app_data)
 async def webapp_handler(message: Message) -> None:
     """Handle data submitted from the Telegram WebApp."""
