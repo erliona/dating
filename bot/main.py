@@ -661,10 +661,16 @@ async def debug_handler(message: Message) -> None:
 
 
 @ROUTER.message(F.web_app_data)
-async def webapp_handler(message: Message, web_app_data: WebAppData) -> None:
+async def webapp_handler(message: Message) -> None:
     """Handle data submitted from the Telegram WebApp."""
     
     LOGGER.debug("WebApp data received from user_id=%s", message.from_user.id)
+
+    web_app_data = message.web_app_data
+    if not web_app_data:
+        LOGGER.error("WebApp data is None for user_id=%s", message.from_user.id)
+        await message.answer("Не удалось получить данные из мини-приложения.")
+        return
 
     try:
         payload = json.loads(web_app_data.data)
