@@ -35,6 +35,7 @@ WORKDIR /app
 # Copy application code
 COPY bot ./bot
 COPY migrations ./migrations
+COPY webapp ./webapp
 COPY alembic.ini .
 COPY docker/entrypoint.sh ./docker/
 
