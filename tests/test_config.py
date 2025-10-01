@@ -409,4 +409,36 @@ class TestBotConfig:
         config = load_config()
 
         assert config.database_url == "postgresql+asyncpg://user:pass@localhost:5432/dating"
+    
+    def test_load_config_url_encodes_special_characters_in_postgres_password(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that special characters in POSTGRES_PASSWORD are URL-encoded."""
+        monkeypatch.setenv("BOT_TOKEN", "123456:ABC-DEF-ghijkl")
+        monkeypatch.setenv("POSTGRES_USER", "testuser")
+        monkeypatch.setenv("POSTGRES_PASSWORD", "p@ss:word/with#special&chars")
+        monkeypatch.setenv("POSTGRES_DB", "testdb")
+
+        config = load_config()
+
+        # The password should be URL-encoded in the database URL
+        # @ becomes %40, : becomes %3A, / becomes %2F, # becomes %23, & becomes %26
+        assert "p%40ss%3Aword%2Fwith%23special%26chars" in config.database_url
+        assert "testuser" in config.database_url
+        assert "testdb" in config.database_url
+    
+    def test_load_config_url_encodes_special_characters_in_postgres_user(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that special characters in POSTGRES_USER are URL-encoded."""
+        monkeypatch.setenv("BOT_TOKEN", "123456:ABC-DEF-ghijkl")
+        monkeypatch.setenv("POSTGRES_USER", "user@domain")
+        monkeypatch.setenv("POSTGRES_PASSWORD", "simplepass")
+        monkeypatch.setenv("POSTGRES_DB", "testdb")
+
+        config = load_config()
+
+        # The @ in username should be URL-encoded to %40
+        assert "user%40domain" in config.database_url
+        assert "simplepass" in config.database_url
 
