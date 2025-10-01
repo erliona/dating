@@ -104,7 +104,10 @@ def load_config() -> BotConfig:
         database_url = make_url(database_url_raw)
     except ArgumentError as exc:  # pragma: no cover - simple configuration guard
         raise RuntimeError(
-            "BOT_DATABASE_URL must be a valid SQLAlchemy connection string"
+            "BOT_DATABASE_URL must be a valid SQLAlchemy connection string. "
+            "If the password contains special characters, they must be URL-encoded. "
+            "Use only alphanumeric characters (A-Z, a-z, 0-9, hyphen, underscore) for database passwords "
+            "to avoid URL encoding issues."
         ) from exc
 
     if not database_url.drivername.startswith("postgresql"):

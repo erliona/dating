@@ -40,6 +40,10 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-dating}
       POSTGRES_USER: ${POSTGRES_USER:-dating}
+      # IMPORTANT: Use only alphanumeric characters (A-Z, a-z, 0-9) for POSTGRES_PASSWORD
+      # Special characters in passwords require URL encoding in connection strings and may cause authentication issues
+      # If you change the password after initial deployment, you must reset the database volume:
+      #   docker compose down -v && docker compose up
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dating}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
@@ -61,6 +65,8 @@ services:
         condition: service_healthy
     environment:
       BOT_TOKEN: ${BOT_TOKEN}
+      # Database URL is constructed from individual POSTGRES_* variables
+      # This works correctly only if POSTGRES_PASSWORD contains URL-safe characters
       BOT_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
       WEBAPP_URL: ${WEBAPP_URL:-https://localhost}
     restart: unless-stopped
