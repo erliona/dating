@@ -30,7 +30,7 @@ def upgrade() -> None:
         sa.Column("notify_matches", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.Column("notify_messages", sa.Boolean(), nullable=False, server_default=sa.text("true")),
         sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
-        sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now(), onupdate=sa.func.now()),
+        sa.Column("updated_at", sa.DateTime(), nullable=False, server_default=sa.func.now()),
     )
     op.create_index(
         op.f("ix_user_settings_user_id"), "user_settings", ["user_id"], unique=True
