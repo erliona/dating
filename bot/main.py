@@ -18,7 +18,8 @@ from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup, Message,
+from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup,
+                           KeyboardButton, Message, ReplyKeyboardMarkup,
                            ReplyKeyboardRemove, WebAppData, WebAppInfo)
 
 from sqlalchemy import text
@@ -475,15 +476,19 @@ async def start_handler(message: Message, state: FSMContext) -> None:
         "Открой мини-приложение, чтобы создать анкету или управлять профилем.",
     ]
 
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
+    # Important: Use KeyboardButton (not InlineKeyboardButton) with web_app parameter
+    # to enable data submission from the WebApp back to the bot via F.web_app_data filter.
+    # InlineKeyboardButton with web_app only opens the app but doesn't send data back.
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
             [
-                InlineKeyboardButton(
+                KeyboardButton(
                     text="Открыть мини-приложение",
                     web_app=WebAppInfo(url=config.webapp_url),
                 )
             ]
-        ]
+        ],
+        resize_keyboard=True,
     )
 
     LOGGER.debug("Sending webapp button to user_id=%s with url=%s", 
