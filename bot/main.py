@@ -959,7 +959,8 @@ async def webapp_handler(message: Message) -> None:
             
             # Extract settings from payload
             settings_data = {}
-            for key in ["lang", "show_location", "show_age", "notify_matches", "notify_messages"]:
+            for key in ["lang", "show_location", "show_age", "notify_matches", "notify_messages", 
+                       "age_min", "age_max", "max_distance"]:
                 if key in payload:
                     settings_data[key] = payload[key]
             
@@ -976,6 +977,92 @@ async def webapp_handler(message: Message) -> None:
             except Exception as exc:
                 LOGGER.exception("Unexpected error when saving settings: %s", exc)
                 await message.answer("Не удалось сохранить настройки. Попробуйте позже.")
+            return
+        
+        # Handle get recommendations request
+        if action == "get_recommendations":
+            LOGGER.info("Get recommendations requested by user_id=%s", message.from_user.id)
+            try:
+                profile_repo = get_repository(message.bot)
+                interaction_repo = get_interaction_repository(message.bot)
+                settings_repo = get_settings_repository(message.bot)
+            except RuntimeError as exc:
+                LOGGER.exception("Repositories are unavailable: %s", exc)
+                await message.answer(
+                    "Не удалось получить рекомендации. Попробуйте позже.",
+                )
+                return
+            
+            # Get user's profile
+            user_profile = await profile_repo.get(message.from_user.id)
+            if not user_profile:
+                LOGGER.warning("Profile not found for user_id=%s", message.from_user.id)
+                await message.answer(
+                    "Сначала создайте профиль, чтобы получить рекомендации."
+                )
+                return
+            
+            # Get user preferences
+            user_settings = await settings_repo.get(message.from_user.id)
+            
+            # Get already interacted users to exclude them
+            liked_users = await interaction_repo.get_liked_users(message.from_user.id)
+            disliked_users = await interaction_repo.get_disliked_users(message.from_user.id)
+            interacted_users = set(liked_users + disliked_users)
+            
+            # Get best matches
+            profile_obj = user_profile.to_profile()
+            all_matches = await profile_repo.find_best_matches(profile_obj, limit=50)
+            
+            # Filter by user preferences
+            filtered_matches = []
+            for match_profile in all_matches:
+                # Skip already interacted users
+                if match_profile.user_id in interacted_users:
+                    continue
+                
+                # Apply age filter if set
+                if user_settings and user_settings.age_min is not None:
+                    if match_profile.age < user_settings.age_min:
+                        continue
+                if user_settings and user_settings.age_max is not None:
+                    if match_profile.age > user_settings.age_max:
+                        continue
+                
+                filtered_matches.append(match_profile)
+                
+                # Limit to 10 recommendations per request
+                if len(filtered_matches) >= 10:
+                    break
+            
+            # Format response
+            recommendations = []
+            for match in filtered_matches:
+                rec = {
+                    "id": match.user_id,
+                    "name": match.name,
+                    "age": match.age,
+                    "gender": match.gender,
+                    "bio": match.bio,
+                    "location": match.location,
+                    "interests": match.interests,
+                    "goal": match.goal,
+                    "photo_url": match.photo_url
+                }
+                recommendations.append(rec)
+            
+            # Send recommendations back to webapp
+            response_data = {
+                "action": "recommendations",
+                "profiles": recommendations,
+                "count": len(recommendations)
+            }
+            
+            await message.answer(
+                json.dumps(response_data, ensure_ascii=False),
+                parse_mode=None
+            )
+            LOGGER.info("Sent %d recommendations to user_id=%s", len(recommendations), message.from_user.id)
             return
         
         # Handle profile creation/update (default action)

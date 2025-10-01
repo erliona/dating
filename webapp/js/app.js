@@ -47,6 +47,9 @@
     showAge: true,
     notifyMatches: true,
     notifyMessages: true,
+    ageMin: null,
+    ageMax: null,
+    maxDistance: null,
     debugMode: debugMode
   };
   
@@ -664,14 +667,27 @@
     // Simulate loading delay
     setTimeout(() => {
       try {
-        if (testProfiles.length === 0) {
+        // Filter test profiles based on user preferences
+        let filteredProfiles = [...testProfiles];
+        
+        // Apply age filters if set
+        if (settings.ageMin) {
+          filteredProfiles = filteredProfiles.filter(p => p.age >= settings.ageMin);
+        }
+        if (settings.ageMax) {
+          filteredProfiles = filteredProfiles.filter(p => p.age <= settings.ageMax);
+        }
+        
+        debug("Filtered profiles:", filteredProfiles.length, "of", testProfiles.length);
+        
+        if (filteredProfiles.length === 0) {
           setLoadingState(LoadingState.SUCCESS);
           renderEmptyState();
           return;
         }
 
         setLoadingState(LoadingState.SUCCESS);
-        renderMatches(testProfiles);
+        renderMatches(filteredProfiles);
       } catch (error) {
         debug("Error loading matches:", error);
         setLoadingState(LoadingState.ERROR);
@@ -753,6 +769,9 @@
   const showAgeToggle = document.getElementById("show-age");
   const notifyMatchesToggle = document.getElementById("notify-matches");
   const notifyMessagesToggle = document.getElementById("notify-messages");
+  const ageMinInput = document.getElementById("age-min");
+  const ageMaxInput = document.getElementById("age-max");
+  const maxDistanceInput = document.getElementById("max-distance");
   const debugModeToggle = document.getElementById("debug-mode");
   const logoutBtn = document.getElementById("logout-btn");
   const clearDataBtn = document.getElementById("clear-data-btn");
@@ -766,17 +785,27 @@
     if (showAgeToggle) showAgeToggle.checked = settings.showAge;
     if (notifyMatchesToggle) notifyMatchesToggle.checked = settings.notifyMatches;
     if (notifyMessagesToggle) notifyMessagesToggle.checked = settings.notifyMessages;
+    if (ageMinInput) ageMinInput.value = settings.ageMin || "";
+    if (ageMaxInput) ageMaxInput.value = settings.ageMax || "";
+    if (maxDistanceInput) maxDistanceInput.value = settings.maxDistance || "";
     if (debugModeToggle) debugModeToggle.checked = settings.debugMode;
   }
 
   // Save settings
   function saveSettings() {
+    const ageMin = ageMinInput?.value ? parseInt(ageMinInput.value, 10) : null;
+    const ageMax = ageMaxInput?.value ? parseInt(ageMaxInput.value, 10) : null;
+    const maxDistance = maxDistanceInput?.value ? parseInt(maxDistanceInput.value, 10) : null;
+    
     settings = {
       lang: langSelect?.value || "ru",
       showLocation: showLocationToggle?.checked ?? true,
       showAge: showAgeToggle?.checked ?? true,
       notifyMatches: notifyMatchesToggle?.checked ?? true,
       notifyMessages: notifyMessagesToggle?.checked ?? true,
+      ageMin: ageMin,
+      ageMax: ageMax,
+      maxDistance: maxDistance,
       debugMode: debugModeToggle?.checked ?? false
     };
 
@@ -797,7 +826,10 @@
         show_location: settings.showLocation,
         show_age: settings.showAge,
         notify_matches: settings.notifyMatches,
-        notify_messages: settings.notifyMessages
+        notify_messages: settings.notifyMessages,
+        age_min: settings.ageMin,
+        age_max: settings.ageMax,
+        max_distance: settings.maxDistance
       };
       debug("Sending settings to bot", payload);
       tg.sendData(JSON.stringify(payload));
