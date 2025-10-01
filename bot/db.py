@@ -109,6 +109,9 @@ class UserSettingsModel(Base):
     show_age: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     notify_matches: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     notify_messages: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    age_min: Mapped[Optional[int]] = mapped_column(default=None)
+    age_max: Mapped[Optional[int]] = mapped_column(default=None)
+    max_distance: Mapped[Optional[int]] = mapped_column(default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), server_default=func.now(), onupdate=func.now())
 

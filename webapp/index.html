@@ -247,6 +247,29 @@
           </div>
 
           <div class="settings-section">
+            <h3>Предпочтения поиска</h3>
+            <div class="settings-item">
+              <label for="age-min">
+                <span>Минимальный возраст</span>
+                <input type="number" id="age-min" min="18" max="120" placeholder="18" />
+              </label>
+            </div>
+            <div class="settings-item">
+              <label for="age-max">
+                <span>Максимальный возраст</span>
+                <input type="number" id="age-max" min="18" max="120" placeholder="120" />
+              </label>
+            </div>
+            <div class="settings-item">
+              <label for="max-distance">
+                <span>Макс. расстояние (км)</span>
+                <input type="number" id="max-distance" min="1" max="10000" placeholder="Не ограничено" />
+              </label>
+              <span class="field-hint" style="margin-top: 0.25rem; display: block;">Оставьте пустым для поиска по всей стране</span>
+            </div>
+          </div>
+
+          <div class="settings-section">
             <h3>Аккаунт</h3>
             <button class="secondary" id="logout-btn">Выйти из аккаунта</button>
           </div>
