@@ -124,5 +124,5 @@ def load_config() -> BotConfig:
         raise RuntimeError("BOT_DATABASE_URL must include a database name")
 
     return BotConfig(
-        token=token, database_url=str(database_url), webapp_url=webapp_url
+        token=token, database_url=database_url.render_as_string(hide_password=False), webapp_url=webapp_url
     )

@@ -23,7 +23,7 @@ class TestBotConfig:
 
         assert isinstance(config, BotConfig)
         assert config.token == "123456:ABC-DEF-test-token"
-        assert "postgresql+asyncpg://user:***@localhost:5432/dating" in config.database_url
+        assert "postgresql+asyncpg://user:pass@localhost:5432/dating" == config.database_url
         assert config.webapp_url == "https://example.com/webapp"
 
     def test_load_config_without_webapp_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -162,6 +162,26 @@ class TestBotConfig:
         config = load_config()
 
         assert "postgresql+asyncpg://" in config.database_url
+    
+    def test_load_config_preserves_database_password(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that database password is preserved in the URL, not obscured."""
+        monkeypatch.setenv("BOT_TOKEN", "123456:ABC-DEF-ghijkl")
+        
+        # Test with various passwords to ensure they're not replaced with ***
+        test_cases = [
+            ("simplepass", "postgresql+asyncpg://user:simplepass@localhost:5432/dating"),
+            ("complex123", "postgresql+asyncpg://testuser:complex123@db:5432/testdb"),
+            ("dating", "postgresql+asyncpg://dating:dating@db:5432/dating"),
+        ]
+        
+        for password, url in test_cases:
+            monkeypatch.setenv("BOT_DATABASE_URL", url)
+            config = load_config()
+            # Verify the password is in the URL and not replaced with ***
+            assert "***" not in config.database_url, f"Password should not be obscured in {url}"
+            assert f":{password}@" in config.database_url, f"Password '{password}' should be present in URL"
 
     def test_load_config_requires_https_for_webapp_url(
         self, monkeypatch: pytest.MonkeyPatch
