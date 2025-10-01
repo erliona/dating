@@ -23,6 +23,7 @@ from aiogram.types import (InlineKeyboardButton, InlineKeyboardMarkup,
                            ReplyKeyboardRemove, WebAppData, WebAppInfo)
 
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from .config import BotConfig, load_config
@@ -312,7 +313,14 @@ def build_profile_from_payload(user_id: int, payload: dict[str, object]) -> Prof
 
 
 async def handle_interaction(message: Message, from_user_id: int, to_user_id: int, action: str) -> None:
-    """Handle like/dislike interaction between users."""
+    """Handle like/dislike interaction between users.
+    
+    Args:
+        message: Message object from the user.
+        from_user_id: User ID who initiated the interaction.
+        to_user_id: User ID who is the target of the interaction.
+        action: Type of interaction ('like' or 'dislike').
+    """
     bot = message.bot
     LOGGER.info("Processing %s from user %s to user %s", action, from_user_id, to_user_id)
     
@@ -328,8 +336,17 @@ async def handle_interaction(message: Message, from_user_id: int, to_user_id: in
     # Create or update the interaction
     try:
         await interaction_repo.create(from_user_id, to_user_id, action)
+    except OperationalError as exc:
+        LOGGER.error("Database connection error when saving interaction: %s", exc)
+        await message.answer("Не удалось подключиться к базе данных. Попробуйте позже.")
+        return
+    except SQLAlchemyError as exc:
+        LOGGER.exception("Database error when saving interaction: %s", exc)
+        await message.answer("Не удалось сохранить действие. Попробуйте позже.")
+        return
     except Exception as exc:
-        LOGGER.exception("Failed to save interaction: %s", exc)
+        # Catch any other unexpected errors
+        LOGGER.exception("Unexpected error when saving interaction: %s", exc)
         await message.answer("Не удалось сохранить действие. Попробуйте позже.")
         return
     
@@ -364,8 +381,15 @@ async def handle_interaction(message: Message, from_user_id: int, to_user_id: in
                 else:
                     LOGGER.warning("Could not load profiles for match notification")
                     await message.answer("🎉 У вас взаимная симпатия!")
+            except OperationalError as exc:
+                LOGGER.error("Database connection error when creating match: %s", exc)
+                await message.answer("🎉 У вас взаимная симпатия!")
+            except SQLAlchemyError as exc:
+                LOGGER.exception("Database error when creating match: %s", exc)
+                await message.answer("🎉 У вас взаимная симпатия!")
             except Exception as exc:
-                LOGGER.exception("Failed to create match: %s", exc)
+                # Catch any other unexpected errors
+                LOGGER.exception("Unexpected error when creating match: %s", exc)
                 await message.answer("🎉 У вас взаимная симпатия!")
         else:
             # Like sent but no match yet
@@ -376,6 +400,13 @@ async def handle_interaction(message: Message, from_user_id: int, to_user_id: in
 
 
 async def finalize_profile(message: Message, profile: Profile, is_update: bool = False) -> None:
+    """Finalize and save a user profile, optionally searching for matches.
+    
+    Args:
+        message: Message object from the user.
+        profile: Profile object to save.
+        is_update: Whether this is an update to an existing profile.
+    """
     bot = message.bot
     LOGGER.info("Finalizing profile for user_id=%s", profile.user_id)
     
@@ -397,12 +428,30 @@ async def finalize_profile(message: Message, profile: Profile, is_update: bool =
     try:
         await repository.upsert(profile)
         LOGGER.info("Profile upserted successfully for user_id=%s", profile.user_id)
-    except Exception as exc:  # pragma: no cover - debug assistance
-        LOGGER.exception(
-            "Error while saving profile for user_id=%s: %s", profile.user_id, exc
+    except OperationalError as exc:  # pragma: no cover - debug assistance
+        LOGGER.error(
+            "Database connection error while saving profile for user_id=%s: %s", profile.user_id, exc
         )
         await message.answer(
-            f"Не удалось сохранить анкету. Ошибка: {exc}",
+            "Не удалось подключиться к базе данных. Попробуйте позже.",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        return
+    except SQLAlchemyError as exc:  # pragma: no cover - debug assistance
+        LOGGER.exception(
+            "Database error while saving profile for user_id=%s: %s", profile.user_id, exc
+        )
+        await message.answer(
+            "Не удалось сохранить анкету. Попробуйте позже.",
+            reply_markup=ReplyKeyboardRemove(),
+        )
+        return
+    except Exception as exc:  # pragma: no cover - debug assistance
+        LOGGER.exception(
+            "Unexpected error while saving profile for user_id=%s: %s", profile.user_id, exc
+        )
+        await message.answer(
+            "Не удалось сохранить анкету. Попробуйте позже.",
             reply_markup=ReplyKeyboardRemove(),
         )
         return
@@ -747,9 +796,15 @@ async def webapp_handler(message: Message) -> None:
                 await settings_repo.upsert(message.from_user.id, **settings_data)
                 LOGGER.info("Settings updated for user_id=%s", message.from_user.id)
                 await message.answer("✅ Настройки сохранены!")
+            except OperationalError as exc:
+                LOGGER.error("Database connection error when saving settings: %s", exc)
+                await message.answer("Не удалось подключиться к базе данных. Попробуйте позже.")
+            except SQLAlchemyError as exc:
+                LOGGER.exception("Database error when saving settings: %s", exc)
+                await message.answer("Не удалось сохранить настройки. Попробуйте позже.")
             except Exception as exc:
-                LOGGER.exception("Failed to save settings: %s", exc)
-                await message.answer("Не удалось сохранить настройки.")
+                LOGGER.exception("Unexpected error when saving settings: %s", exc)
+                await message.answer("Не удалось сохранить настройки. Попробуйте позже.")
             return
         
         # Handle profile creation/update (default action)
