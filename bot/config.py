@@ -95,10 +95,28 @@ def load_config() -> BotConfig:
             webapp_url = protocol.lower() + "://" + rest
     
     database_url_raw = os.getenv("BOT_DATABASE_URL") or os.getenv("DATABASE_URL")
+    
+    # Fallback: construct database URL from POSTGRES_* environment variables
+    # This is particularly useful in Docker Compose environments where these
+    # variables are already set for the database container
     if not database_url_raw:
-        raise RuntimeError(
-            "BOT_DATABASE_URL environment variable is required to start the bot"
-        )
+        postgres_user = os.getenv("POSTGRES_USER")
+        postgres_password = os.getenv("POSTGRES_PASSWORD")
+        postgres_host = os.getenv("POSTGRES_HOST", "db")  # Default to 'db' for docker-compose
+        postgres_port = os.getenv("POSTGRES_PORT", "5432")
+        postgres_db = os.getenv("POSTGRES_DB")
+        
+        if all([postgres_user, postgres_password, postgres_db]):
+            database_url_raw = (
+                f"postgresql+asyncpg://{postgres_user}:{postgres_password}"
+                f"@{postgres_host}:{postgres_port}/{postgres_db}"
+            )
+        else:
+            raise RuntimeError(
+                "BOT_DATABASE_URL environment variable is required to start the bot. "
+                "Alternatively, set POSTGRES_USER, POSTGRES_PASSWORD, and POSTGRES_DB "
+                "to automatically construct the database URL."
+            )
 
     try:
         database_url = make_url(database_url_raw)
