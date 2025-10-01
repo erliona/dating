@@ -352,3 +352,61 @@ class TestBotConfig:
             config = load_config()
             assert config.webapp_url == expected_url, f"Failed for {input_url}"
 
+    def test_load_config_constructs_url_from_postgres_variables(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that database URL is constructed from POSTGRES_* variables as fallback."""
+        monkeypatch.setenv("BOT_TOKEN", "123456:ABC-DEF-ghijkl")
+        monkeypatch.setenv("POSTGRES_USER", "testuser")
+        monkeypatch.setenv("POSTGRES_PASSWORD", "testpass")
+        monkeypatch.setenv("POSTGRES_DB", "testdb")
+        monkeypatch.setenv("POSTGRES_HOST", "testhost")
+        monkeypatch.setenv("POSTGRES_PORT", "5433")
+
+        config = load_config()
+
+        assert config.database_url == "postgresql+asyncpg://testuser:testpass@testhost:5433/testdb"
+
+    def test_load_config_uses_default_postgres_host_and_port(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that default values are used for POSTGRES_HOST and POSTGRES_PORT."""
+        monkeypatch.setenv("BOT_TOKEN", "123456:ABC-DEF-ghijkl")
+        monkeypatch.setenv("POSTGRES_USER", "testuser")
+        monkeypatch.setenv("POSTGRES_PASSWORD", "testpass")
+        monkeypatch.setenv("POSTGRES_DB", "testdb")
+
+        config = load_config()
+
+        assert config.database_url == "postgresql+asyncpg://testuser:testpass@db:5432/testdb"
+
+    def test_load_config_requires_all_postgres_variables(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that all required POSTGRES_* variables must be set if using fallback."""
+        monkeypatch.setenv("BOT_TOKEN", "123456:ABC-DEF-ghijkl")
+        
+        # Test with only user
+        monkeypatch.setenv("POSTGRES_USER", "testuser")
+        with pytest.raises(RuntimeError, match="BOT_DATABASE_URL environment variable is required"):
+            load_config()
+        
+        # Test with user and password but no db
+        monkeypatch.setenv("POSTGRES_PASSWORD", "testpass")
+        with pytest.raises(RuntimeError, match="BOT_DATABASE_URL environment variable is required"):
+            load_config()
+
+    def test_load_config_prefers_bot_database_url_over_postgres_variables(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that BOT_DATABASE_URL takes precedence over POSTGRES_* variables."""
+        monkeypatch.setenv("BOT_TOKEN", "123456:ABC-DEF-ghijkl")
+        monkeypatch.setenv("BOT_DATABASE_URL", "postgresql+asyncpg://user:pass@localhost:5432/dating")
+        monkeypatch.setenv("POSTGRES_USER", "different_user")
+        monkeypatch.setenv("POSTGRES_PASSWORD", "different_pass")
+        monkeypatch.setenv("POSTGRES_DB", "different_db")
+
+        config = load_config()
+
+        assert config.database_url == "postgresql+asyncpg://user:pass@localhost:5432/dating"
+
