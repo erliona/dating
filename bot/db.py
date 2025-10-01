@@ -235,6 +235,109 @@ class ProfileRepository:
             result = await session.scalar(stmt)
             return result.to_profile() if result else None
 
+    async def find_best_matches(self, profile: "Profile", limit: int = 10) -> list["Profile"]:
+        """Find best matching profiles based on compatibility score.
+        
+        Args:
+            profile: Profile to find matches for.
+            limit: Maximum number of matches to return.
+            
+        Returns:
+            List of Profile objects sorted by compatibility (best first).
+        """
+        async with self._session_factory() as session:
+            stmt = (
+                select(ProfileModel)
+                .where(ProfileModel.user_id != profile.user_id)
+            )
+            
+            # Filter by mutual compatibility
+            if profile.preference != "any":
+                stmt = stmt.where(ProfileModel.gender == profile.preference)
+            
+            # Also check if the candidate would be interested in this profile
+            if profile.gender != "other":
+                stmt = stmt.where(
+                    (ProfileModel.preference == profile.gender) | (ProfileModel.preference == "any")
+                )
+            else:
+                stmt = stmt.where(
+                    (ProfileModel.preference == "other") | (ProfileModel.preference == "any")
+                )
+            
+            result = await session.execute(stmt)
+            candidates = [model.to_profile() for model in result.scalars().all()]
+            
+            # Score and sort candidates
+            if not candidates:
+                return []
+            
+            scored_candidates = [
+                (candidate, self._calculate_match_score(profile, candidate))
+                for candidate in candidates
+            ]
+            scored_candidates.sort(key=lambda x: x[1], reverse=True)
+            
+            return [candidate for candidate, score in scored_candidates[:limit]]
+
+    @staticmethod
+    def _calculate_match_score(profile1: "Profile", profile2: "Profile") -> float:
+        """Calculate compatibility score between two profiles.
+        
+        Args:
+            profile1: First profile.
+            profile2: Second profile.
+            
+        Returns:
+            Score from 0.0 to 1.0, where 1.0 is perfect match.
+        """
+        score = 0.0
+        max_score = 0.0
+        
+        # Interest similarity (weight: 0.4)
+        max_score += 0.4
+        if profile1.interests and profile2.interests:
+            common_interests = set(profile1.interests) & set(profile2.interests)
+            all_interests = set(profile1.interests) | set(profile2.interests)
+            if all_interests:
+                interest_score = len(common_interests) / len(all_interests)
+                score += interest_score * 0.4
+        
+        # Location match (weight: 0.3)
+        max_score += 0.3
+        if profile1.location and profile2.location:
+            # Exact match gets full score
+            if profile1.location.lower() == profile2.location.lower():
+                score += 0.3
+            # Partial match (same word in location) gets partial score
+            elif any(word in profile2.location.lower() 
+                    for word in profile1.location.lower().split()):
+                score += 0.15
+        
+        # Goal alignment (weight: 0.2)
+        max_score += 0.2
+        if profile1.goal and profile2.goal:
+            if profile1.goal == profile2.goal:
+                score += 0.2
+            # Related goals get partial score
+            elif {profile1.goal, profile2.goal} <= {"serious", "casual"}:
+                score += 0.1
+            elif {profile1.goal, profile2.goal} <= {"friendship", "networking"}:
+                score += 0.1
+        
+        # Age compatibility (weight: 0.1)
+        max_score += 0.1
+        age_diff = abs(profile1.age - profile2.age)
+        if age_diff <= 3:
+            score += 0.1
+        elif age_diff <= 5:
+            score += 0.07
+        elif age_diff <= 10:
+            score += 0.03
+        
+        # Normalize to 0-1 range if max_score is not zero
+        return score / max_score if max_score > 0 else 0.0
+
 
 class UserSettingsRepository:
     """Repository for user settings."""
@@ -556,3 +659,57 @@ class MatchRepository:
                 )
             )
             return result is not None
+
+    async def get_user_stats(self, user_id: int) -> dict[str, int]:
+        """Get statistics for a user.
+        
+        Args:
+            user_id: User ID to get stats for.
+            
+        Returns:
+            Dictionary with stats: matches_count, likes_sent, likes_received, dislikes_sent.
+        """
+        async with self._session_factory() as session:
+            # Count matches
+            matches_stmt = select(func.count()).select_from(MatchModel).where(
+                or_(
+                    MatchModel.user1_id == user_id,
+                    MatchModel.user2_id == user_id
+                )
+            )
+            matches_count = await session.scalar(matches_stmt) or 0
+            
+            # Count likes sent
+            likes_sent_stmt = select(func.count()).select_from(UserInteractionModel).where(
+                and_(
+                    UserInteractionModel.from_user_id == user_id,
+                    UserInteractionModel.action == "like"
+                )
+            )
+            likes_sent = await session.scalar(likes_sent_stmt) or 0
+            
+            # Count likes received
+            likes_received_stmt = select(func.count()).select_from(UserInteractionModel).where(
+                and_(
+                    UserInteractionModel.to_user_id == user_id,
+                    UserInteractionModel.action == "like"
+                )
+            )
+            likes_received = await session.scalar(likes_received_stmt) or 0
+            
+            # Count dislikes sent
+            dislikes_sent_stmt = select(func.count()).select_from(UserInteractionModel).where(
+                and_(
+                    UserInteractionModel.from_user_id == user_id,
+                    UserInteractionModel.action == "dislike"
+                )
+            )
+            dislikes_sent = await session.scalar(dislikes_sent_stmt) or 0
+            
+            return {
+                "matches_count": matches_count,
+                "likes_sent": likes_sent,
+                "likes_received": likes_received,
+                "dislikes_sent": dislikes_sent,
+            }
+
