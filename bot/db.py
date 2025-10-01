@@ -17,6 +17,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 if TYPE_CHECKING:  # pragma: no cover - only for type checking
     from .main import Profile
 
+from .cache import get_cache
 
 LOGGER = logging.getLogger(__name__)
 
@@ -166,6 +167,11 @@ class ProfileRepository:
                 else:
                     session.add(ProfileModel.from_profile(profile))
                 await session.commit()
+                
+                # Invalidate cache after update
+                cache = get_cache()
+                cache.delete(f"profile:{profile.user_id}")
+                
                 LOGGER.info(
                     "Profile for user_id=%s has been saved successfully", profile.user_id
                 )
@@ -192,11 +198,37 @@ class ProfileRepository:
                 raise
 
     async def get(self, user_id: int) -> Optional["Profile"]:
+        """Get profile by user_id with caching.
+        
+        Args:
+            user_id: User ID to get profile for.
+            
+        Returns:
+            Profile object or None if not found.
+        """
+        # Try cache first
+        cache = get_cache()
+        cache_key = f"profile:{user_id}"
+        cached = cache.get(cache_key)
+        
+        if cached is not None:
+            LOGGER.debug("Profile cache hit for user_id=%s", user_id)
+            return cached
+        
+        # Cache miss, query database
         async with self._session_factory() as session:
             instance = await session.scalar(
                 select(ProfileModel).where(ProfileModel.user_id == user_id)
             )
-            return instance.to_profile() if instance else None
+            
+            profile = instance.to_profile() if instance else None
+            
+            # Cache the result (even if None to avoid repeated queries)
+            if profile is not None:
+                cache.set(cache_key, profile, ttl=300)  # 5 minutes
+                LOGGER.debug("Profile cached for user_id=%s", user_id)
+            
+            return profile
 
     async def delete(self, user_id: int) -> bool:
         """Delete a profile by user_id. Returns True if deleted, False if not found."""
@@ -207,6 +239,11 @@ class ProfileRepository:
                 )
                 if instance:
                     await session.delete(instance)
+                    
+                    # Invalidate cache
+                    cache = get_cache()
+                    cache.delete(f"profile:{user_id}")
+                    
                     LOGGER.info("Profile for user_id=%s has been deleted", user_id)
                     return True
                 return False
@@ -238,12 +275,24 @@ class ProfileRepository:
             result = await session.scalar(stmt)
             return result.to_profile() if result else None
 
-    async def find_best_matches(self, profile: "Profile", limit: int = 10) -> list["Profile"]:
+    async def find_best_matches(
+        self, 
+        profile: "Profile", 
+        limit: int = 10,
+        age_min: Optional[int] = None,
+        age_max: Optional[int] = None,
+        exclude_user_ids: Optional[list[int]] = None
+    ) -> list["Profile"]:
         """Find best matching profiles based on compatibility score.
+        
+        Optimized with SQL-level filtering and reduced data transfer.
         
         Args:
             profile: Profile to find matches for.
             limit: Maximum number of matches to return.
+            age_min: Minimum age filter (optional).
+            age_max: Maximum age filter (optional).
+            exclude_user_ids: List of user IDs to exclude (e.g., already interacted).
             
         Returns:
             List of Profile objects sorted by compatibility (best first).
@@ -254,7 +303,7 @@ class ProfileRepository:
                 .where(ProfileModel.user_id != profile.user_id)
             )
             
-            # Filter by mutual compatibility
+            # Filter by mutual compatibility (optimize with indexes)
             if profile.preference != "any":
                 stmt = stmt.where(ProfileModel.gender == profile.preference)
             
@@ -267,6 +316,19 @@ class ProfileRepository:
                 stmt = stmt.where(
                     (ProfileModel.preference == "other") | (ProfileModel.preference == "any")
                 )
+            
+            # Apply age filters at database level for performance
+            if age_min is not None:
+                stmt = stmt.where(ProfileModel.age >= age_min)
+            if age_max is not None:
+                stmt = stmt.where(ProfileModel.age <= age_max)
+            
+            # Exclude already interacted users
+            if exclude_user_ids:
+                stmt = stmt.where(ProfileModel.user_id.not_in(exclude_user_ids))
+            
+            # Limit candidates early to reduce data transfer
+            stmt = stmt.limit(limit * 3)  # Get 3x limit for scoring
             
             result = await session.execute(stmt)
             candidates = [model.to_profile() for model in result.scalars().all()]
@@ -349,11 +411,34 @@ class UserSettingsRepository:
         self._session_factory = session_factory
 
     async def get(self, user_id: int) -> Optional[UserSettingsModel]:
-        """Get user settings by user_id."""
+        """Get user settings by user_id with caching.
+        
+        Args:
+            user_id: User ID to get settings for.
+            
+        Returns:
+            UserSettingsModel or None if not found.
+        """
+        # Try cache first
+        cache = get_cache()
+        cache_key = f"settings:{user_id}"
+        cached = cache.get(cache_key)
+        
+        if cached is not None:
+            LOGGER.debug("Settings cache hit for user_id=%s", user_id)
+            return cached
+        
+        # Cache miss, query database
         async with self._session_factory() as session:
             result = await session.scalar(
                 select(UserSettingsModel).where(UserSettingsModel.user_id == user_id)
             )
+            
+            # Cache the result
+            if result is not None:
+                cache.set(cache_key, result, ttl=600)  # 10 minutes
+                LOGGER.debug("Settings cached for user_id=%s", user_id)
+            
             return result
 
     async def upsert(self, user_id: int, **settings) -> UserSettingsModel:
@@ -386,6 +471,11 @@ class UserSettingsRepository:
                     session.add(instance)
                 await session.commit()
                 await session.refresh(instance)
+                
+                # Invalidate cache after update
+                cache = get_cache()
+                cache.delete(f"settings:{user_id}")
+                
                 LOGGER.info("Settings for user_id=%s saved successfully", user_id)
                 return instance
             except IntegrityError as exc:
@@ -598,6 +688,12 @@ class MatchRepository:
                 session.add(match)
                 await session.commit()
                 await session.refresh(match)
+                
+                # Invalidate cache for both users
+                cache = get_cache()
+                cache.delete(f"matches:{user1_id}")
+                cache.delete(f"matches:{user2_id}")
+                
                 LOGGER.info("Match created between users %s and %s", user1_id, user2_id)
                 return match
             except IntegrityError as exc:
@@ -625,8 +721,18 @@ class MatchRepository:
     async def get_matches(self, user_id: int) -> list[int]:
         """Get list of user IDs that matched with this user.
         
-        Optimized to use SQL CASE expression instead of Python loop.
+        Optimized to use SQL CASE expression and caching.
         """
+        # Try cache first
+        cache = get_cache()
+        cache_key = f"matches:{user_id}"
+        cached = cache.get(cache_key)
+        
+        if cached is not None:
+            LOGGER.debug("Matches cache hit for user_id=%s", user_id)
+            return cached
+        
+        # Cache miss, query database
         async with self._session_factory() as session:
             from sqlalchemy import case
             
@@ -644,7 +750,13 @@ class MatchRepository:
             )
             
             result = await session.execute(stmt)
-            return [row[0] for row in result]
+            matches = [row[0] for row in result]
+            
+            # Cache the result
+            cache.set(cache_key, matches, ttl=180)  # 3 minutes
+            LOGGER.debug("Matches cached for user_id=%s", user_id)
+            
+            return matches
 
     async def is_matched(self, user1_id: int, user2_id: int) -> bool:
         """Check if two users are matched."""
