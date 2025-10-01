@@ -74,6 +74,16 @@ class TestBotConfig:
 
         with pytest.raises(RuntimeError, match="must be a valid SQLAlchemy connection string"):
             load_config()
+    
+    def test_load_config_database_url_error_mentions_url_encoding(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Test that database URL format errors mention URL encoding for passwords."""
+        monkeypatch.setenv("BOT_TOKEN", "123456:ABC-DEF-ghijkl")
+        monkeypatch.setenv("BOT_DATABASE_URL", "not-a-valid-url")
+
+        with pytest.raises(RuntimeError, match="alphanumeric characters.*for database passwords"):
+            load_config()
 
     def test_load_config_only_accepts_postgresql(
         self, monkeypatch: pytest.MonkeyPatch
