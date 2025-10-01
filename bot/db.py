@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Optional
 from sqlalchemy import BigInteger, Boolean, DateTime, String, Text, and_, func, or_, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.sqlite import JSON as SQLITE_JSON
+from sqlalchemy.exc import DBAPIError, IntegrityError, OperationalError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -142,6 +143,16 @@ class ProfileRepository:
         self._session_factory = session_factory
 
     async def upsert(self, profile: "Profile") -> None:
+        """Save or update a profile in the database.
+        
+        Args:
+            profile: Profile object to save or update.
+            
+        Raises:
+            IntegrityError: If there's a constraint violation.
+            OperationalError: If there's a database connection issue.
+            SQLAlchemyError: For other database-related errors.
+        """
         async with self._session_factory() as session:
             try:
                 instance = await session.scalar(
@@ -155,10 +166,25 @@ class ProfileRepository:
                 LOGGER.info(
                     "Profile for user_id=%s has been saved successfully", profile.user_id
                 )
-            except Exception:
+            except IntegrityError as exc:
+                await session.rollback()
+                LOGGER.error(
+                    "Integrity constraint violation when saving profile for user_id=%s: %s",
+                    profile.user_id, exc
+                )
+                raise
+            except OperationalError as exc:
+                await session.rollback()
+                LOGGER.error(
+                    "Database connection error when saving profile for user_id=%s: %s",
+                    profile.user_id, exc
+                )
+                raise
+            except SQLAlchemyError as exc:
                 await session.rollback()
                 LOGGER.exception(
-                    "Failed to save profile for user_id=%s", profile.user_id
+                    "Database error when saving profile for user_id=%s: %s",
+                    profile.user_id, exc
                 )
                 raise
 
@@ -225,7 +251,20 @@ class UserSettingsRepository:
             return result
 
     async def upsert(self, user_id: int, **settings) -> UserSettingsModel:
-        """Create or update user settings."""
+        """Create or update user settings.
+        
+        Args:
+            user_id: User ID to save settings for.
+            **settings: Settings key-value pairs to save.
+            
+        Returns:
+            Updated UserSettingsModel instance.
+            
+        Raises:
+            IntegrityError: If there's a constraint violation.
+            OperationalError: If there's a database connection issue.
+            SQLAlchemyError: For other database-related errors.
+        """
         async with self._session_factory() as session:
             try:
                 instance = await session.scalar(
@@ -243,9 +282,26 @@ class UserSettingsRepository:
                 await session.refresh(instance)
                 LOGGER.info("Settings for user_id=%s saved successfully", user_id)
                 return instance
-            except Exception:
+            except IntegrityError as exc:
                 await session.rollback()
-                LOGGER.exception("Failed to save settings for user_id=%s", user_id)
+                LOGGER.error(
+                    "Integrity constraint violation when saving settings for user_id=%s: %s",
+                    user_id, exc
+                )
+                raise
+            except OperationalError as exc:
+                await session.rollback()
+                LOGGER.error(
+                    "Database connection error when saving settings for user_id=%s: %s",
+                    user_id, exc
+                )
+                raise
+            except SQLAlchemyError as exc:
+                await session.rollback()
+                LOGGER.exception(
+                    "Database error when saving settings for user_id=%s: %s",
+                    user_id, exc
+                )
                 raise
 
 
@@ -256,7 +312,21 @@ class InteractionRepository:
         self._session_factory = session_factory
 
     async def create(self, from_user_id: int, to_user_id: int, action: str) -> UserInteractionModel:
-        """Create or update an interaction."""
+        """Create or update an interaction.
+        
+        Args:
+            from_user_id: User ID who initiated the interaction.
+            to_user_id: User ID who is the target of the interaction.
+            action: Type of interaction ('like' or 'dislike').
+            
+        Returns:
+            Created or updated UserInteractionModel instance.
+            
+        Raises:
+            IntegrityError: If there's a constraint violation.
+            OperationalError: If there's a database connection issue.
+            SQLAlchemyError: For other database-related errors.
+        """
         async with self._session_factory() as session:
             try:
                 # Check if interaction already exists
@@ -290,11 +360,25 @@ class InteractionRepository:
                     from_user_id, action, to_user_id
                 )
                 return interaction
-            except Exception:
+            except IntegrityError as exc:
+                await session.rollback()
+                LOGGER.error(
+                    "Integrity constraint violation when creating interaction from %s to %s: %s",
+                    from_user_id, to_user_id, exc
+                )
+                raise
+            except OperationalError as exc:
+                await session.rollback()
+                LOGGER.error(
+                    "Database connection error when creating interaction from %s to %s: %s",
+                    from_user_id, to_user_id, exc
+                )
+                raise
+            except SQLAlchemyError as exc:
                 await session.rollback()
                 LOGGER.exception(
-                    "Failed to create interaction from %s to %s",
-                    from_user_id, to_user_id
+                    "Database error when creating interaction from %s to %s: %s",
+                    from_user_id, to_user_id, exc
                 )
                 raise
 
@@ -312,20 +396,19 @@ class InteractionRepository:
             return result
 
     async def check_mutual_like(self, user1_id: int, user2_id: int) -> bool:
-        """Check if both users liked each other."""
+        """Check if both users liked each other.
+        
+        Optimized to use a single query with COUNT instead of two separate queries.
+        """
         async with self._session_factory() as session:
-            like1 = await session.scalar(
-                select(UserInteractionModel).where(
+            # Use a single query to count both likes
+            stmt = select(func.count()).select_from(UserInteractionModel).where(
+                or_(
                     and_(
                         UserInteractionModel.from_user_id == user1_id,
                         UserInteractionModel.to_user_id == user2_id,
                         UserInteractionModel.action == "like"
-                    )
-                )
-            )
-            
-            like2 = await session.scalar(
-                select(UserInteractionModel).where(
+                    ),
                     and_(
                         UserInteractionModel.from_user_id == user2_id,
                         UserInteractionModel.to_user_id == user1_id,
@@ -333,8 +416,9 @@ class InteractionRepository:
                     )
                 )
             )
-            
-            return like1 is not None and like2 is not None
+            count = await session.scalar(stmt)
+            # Both users must have liked each other (count == 2)
+            return count == 2
 
     async def get_liked_users(self, user_id: int) -> list[int]:
         """Get list of user IDs that this user has liked."""
@@ -370,7 +454,20 @@ class MatchRepository:
         self._session_factory = session_factory
 
     async def create(self, user1_id: int, user2_id: int) -> MatchModel:
-        """Create a match between two users. Ensures user1_id < user2_id."""
+        """Create a match between two users. Ensures user1_id < user2_id.
+        
+        Args:
+            user1_id: First user ID.
+            user2_id: Second user ID.
+            
+        Returns:
+            Created or existing MatchModel instance.
+            
+        Raises:
+            IntegrityError: If there's a constraint violation.
+            OperationalError: If there's a database connection issue.
+            SQLAlchemyError: For other database-related errors.
+        """
         # Normalize order
         if user1_id > user2_id:
             user1_id, user2_id = user2_id, user1_id
@@ -397,36 +494,51 @@ class MatchRepository:
                 await session.refresh(match)
                 LOGGER.info("Match created between users %s and %s", user1_id, user2_id)
                 return match
-            except Exception:
+            except IntegrityError as exc:
+                await session.rollback()
+                LOGGER.error(
+                    "Integrity constraint violation when creating match between %s and %s: %s",
+                    user1_id, user2_id, exc
+                )
+                raise
+            except OperationalError as exc:
+                await session.rollback()
+                LOGGER.error(
+                    "Database connection error when creating match between %s and %s: %s",
+                    user1_id, user2_id, exc
+                )
+                raise
+            except SQLAlchemyError as exc:
                 await session.rollback()
                 LOGGER.exception(
-                    "Failed to create match between %s and %s",
-                    user1_id, user2_id
+                    "Database error when creating match between %s and %s: %s",
+                    user1_id, user2_id, exc
                 )
                 raise
 
     async def get_matches(self, user_id: int) -> list[int]:
-        """Get list of user IDs that matched with this user."""
+        """Get list of user IDs that matched with this user.
+        
+        Optimized to use SQL CASE expression instead of Python loop.
+        """
         async with self._session_factory() as session:
-            result = await session.execute(
-                select(MatchModel).where(
-                    or_(
-                        MatchModel.user1_id == user_id,
-                        MatchModel.user2_id == user_id
-                    )
+            from sqlalchemy import case
+            
+            # Use CASE to select the other user's ID directly in SQL
+            other_user_id = case(
+                (MatchModel.user1_id == user_id, MatchModel.user2_id),
+                else_=MatchModel.user1_id
+            )
+            
+            stmt = select(other_user_id).where(
+                or_(
+                    MatchModel.user1_id == user_id,
+                    MatchModel.user2_id == user_id
                 )
             )
-            matches = result.scalars().all()
             
-            # Extract the other user's ID from each match
-            matched_users = []
-            for match in matches:
-                if match.user1_id == user_id:
-                    matched_users.append(match.user2_id)
-                else:
-                    matched_users.append(match.user1_id)
-            
-            return matched_users
+            result = await session.execute(stmt)
+            return [row[0] for row in result]
 
     async def is_matched(self, user1_id: int, user2_id: int) -> bool:
         """Check if two users are matched."""
