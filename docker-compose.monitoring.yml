@@ -1,15 +1,26 @@
-# Monitoring stack for production deployment
-# This adds Prometheus, Grafana, Loki, and cAdvisor to your deployment
+# ⚠️ DEPRECATED: This file is kept for backward compatibility only
+# 
+# Monitoring is now integrated into docker-compose.yml using profiles.
+# 
+# NEW USAGE (recommended):
+#   docker compose --profile monitoring up -d
 #
-# Usage:
+# OLD USAGE (still works but deprecated):
 #   docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+#
+# The monitoring stack is automatically enabled during CI/CD deployment.
+# For local development, use the --profile flag as shown above.
+#
+# This file will be removed in a future version.
+#
+# ---
+#
+# Legacy documentation:
+# This adds Prometheus, Grafana, Loki, and cAdvisor to your deployment
 #
 # Access:
 #   Grafana: http://localhost:3000 (admin/admin)
 #   Prometheus: http://localhost:9090
-#
-# To deploy with monitoring:
-#   docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
 
 services:
   # Prometheus - Metrics collection
