@@ -34,24 +34,136 @@
       <div id="onboarding-page" class="page" style="display: none;">
         <div class="onboarding">
           <h1>Добро пожаловать! 👋</h1>
-          <div class="onboarding-steps">
-            <div class="onboarding-step">
-              <span class="step-icon">💕</span>
-              <h3>Найди вторую половинку</h3>
-              <p>Познакомься с интересными людьми, которые рядом</p>
+          
+          <!-- Onboarding Step 1: Introduction -->
+          <div id="onboarding-intro" class="onboarding-content" style="display: block;">
+            <div class="onboarding-steps">
+              <div class="onboarding-step">
+                <span class="step-icon">💕</span>
+                <h3>Найди вторую половинку</h3>
+                <p>Познакомься с интересными людьми, которые рядом</p>
+              </div>
+              <div class="onboarding-step">
+                <span class="step-icon">✨</span>
+                <h3>Создай анкету</h3>
+                <p>Расскажи о себе, своих интересах и целях</p>
+              </div>
+              <div class="onboarding-step">
+                <span class="step-icon">🎯</span>
+                <h3>Получай метчи</h3>
+                <p>Мы подберем тебе людей с общими интересами</p>
+              </div>
             </div>
-            <div class="onboarding-step">
-              <span class="step-icon">✨</span>
-              <h3>Создай анкету</h3>
-              <p>Расскажи о себе, своих интересах и целях</p>
+            <button class="primary onboarding-btn" id="start-onboarding">Начать</button>
+          </div>
+
+          <!-- Onboarding Step 2: Basic Info -->
+          <div id="onboarding-basic" class="onboarding-content" style="display: none;">
+            <div class="onboarding-progress">
+              <div class="onboarding-progress-bar">
+                <div class="onboarding-progress-fill" style="width: 25%;"></div>
+              </div>
+              <p class="onboarding-progress-text">Шаг 1 из 4</p>
             </div>
-            <div class="onboarding-step">
-              <span class="step-icon">🎯</span>
-              <h3>Получай метчи</h3>
-              <p>Мы подберем тебе людей с общими интересами</p>
+            <h2>Расскажи о себе</h2>
+            <p class="hint">Начнем с основной информации</p>
+            
+            <div class="onboarding-form-preview">
+              <span class="preview-icon">👤</span>
+            </div>
+            
+            <ul class="onboarding-checklist">
+              <li>✓ Имя и возраст</li>
+              <li>✓ Пол и предпочтения</li>
+            </ul>
+            
+            <button class="primary onboarding-btn" id="continue-to-basic">Продолжить</button>
+          </div>
+
+          <!-- Onboarding Step 3: Photo -->
+          <div id="onboarding-photo" class="onboarding-content" style="display: none;">
+            <div class="onboarding-progress">
+              <div class="onboarding-progress-bar">
+                <div class="onboarding-progress-fill" style="width: 50%;"></div>
+              </div>
+              <p class="onboarding-progress-text">Шаг 2 из 4</p>
+            </div>
+            <h2>Добавь фото</h2>
+            <p class="hint">Анкеты с фото получают в 5 раз больше откликов</p>
+            
+            <div class="photo-upload-section">
+              <div id="photo-preview" class="photo-preview">
+                <span class="photo-placeholder-icon">📷</span>
+                <p>Загрузи свое фото</p>
+              </div>
+              <input type="file" id="photo-file-input" accept="image/*" style="display: none;" />
+              <button class="secondary" id="upload-photo-btn">Выбрать фото</button>
+              <p class="photo-hint">Или вставь ссылку на фото:</p>
+              <input 
+                type="url" 
+                id="photo-url-input" 
+                placeholder="https://example.com/photo.jpg" 
+                class="photo-url-field"
+              />
+            </div>
+            
+            <div class="onboarding-buttons">
+              <button class="secondary onboarding-btn" id="skip-photo">Пропустить</button>
+              <button class="primary onboarding-btn" id="continue-to-about">Продолжить</button>
             </div>
           </div>
-          <button class="primary onboarding-btn" id="start-onboarding">Создать анкету</button>
+
+          <!-- Onboarding Step 4: About -->
+          <div id="onboarding-about" class="onboarding-content" style="display: none;">
+            <div class="onboarding-progress">
+              <div class="onboarding-progress-bar">
+                <div class="onboarding-progress-fill" style="width: 75%;"></div>
+              </div>
+              <p class="onboarding-progress-text">Шаг 3 из 4</p>
+            </div>
+            <h2>Расскажи о себе</h2>
+            <p class="hint">Поможет найти людей с общими интересами</p>
+            
+            <ul class="onboarding-checklist">
+              <li>✓ Твои увлечения и хобби</li>
+              <li>✓ Где ты живешь</li>
+              <li>✓ Что ищешь</li>
+            </ul>
+            
+            <button class="primary onboarding-btn" id="continue-to-finish">Продолжить</button>
+          </div>
+
+          <!-- Onboarding Step 5: Final -->
+          <div id="onboarding-final" class="onboarding-content" style="display: none;">
+            <div class="onboarding-progress">
+              <div class="onboarding-progress-bar">
+                <div class="onboarding-progress-fill" style="width: 100%;"></div>
+              </div>
+              <p class="onboarding-progress-text">Шаг 4 из 4</p>
+            </div>
+            <h2>Все готово! 🎉</h2>
+            <p class="hint">Осталось заполнить анкету и можно начинать</p>
+            
+            <div class="onboarding-steps">
+              <div class="onboarding-step">
+                <span class="step-icon">✅</span>
+                <h3>Заполни детали</h3>
+                <p>Укажи всю информацию в анкете</p>
+              </div>
+              <div class="onboarding-step">
+                <span class="step-icon">💬</span>
+                <h3>Начни знакомиться</h3>
+                <p>Смотри анкеты и отправляй лайки</p>
+              </div>
+              <div class="onboarding-step">
+                <span class="step-icon">💖</span>
+                <h3>Находи метчи</h3>
+                <p>При взаимной симпатии мы сообщим</p>
+              </div>
+            </div>
+            
+            <button class="primary onboarding-btn" id="finish-onboarding">Создать анкету</button>
+          </div>
         </div>
       </div>
 
@@ -171,14 +283,27 @@
           <span class="error-message" aria-live="polite"></span>
         </label>
         <label>
-          Фото (ссылка)
-          <input
-            type="url"
-            name="photo_url"
-            placeholder="https://example.com/photo.jpg"
-            inputmode="url"
-          />
-          <span class="field-hint">Укажи публичную ссылку на фото, чтобы собеседникам было проще узнать тебя.</span>
+          Фото
+          <div class="photo-upload-container">
+            <div id="profile-photo-preview" class="profile-photo-preview">
+              <span class="photo-placeholder">📷</span>
+              <p class="photo-placeholder-text">Нажми для загрузки</p>
+            </div>
+            <input
+              type="file"
+              id="profile-photo-file"
+              accept="image/*"
+              style="display: none;"
+            />
+            <input
+              type="url"
+              name="photo_url"
+              placeholder="https://example.com/photo.jpg"
+              inputmode="url"
+              style="margin-top: 10px;"
+            />
+          </div>
+          <span class="field-hint">Загрузи фото или вставь ссылку (необязательно).</span>
           <span class="error-message" aria-live="polite"></span>
         </label>
         <button type="submit" class="primary" id="submit-btn">Отправить</button>

@@ -128,14 +128,157 @@
   // ========================================
   // ONBOARDING
   // ========================================
+  let currentOnboardingStep = "intro";
+  const onboardingSteps = {
+    intro: document.getElementById("onboarding-intro"),
+    basic: document.getElementById("onboarding-basic"),
+    photo: document.getElementById("onboarding-photo"),
+    about: document.getElementById("onboarding-about"),
+    final: document.getElementById("onboarding-final")
+  };
+
+  function showOnboardingStep(stepName) {
+    debug("Showing onboarding step:", stepName);
+    
+    // Hide all steps
+    Object.values(onboardingSteps).forEach(step => {
+      if (step) step.style.display = "none";
+    });
+    
+    // Show target step
+    if (onboardingSteps[stepName]) {
+      onboardingSteps[stepName].style.display = "block";
+      currentOnboardingStep = stepName;
+    }
+  }
+
+  // Onboarding navigation
   const startOnboardingBtn = document.getElementById("start-onboarding");
+  const continueToBasicBtn = document.getElementById("continue-to-basic");
+  const continueToPhotoBtn = document.getElementById("continue-to-about");
+  const skipPhotoBtn = document.getElementById("skip-photo");
+  const continueToFinishBtn = document.getElementById("continue-to-finish");
+  const finishOnboardingBtn = document.getElementById("finish-onboarding");
   
   if (startOnboardingBtn) {
     startOnboardingBtn.addEventListener("click", () => {
+      showOnboardingStep("basic");
+    });
+  }
+
+  if (continueToBasicBtn) {
+    continueToBasicBtn.addEventListener("click", () => {
+      showOnboardingStep("photo");
+    });
+  }
+
+  if (continueToPhotoBtn) {
+    continueToPhotoBtn.addEventListener("click", () => {
+      showOnboardingStep("about");
+    });
+  }
+
+  if (skipPhotoBtn) {
+    skipPhotoBtn.addEventListener("click", () => {
+      showOnboardingStep("about");
+    });
+  }
+
+  if (continueToFinishBtn) {
+    continueToFinishBtn.addEventListener("click", () => {
+      showOnboardingStep("final");
+    });
+  }
+
+  if (finishOnboardingBtn) {
+    finishOnboardingBtn.addEventListener("click", () => {
       debug("Onboarding completed");
       localStorage.setItem(ONBOARDING_KEY, "true");
       showPage("profile");
     });
+  }
+
+  // ========================================
+  // PHOTO UPLOAD
+  // ========================================
+  let uploadedPhotoData = null;
+
+  // Onboarding photo upload
+  const photoFileInput = document.getElementById("photo-file-input");
+  const uploadPhotoBtn = document.getElementById("upload-photo-btn");
+  const photoPreview = document.getElementById("photo-preview");
+  const photoUrlInput = document.getElementById("photo-url-input");
+
+  if (uploadPhotoBtn && photoFileInput) {
+    uploadPhotoBtn.addEventListener("click", () => {
+      photoFileInput.click();
+    });
+
+    photoFileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        handlePhotoUpload(file, photoPreview, photoUrlInput);
+      }
+    });
+  }
+
+  // Profile form photo upload
+  const profilePhotoFile = document.getElementById("profile-photo-file");
+  const profilePhotoPreview = document.getElementById("profile-photo-preview");
+  
+  if (profilePhotoPreview && profilePhotoFile) {
+    profilePhotoPreview.addEventListener("click", () => {
+      profilePhotoFile.click();
+    });
+
+    profilePhotoFile.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const photoUrlField = form.elements["photo_url"];
+        handlePhotoUpload(file, profilePhotoPreview, photoUrlField);
+      }
+    });
+  }
+
+  function handlePhotoUpload(file, previewElement, urlField) {
+    debug("Photo selected:", file.name, file.size, file.type);
+    
+    // Validate file
+    if (!file.type.startsWith('image/')) {
+      showStatus("Пожалуйста, выбери изображение (JPG, PNG, GIF).", true);
+      return;
+    }
+    
+    if (file.size > 5 * 1024 * 1024) {
+      showStatus("Файл слишком большой. Максимальный размер: 5 МБ.", true);
+      return;
+    }
+
+    // Read file and create preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target.result;
+      uploadedPhotoData = dataUrl;
+      
+      // Update preview
+      if (previewElement) {
+        previewElement.innerHTML = `<img src="${dataUrl}" alt="Preview" style="max-width: 100%; height: auto; border-radius: 8px;" />`;
+      }
+      
+      // Store base64 in URL field (for Telegram WebApp data transfer)
+      if (urlField) {
+        urlField.value = dataUrl;
+      }
+      
+      debug("Photo uploaded and encoded");
+      showStatus("Фото загружено успешно!");
+    };
+    
+    reader.onerror = () => {
+      showStatus("Ошибка при загрузке фото. Попробуй еще раз.", true);
+    };
+    
+    reader.readAsDataURL(file);
   }
 
   // ========================================
@@ -421,8 +564,8 @@
         debug("Local storage cleared");
       }
       
-      tg.close();
-      showStatus("Профиль удаляется...");
+      // Don't close the app automatically - let user decide
+      showStatus("Профиль успешно удалён. Ты можешь создать новый профиль или закрыть приложение.");
     });
   }
 
@@ -512,8 +655,8 @@
       debug("Profile saved to localStorage");
     }
     
-    tg.close();
-    showStatus("Анкета отправлена, спасибо!");
+    // Don't close the app automatically - let user decide
+    showStatus("Анкета успешно отправлена! Теперь можешь перейти к просмотру метчей.");
 
     if (autosaveStatus) {
       autosaveStatus.textContent = "";
