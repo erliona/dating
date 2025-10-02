@@ -623,16 +623,6 @@ function setupPhotoUpload() {
 }
 
 /**
- * Open photo upload for specific slot
- */
-function openPhotoUpload(slotIndex) {
-  const input = document.getElementById(`photoInput${slotIndex}`);
-  if (input) {
-    input.click();
-  }
-}
-
-/**
  * Handle photo upload for a specific slot
  */
 function handlePhotoUpload(file, slotIndex) {
@@ -666,51 +656,55 @@ function handlePhotoUpload(file, slotIndex) {
  */
 function updatePhotoSlot(slotIndex, photoData) {
   const slot = document.getElementById(`photoSlot${slotIndex}`);
+  const input = document.getElementById(`photoInput${slotIndex}`);
   if (!slot) return;
   
-  // Clear existing content
-  slot.innerHTML = '';
-  
   if (photoData) {
-    // Add photo
-    const img = document.createElement('img');
+    // Add photo - find or create img element
+    let img = slot.querySelector('img');
+    if (!img) {
+      img = document.createElement('img');
+      slot.appendChild(img);
+    }
     img.src = photoData;
     img.alt = `Фото ${slotIndex + 1}`;
     
-    const removeBtn = document.createElement('button');
-    removeBtn.className = 'remove-photo';
-    removeBtn.textContent = '×';
-    removeBtn.onclick = (e) => {
-      e.stopPropagation();
-      removePhoto(slotIndex);
-    };
+    // Add or update remove button
+    let removeBtn = slot.querySelector('.remove-photo');
+    if (!removeBtn) {
+      removeBtn = document.createElement('button');
+      removeBtn.className = 'remove-photo';
+      removeBtn.textContent = '×';
+      removeBtn.type = 'button';
+      removeBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        removePhoto(slotIndex);
+      };
+      slot.appendChild(removeBtn);
+    }
     
-    slot.appendChild(img);
-    slot.appendChild(removeBtn);
+    // Hide the content placeholder
+    const content = slot.querySelector('.photo-slot-content');
+    if (content) {
+      content.style.display = 'none';
+    }
+    
     slot.classList.add('has-photo');
   } else {
-    // Show upload placeholder
-    const content = document.createElement('div');
-    content.className = 'photo-slot-content';
-    content.innerHTML = `
-      <svg class="upload-icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-      <p class="photo-slot-text">Фото ${slotIndex + 1}</p>
-    `;
+    // Remove photo - show placeholder
+    const img = slot.querySelector('img');
+    if (img) img.remove();
     
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.id = `photoInput${slotIndex}`;
-    input.accept = 'image/*';
-    input.style.display = 'none';
-    input.addEventListener('change', (e) => {
-      handlePhotoUpload(e.target.files[0], slotIndex);
-      input.value = '';
-    });
+    const removeBtn = slot.querySelector('.remove-photo');
+    if (removeBtn) removeBtn.remove();
     
-    slot.appendChild(content);
-    slot.appendChild(input);
+    // Show the content placeholder
+    const content = slot.querySelector('.photo-slot-content');
+    if (content) {
+      content.style.display = 'flex';
+    }
+    
     slot.classList.remove('has-photo');
   }
 }

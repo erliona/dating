@@ -56,7 +56,7 @@
                 <div class="form-group">
                     <label>Фото * (ровно 3 фото)</label>
                     <div class="photo-slots-container">
-                        <div class="photo-slot" id="photoSlot0" onclick="openPhotoUpload(0)">
+                        <label for="photoInput0" class="photo-slot" id="photoSlot0">
                             <div class="photo-slot-content">
                                 <svg class="upload-icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -64,8 +64,8 @@
                                 <p class="photo-slot-text">Фото 1</p>
                             </div>
                             <input type="file" id="photoInput0" accept="image/*" style="display: none;">
-                        </div>
-                        <div class="photo-slot" id="photoSlot1" onclick="openPhotoUpload(1)">
+                        </label>
+                        <label for="photoInput1" class="photo-slot" id="photoSlot1">
                             <div class="photo-slot-content">
                                 <svg class="upload-icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -73,8 +73,8 @@
                                 <p class="photo-slot-text">Фото 2</p>
                             </div>
                             <input type="file" id="photoInput1" accept="image/*" style="display: none;">
-                        </div>
-                        <div class="photo-slot" id="photoSlot2" onclick="openPhotoUpload(2)">
+                        </label>
+                        <label for="photoInput2" class="photo-slot" id="photoSlot2">
                             <div class="photo-slot-content">
                                 <svg class="upload-icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -82,7 +82,7 @@
                                 <p class="photo-slot-text">Фото 3</p>
                             </div>
                             <input type="file" id="photoInput2" accept="image/*" style="display: none;">
-                        </div>
+                        </label>
                     </div>
                     <p class="photo-counter">Загружено: <span id="photoCount">0</span> / 3</p>
                 </div>
