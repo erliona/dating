@@ -99,7 +99,7 @@ async def start_handler(message: Message) -> None:
 
 
 @router.message(lambda m: m.web_app_data is not None)
-async def handle_webapp_data(message: Message) -> None:
+async def handle_webapp_data(message: Message, dispatcher: Dispatcher) -> None:
     """Handle data received from WebApp.
     
     This handler processes profile data submitted from the Mini App,
@@ -121,8 +121,8 @@ async def handle_webapp_data(message: Message) -> None:
             extra={"event_type": "webapp_data_received", "user_id": message.from_user.id}
         )
         
-        # Get database session from bot context
-        session_maker = message.bot.get("session_maker")
+        # Get database session from dispatcher workflow_data
+        session_maker = dispatcher.workflow_data.get("session_maker")
         if not session_maker:
             logger.error("Database not configured")
             await message.answer("❌ Database not configured")
@@ -240,13 +240,16 @@ async def main() -> None:
         bot = Bot(token=config.token)
         logger.info("Bot instance created", extra={"event_type": "bot_created"})
         
+        dp = Dispatcher(storage=MemoryStorage())
+        
         # Initialize database if configured
         if config.database_url:
             engine = create_async_engine(config.database_url, echo=False)
             async_session_maker = sessionmaker(
                 engine, class_=AsyncSession, expire_on_commit=False
             )
-            bot["session_maker"] = async_session_maker
+            # Store session maker in dispatcher workflow_data (aiogram 3.x pattern)
+            dp.workflow_data["session_maker"] = async_session_maker
             logger.info("Database connection initialized", extra={"event_type": "db_initialized"})
         else:
             logger.warning(
@@ -254,7 +257,6 @@ async def main() -> None:
                 extra={"event_type": "db_not_configured"}
             )
         
-        dp = Dispatcher(storage=MemoryStorage())
         dp.include_router(router)
         logger.info(
             "Dispatcher initialized with MemoryStorage",
