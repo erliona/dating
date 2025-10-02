@@ -10,8 +10,13 @@ from aiogram import Bot, Dispatcher, Router
 from aiogram.filters import Command
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import KeyboardButton, Message, ReplyKeyboardMarkup, WebAppInfo
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
 
 from .config import load_config
+from .geo import process_location_data
+from .repository import ProfileRepository
+from .validation import validate_profile_data
 
 # Create router for handlers
 router = Router()
@@ -93,6 +98,120 @@ async def start_handler(message: Message) -> None:
     )
 
 
+@router.message(lambda m: m.web_app_data is not None)
+async def handle_webapp_data(message: Message) -> None:
+    """Handle data received from WebApp.
+    
+    This handler processes profile data submitted from the Mini App,
+    including validation and database storage.
+    """
+    logger = logging.getLogger(__name__)
+    
+    if not message.web_app_data:
+        await message.answer("❌ No WebApp data received")
+        return
+    
+    try:
+        # Parse WebApp data
+        data = json.loads(message.web_app_data.data)
+        action = data.get("action")
+        
+        logger.info(
+            f"WebApp data received: {action}",
+            extra={"event_type": "webapp_data_received", "user_id": message.from_user.id}
+        )
+        
+        # Get database session from bot context
+        session_maker = message.bot.get("session_maker")
+        if not session_maker:
+            logger.error("Database not configured")
+            await message.answer("❌ Database not configured")
+            return
+        
+        async with session_maker() as session:
+            repository = ProfileRepository(session)
+            
+            if action == "create_profile":
+                await handle_create_profile(message, data, repository, session, logger)
+            else:
+                await message.answer(f"❌ Unknown action: {action}")
+    
+    except json.JSONDecodeError:
+        logger.error("Failed to parse WebApp data", exc_info=True)
+        await message.answer("❌ Invalid data format")
+    except Exception as exc:
+        logger.error(f"Error processing WebApp data: {exc}", exc_info=True)
+        await message.answer("❌ Failed to process data")
+
+
+async def handle_create_profile(
+    message: Message,
+    data: dict,
+    repository: ProfileRepository,
+    session: AsyncSession,
+    logger: logging.Logger
+) -> None:
+    """Handle profile creation."""
+    profile_data = data.get("profile", {})
+    
+    # Validate profile data
+    is_valid, error = validate_profile_data(profile_data)
+    if not is_valid:
+        await message.answer(f"❌ Validation error: {error}")
+        return
+    
+    # Create or update user
+    user = await repository.create_or_update_user(
+        tg_id=message.from_user.id,
+        username=message.from_user.username,
+        first_name=message.from_user.first_name,
+        language_code=message.from_user.language_code,
+        is_premium=message.from_user.is_premium or False
+    )
+    
+    # Process location data
+    location = process_location_data(
+        latitude=profile_data.get("latitude"),
+        longitude=profile_data.get("longitude"),
+        country=profile_data.get("country"),
+        city=profile_data.get("city")
+    )
+    
+    # Add location to profile data
+    profile_data.update(location)
+    
+    # Convert birth_date string to date object if needed
+    if "birth_date" in profile_data and isinstance(profile_data["birth_date"], str):
+        profile_data["birth_date"] = datetime.strptime(
+            profile_data["birth_date"], "%Y-%m-%d"
+        ).date()
+    
+    # Mark profile as complete if all required data is present
+    profile_data["is_complete"] = True
+    
+    # Create profile
+    profile = await repository.create_profile(user.id, profile_data)
+    await session.commit()
+    
+    logger.info(
+        "Profile created successfully",
+        extra={
+            "event_type": "profile_created",
+            "user_id": message.from_user.id,
+            "profile_id": profile.id
+        }
+    )
+    
+    await message.answer(
+        "✅ Профиль создан!\n\n"
+        f"Имя: {profile.name}\n"
+        f"Возраст: {profile.birth_date}\n"
+        f"Пол: {profile.gender}\n"
+        f"Цель: {profile.goal}\n"
+        f"Город: {profile.city or 'не указан'}"
+    )
+
+
 async def main() -> None:
     """Bootstrap the bot."""
     configure_logging()
@@ -120,6 +239,20 @@ async def main() -> None:
     try:
         bot = Bot(token=config.token)
         logger.info("Bot instance created", extra={"event_type": "bot_created"})
+        
+        # Initialize database if configured
+        if config.database_url:
+            engine = create_async_engine(config.database_url, echo=False)
+            async_session_maker = sessionmaker(
+                engine, class_=AsyncSession, expire_on_commit=False
+            )
+            bot["session_maker"] = async_session_maker
+            logger.info("Database connection initialized", extra={"event_type": "db_initialized"})
+        else:
+            logger.warning(
+                "Database URL not configured - profile creation will not work",
+                extra={"event_type": "db_not_configured"}
+            )
         
         dp = Dispatcher(storage=MemoryStorage())
         dp.include_router(router)
