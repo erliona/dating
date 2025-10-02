@@ -27,9 +27,28 @@
   - Photo upload (max 3, JPEG/PNG/WebP, 5MB limit)
   - Geohash for location privacy (~5km precision)
   - Privacy settings (hide age/distance/online)
+  - **WebApp → Bot integration** - Profile data saved to database ✅
   - 111 tests passing, 70% code coverage
 
-📖 See [EPIC_A_IMPLEMENTATION.md](EPIC_A_IMPLEMENTATION.md) and [EPIC_B_IMPLEMENTATION.md](EPIC_B_IMPLEMENTATION.md) for details.
+📖 See [EPIC_A_IMPLEMENTATION.md](EPIC_A_IMPLEMENTATION.md), [EPIC_B_IMPLEMENTATION.md](EPIC_B_IMPLEMENTATION.md), and [PROJECT_STATUS.md](PROJECT_STATUS.md) for details.
+
+---
+
+## 👥 User Flow (Currently Working)
+
+1. **Start Bot**: User sends `/start` command to bot
+2. **Open Mini App**: User clicks "🚀 Открыть Mini App" button
+3. **Onboarding**: New users see welcome screen with app features
+4. **Create Profile**: User fills complete profile form:
+   - Name, birth date (18+ required)
+   - Gender and preferences
+   - Dating goals
+   - Bio and location
+   - Upload 3 photos
+5. **Submit**: Profile data sent to bot and **saved to database** ✅
+6. **Confirmation**: Bot sends success message with profile details
+
+📊 See [PROJECT_STATUS.md](PROJECT_STATUS.md) for detailed feature status and roadmap.
 
 ---
 

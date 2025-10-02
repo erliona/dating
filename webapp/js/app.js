@@ -823,16 +823,31 @@ async function handleProfileSubmit(form) {
   }
   
   try {
-    // In production, this would send data to backend
-    // Backend will store exact coordinates for matching nearest users
-    // For now, store in localStorage
-    localStorage.setItem('profile_created', 'true');
-    localStorage.setItem('profile_data', JSON.stringify(profileData));
-    
-    console.log('Profile created:', profileData);
-    
-    // Show success screen
-    showSuccessScreen();
+    // Send data to Telegram bot
+    if (tg && tg.sendData) {
+      // Prepare payload for bot
+      const payload = {
+        action: 'create_profile',
+        profile: profileData
+      };
+      
+      console.log('Sending profile to bot:', payload);
+      
+      // Send to bot (this will close the WebApp)
+      tg.sendData(JSON.stringify(payload));
+      
+      // Store in localStorage for fallback/cache
+      localStorage.setItem('profile_created', 'true');
+      localStorage.setItem('profile_data', JSON.stringify(profileData));
+    } else {
+      // Fallback: store only in localStorage (for testing without bot)
+      localStorage.setItem('profile_created', 'true');
+      localStorage.setItem('profile_data', JSON.stringify(profileData));
+      console.warn('Telegram WebApp not available, saving to localStorage only');
+      
+      // Show success screen for demo
+      showSuccessScreen();
+    }
   } catch (error) {
     console.error('Error creating profile:', error);
     showFormError('Ошибка при создании анкеты. Попробуйте еще раз.');
