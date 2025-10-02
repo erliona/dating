@@ -226,7 +226,7 @@ def save_photo_to_storage(
         extra={
             "event_type": "photo_saved",
             "user_id": user_id,
-            "filename": filename,
+            "photo_filename": filename,
             "size": len(photo_bytes)
         }
     )
