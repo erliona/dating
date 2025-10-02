@@ -18,13 +18,15 @@ This document describes the production onboarding flow implementation for the Da
    - **Step 4**: Preview of additional profile details
    - **Step 5**: Ready to create profile
 6. After completing onboarding, user fills out profile form
-7. Profile is validated and saved (currently in localStorage)
-8. Success screen is shown with placeholder content
+7. Profile is validated and sent to bot
+8. Bot saves profile to database
+9. User receives confirmation message from bot
 
 ### For Returning Users
 1. User opens Mini App
-2. Mini App detects existing profile
+2. Mini App detects existing profile (from localStorage)
 3. Success screen is shown immediately (skip onboarding)
+4. *Note: Future enhancement will check profile via bot/API*
 
 ## Implementation Details
 
@@ -59,17 +61,24 @@ Key functions:
 
 ## User State Management
 
-Currently using localStorage for state persistence:
-- `onboarding_completed`: Boolean flag for onboarding status
-- `profile_created`: Boolean flag for profile existence
-- `profile_data`: JSON string with profile data
+### Current Implementation
+- **Profile Creation**: Sent to bot via `tg.sendData()` and saved to PostgreSQL ✅
+- **Local Cache**: localStorage used for:
+  - `profile_created`: Boolean flag (prevents re-showing onboarding)
+  - `profile_data`: JSON cache (for offline viewing)
+
+### Database Storage ✅
+Profile data is now properly stored in PostgreSQL:
+- **users** table: Telegram user information
+- **profiles** table: Complete profile data with validation
+- **photos** table: Photo metadata
 
 ### Future Enhancement
-In production, these should be replaced with:
-1. Backend API calls to check user profile
-2. Database storage for profile data
-3. JWT token authentication
-4. Session management
+To improve returning user experience:
+1. Add `/profile` command to view profile from bot
+2. Add API endpoint to check if user has profile
+3. WebApp checks profile status on load
+4. Update localStorage based on server data
 
 ## Validation
 
@@ -107,38 +116,55 @@ In production, these should be replaced with:
 - Empty required fields: Browser validation prevents submit
 - Large photo: JavaScript validates file size (5MB limit)
 
-## Integration with Backend (TODO)
+## Integration with Backend ✅ COMPLETED
 
-To connect to the backend profile API:
+The backend integration is now fully implemented:
 
-1. **Add API endpoint** in backend:
-   ```python
-   @router.post("/api/profile")
-   async def create_profile(profile_data: ProfileData, user: User = Depends(get_current_user)):
-       # Validate and save profile
-       pass
-   ```
+### Current Implementation
 
-2. **Update JavaScript** to call API:
+**WebApp → Bot Flow:**
+1. **WebApp** (`webapp/js/app.js`):
+   - User submits profile form
+   - JavaScript validates data (age 18+, required fields, etc.)
+   - Sends data to bot via `tg.sendData()`:
    ```javascript
-   async function handleProfileSubmit(form) {
-       const response = await fetch('/api/profile', {
-           method: 'POST',
-           headers: {
-               'Content-Type': 'application/json',
-               'Authorization': `Bearer ${jwt_token}`
-           },
-           body: JSON.stringify(profileData)
-       });
-       // Handle response
-   }
+   const payload = {
+     action: 'create_profile',
+     profile: profileData
+   };
+   tg.sendData(JSON.stringify(payload));
    ```
 
-3. **Add authentication**:
-   - Use Telegram initData for auth
-   - Validate with backend
-   - Get JWT token
-   - Store token in memory
+2. **Bot Handler** (`bot/main.py`):
+   - Receives data in `handle_webapp_data()` function
+   - Validates profile data using `validate_profile_data()`
+   - Creates/updates user in database
+   - Processes location data (geohash for privacy)
+   - Creates profile in database
+   - Commits transaction to PostgreSQL
+   - Sends confirmation message to user
+
+### Database Structure
+
+Profiles are stored in PostgreSQL with:
+- **users** table: Telegram user data
+- **profiles** table: Full profile information
+- **photos** table: Photo metadata (URL, dimensions, etc.)
+
+### Authentication
+
+Currently using direct bot integration:
+- No separate authentication needed
+- Telegram handles user identity via `message.from_user`
+- Bot validates data before saving
+
+### Future Enhancement
+
+For a REST API approach (optional future migration):
+- Add JWT authentication using Telegram initData
+- Create REST endpoints for CRUD operations
+- Use WebSocket for real-time features
+- Keep current bot integration as alternative
 
 ## Acceptance Criteria
 
@@ -148,9 +174,9 @@ To connect to the backend profile API:
 ✅ Photo upload is optional  
 ✅ Profile form validates all fields  
 ✅ Age validation enforces 18+ requirement  
-✅ Profile data is saved (localStorage for now)  
-✅ Success screen shows after profile creation  
-✅ Returning users skip onboarding  
+✅ Profile data is saved to database via bot ✅  
+✅ User receives confirmation from bot  
+✅ Returning users skip onboarding (localStorage check)  
 ✅ UI is responsive and mobile-friendly  
 ✅ Telegram theme support (light/dark)  
 ✅ Haptic feedback on interactions  
