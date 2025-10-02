@@ -11,6 +11,9 @@ let tg = null;
 let initData = null;
 let uploadedPhotos = [];
 
+// App version for cache invalidation
+const APP_VERSION = '1.1.0';
+
 /**
  * Initialize Telegram WebApp
  */
@@ -430,6 +433,12 @@ function showOnboarding() {
   document.getElementById('profile-form').classList.add('hidden');
   document.getElementById('success-screen').classList.add('hidden');
   
+  // Set version text
+  const versionEl = document.getElementById('appVersionText');
+  if (versionEl) {
+    versionEl.textContent = APP_VERSION;
+  }
+  
   // Haptic feedback
   triggerHaptic('impact', 'light');
 }
@@ -459,7 +468,10 @@ function showSuccessScreen() {
 // ============================================================================
 
 /**
- * Detect user location using Telegram WebApp API and browser geolocation
+ * Detect user location using sequential fallback:
+ * 1. Telegram WebApp API
+ * 2. Browser Geolocation API
+ * 3. IP-based geolocation
  */
 async function detectUserLocation() {
   const statusEl = document.getElementById('locationStatus');
@@ -470,6 +482,9 @@ async function detectUserLocation() {
   
   if (!statusEl || !detectBtn) return;
   
+  // Haptic feedback when starting location detection
+  triggerHaptic('impact', 'medium');
+  
   // Show detecting status
   statusEl.className = 'location-status detecting';
   statusEl.textContent = '🔍 Определяем ваше местоположение...';
@@ -477,7 +492,7 @@ async function detectUserLocation() {
   detectBtn.disabled = true;
   
   try {
-    // First try Telegram's location API
+    // 1. Try Telegram's location API first
     if (tg && tg.LocationManager) {
       try {
         const location = await tg.LocationManager.getLocation();
@@ -490,29 +505,67 @@ async function detectUserLocation() {
       }
     }
     
-    // Fallback to browser geolocation API
+    // 2. Fallback to browser geolocation API
     if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          await handleLocationSuccess(
-            position.coords.latitude,
-            position.coords.longitude
+      try {
+        const position = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(
+            resolve,
+            reject,
+            {
+              enableHighAccuracy: true,
+              timeout: 15000,
+              maximumAge: 0
+            }
           );
-        },
-        (error) => {
-          handleLocationError(error);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        }
-      );
-    } else {
-      handleLocationError(new Error('Geolocation not supported'));
+        });
+        
+        await handleLocationSuccess(
+          position.coords.latitude,
+          position.coords.longitude
+        );
+        return;
+      } catch (error) {
+        console.log('Browser geolocation failed, trying IP-based location');
+      }
     }
+    
+    // 3. Final fallback: IP-based geolocation
+    await detectLocationByIP();
+    
   } catch (error) {
     handleLocationError(error);
+  }
+}
+
+/**
+ * Detect location by IP address (fallback method)
+ */
+async function detectLocationByIP() {
+  const statusEl = document.getElementById('locationStatus');
+  const detectBtn = document.getElementById('detectLocationBtn');
+  const cityInput = document.getElementById('cityInput');
+  const latInput = document.getElementById('latitude');
+  const lonInput = document.getElementById('longitude');
+  
+  try {
+    // Use ipapi.co for IP-based geolocation
+    const response = await fetch('https://ipapi.co/json/');
+    
+    if (!response.ok) {
+      throw new Error('IP geolocation service unavailable');
+    }
+    
+    const data = await response.json();
+    
+    if (data.latitude && data.longitude) {
+      await handleLocationSuccess(data.latitude, data.longitude);
+    } else {
+      throw new Error('Could not determine location from IP');
+    }
+  } catch (error) {
+    console.error('IP-based location detection failed:', error);
+    handleLocationError(new Error('Не удалось определить местоположение. Укажите город вручную.'));
   }
 }
 
@@ -619,123 +672,133 @@ async function reverseGeocode(latitude, longitude) {
  * Setup photo upload handlers
  */
 function setupPhotoUpload() {
-  const uploadZone = document.getElementById('photoUploadZone');
-  const photoInput = document.getElementById('photoInput');
-  
-  if (!uploadZone || !photoInput) return;
-  
-  uploadZone.addEventListener('click', () => {
-    if (uploadedPhotos.length < 3) {
-      photoInput.click();
-    }
-  });
-  
-  photoInput.addEventListener('change', (e) => {
-    const files = Array.from(e.target.files);
-    handlePhotoUpload(files);
-    // Reset input to allow selecting same file again
-    photoInput.value = '';
-  });
-  
-  // Drag and drop
-  uploadZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    if (uploadedPhotos.length < 3) {
-      uploadZone.style.borderColor = 'var(--tg-theme-button-color)';
-    }
-  });
-  
-  uploadZone.addEventListener('dragleave', (e) => {
-    e.preventDefault();
-    uploadZone.style.borderColor = 'var(--tg-theme-hint-color)';
-  });
-  
-  uploadZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    uploadZone.style.borderColor = 'var(--tg-theme-hint-color)';
+  // Setup individual file inputs for each slot
+  for (let i = 0; i < 3; i++) {
+    const input = document.getElementById(`photoInput${i}`);
+    const slot = document.getElementById(`photoSlot${i}`);
     
-    if (uploadedPhotos.length < 3) {
-      const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
-      handlePhotoUpload(files);
+    if (input) {
+      input.addEventListener('change', (e) => {
+        handlePhotoUpload(e.target.files[0], i);
+        // Reset input to allow selecting same file again
+        input.value = '';
+      });
     }
-  });
+    
+    // Add haptic feedback when clicking photo slot
+    if (slot) {
+      slot.addEventListener('click', () => {
+        triggerHaptic('impact', 'light');
+      });
+    }
+  }
 }
 
 /**
- * Handle photo upload
+ * Handle photo upload for a specific slot
  */
-function handlePhotoUpload(files) {
-  files.forEach(file => {
-    // Check if we already have 3 photos
-    if (uploadedPhotos.length >= 3) {
-      showFormError('Максимум 3 фотографии');
-      return;
-    }
-    
-    // Validate file
-    if (!file.type.startsWith('image/')) {
-      showFormError('Пожалуйста, выберите изображение');
-      return;
-    }
-    
-    if (file.size > 5 * 1024 * 1024) {
-      showFormError('Файл слишком большой. Максимум 5 МБ');
-      return;
-    }
-    
-    // Read and add photo
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      uploadedPhotos.push(e.target.result);
-      updatePhotoPreview();
-      triggerHaptic('notification', 'success');
-    };
-    
-    reader.readAsDataURL(file);
-  });
+function handlePhotoUpload(file, slotIndex) {
+  if (!file) return;
+  
+  // Validate file
+  if (!file.type.startsWith('image/')) {
+    showFormError('Пожалуйста, выберите изображение');
+    return;
+  }
+  
+  if (file.size > 5 * 1024 * 1024) {
+    showFormError('Файл слишком большой. Максимум 5 МБ');
+    return;
+  }
+  
+  // Read and add photo
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    uploadedPhotos[slotIndex] = e.target.result;
+    updatePhotoSlot(slotIndex, e.target.result);
+    updatePhotoCounter();
+    triggerHaptic('notification', 'success');
+  };
+  
+  reader.readAsDataURL(file);
 }
 
 /**
- * Update photo preview display
+ * Update a specific photo slot
  */
-function updatePhotoPreview() {
-  const container = document.getElementById('photoPreviewContainer');
+function updatePhotoSlot(slotIndex, photoData) {
+  const slot = document.getElementById(`photoSlot${slotIndex}`);
+  const input = document.getElementById(`photoInput${slotIndex}`);
+  if (!slot) return;
+  
+  if (photoData) {
+    // Add photo - find or create img element
+    let img = slot.querySelector('img');
+    if (!img) {
+      img = document.createElement('img');
+      slot.appendChild(img);
+    }
+    img.src = photoData;
+    img.alt = `Фото ${slotIndex + 1}`;
+    
+    // Add or update remove button
+    let removeBtn = slot.querySelector('.remove-photo');
+    if (!removeBtn) {
+      removeBtn = document.createElement('button');
+      removeBtn.className = 'remove-photo';
+      removeBtn.textContent = '×';
+      removeBtn.type = 'button';
+      removeBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        removePhoto(slotIndex);
+      };
+      slot.appendChild(removeBtn);
+    }
+    
+    // Hide the content placeholder
+    const content = slot.querySelector('.photo-slot-content');
+    if (content) {
+      content.style.display = 'none';
+    }
+    
+    slot.classList.add('has-photo');
+  } else {
+    // Remove photo - show placeholder
+    const img = slot.querySelector('img');
+    if (img) img.remove();
+    
+    const removeBtn = slot.querySelector('.remove-photo');
+    if (removeBtn) removeBtn.remove();
+    
+    // Show the content placeholder
+    const content = slot.querySelector('.photo-slot-content');
+    if (content) {
+      content.style.display = 'flex';
+    }
+    
+    slot.classList.remove('has-photo');
+  }
+}
+
+/**
+ * Update photo counter
+ */
+function updatePhotoCounter() {
   const counter = document.getElementById('photoCount');
+  if (!counter) return;
   
-  if (!container || !counter) return;
-  
-  // Update counter
-  counter.textContent = uploadedPhotos.length;
-  
-  // Clear container
-  container.innerHTML = '';
-  
-  // Add photo previews
-  uploadedPhotos.forEach((photo, index) => {
-    const item = document.createElement('div');
-    item.className = 'photo-preview-item';
-    
-    const img = document.createElement('img');
-    img.src = photo;
-    img.alt = `Photo ${index + 1}`;
-    
-    const removeBtn = document.createElement('button');
-    removeBtn.className = 'remove-photo';
-    removeBtn.textContent = '×';
-    removeBtn.onclick = () => removePhoto(index);
-    
-    item.appendChild(img);
-    item.appendChild(removeBtn);
-    container.appendChild(item);
-  });
+  const count = uploadedPhotos.filter(photo => photo).length;
+  counter.textContent = count;
 }
 
 /**
- * Remove photo from upload list
+ * Remove photo from specific slot
  */
-function removePhoto(index) {
-  uploadedPhotos.splice(index, 1);
-  updatePhotoPreview();
+function removePhoto(slotIndex) {
+  uploadedPhotos[slotIndex] = null;
+  updatePhotoSlot(slotIndex, null);
+  updatePhotoCounter();
   triggerHaptic('impact', 'light');
 }
 
@@ -760,8 +823,12 @@ function setupProfileForm() {
  * Handle profile form submission
  */
 async function handleProfileSubmit(form) {
+  // Haptic feedback on form submission attempt
+  triggerHaptic('impact', 'medium');
+  
   // Validate photos (must have exactly 3)
-  if (uploadedPhotos.length !== 3) {
+  const validPhotos = uploadedPhotos.filter(photo => photo);
+  if (validPhotos.length !== 3) {
     showFormError('Требуется ровно 3 фотографии');
     return;
   }
@@ -794,8 +861,8 @@ async function handleProfileSubmit(form) {
     return;
   }
   
-  // Add photos
-  profileData.photos = uploadedPhotos;
+  // Add photos (filter out nulls)
+  profileData.photos = uploadedPhotos.filter(photo => photo);
   
   // Add geolocation data if available
   const latitude = formData.get('latitude');
@@ -833,6 +900,9 @@ async function handleProfileSubmit(form) {
       
       console.log('Sending profile to bot:', payload);
       
+      // Haptic feedback on successful submission
+      triggerHaptic('notification', 'success');
+      
       // Send to bot (this will close the WebApp)
       tg.sendData(JSON.stringify(payload));
       
@@ -844,6 +914,9 @@ async function handleProfileSubmit(form) {
       localStorage.setItem('profile_created', 'true');
       localStorage.setItem('profile_data', JSON.stringify(profileData));
       console.warn('Telegram WebApp not available, saving to localStorage only');
+      
+      // Haptic feedback on successful save
+      triggerHaptic('notification', 'success');
       
       // Show success screen for demo
       showSuccessScreen();
@@ -924,10 +997,25 @@ function showFormError(message) {
 // ============================================================================
 
 /**
+ * Check and clear localStorage if app version changed
+ */
+function checkAndClearOldCache() {
+  const storedVersion = localStorage.getItem('app_version');
+  if (storedVersion !== APP_VERSION) {
+    console.log(`App version changed from ${storedVersion} to ${APP_VERSION}, clearing cache`);
+    localStorage.clear();
+    localStorage.setItem('app_version', APP_VERSION);
+  }
+}
+
+/**
  * Initialize the app
  */
 async function init() {
   console.log('App initialization started');
+  
+  // Clear old cache if version changed
+  checkAndClearOldCache();
   
   showLoading();
   
