@@ -388,4 +388,51 @@ class TestDebugHandler:
         # Check that token is masked
         assert "ABC-secret-token" not in response
         assert "BOT_TOKEN: ***" in response
+    
+    async def test_debug_works_without_database(self) -> None:
+        """Test that debug command works even when database is not available."""
+        from bot.main import debug_handler
+        
+        # Mock message and bot
+        message = MagicMock()
+        message.from_user = MagicMock()
+        message.from_user.id = 12345
+        message.bot = MagicMock()
+        message.answer = AsyncMock()
+        
+        # Mock bot info
+        bot_info = MagicMock()
+        bot_info.id = 123456789
+        bot_info.username = "test_bot"
+        bot_info.first_name = "Test Bot"
+        message.bot.get_me = AsyncMock(return_value=bot_info)
+        
+        # Mock config
+        mock_config = MagicMock()
+        mock_config.webapp_url = "https://example.com/webapp"
+        mock_config.database_url = "postgresql+asyncpg://user:pass@localhost:5432/testdb"
+        
+        # Mock repository getter to raise RuntimeError (repository not available)
+        with patch("bot.main.get_config", return_value=mock_config), \
+             patch("bot.main.get_repository", side_effect=RuntimeError("Profile repository is not initialized")):
+            
+            await debug_handler(message)
+        
+        # Verify message was sent
+        message.answer.assert_called_once()
+        response = message.answer.call_args[0][0]
+        
+        # Check that bot status is shown
+        assert "Bot Running" in response
+        assert "test_bot" in response
+        
+        # Check that config is shown
+        assert "Config Loaded" in response
+        assert "example.com" in response
+        
+        # Check that repository unavailability is noted
+        assert "Repository Not Available" in response or "Not available" in response
+        
+        # Check that helpful notes are shown
+        assert "Database not connected" in response
 

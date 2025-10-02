@@ -647,8 +647,10 @@
 
     // Check if there are queued interactions to send along with profile
     const queuedInteractions = getInteractionsQueue();
+    let queueMessage = "";
     if (queuedInteractions && queuedInteractions.length > 0) {
       payload.queued_interactions = queuedInteractions;
+      queueMessage = ` (включая ${queuedInteractions.length} отложенных действий)`;
       debug(`Including ${queuedInteractions.length} queued interactions with profile`);
     }
     
@@ -687,7 +689,7 @@
     }
     
     // Note: tg.sendData() will close the WebApp - this is Telegram's intended behavior
-    showStatus("Анкета отправлена! Данные обрабатываются...");
+    showStatus(`Анкета отправлена${queueMessage}! Данные обрабатываются...`);
 
     if (autosaveStatus) {
       autosaveStatus.textContent = "";
@@ -907,7 +909,8 @@
     saveInteractionsQueue(queue);
     
     // Show visual feedback that interaction was saved locally
-    showStatus(`${action === 'like' ? '❤️ Симпатия' : '👎 Дизлайк'} сохранён локально`, false);
+    const queueCount = queue.length;
+    showStatus(`${action === 'like' ? '❤️ Симпатия' : '👎 Дизлайк'} сохранён (${queueCount} в очереди)`, false);
     setTimeout(() => {
       if (document.getElementById("status")) {
         document.getElementById("status").textContent = "";
@@ -916,16 +919,16 @@
   }
   
   function sendInteraction(targetUserId, action) {
-    debug(`Sending ${action} to user ${targetUserId}`);
+    debug(`Queueing ${action} for user ${targetUserId}`);
     
-    // Instead of sending immediately (which closes the app),
-    // queue the interaction locally
+    // Instead of sending immediately via tg.sendData() (which would close the app),
+    // we queue the interaction locally. This allows users to continue browsing
+    // multiple profiles without the WebApp closing after each like/dislike.
     queueInteraction(targetUserId, action);
     
-    // Note: Interactions are now queued locally and NOT sent immediately
-    // to avoid closing the WebApp. They will be sent when:
-    // 1. User submits/updates their profile, or
-    // 2. User explicitly syncs data (future feature)
+    // Note: Queued interactions will be automatically sent to the bot when:
+    // 1. User submits or updates their profile
+    // This ensures actions are synced while maintaining good UX
   }
 
   function handleLike(profileId) {
