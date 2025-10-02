@@ -1,417 +1,154 @@
 <!DOCTYPE html>
 <html lang="ru">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover" />
-    <meta name="theme-color" content="#2563eb" />
-    <meta name="description" content="Telegram мини-приложение для знакомств" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <title>Dating WebApp</title>
-    <link rel="stylesheet" href="css/style.css" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#2563eb">
+    <title>Dating App</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  </head>
-  <body>
-    <!-- Navigation -->
-    <nav class="nav-bar" id="nav-bar" style="display: none;">
-      <button class="nav-item" data-page="profile">
-        <span class="nav-icon">👤</span>
-        <span class="nav-label">Профиль</span>
-      </button>
-      <button class="nav-item" data-page="matches">
-        <span class="nav-icon">💕</span>
-        <span class="nav-label">Метчи</span>
-      </button>
-      <button class="nav-item" data-page="settings">
-        <span class="nav-icon">⚙️</span>
-        <span class="nav-label">Настройки</span>
-      </button>
-    </nav>
-
-    <main class="container">
-      <!-- Onboarding Page -->
-      <div id="onboarding-page" class="page" style="display: none;">
-        <div class="onboarding">
-          <h1>Добро пожаловать! 👋</h1>
-          
-          <!-- Onboarding Step 1: Introduction -->
-          <div id="onboarding-intro" class="onboarding-content" style="display: block;">
-            <div class="onboarding-steps">
-              <div class="onboarding-step">
-                <span class="step-icon">💕</span>
-                <h3>Найди вторую половинку</h3>
-                <p>Познакомься с интересными людьми, которые рядом</p>
-              </div>
-              <div class="onboarding-step">
-                <span class="step-icon">✨</span>
-                <h3>Создай анкету</h3>
-                <p>Расскажи о себе, своих интересах и целях</p>
-              </div>
-              <div class="onboarding-step">
-                <span class="step-icon">🎯</span>
-                <h3>Получай метчи</h3>
-                <p>Мы подберем тебе людей с общими интересами</p>
-              </div>
-            </div>
-            <button class="primary onboarding-btn" id="start-onboarding">Начать</button>
-          </div>
-
-          <!-- Onboarding Step 2: Basic Info -->
-          <div id="onboarding-basic" class="onboarding-content" style="display: none;">
-            <div class="onboarding-progress">
-              <div class="onboarding-progress-bar">
-                <div class="onboarding-progress-fill" style="width: 25%;"></div>
-              </div>
-              <p class="onboarding-progress-text">Шаг 1 из 4</p>
-            </div>
-            <h2>Расскажи о себе</h2>
-            <p class="hint">Начнем с основной информации</p>
-            
-            <div class="onboarding-form-preview">
-              <span class="preview-icon">👤</span>
-            </div>
-            
-            <ul class="onboarding-checklist">
-              <li>✓ Имя и возраст</li>
-              <li>✓ Пол и предпочтения</li>
-            </ul>
-            
-            <button class="primary onboarding-btn" id="continue-to-basic">Продолжить</button>
-          </div>
-
-          <!-- Onboarding Step 3: Photo -->
-          <div id="onboarding-photo" class="onboarding-content" style="display: none;">
-            <div class="onboarding-progress">
-              <div class="onboarding-progress-bar">
-                <div class="onboarding-progress-fill" style="width: 50%;"></div>
-              </div>
-              <p class="onboarding-progress-text">Шаг 2 из 4</p>
-            </div>
-            <h2>Добавь фото</h2>
-            <p class="hint">Анкеты с фото получают в 5 раз больше откликов</p>
-            
-            <div class="photo-upload-section">
-              <div id="photo-preview" class="photo-preview">
-                <span class="photo-placeholder-icon">📷</span>
-                <p>Загрузи свое фото</p>
-              </div>
-              <input type="file" id="photo-file-input" accept="image/*" style="display: none;" />
-              <button class="secondary" id="upload-photo-btn">Выбрать фото</button>
-              <p class="photo-hint">Или вставь ссылку на фото:</p>
-              <input 
-                type="url" 
-                id="photo-url-input" 
-                placeholder="https://example.com/photo.jpg" 
-                class="photo-url-field"
-              />
-            </div>
-            
-            <div class="onboarding-buttons">
-              <button class="secondary onboarding-btn" id="skip-photo">Пропустить</button>
-              <button class="primary onboarding-btn" id="continue-to-about">Продолжить</button>
-            </div>
-          </div>
-
-          <!-- Onboarding Step 4: About -->
-          <div id="onboarding-about" class="onboarding-content" style="display: none;">
-            <div class="onboarding-progress">
-              <div class="onboarding-progress-bar">
-                <div class="onboarding-progress-fill" style="width: 75%;"></div>
-              </div>
-              <p class="onboarding-progress-text">Шаг 3 из 4</p>
-            </div>
-            <h2>Расскажи о себе</h2>
-            <p class="hint">Поможет найти людей с общими интересами</p>
-            
-            <ul class="onboarding-checklist">
-              <li>✓ Твои увлечения и хобби</li>
-              <li>✓ Где ты живешь</li>
-              <li>✓ Что ищешь</li>
-            </ul>
-            
-            <button class="primary onboarding-btn" id="continue-to-finish">Продолжить</button>
-          </div>
-
-          <!-- Onboarding Step 5: Final -->
-          <div id="onboarding-final" class="onboarding-content" style="display: none;">
-            <div class="onboarding-progress">
-              <div class="onboarding-progress-bar">
-                <div class="onboarding-progress-fill" style="width: 100%;"></div>
-              </div>
-              <p class="onboarding-progress-text">Шаг 4 из 4</p>
-            </div>
-            <h2>Все готово! 🎉</h2>
-            <p class="hint">Осталось заполнить анкету и можно начинать</p>
-            
-            <div class="onboarding-steps">
-              <div class="onboarding-step">
-                <span class="step-icon">✅</span>
-                <h3>Заполни детали</h3>
-                <p>Укажи всю информацию в анкете</p>
-              </div>
-              <div class="onboarding-step">
-                <span class="step-icon">💬</span>
-                <h3>Начни знакомиться</h3>
-                <p>Смотри анкеты и отправляй лайки</p>
-              </div>
-              <div class="onboarding-step">
-                <span class="step-icon">💖</span>
-                <h3>Находи метчи</h3>
-                <p>При взаимной симпатии мы сообщим</p>
-              </div>
-            </div>
-            
-            <button class="primary onboarding-btn" id="finish-onboarding">Создать анкету</button>
-          </div>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Loading state -->
+        <div id="loading" class="screen">
+            <div class="spinner"></div>
+            <p>Загрузка...</p>
         </div>
-      </div>
 
-      <!-- Profile Page -->
-      <div id="profile-page" class="page">
-        <h1 id="page-title">Мини-анкета</h1>
-        <p class="hint" id="page-hint">
-          Заполни форму и отправь данные боту прямо из мини-приложения.
-        </p>
-        <div class="progress" aria-live="polite" id="progress-container">
-          <div
-            class="progress-track"
-            role="progressbar"
-            aria-valuemin="0"
-            aria-valuemax="100"
-            aria-valuenow="0"
-          >
-            <div class="progress-fill" id="progress-fill"></div>
-          </div>
-          <p class="progress-label" id="progress-label">Заполнено 0%</p>
+        <!-- Profile creation/edit -->
+        <div id="profile-form" class="screen" style="display: none;">
+            <div class="container">
+                <h1>Твоя анкета</h1>
+                <form id="profileForm">
+                    <div class="form-group">
+                        <label for="name">Имя *</label>
+                        <input type="text" id="name" name="name" required minlength="2" maxlength="40" 
+                               placeholder="Как тебя зовут?" autocomplete="given-name">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="age">Возраст *</label>
+                        <input type="number" id="age" name="age" required min="18" max="120" 
+                               placeholder="18" inputmode="numeric">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="gender">Пол *</label>
+                        <select id="gender" name="gender" required>
+                            <option value="">Выбери...</option>
+                            <option value="male">Мужской</option>
+                            <option value="female">Женский</option>
+                            <option value="other">Другое</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="preference">Кого ищешь? *</label>
+                        <select id="preference" name="preference" required>
+                            <option value="">Выбери...</option>
+                            <option value="female">Девушек</option>
+                            <option value="male">Парней</option>
+                            <option value="other">Других</option>
+                            <option value="any">Неважно</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="bio">О себе</label>
+                        <textarea id="bio" name="bio" maxlength="400" rows="4" 
+                                  placeholder="Расскажи немного о себе..."></textarea>
+                        <small class="hint">До 400 символов</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="location">Город</label>
+                        <input type="text" id="location" name="location" maxlength="60" 
+                               placeholder="Москва" autocomplete="address-level2">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="interests">Интересы</label>
+                        <input type="text" id="interests" name="interests" maxlength="120" 
+                               placeholder="Музыка, спорт, путешествия...">
+                        <small class="hint">Через запятую</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="goal">Цель знакомства</label>
+                        <select id="goal" name="goal">
+                            <option value="">Не выбрано</option>
+                            <option value="serious">Серьёзные отношения</option>
+                            <option value="friendship">Дружба</option>
+                            <option value="networking">Общение</option>
+                            <option value="casual">Лёгкие встречи</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="photo_url">Фото (ссылка)</label>
+                        <input type="url" id="photo_url" name="photo_url" 
+                               placeholder="https://example.com/photo.jpg">
+                        <small class="hint">HTTPS ссылка на фото</small>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-primary">Сохранить</button>
+                        <button type="button" id="deleteProfile" class="btn btn-danger" style="display: none;">Удалить профиль</button>
+                    </div>
+                </form>
+            </div>
         </div>
-      <form id="profile-form" novalidate>
-        <label>
-          Имя
-          <input
-            type="text"
-            name="name"
-            required
-            minlength="2"
-            maxlength="40"
-            pattern="^[A-Za-zА-Яа-яЁё\-\s]+$"
-            placeholder="Алиса"
-            autocomplete="given-name"
-          />
-          <span class="field-hint">Напиши имя, как ты представляешься новым знакомым.</span>
-          <span class="error-message" aria-live="polite"></span>
-        </label>
-        <label>
-          Возраст
-          <input
-            type="number"
-            name="age"
-            min="18"
-            max="120"
-            required
-            placeholder="25"
-            inputmode="numeric"
-          />
-          <span class="field-hint">Минимальный возраст — 18 лет.</span>
-          <span class="error-message" aria-live="polite"></span>
-        </label>
-        <label>
-          Пол
-          <select name="gender" required>
-            <option value="male">Мужской</option>
-            <option value="female">Женский</option>
-            <option value="other">Другое</option>
-          </select>
-          <span class="field-hint">Выбери вариант, который лучше всего описывает тебя.</span>
-          <span class="error-message" aria-live="polite"></span>
-        </label>
-        <label>
-          Кого ищешь
-          <select name="preference" required>
-            <option value="female">Девушек</option>
-            <option value="male">Парней</option>
-            <option value="other">Других</option>
-            <option value="any">Неважно</option>
-          </select>
-          <span class="field-hint">Так мы подскажем, кому показывать твою анкету.</span>
-          <span class="error-message" aria-live="polite"></span>
-        </label>
-        <label>
-          О себе
-          <textarea
-            name="bio"
-            rows="4"
-            maxlength="400"
-            placeholder="Коротко о себе"
-          ></textarea>
-          <span class="field-hint">Расскажи о своих увлечениях, целях и что ищешь.</span>
-          <span class="error-message" aria-live="polite"></span>
-        </label>
-        <label>
-          Город или регион
-          <input
-            type="text"
-            name="location"
-            maxlength="60"
-            placeholder="Москва"
-            autocomplete="address-level2"
-          />
-          <span class="field-hint">Поможет подобрать людей поблизости.</span>
-          <span class="error-message" aria-live="polite"></span>
-        </label>
-        <label>
-          Интересы
-          <input
-            type="text"
-            name="interests"
-            placeholder="Музыка, спорт, путешествия"
-            maxlength="120"
-          />
-          <span class="field-hint">Через запятую перечисли хобби или любимые занятия.</span>
-          <span class="error-message" aria-live="polite"></span>
-        </label>
-        <label>
-          Цель знакомства
-          <select name="goal">
-            <option value="">Выбери цель (необязательно)</option>
-            <option value="serious">Серьёзные отношения</option>
-            <option value="friendship">Дружбу</option>
-            <option value="networking">Общение</option>
-            <option value="casual">Лёгкие встречи</option>
-          </select>
-          <span class="field-hint">Если не уверен(а), оставь поле пустым.</span>
-          <span class="error-message" aria-live="polite"></span>
-        </label>
-        <label>
-          Фото
-          <div class="photo-upload-container">
-            <div id="profile-photo-preview" class="profile-photo-preview">
-              <span class="photo-placeholder">📷</span>
-              <p class="photo-placeholder-text">Нажми для загрузки</p>
-            </div>
-            <input
-              type="file"
-              id="profile-photo-file"
-              accept="image/*"
-              style="display: none;"
-            />
-            <input
-              type="url"
-              name="photo_url"
-              placeholder="https://example.com/photo.jpg"
-              inputmode="url"
-              style="margin-top: 10px;"
-            />
-          </div>
-          <span class="field-hint">Загрузи фото или вставь ссылку (необязательно).</span>
-          <span class="error-message" aria-live="polite"></span>
-        </label>
-        <button type="submit" class="primary" id="submit-btn">Отправить</button>
-        <button type="button" class="danger" id="delete-btn" style="display: none;">Удалить профиль</button>
-      </form>
-      <p class="status" id="status"></p>
-      <p class="autosave-status" id="autosave-status" aria-live="polite"></p>
-      </div>
 
-      <!-- Matches Page -->
-      <div id="matches-page" class="page" style="display: none;">
-        <h1>Метчи 💕</h1>
-        <p class="hint">Анкеты людей, которые могут тебе подойти</p>
-        <div id="matches-container" class="matches-container">
-          <div class="loading">Загрузка...</div>
+        <!-- Card swipe interface -->
+        <div id="discover" class="screen" style="display: none;">
+            <div class="cards-container">
+                <div id="cards-stack"></div>
+                <div id="no-more-cards" style="display: none;">
+                    <p>🎉 Ты просмотрел всех!</p>
+                    <p>Возвращайся позже</p>
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <button id="dislikeBtn" class="action-btn dislike" aria-label="Dislike">
+                    <span>👎</span>
+                </button>
+                <button id="likeBtn" class="action-btn like" aria-label="Like">
+                    <span>❤️</span>
+                </button>
+            </div>
+
+            <div class="bottom-nav">
+                <button id="navProfile" class="nav-btn">👤 Профиль</button>
+                <button id="navDiscover" class="nav-btn active">🔍 Обзор</button>
+                <button id="navMatches" class="nav-btn">💕 Матчи</button>
+            </div>
         </div>
-      </div>
 
-      <!-- Settings Page -->
-      <div id="settings-page" class="page" style="display: none;">
-        <h1>Настройки ⚙️</h1>
-        <div class="settings-container">
-          <div class="settings-section">
-            <h3>Основные</h3>
-            <div class="settings-item">
-              <label for="lang-select">
-                <span>Язык интерфейса</span>
-                <select id="lang-select">
-                  <option value="ru" selected>Русский</option>
-                  <option value="en">English</option>
-                </select>
-              </label>
+        <!-- Matches list -->
+        <div id="matches" class="screen" style="display: none;">
+            <div class="container">
+                <h1>Твои матчи 💕</h1>
+                <div id="matches-list"></div>
+                <div class="bottom-nav">
+                    <button id="navProfile2" class="nav-btn">👤 Профиль</button>
+                    <button id="navDiscover2" class="nav-btn">🔍 Обзор</button>
+                    <button id="navMatches2" class="nav-btn active">💕 Матчи</button>
+                </div>
             </div>
-          </div>
-          
-          <div class="settings-section">
-            <h3>Приватность</h3>
-            <div class="settings-item">
-              <label class="toggle-label">
-                <input type="checkbox" id="show-location" checked />
-                <span>Показывать мой город</span>
-              </label>
-            </div>
-            <div class="settings-item">
-              <label class="toggle-label">
-                <input type="checkbox" id="show-age" checked />
-                <span>Показывать мой возраст</span>
-              </label>
-            </div>
-          </div>
-
-          <div class="settings-section">
-            <h3>Уведомления</h3>
-            <div class="settings-item">
-              <label class="toggle-label">
-                <input type="checkbox" id="notify-matches" checked />
-                <span>Уведомления о новых метчах</span>
-              </label>
-            </div>
-            <div class="settings-item">
-              <label class="toggle-label">
-                <input type="checkbox" id="notify-messages" checked />
-                <span>Уведомления о сообщениях</span>
-              </label>
-            </div>
-          </div>
-
-          <div class="settings-section">
-            <h3>Предпочтения поиска</h3>
-            <div class="settings-item">
-              <label for="age-min">
-                <span>Минимальный возраст</span>
-                <input type="number" id="age-min" min="18" max="120" placeholder="18" />
-              </label>
-            </div>
-            <div class="settings-item">
-              <label for="age-max">
-                <span>Максимальный возраст</span>
-                <input type="number" id="age-max" min="18" max="120" placeholder="120" />
-              </label>
-            </div>
-            <div class="settings-item">
-              <label for="max-distance">
-                <span>Макс. расстояние (км)</span>
-                <input type="number" id="max-distance" min="1" max="10000" placeholder="Не ограничено" />
-              </label>
-              <span class="field-hint" style="margin-top: 0.25rem; display: block;">Оставьте пустым для поиска по всей стране</span>
-            </div>
-          </div>
-
-          <div class="settings-section">
-            <h3>Аккаунт</h3>
-            <button class="secondary" id="logout-btn">Выйти из аккаунта</button>
-          </div>
-
-          <div class="settings-section">
-            <h3>Отладка</h3>
-            <div class="settings-item">
-              <label class="toggle-label">
-                <input type="checkbox" id="debug-mode" />
-                <span>Режим отладки (console.log)</span>
-              </label>
-            </div>
-            <button class="secondary" id="clear-data-btn">Очистить локальные данные</button>
-          </div>
         </div>
-      </div>
-    </main>
+
+        <!-- Error state -->
+        <div id="error" class="screen" style="display: none;">
+            <div class="container">
+                <h1>Упс! 😕</h1>
+                <p id="error-message"></p>
+                <button id="retryBtn" class="btn btn-primary">Попробовать снова</button>
+            </div>
+        </div>
+    </div>
+
     <script src="js/app.js"></script>
-  </body>
+</body>
 </html>
