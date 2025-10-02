@@ -79,12 +79,49 @@ docker compose down -v
 
 ### Pre-configured Dashboards
 
-1. **Dating App - Overview**
-   - Container status
-   - CPU and memory usage
-   - Database connections
-   - Network traffic
-   - Recent logs
+1. **Dating App - System Overview**
+   - Services status (all monitoring components)
+   - Container CPU and memory usage
+   - PostgreSQL active connections
+   - Container network traffic
+   - All container logs
+   - Bot application logs (JSON parsed)
+   - Bot error and warning logs
+   - Bot events timeline
+
+2. **Dating App - Application Logs & Events**
+   - Bot lifecycle events count
+   - Error and warning log counts
+   - Total log entries
+   - Log levels over time
+   - Event types over time
+   - Recent bot logs with JSON parsing
+   - Detailed bot logs with metadata
+
+### Structured Logging
+
+The bot application uses **JSON structured logging** for better log parsing and analysis in Grafana:
+
+```json
+{
+  "timestamp": "2024-10-02T12:36:09.468968Z",
+  "level": "INFO",
+  "logger": "bot.main",
+  "message": "Configuration loaded successfully",
+  "module": "main",
+  "function": "main",
+  "line": 67,
+  "event_type": "config_loaded",
+  "webapp_url": "https://example.com",
+  "database_configured": true
+}
+```
+
+This allows Grafana to:
+- Filter logs by level (INFO, WARNING, ERROR)
+- Extract event types for tracking
+- Parse metadata fields
+- Create time-series visualizations from logs
 
 ### Creating Custom Dashboards
 
@@ -93,26 +130,41 @@ docker compose down -v
 3. Click "+" → "Dashboard"
 4. Add panels with Prometheus or Loki queries
 
-### Dashboard Examples
+### Dashboard Query Examples
 
 **Container CPU Usage:**
 ```promql
-rate(container_cpu_usage_seconds_total{name=~"dating.*"}[5m]) * 100
+rate(container_cpu_usage_seconds_total{name=~".+"}[5m]) * 100
 ```
 
 **Memory Usage:**
 ```promql
-container_memory_usage_bytes{name=~"dating.*"} / 1024 / 1024
+container_memory_usage_bytes{name=~".+"} / 1024 / 1024
 ```
 
 **Database Connections:**
 ```promql
-pg_stat_database_numbackends{datname="dating"}
+pg_stat_database_numbackends{datname!=""}
 ```
 
-**Log Query (Loki):**
+**All Bot Logs (Loki):**
 ```logql
-{container_name=~"dating.*"} |= "error"
+{job="docker", container_name=~".*bot.*"}
+```
+
+**Bot JSON Logs with Parsing:**
+```logql
+{job="docker", container_name=~".*bot.*"} | json | line_format "[{{.level}}] {{.message}}"
+```
+
+**Error Logs Only:**
+```logql
+{job="docker", container_name=~".*bot.*"} | json | level="ERROR"
+```
+
+**Bot Events:**
+```logql
+{job="docker", container_name=~".*bot.*"} | json | event_type!=""
 ```
 
 ## 🔔 Alerts
