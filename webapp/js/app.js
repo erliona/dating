@@ -433,6 +433,12 @@ function showOnboarding() {
   document.getElementById('profile-form').classList.add('hidden');
   document.getElementById('success-screen').classList.add('hidden');
   
+  // Set version text
+  const versionEl = document.getElementById('appVersionText');
+  if (versionEl) {
+    versionEl.textContent = APP_VERSION;
+  }
+  
   // Haptic feedback
   triggerHaptic('impact', 'light');
 }
@@ -462,7 +468,10 @@ function showSuccessScreen() {
 // ============================================================================
 
 /**
- * Detect user location using Telegram WebApp API and browser geolocation
+ * Detect user location using sequential fallback:
+ * 1. Telegram WebApp API
+ * 2. Browser Geolocation API
+ * 3. IP-based geolocation
  */
 async function detectUserLocation() {
   const statusEl = document.getElementById('locationStatus');
@@ -480,29 +489,80 @@ async function detectUserLocation() {
   detectBtn.disabled = true;
   
   try {
-    // Use browser geolocation API (more reliable across platforms)
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          await handleLocationSuccess(
-            position.coords.latitude,
-            position.coords.longitude
-          );
-        },
-        (error) => {
-          handleLocationError(error);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 15000,
-          maximumAge: 0
+    // 1. Try Telegram's location API first
+    if (tg && tg.LocationManager) {
+      try {
+        const location = await tg.LocationManager.getLocation();
+        if (location && location.latitude && location.longitude) {
+          await handleLocationSuccess(location.latitude, location.longitude);
+          return;
         }
-      );
-    } else {
-      handleLocationError(new Error('Геолокация не поддерживается'));
+      } catch (e) {
+        console.log('Telegram location not available, trying browser API');
+      }
     }
+    
+    // 2. Fallback to browser geolocation API
+    if ('geolocation' in navigator) {
+      try {
+        const position = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(
+            resolve,
+            reject,
+            {
+              enableHighAccuracy: true,
+              timeout: 15000,
+              maximumAge: 0
+            }
+          );
+        });
+        
+        await handleLocationSuccess(
+          position.coords.latitude,
+          position.coords.longitude
+        );
+        return;
+      } catch (error) {
+        console.log('Browser geolocation failed, trying IP-based location');
+      }
+    }
+    
+    // 3. Final fallback: IP-based geolocation
+    await detectLocationByIP();
+    
   } catch (error) {
     handleLocationError(error);
+  }
+}
+
+/**
+ * Detect location by IP address (fallback method)
+ */
+async function detectLocationByIP() {
+  const statusEl = document.getElementById('locationStatus');
+  const detectBtn = document.getElementById('detectLocationBtn');
+  const cityInput = document.getElementById('cityInput');
+  const latInput = document.getElementById('latitude');
+  const lonInput = document.getElementById('longitude');
+  
+  try {
+    // Use ipapi.co for IP-based geolocation
+    const response = await fetch('https://ipapi.co/json/');
+    
+    if (!response.ok) {
+      throw new Error('IP geolocation service unavailable');
+    }
+    
+    const data = await response.json();
+    
+    if (data.latitude && data.longitude) {
+      await handleLocationSuccess(data.latitude, data.longitude);
+    } else {
+      throw new Error('Could not determine location from IP');
+    }
+  } catch (error) {
+    console.error('IP-based location detection failed:', error);
+    handleLocationError(new Error('Не удалось определить местоположение. Укажите город вручную.'));
   }
 }
 

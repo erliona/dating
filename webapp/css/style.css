@@ -288,43 +288,22 @@ body {
 }
 
 .onboarding-title {
-  font-size: 28px;
+  font-size: 48px;
   font-weight: 700;
-  margin-bottom: var(--spacing-md);
-  color: var(--tg-theme-text-color);
-}
-
-.onboarding-subtitle {
-  font-size: var(--font-size-lg);
-  color: var(--tg-theme-hint-color);
   margin-bottom: var(--spacing-xl);
-}
-
-.onboarding-features {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-md);
-  margin: var(--spacing-xl) 0;
-}
-
-.feature-item {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-  padding: var(--spacing-md);
-  background: var(--tg-theme-secondary-bg-color);
-  border-radius: var(--radius-lg);
-  text-align: left;
-}
-
-.feature-icon {
-  font-size: 32px;
-  flex-shrink: 0;
-}
-
-.feature-text {
-  font-size: var(--font-size-md);
   color: var(--tg-theme-text-color);
+  letter-spacing: -0.02em;
+}
+
+.app-version {
+  position: absolute;
+  bottom: var(--spacing-lg);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: var(--font-size-xs);
+  color: var(--tg-theme-hint-color);
+  opacity: 0.5;
+  margin-top: var(--spacing-xl);
 }
 
 .info-preview {
