@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 profile_router = Router()
 
 
-async def handle_webapp_data(message: types.Message, bot: Bot):
+async def handle_webapp_data(message: types.Message, dispatcher: Dispatcher):
     """Handle data received from WebApp.
     
     This handler processes profile data submitted from the Mini App,
@@ -48,8 +48,8 @@ async def handle_webapp_data(message: types.Message, bot: Bot):
             extra={"event_type": "webapp_data_received", "user_id": message.from_user.id}
         )
         
-        # Get database session from bot context
-        session_maker = bot.get("session_maker")
+        # Get database session from dispatcher workflow_data
+        session_maker = dispatcher.workflow_data.get("session_maker")
         if not session_maker:
             await message.answer("❌ Database not configured")
             return
@@ -239,10 +239,10 @@ async def handle_add_photo(
 
 
 @profile_router.message(Command("profile"))
-async def cmd_profile(message: types.Message):
+async def cmd_profile(message: types.Message, dispatcher: Dispatcher):
     """Show profile command."""
-    # Get database session from bot context
-    session_maker = message.bot.get("session_maker")
+    # Get database session from dispatcher workflow_data
+    session_maker = dispatcher.workflow_data.get("session_maker")
     if not session_maker:
         await message.answer("❌ Database not configured")
         return
@@ -306,8 +306,8 @@ async def setup_profile_handlers(dp: Dispatcher, bot: Bot, config):
         engine, class_=AsyncSession, expire_on_commit=False
     )
     
-    # Store session maker in bot context
-    bot["session_maker"] = async_session_maker
+    # Store session maker in dispatcher workflow_data (aiogram 3.x pattern)
+    dp.workflow_data["session_maker"] = async_session_maker
     
     # Register router
     dp.include_router(profile_router)
