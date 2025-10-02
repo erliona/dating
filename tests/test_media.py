@@ -152,3 +152,157 @@ class TestGeneratePhotoFilename:
         filename1 = generate_photo_filename(123, "hash1", "image/jpeg")
         filename2 = generate_photo_filename(123, "hash2", "image/jpeg")
         assert filename1 != filename2
+
+
+class TestRemoveExifData:
+    """Test EXIF data removal."""
+    
+    def test_remove_exif_placeholder(self):
+        """Test EXIF removal placeholder implementation."""
+        from bot.media import remove_exif_data
+        
+        # Create simple test data
+        test_data = b"fake photo data"
+        
+        # Currently returns original data (placeholder)
+        result = remove_exif_data(test_data)
+        assert result == test_data
+    
+    def test_remove_exif_error_handling(self):
+        """Test EXIF removal handles errors gracefully."""
+        from bot.media import remove_exif_data
+        
+        # Test with empty data
+        result = remove_exif_data(b"")
+        assert result == b""
+
+
+class TestCalculateNsfwScore:
+    """Test NSFW score calculation."""
+    
+    def test_calculate_nsfw_score_placeholder(self):
+        """Test NSFW detection placeholder implementation."""
+        from bot.media import calculate_nsfw_score
+        
+        # Create simple test data
+        test_data = b"fake photo data"
+        
+        # Currently returns 1.0 (safe) as placeholder
+        score = calculate_nsfw_score(test_data)
+        assert score == 1.0
+        assert 0.0 <= score <= 1.0
+
+
+class TestSavePhotoToStorage:
+    """Test photo storage functionality."""
+    
+    def test_save_photo_to_storage(self, tmp_path):
+        """Test saving photo to storage."""
+        from bot.media import save_photo_to_storage
+        import os
+        
+        # Create test data
+        test_data = b"fake photo data"
+        user_id = 123
+        storage_path = str(tmp_path / "photos")
+        
+        # Save photo
+        url = save_photo_to_storage(test_data, user_id, storage_path)
+        
+        # Verify URL format
+        assert url.startswith("/photos/")
+        assert url.endswith(".jpg")
+        
+        # Verify file was created
+        filename = url.split("/")[-1]
+        file_path = os.path.join(storage_path, filename)
+        assert os.path.exists(file_path)
+        
+        # Verify content
+        with open(file_path, 'rb') as f:
+            saved_data = f.read()
+        assert saved_data == test_data
+    
+    def test_save_photo_creates_directory(self, tmp_path):
+        """Test that storage directory is created if it doesn't exist."""
+        from bot.media import save_photo_to_storage
+        import os
+        
+        test_data = b"fake photo data"
+        storage_path = str(tmp_path / "nonexistent" / "photos")
+        
+        # Directory shouldn't exist yet
+        assert not os.path.exists(storage_path)
+        
+        # Save photo
+        url = save_photo_to_storage(test_data, 123, storage_path)
+        
+        # Directory should now exist
+        assert os.path.exists(storage_path)
+
+
+class TestValidateAndProcessPhoto:
+    """Test photo validation and processing pipeline."""
+    
+    def test_validate_and_process_photo_success(self, tmp_path):
+        """Test successful photo validation and processing."""
+        from bot.media import validate_and_process_photo
+        import base64
+        
+        # Create valid test photo data (small JPEG-like data)
+        test_data = b"\xFF\xD8\xFF\xE0" + b"\x00" * 100  # JPEG header + data
+        base64_data = base64.b64encode(test_data).decode('utf-8')
+        
+        storage_path = str(tmp_path / "photos")
+        
+        # Process photo
+        result = validate_and_process_photo(base64_data, 123, storage_path)
+        
+        # Verify result structure
+        assert "url" in result
+        assert "file_size" in result
+        assert "mime_type" in result
+        assert "safe_score" in result
+        
+        assert result["file_size"] > 0
+        assert result["safe_score"] == 1.0  # Placeholder returns 1.0
+    
+    def test_validate_and_process_photo_invalid_base64(self, tmp_path):
+        """Test processing with invalid base64 data."""
+        from bot.media import validate_and_process_photo, PhotoValidationError
+        
+        storage_path = str(tmp_path / "photos")
+        
+        # Invalid base64
+        with pytest.raises(PhotoValidationError):
+            validate_and_process_photo("not-valid-base64!@#", 123, storage_path)
+    
+    def test_validate_and_process_photo_too_large(self, tmp_path):
+        """Test processing photo that's too large."""
+        from bot.media import validate_and_process_photo, PhotoValidationError, MAX_PHOTO_SIZE
+        import base64
+        
+        # Create photo larger than max size
+        large_data = b"\xFF\xD8\xFF\xE0" + b"\x00" * (MAX_PHOTO_SIZE + 1000)
+        base64_data = base64.b64encode(large_data).decode('utf-8')
+        
+        storage_path = str(tmp_path / "photos")
+        
+        # Should raise validation error
+        with pytest.raises(PhotoValidationError, match="exceeds maximum"):
+            validate_and_process_photo(base64_data, 123, storage_path)
+    
+    def test_validate_and_process_photo_invalid_mime_type(self, tmp_path):
+        """Test processing photo with invalid MIME type."""
+        from bot.media import validate_and_process_photo, PhotoValidationError
+        import base64
+        
+        # Create data that's not a valid image format (e.g., text)
+        invalid_data = b"This is not an image file"
+        base64_data = base64.b64encode(invalid_data).decode('utf-8')
+        
+        storage_path = str(tmp_path / "photos")
+        
+        # Should raise validation error
+        with pytest.raises(PhotoValidationError, match="Invalid file type"):
+            validate_and_process_photo(base64_data, 123, storage_path)
