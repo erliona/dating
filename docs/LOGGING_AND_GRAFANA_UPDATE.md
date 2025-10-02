@@ -199,20 +199,25 @@ count_over_time({job="docker", container_name=~".*bot.*"} | json | event_type="s
 To add more logging in your code:
 
 ```python
-from bot.main import LOGGER
+import logging
+
+# Get a logger for your module
+logger = logging.getLogger(__name__)
 
 # Info log with event
-LOGGER.info("User action", extra={"event_type": "user_action", "user_id": 123})
+logger.info("User action", extra={"event_type": "user_action", "user_id": 123})
 
 # Warning log
-LOGGER.warning("Rate limit approaching", extra={"event_type": "rate_limit"})
+logger.warning("Rate limit approaching", extra={"event_type": "rate_limit"})
 
 # Error log with exception
 try:
     risky_operation()
 except Exception as e:
-    LOGGER.error(f"Operation failed: {e}", exc_info=True, extra={"event_type": "operation_error"})
+    logger.error(f"Operation failed: {e}", exc_info=True, extra={"event_type": "operation_error"})
 ```
+
+Note: The logging configuration is set up automatically when the bot starts via the `configure_logging()` function called in `main()`.
 
 ## Future Enhancements
 
