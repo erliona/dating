@@ -9,6 +9,8 @@
 
 let tg = null;
 let initData = null;
+let currentOnboardingStep = 1;
+let uploadedPhoto = null;
 
 /**
  * Initialize Telegram WebApp
@@ -409,6 +411,241 @@ function testThemeToggle() {
 }
 
 // ============================================================================
+// Onboarding Flow
+// ============================================================================
+
+/**
+ * Check if user has completed onboarding
+ */
+function hasCompletedOnboarding() {
+  return localStorage.getItem('onboarding_completed') === 'true';
+}
+
+/**
+ * Check if user has a profile
+ */
+async function checkUserProfile() {
+  // Check if user has completed profile creation
+  return localStorage.getItem('profile_created') === 'true';
+}
+
+/**
+ * Show onboarding screen
+ */
+function showOnboarding() {
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('onboarding').classList.remove('hidden');
+  document.getElementById('profile-form').classList.add('hidden');
+  document.getElementById('success-screen').classList.add('hidden');
+  showOnboardingStep(1);
+}
+
+/**
+ * Show specific onboarding step
+ */
+function showOnboardingStep(step) {
+  currentOnboardingStep = step;
+  
+  // Hide all steps
+  for (let i = 1; i <= 5; i++) {
+    const stepEl = document.getElementById(`onboarding-step-${i}`);
+    if (stepEl) stepEl.classList.add('hidden');
+  }
+  
+  // Show current step
+  const currentStepEl = document.getElementById(`onboarding-step-${step}`);
+  if (currentStepEl) currentStepEl.classList.remove('hidden');
+  
+  // Haptic feedback
+  triggerHaptic('impact', 'light');
+}
+
+/**
+ * Move to next onboarding step
+ */
+function nextOnboardingStep() {
+  if (currentOnboardingStep < 5) {
+    showOnboardingStep(currentOnboardingStep + 1);
+  }
+}
+
+/**
+ * Start profile creation
+ */
+function startProfileCreation() {
+  localStorage.setItem('onboarding_completed', 'true');
+  document.getElementById('onboarding').classList.add('hidden');
+  document.getElementById('profile-form').classList.remove('hidden');
+  triggerHaptic('notification', 'success');
+}
+
+/**
+ * Show success screen
+ */
+function showSuccessScreen() {
+  document.getElementById('profile-form').classList.add('hidden');
+  document.getElementById('success-screen').classList.remove('hidden');
+  triggerHaptic('notification', 'success');
+}
+
+// ============================================================================
+// Photo Upload
+// ============================================================================
+
+/**
+ * Setup photo upload handlers
+ */
+function setupPhotoUpload() {
+  const uploadZone = document.getElementById('photoUploadZone');
+  const photoInput = document.getElementById('photoInput');
+  const photoPreview = document.getElementById('photoPreview');
+  const photoPreviewImg = document.getElementById('photoPreviewImg');
+  
+  if (!uploadZone || !photoInput) return;
+  
+  uploadZone.addEventListener('click', () => {
+    photoInput.click();
+  });
+  
+  photoInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      handlePhotoUpload(file);
+    }
+  });
+  
+  // Drag and drop
+  uploadZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadZone.style.borderColor = 'var(--tg-theme-button-color)';
+  });
+  
+  uploadZone.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    uploadZone.style.borderColor = 'var(--tg-theme-hint-color)';
+  });
+  
+  uploadZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadZone.style.borderColor = 'var(--tg-theme-hint-color)';
+    
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      handlePhotoUpload(file);
+    }
+  });
+}
+
+/**
+ * Handle photo upload
+ */
+function handlePhotoUpload(file) {
+  // Validate file
+  if (!file.type.startsWith('image/')) {
+    alert('Пожалуйста, выберите изображение');
+    return;
+  }
+  
+  if (file.size > 5 * 1024 * 1024) {
+    alert('Файл слишком большой. Максимум 5 МБ');
+    return;
+  }
+  
+  // Show preview
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    uploadedPhoto = e.target.result;
+    const photoPreviewImg = document.getElementById('photoPreviewImg');
+    const photoPreview = document.getElementById('photoPreview');
+    
+    if (photoPreviewImg && photoPreview) {
+      photoPreviewImg.src = uploadedPhoto;
+      photoPreview.classList.remove('hidden');
+    }
+    
+    triggerHaptic('notification', 'success');
+  };
+  
+  reader.readAsDataURL(file);
+}
+
+// ============================================================================
+// Profile Form
+// ============================================================================
+
+/**
+ * Setup profile form handler
+ */
+function setupProfileForm() {
+  const form = document.getElementById('profileForm');
+  if (!form) return;
+  
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await handleProfileSubmit(e.target);
+  });
+}
+
+/**
+ * Handle profile form submission
+ */
+async function handleProfileSubmit(form) {
+  const formData = new FormData(form);
+  const profileData = {
+    name: formData.get('name'),
+    birth_date: formData.get('birth_date'),
+    gender: formData.get('gender'),
+    orientation: formData.get('orientation'),
+    goal: formData.get('goal'),
+    bio: formData.get('bio') || '',
+    city: formData.get('city') || ''
+  };
+  
+  // Validate age (18+)
+  const birthDate = new Date(profileData.birth_date);
+  const today = new Date();
+  const age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  
+  if (age < 18 || (age === 18 && monthDiff < 0)) {
+    showFormError('Вам должно быть не менее 18 лет');
+    return;
+  }
+  
+  // Add photo if uploaded
+  if (uploadedPhoto) {
+    profileData.photo = uploadedPhoto;
+  }
+  
+  try {
+    // In production, this would send data to backend
+    // For now, store in localStorage
+    localStorage.setItem('profile_created', 'true');
+    localStorage.setItem('profile_data', JSON.stringify(profileData));
+    
+    console.log('Profile created:', profileData);
+    
+    // Show success screen
+    showSuccessScreen();
+  } catch (error) {
+    console.error('Error creating profile:', error);
+    showFormError('Ошибка при создании анкеты. Попробуйте еще раз.');
+  }
+}
+
+/**
+ * Show form error
+ */
+function showFormError(message) {
+  const errorEl = document.getElementById('formError');
+  if (errorEl) {
+    errorEl.textContent = message;
+    errorEl.classList.remove('hidden');
+    triggerHaptic('notification', 'error');
+  }
+}
+
+// ============================================================================
 // Initialization
 // ============================================================================
 
@@ -440,15 +677,24 @@ async function init() {
   // Setup theme listener
   setupThemeListener();
   
-  // Display platform info
-  displayPlatformInfo();
+  // Setup photo upload
+  setupPhotoUpload();
   
-  // Handle deep links
-  const startParam = parseStartParam();
-  if (startParam) {
-    handleDeepLink(startParam);
+  // Setup profile form
+  setupProfileForm();
+  
+  // Check if user has profile
+  const hasProfile = await checkUserProfile();
+  
+  if (hasProfile) {
+    // Show success screen for existing users
+    showSuccessScreen();
+  } else if (hasCompletedOnboarding()) {
+    // Show profile form if onboarding completed but no profile
+    startProfileCreation();
   } else {
-    showContent();
+    // Show onboarding for new users
+    showOnboarding();
   }
   
   // Ready notification

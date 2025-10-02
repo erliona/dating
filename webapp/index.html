@@ -20,73 +20,220 @@
         <p>Loading...</p>
     </div>
 
-    <!-- Main Content -->
-    <div id="content" class="container hidden">
-        <!-- Platform Information -->
-        <div class="info-card">
-            <h2>🚀 Mini App Initialized</h2>
-            <p>Epic A1: Telegram WebApp SDK integration successful</p>
-            <div id="platformInfo"></div>
-        </div>
-
-        <!-- Theme Demo -->
-        <div class="info-card">
-            <h2>🎨 Theme Demo</h2>
-            <p>Theme switches automatically with Telegram app settings (no reload required)</p>
-            <div id="themeColors" class="theme-colors"></div>
-        </div>
-
-        <!-- Haptic Feedback Demo -->
-        <div class="info-card">
-            <h2>📳 Haptic Feedback</h2>
-            <p>Test haptic feedback on supported devices:</p>
-            <div class="button-group">
-                <button class="button" onclick="testHaptic('impact', 'light')">Light</button>
-                <button class="button" onclick="testHaptic('impact', 'medium')">Medium</button>
-                <button class="button" onclick="testHaptic('impact', 'heavy')">Heavy</button>
-            </div>
-            <div class="button-group">
-                <button class="button-secondary button" onclick="testHaptic('notification', 'success')">Success</button>
-                <button class="button-secondary button" onclick="testHaptic('notification', 'warning')">Warning</button>
-                <button class="button-secondary button" onclick="testHaptic('notification', 'error')">Error</button>
-            </div>
-        </div>
-
-        <!-- BackButton Demo -->
-        <div class="info-card">
-            <h2>⬅️ Back Button</h2>
-            <p>BackButton support is active. Test it:</p>
-            <div class="button-group">
-                <button class="button" onclick="showBackButton()">Show Back Button</button>
-                <button class="button-secondary button" onclick="hideBackButton()">Hide Back Button</button>
+    <!-- Onboarding Flow -->
+    <div id="onboarding" class="container hidden">
+        <!-- Step 1: Welcome -->
+        <div id="onboarding-step-1" class="onboarding-step">
+            <div class="onboarding-card">
+                <h1 class="onboarding-title">👋 Добро пожаловать!</h1>
+                <p class="onboarding-subtitle">Найдите интересных людей рядом с вами</p>
+                
+                <div class="onboarding-features">
+                    <div class="feature-item">
+                        <div class="feature-icon">💬</div>
+                        <div class="feature-text">Общайтесь с новыми людьми</div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">❤️</div>
+                        <div class="feature-text">Находите совпадения</div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">🎯</div>
+                        <div class="feature-text">Укажите свои цели</div>
+                    </div>
+                </div>
+                
+                <button class="button button-primary" onclick="nextOnboardingStep()">Начать</button>
+                
+                <div class="onboarding-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0%"></div>
+                    </div>
+                    <div class="progress-text">Шаг 1 из 5</div>
+                </div>
             </div>
         </div>
 
-        <!-- Deep Links Info -->
-        <div class="info-card">
-            <h2>🔗 Deep Links Support</h2>
-            <p>Epic A3: Deep-links startapp routing enabled</p>
-            <ul class="info-list">
-                <li><strong>Format:</strong> t.me/botname/appname?startapp=type_id</li>
-                <li><strong>Chat:</strong> startapp=chat_123</li>
-                <li><strong>Profile:</strong> startapp=profile_456</li>
-                <li><strong>Payment:</strong> startapp=payment_789</li>
-            </ul>
+        <!-- Step 2: Basic Info Preview -->
+        <div id="onboarding-step-2" class="onboarding-step hidden">
+            <div class="onboarding-card">
+                <h2 class="onboarding-title">📝 Базовая информация</h2>
+                <p class="onboarding-subtitle">Расскажите нам о себе</p>
+                
+                <div class="info-preview">
+                    <div class="preview-item">✓ Имя</div>
+                    <div class="preview-item">✓ Дата рождения (18+)</div>
+                    <div class="preview-item">✓ Пол</div>
+                    <div class="preview-item">✓ Кого ищете</div>
+                </div>
+                
+                <button class="button button-primary" onclick="nextOnboardingStep()">Продолжить</button>
+                
+                <div class="onboarding-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 25%"></div>
+                    </div>
+                    <div class="progress-text">Шаг 2 из 5</div>
+                </div>
+            </div>
         </div>
 
-        <!-- Features Checklist -->
+        <!-- Step 3: Photo Upload -->
+        <div id="onboarding-step-3" class="onboarding-step hidden">
+            <div class="onboarding-card">
+                <h2 class="onboarding-title">📸 Добавьте фото</h2>
+                <p class="onboarding-subtitle">Анкеты с фото получают в 5 раз больше откликов</p>
+                
+                <div class="photo-upload-zone" id="photoUploadZone">
+                    <div class="upload-icon">📷</div>
+                    <p>Нажмите или перетащите фото</p>
+                    <input type="file" id="photoInput" accept="image/*" style="display: none;">
+                </div>
+                
+                <div id="photoPreview" class="photo-preview hidden">
+                    <img id="photoPreviewImg" alt="Preview">
+                </div>
+                
+                <div class="button-group">
+                    <button class="button button-secondary" onclick="nextOnboardingStep()">Пропустить</button>
+                    <button class="button button-primary" onclick="nextOnboardingStep()">Далее</button>
+                </div>
+                
+                <div class="onboarding-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 50%"></div>
+                    </div>
+                    <div class="progress-text">Шаг 3 из 5</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Profile Details Preview -->
+        <div id="onboarding-step-4" class="onboarding-step hidden">
+            <div class="onboarding-card">
+                <h2 class="onboarding-title">✨ Дополнительно</h2>
+                <p class="onboarding-subtitle">Расскажите больше о себе</p>
+                
+                <div class="info-preview">
+                    <div class="preview-item">✓ Интересы и хобби</div>
+                    <div class="preview-item">✓ Местоположение</div>
+                    <div class="preview-item">✓ Цель знакомства</div>
+                    <div class="preview-item">✓ О себе</div>
+                </div>
+                
+                <button class="button button-primary" onclick="nextOnboardingStep()">Продолжить</button>
+                
+                <div class="onboarding-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 75%"></div>
+                    </div>
+                    <div class="progress-text">Шаг 4 из 5</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 5: Ready to Create Profile -->
+        <div id="onboarding-step-5" class="onboarding-step hidden">
+            <div class="onboarding-card">
+                <h2 class="onboarding-title">🎉 Отлично!</h2>
+                <p class="onboarding-subtitle">Теперь создайте свою анкету</p>
+                
+                <div class="ready-checklist">
+                    <div class="checklist-item">✅ Вы узнали о возможностях</div>
+                    <div class="checklist-item">✅ Готовы заполнить анкету</div>
+                    <div class="checklist-item">✅ Начнёте знакомиться</div>
+                </div>
+                
+                <button class="button button-primary" onclick="startProfileCreation()">Создать анкету</button>
+                
+                <div class="onboarding-progress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 100%"></div>
+                    </div>
+                    <div class="progress-text">Шаг 5 из 5</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Form -->
+    <div id="profile-form" class="container hidden">
         <div class="info-card">
-            <h2>✅ Implemented Features</h2>
-            <ul class="info-list">
-                <li>✅ Telegram WebApp SDK Integration</li>
-                <li>✅ Theme Handling (Light/Dark)</li>
-                <li>✅ BackButton Support</li>
-                <li>✅ Safe Area Handling (viewport-fit=cover)</li>
-                <li>✅ Haptic Feedback API</li>
-                <li>✅ Cross-platform compatibility</li>
-                <li>✅ Deep-links routing</li>
-                <li>✅ Closing confirmation enabled</li>
-            </ul>
+            <h2>Создание анкеты</h2>
+            <form id="profileForm">
+                <div class="form-group">
+                    <label>Имя *</label>
+                    <input type="text" name="name" required minlength="2" maxlength="100" placeholder="Ваше имя">
+                </div>
+                
+                <div class="form-group">
+                    <label>Дата рождения * (18+)</label>
+                    <input type="date" name="birth_date" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Пол *</label>
+                    <select name="gender" required>
+                        <option value="">Выберите</option>
+                        <option value="male">Мужской</option>
+                        <option value="female">Женский</option>
+                        <option value="other">Другой</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Ищу *</label>
+                    <select name="orientation" required>
+                        <option value="">Выберите</option>
+                        <option value="male">Мужчин</option>
+                        <option value="female">Женщин</option>
+                        <option value="any">Всех</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Цель знакомства *</label>
+                    <select name="goal" required>
+                        <option value="">Выберите</option>
+                        <option value="friendship">Дружба</option>
+                        <option value="dating">Свидания</option>
+                        <option value="relationship">Отношения</option>
+                        <option value="serious">Серьёзные отношения</option>
+                        <option value="casual">Лёгкое общение</option>
+                        <option value="networking">Нетворкинг</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>О себе</label>
+                    <textarea name="bio" maxlength="1000" rows="4" placeholder="Расскажите о себе..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Город</label>
+                    <input type="text" name="city" placeholder="Москва">
+                </div>
+                
+                <div id="formError" class="error-message hidden"></div>
+                
+                <button type="submit" class="button button-primary">Создать анкету</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Success Screen -->
+    <div id="success-screen" class="container hidden">
+        <div class="info-card text-center">
+            <h2>✅ Анкета создана!</h2>
+            <p class="mt-lg">Ваша анкета успешно создана и сохранена.</p>
+            <div class="placeholder-content">
+                <p>🚀 Скоро здесь появятся новые возможности:</p>
+                <ul class="info-list">
+                    <li>Просмотр других анкет</li>
+                    <li>Система совпадений</li>
+                    <li>Обмен сообщениями</li>
+                </ul>
+            </div>
         </div>
     </div>
 
