@@ -599,9 +599,16 @@ async def cancel_handler(message: Message, state: FSMContext) -> None:
 
 @ROUTER.message(Command(commands={"debug"}))
 async def debug_handler(message: Message) -> None:
-    """Show comprehensive debug information about the bot's status."""
+    """Show comprehensive debug information about the bot's status.
     
-    track_command("debug")
+    This command works even without database connection to help with debugging.
+    """
+    
+    # Track command - this doesn't require database
+    try:
+        track_command("debug")
+    except Exception:
+        pass  # Don't fail if tracking is unavailable
     
     LOGGER.info("Debug command received from user_id=%s", message.from_user.id)
     
@@ -623,8 +630,10 @@ async def debug_handler(message: Message) -> None:
     
     # Configuration Status
     debug_lines.append("⚙️ <b>Configuration:</b>")
+    config_loaded = False
     try:
         config = get_config(message.bot)
+        config_loaded = True
         debug_lines.append(f"  ✅ Config Loaded")
         
         # Show webapp URL status
@@ -653,21 +662,31 @@ async def debug_handler(message: Message) -> None:
         
     except RuntimeError as exc:
         debug_lines.append(f"  ❌ Config Error: {exc}")
+        debug_lines.append(f"     Bot may not be properly initialized")
         LOGGER.exception("Failed to get config in debug handler")
     
     debug_lines.append("")
     
-    # Database Connection
+    # Database Connection - now optional, won't break the command
     debug_lines.append("🗄️ <b>Database Connection:</b>")
     db_connected = False
+    repository_available = False
+    
     try:
         repository = get_repository(message.bot)
+        repository_available = True
         # Try to execute a simple query to test connection
         test_profile = await repository.get(user_id=0)  # Non-existent user
         debug_lines.append(f"  ✅ Connected")
         db_connected = True
+    except RuntimeError as exc:
+        debug_lines.append(f"  ⚠️ Repository Not Available: {exc}")
+        debug_lines.append(f"     This is expected if bot started without database")
+        LOGGER.warning("Repository not available in debug handler: %s", exc)
     except Exception as exc:
         debug_lines.append(f"  ❌ Connection Failed: {exc}")
+        if repository_available:
+            debug_lines.append(f"     Check database server is running and accessible")
         LOGGER.exception("Database connection test failed in debug handler")
     
     # Database Statistics (only if connected)
@@ -719,6 +738,10 @@ async def debug_handler(message: Message) -> None:
         except Exception as exc:
             debug_lines.append(f"  ❌ Failed to get statistics: {exc}")
             LOGGER.exception("Failed to get database statistics in debug handler")
+    else:
+        debug_lines.append("")
+        debug_lines.append("📊 <b>Database Statistics:</b>")
+        debug_lines.append(f"  ⚠️ Not available (database not connected)")
     
     debug_lines.append("")
     
@@ -751,6 +774,19 @@ async def debug_handler(message: Message) -> None:
     # Log level
     current_log_level = logging.getLevelName(LOGGER.getEffectiveLevel())
     debug_lines.append(f"  • Log Level: {current_log_level}")
+    
+    # Add helpful notes at the end
+    debug_lines.append("")
+    debug_lines.append("ℹ️ <b>Notes:</b>")
+    if not config_loaded:
+        debug_lines.append("  • Config not loaded - bot may not be fully initialized")
+    if not db_connected:
+        debug_lines.append("  • Database not connected - some features unavailable")
+    if config_loaded and db_connected:
+        debug_lines.append("  • All systems operational ✅")
+    
+    debug_lines.append("")
+    debug_lines.append("📝 To get more details, check bot logs")
     
     # Send the debug info
     debug_message = "\n".join(debug_lines)
@@ -1191,6 +1227,57 @@ async def webapp_handler(message: Message) -> None:
         
         profile = build_profile_from_payload(message.from_user.id, payload)
         LOGGER.debug("Profile built successfully: %s", profile)
+        
+        # Process settings if present
+        settings_data = payload.get('settings')
+        if settings_data and isinstance(settings_data, dict):
+            LOGGER.info("Processing settings for user_id=%s", message.from_user.id)
+            try:
+                settings_repo = get_settings_repository(message.bot)
+                
+                # Extract and save settings
+                settings_to_save = {}
+                for key in ["lang", "show_location", "show_age", "notify_matches", 
+                           "notify_messages", "age_min", "age_max", "max_distance"]:
+                    if key in settings_data:
+                        settings_to_save[key] = settings_data[key]
+                
+                if settings_to_save:
+                    await settings_repo.upsert(message.from_user.id, **settings_to_save)
+                    LOGGER.info("Settings synced for user_id=%s", message.from_user.id)
+            except Exception as exc:
+                LOGGER.warning("Failed to sync settings for user_id=%s: %s", 
+                             message.from_user.id, exc)
+                # Don't fail the whole operation if settings sync fails
+        
+        # Process queued interactions if present
+        queued_interactions = payload.get('queued_interactions', [])
+        if queued_interactions and isinstance(queued_interactions, list):
+            LOGGER.info("Processing %d queued interactions for user_id=%s", 
+                       len(queued_interactions), message.from_user.id)
+            for interaction_data in queued_interactions:
+                try:
+                    interaction_action = interaction_data.get('action')
+                    target_user_id = interaction_data.get('target_user_id')
+                    
+                    if interaction_action in ['like', 'dislike'] and target_user_id:
+                        # Process the interaction
+                        await handle_interaction(
+                            message, 
+                            message.from_user.id, 
+                            int(target_user_id), 
+                            interaction_action
+                        )
+                        LOGGER.debug("Processed queued %s for target_user_id=%s", 
+                                   interaction_action, target_user_id)
+                except Exception as exc:
+                    LOGGER.warning("Failed to process queued interaction: %s", exc)
+                    # Continue processing other interactions even if one fails
+                    continue
+            
+            LOGGER.info("Finished processing queued interactions for user_id=%s", 
+                       message.from_user.id)
+        
     except (json.JSONDecodeError, ValueError) as exc:
         LOGGER.error("Failed to process webapp data from user_id=%s: %s", message.from_user.id, exc)
         await message.answer(f"Не удалось обработать данные мини-приложения: {exc}")
