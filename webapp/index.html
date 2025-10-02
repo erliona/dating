@@ -2,11 +2,95 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bot WebApp</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="description" content="Dating Mini App - Telegram WebApp">
+    <meta name="theme-color" content="#ffffff">
+    <title>Dating Mini App</title>
+    
+    <!-- Telegram WebApp SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-    <h1>Infrastructure Only</h1>
-    <p>Add your webapp content here.</p>
+    <!-- Loading State -->
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+    </div>
+
+    <!-- Main Content -->
+    <div id="content" class="container hidden">
+        <!-- Platform Information -->
+        <div class="info-card">
+            <h2>🚀 Mini App Initialized</h2>
+            <p>Epic A1: Telegram WebApp SDK integration successful</p>
+            <div id="platformInfo"></div>
+        </div>
+
+        <!-- Theme Demo -->
+        <div class="info-card">
+            <h2>🎨 Theme Demo</h2>
+            <p>Theme switches automatically with Telegram app settings (no reload required)</p>
+            <div id="themeColors" class="theme-colors"></div>
+        </div>
+
+        <!-- Haptic Feedback Demo -->
+        <div class="info-card">
+            <h2>📳 Haptic Feedback</h2>
+            <p>Test haptic feedback on supported devices:</p>
+            <div class="button-group">
+                <button class="button" onclick="testHaptic('impact', 'light')">Light</button>
+                <button class="button" onclick="testHaptic('impact', 'medium')">Medium</button>
+                <button class="button" onclick="testHaptic('impact', 'heavy')">Heavy</button>
+            </div>
+            <div class="button-group">
+                <button class="button-secondary button" onclick="testHaptic('notification', 'success')">Success</button>
+                <button class="button-secondary button" onclick="testHaptic('notification', 'warning')">Warning</button>
+                <button class="button-secondary button" onclick="testHaptic('notification', 'error')">Error</button>
+            </div>
+        </div>
+
+        <!-- BackButton Demo -->
+        <div class="info-card">
+            <h2>⬅️ Back Button</h2>
+            <p>BackButton support is active. Test it:</p>
+            <div class="button-group">
+                <button class="button" onclick="showBackButton()">Show Back Button</button>
+                <button class="button-secondary button" onclick="hideBackButton()">Hide Back Button</button>
+            </div>
+        </div>
+
+        <!-- Deep Links Info -->
+        <div class="info-card">
+            <h2>🔗 Deep Links Support</h2>
+            <p>Epic A3: Deep-links startapp routing enabled</p>
+            <ul class="info-list">
+                <li><strong>Format:</strong> t.me/botname/appname?startapp=type_id</li>
+                <li><strong>Chat:</strong> startapp=chat_123</li>
+                <li><strong>Profile:</strong> startapp=profile_456</li>
+                <li><strong>Payment:</strong> startapp=payment_789</li>
+            </ul>
+        </div>
+
+        <!-- Features Checklist -->
+        <div class="info-card">
+            <h2>✅ Implemented Features</h2>
+            <ul class="info-list">
+                <li>✅ Telegram WebApp SDK Integration</li>
+                <li>✅ Theme Handling (Light/Dark)</li>
+                <li>✅ BackButton Support</li>
+                <li>✅ Safe Area Handling (viewport-fit=cover)</li>
+                <li>✅ Haptic Feedback API</li>
+                <li>✅ Cross-platform compatibility</li>
+                <li>✅ Deep-links routing</li>
+                <li>✅ Closing confirmation enabled</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script src="js/app.js"></script>
 </body>
 </html>
