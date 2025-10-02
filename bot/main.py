@@ -40,30 +40,31 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(log_data)
 
 
-# Configure JSON logging for structured logs
-handler = logging.StreamHandler(sys.stdout)
-handler.setFormatter(JsonFormatter())
+def configure_logging():
+    """Configure JSON logging for structured logs."""
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(JsonFormatter())
 
-# Configure root logger
-root_logger = logging.getLogger()
-root_logger.handlers.clear()
-root_logger.addHandler(handler)
-root_logger.setLevel(logging.INFO)
+    # Configure root logger
+    root_logger = logging.getLogger()
+    root_logger.handlers.clear()
+    root_logger.addHandler(handler)
+    root_logger.setLevel(logging.INFO)
 
-# Configure aiogram loggers to reduce noise
-logging.getLogger("aiogram").setLevel(logging.WARNING)
-logging.getLogger("aiohttp").setLevel(logging.WARNING)
-
-LOGGER = logging.getLogger(__name__)
+    # Configure aiogram loggers to reduce noise
+    logging.getLogger("aiogram").setLevel(logging.WARNING)
+    logging.getLogger("aiohttp").setLevel(logging.WARNING)
 
 
 async def main() -> None:
     """Bootstrap the bot."""
-    LOGGER.info("Bot initialization started", extra={"event_type": "startup"})
+    configure_logging()
+    logger = logging.getLogger(__name__)
+    logger.info("Bot initialization started", extra={"event_type": "startup"})
     
     try:
         config = load_config()
-        LOGGER.info(
+        logger.info(
             "Configuration loaded successfully",
             extra={
                 "event_type": "config_loaded",
@@ -72,7 +73,7 @@ async def main() -> None:
             }
         )
     except Exception as exc:
-        LOGGER.error(
+        logger.error(
             f"Failed to load configuration: {exc}",
             exc_info=True,
             extra={"event_type": "config_error"}
@@ -81,25 +82,25 @@ async def main() -> None:
     
     try:
         bot = Bot(token=config.token)
-        LOGGER.info("Bot instance created", extra={"event_type": "bot_created"})
+        logger.info("Bot instance created", extra={"event_type": "bot_created"})
         
         dp = Dispatcher(storage=MemoryStorage())
-        LOGGER.info(
+        logger.info(
             "Dispatcher initialized with MemoryStorage",
             extra={"event_type": "dispatcher_initialized"}
         )
         
-        LOGGER.info("Starting polling", extra={"event_type": "polling_start"})
+        logger.info("Starting polling", extra={"event_type": "polling_start"})
         await dp.start_polling(bot)
     except Exception as exc:
-        LOGGER.error(
+        logger.error(
             f"Error during bot execution: {exc}",
             exc_info=True,
             extra={"event_type": "bot_error"}
         )
         raise
     finally:
-        LOGGER.info("Shutting down bot", extra={"event_type": "shutdown"})
+        logger.info("Shutting down bot", extra={"event_type": "shutdown"})
 
 
 if __name__ == "__main__":
