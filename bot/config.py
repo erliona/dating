@@ -18,6 +18,7 @@ class BotConfig:
     token: str
     database_url: str
     webapp_url: str | None = None
+    jwt_secret: str | None = None
 
 
 def load_config() -> BotConfig:
@@ -144,7 +145,24 @@ def load_config() -> BotConfig:
     
     if not database_url.database:
         raise RuntimeError("BOT_DATABASE_URL must include a database name")
+    
+    # JWT secret for authentication (Epic A2)
+    jwt_secret = os.getenv("JWT_SECRET")
+    if not jwt_secret:
+        # For development, generate a warning
+        # For production, this should be required
+        import logging
+        logging.warning(
+            "JWT_SECRET not set. For production, set JWT_SECRET environment variable. "
+            "Using temporary secret for development (not suitable for production)."
+        )
+        # Generate a temporary secret for development
+        import secrets
+        jwt_secret = secrets.token_urlsafe(32)
 
     return BotConfig(
-        token=token, database_url=database_url.render_as_string(hide_password=False), webapp_url=webapp_url
+        token=token,
+        database_url=database_url.render_as_string(hide_password=False),
+        webapp_url=webapp_url,
+        jwt_secret=jwt_secret
     )
