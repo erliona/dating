@@ -7,10 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- Removed deprecated `docker-compose.monitoring.yml` file (monitoring now fully integrated via profiles)
+- Removed unused PostgreSQL service from CI workflow (no tests currently exist)
+
+### Changed
+- Moved completed summary files to archive:
+  - `BUGFIX_SUMMARY.md` → `docs/archive/`
+  - `WEBAPP_REBUILD_SUMMARY.md` → `docs/archive/`
+  - `docs/ONBOARDING_UPDATE.md` → `docs/archive/`
+  - `docs/WEBAPP_UX_IMPROVEMENTS.md` → `docs/archive/`
+- Updated documentation references to reflect current state
+- Optimized CI/CD workflows for better efficiency
+
+## [0.3.1] - 2024-12-21
+
 ### Changed
 - Major documentation refactoring for better readability and structure
 - Monitoring stack now integrated into main docker-compose.yml using profiles
-- Deprecated docker-compose.monitoring.yml (kept for backward compatibility)
+- Deprecated docker-compose.monitoring.yml (removed in next version)
 
 ### Added
 - New comprehensive documentation structure in `docs/` directory
@@ -83,7 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | 0.1.0 | 2024-06-11 | Initial release with basic bot functionality |
 | 0.2.0 | 2024-12-15 | Matching system and user interactions |
 | 0.3.0 | 2024-12-20 | Enhanced algorithm, analytics, comprehensive tests |
-| Current | 2024-12-21 | Documentation refactoring, monitoring integration |
+| 0.3.1 | 2024-12-21 | Documentation refactoring, monitoring integration |
+| Current | 2025-01 | Repository cleanup, CI/CD optimization |
 
 ---
 
@@ -116,17 +132,17 @@ None in recent versions. All changes are backward compatible.
 
 ### From docker-compose.monitoring.yml to profiles
 
-**Old way** (still works):
+**Old way** (deprecated and removed):
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
 ```
 
-**New way** (recommended):
+**New way** (use this):
 ```bash
 docker compose --profile monitoring up -d
 ```
 
-Both commands are equivalent. The new way is simpler and monitoring is now part of the main compose file.
+The monitoring stack is now fully integrated into the main docker-compose.yml file using profiles. The separate monitoring file has been removed.
 
 ---
 
@@ -142,7 +158,8 @@ See [ROADMAP.md](ROADMAP.md) for planned features:
 
 ---
 
-[Unreleased]: https://github.com/erliona/dating/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/erliona/dating/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/erliona/dating/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/erliona/dating/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/erliona/dating/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/erliona/dating/releases/tag/v0.1.0

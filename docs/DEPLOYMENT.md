@@ -543,7 +543,7 @@ docker stats
 # 2. Loki - уменьшите retention
 # 3. Grafana - отключите неиспользуемые plugins
 
-# Для Prometheus измените в docker-compose.monitoring.yml:
+# Для Prometheus измените в docker-compose.yml (в секции prometheus):
 # '--storage.tsdb.retention.time=15d'  # было 30d
 
 # Перезапустите сервисы
