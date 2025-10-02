@@ -151,7 +151,11 @@ async def handle_create_profile(
     session: AsyncSession,
     logger: logging.Logger
 ) -> None:
-    """Handle profile creation."""
+    """Handle profile creation.
+    
+    Note: Photos are not sent via sendData() due to the 4KB size limit.
+    Photos should be uploaded separately via HTTP API in a future update.
+    """
     profile_data = data.get("profile", {})
     
     # Validate profile data
@@ -202,18 +206,24 @@ async def handle_create_profile(
         }
     )
     
+    # Note: photo_count is included but photos themselves are stored locally
+    # TODO: Implement photo upload via HTTP API
+    photo_count = profile_data.get("photo_count", 0)
+    photo_status = f"📸 Фото: {photo_count}" if photo_count > 0 else "📸 Фото: не загружены"
+    
     await message.answer(
         "✅ Профиль создан!\n\n"
         f"Имя: {profile.name}\n"
         f"Возраст: {profile.birth_date}\n"
         f"Пол: {profile.gender}\n"
         f"Цель: {profile.goal}\n"
-        f"Город: {profile.city or 'не указан'}"
+        f"Город: {profile.city or 'не указан'}\n"
+        f"{photo_status}"
     )
 
 
 async def main() -> None:
-    """Bootstrap the bot."""
+    """Bootstrap the bot and API server."""
     configure_logging()
     logger = logging.getLogger(__name__)
     logger.info("Bot initialization started", extra={"event_type": "startup"})
@@ -243,6 +253,7 @@ async def main() -> None:
         dp = Dispatcher(storage=MemoryStorage())
         
         # Initialize database if configured
+        async_session_maker = None
         if config.database_url:
             engine = create_async_engine(config.database_url, echo=False)
             async_session_maker = sessionmaker(
@@ -263,8 +274,22 @@ async def main() -> None:
             extra={"event_type": "dispatcher_initialized"}
         )
         
-        logger.info("Starting polling", extra={"event_type": "polling_start"})
-        await dp.start_polling(bot)
+        # Start both bot and API server concurrently
+        logger.info("Starting bot and API server", extra={"event_type": "services_start"})
+        
+        # Import API module
+        from .api import run_api_server
+        import os
+        
+        # Get API server configuration
+        api_host = os.getenv("API_HOST", "0.0.0.0")
+        api_port = int(os.getenv("API_PORT", "8080"))
+        
+        # Run both services concurrently
+        await asyncio.gather(
+            dp.start_polling(bot),
+            run_api_server(config, async_session_maker, api_host, api_port) if async_session_maker else asyncio.sleep(0)
+        )
     except Exception as exc:
         logger.error(
             f"Error during bot execution: {exc}",

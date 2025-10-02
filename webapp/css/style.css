@@ -560,3 +560,52 @@ body {
     font-size: var(--font-size-md);
   }
 }
+
+/* Upload Progress Indicators */
+.upload-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.8);
+  padding: var(--spacing-sm);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  display: none;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: var(--spacing-xs);
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #2481cc, #1a6fb8);
+  border-radius: var(--radius-sm);
+  transition: width var(--transition-base) ease-out;
+}
+
+.progress-text {
+  font-size: var(--font-size-xs);
+  color: #ffffff;
+  text-align: center;
+}
+
+/* Photo slot positioning for progress bar */
+.photo-slot {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Optimize photo slot for upload state */
+.photo-slot.uploading {
+  opacity: 0.8;
+}
+
+.photo-slot.uploading .photo-slot-content {
+  pointer-events: none;
+}

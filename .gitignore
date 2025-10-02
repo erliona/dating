@@ -58,3 +58,6 @@ tmp/
 
 # Old webapp files (kept for reference, not for deployment)
 webapp/*_old.*
+
+# Exclude version number files
+=*

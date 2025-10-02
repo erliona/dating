@@ -94,6 +94,15 @@ services:
       # This works correctly only if POSTGRES_PASSWORD contains URL-safe characters
       BOT_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
       WEBAPP_URL: ${WEBAPP_URL:-https://localhost}
+      PHOTO_STORAGE_PATH: /app/photos
+      PHOTO_CDN_URL: ${PHOTO_CDN_URL:-}  # Optional CDN URL
+      NSFW_THRESHOLD: ${NSFW_THRESHOLD:-0.7}  # NSFW detection threshold
+      API_HOST: 0.0.0.0
+      API_PORT: 8080
+    volumes:
+      - photo_storage:/app/photos
+    ports:
+      - "8080:8080"
     healthcheck:
       test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
       interval: 30s
@@ -336,3 +345,4 @@ volumes:
   prometheus_data:
   grafana_data:
   loki_data:
+  photo_storage:
