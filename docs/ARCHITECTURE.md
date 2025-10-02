@@ -255,27 +255,46 @@ docker compose exec -T db psql -U dating dating < backup.sql
 
 ### 4. WebApp (nginx)
 
-**Роль**: Статический фронтенд для мини-приложения Telegram
+**Роль**: Современное мини-приложение Telegram для dating app
+
+**Версия**: Полностью переработано (2024) с индустриальными best practices
 
 **Структура**:
 ```
 webapp/
-├── index.html          # Главная страница
+├── README.md           # Подробная документация
+├── index.html          # Современный HTML5 (семантический)
 ├── css/
-│   └── style.css       # Стили
+│   └── style.css       # Модульный CSS с переменными
 └── js/
-    └── app.js          # Логика (Telegram WebApp SDK)
+    └── app.js          # Модульный ES6+ JavaScript
 ```
 
-**Функциональность**:
-- Форма создания/редактирования профиля
-- Отправка данных боту через WebApp API
-- Responsive design
-- Интеграция с Telegram theme
+**Ключевые особенности**:
+- ✅ **Card-based swipe interface** - индустриальный стандарт для dating apps
+- ✅ **Модульная архитектура** - разделение UI/logic/data
+- ✅ **Haptic feedback** - нативный опыт на мобильных
+- ✅ **Offline queue** - взаимодействия сохраняются локально
+- ✅ **Theme integration** - автоматическое следование Telegram theme
+- ✅ **Accessibility** - WCAG 2.1 AA compliant
+- ✅ **Mobile-first** - оптимизирован для мобильных устройств
+- ✅ **No build step** - чистый HTML/CSS/JS
+
+**Экраны**:
+1. Profile Form - создание/редактирование анкеты
+2. Discover - карточный интерфейс для свайпов
+3. Matches - список взаимных симпатий
+
+**Интеграция**:
+- Отправка данных через `tg.sendData()` (Telegram WebApp SDK)
+- Совместимо с существующим `webapp_handler` в боте
+- Queuing механизм для взаимодействий
 
 **Доступ**:
 - Production: https://your-domain.com
 - Development: http://localhost:8080
+
+**Подробнее**: См. [webapp/README.md](../webapp/README.md)
 
 ---
 
