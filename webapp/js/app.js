@@ -10,9 +10,14 @@
 let tg = null;
 let initData = null;
 let uploadedPhotos = [];
+let uploadProgress = [0, 0, 0]; // Track upload progress for each slot
+let authToken = null; // JWT token for API authentication
 
 // App version for cache invalidation
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.2.0'; // Updated for HTTP upload feature
+
+// API configuration
+const API_BASE_URL = window.location.protocol + '//' + window.location.hostname + ':8080';
 
 /**
  * Initialize Telegram WebApp
@@ -697,7 +702,7 @@ function setupPhotoUpload() {
 /**
  * Handle photo upload for a specific slot
  */
-function handlePhotoUpload(file, slotIndex) {
+async function handlePhotoUpload(file, slotIndex) {
   if (!file) return;
   
   // Validate file
@@ -711,16 +716,169 @@ function handlePhotoUpload(file, slotIndex) {
     return;
   }
   
-  // Read and add photo
+  // First, show preview locally
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     uploadedPhotos[slotIndex] = e.target.result;
     updatePhotoSlot(slotIndex, e.target.result);
     updatePhotoCounter();
-    triggerHaptic('notification', 'success');
+    
+    // Show upload progress
+    showUploadProgress(slotIndex, 0);
+    
+    // Try to upload to server via HTTP API
+    try {
+      await uploadPhotoToServer(file, slotIndex);
+    } catch (error) {
+      console.error('HTTP upload failed, keeping local copy:', error);
+      // Keep local copy even if upload fails
+      triggerHaptic('notification', 'warning');
+    }
   };
   
   reader.readAsDataURL(file);
+}
+
+/**
+ * Upload photo to server via HTTP API with progress tracking
+ */
+async function uploadPhotoToServer(file, slotIndex) {
+  try {
+    // Get or generate auth token
+    if (!authToken) {
+      authToken = await getAuthToken();
+    }
+    
+    // Create form data
+    const formData = new FormData();
+    formData.append('photo', file);
+    formData.append('slot_index', slotIndex);
+    
+    // Create XMLHttpRequest for progress tracking
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      
+      // Track upload progress
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const percentComplete = (e.loaded / e.total) * 100;
+          uploadProgress[slotIndex] = percentComplete;
+          showUploadProgress(slotIndex, percentComplete);
+        }
+      });
+      
+      // Handle completion
+      xhr.addEventListener('load', () => {
+        if (xhr.status === 200) {
+          const response = JSON.parse(xhr.responseText);
+          console.log('Photo uploaded successfully:', response);
+          showUploadProgress(slotIndex, 100);
+          triggerHaptic('notification', 'success');
+          
+          // Hide progress after 1 second
+          setTimeout(() => hideUploadProgress(slotIndex), 1000);
+          
+          resolve(response);
+        } else {
+          const error = JSON.parse(xhr.responseText);
+          console.error('Upload failed:', error);
+          hideUploadProgress(slotIndex);
+          reject(new Error(error.error || 'Upload failed'));
+        }
+      });
+      
+      // Handle errors
+      xhr.addEventListener('error', () => {
+        console.error('Upload error');
+        hideUploadProgress(slotIndex);
+        reject(new Error('Network error'));
+      });
+      
+      // Send request
+      xhr.open('POST', `${API_BASE_URL}/api/photos/upload`);
+      xhr.setRequestHeader('Authorization', `Bearer ${authToken}`);
+      xhr.send(formData);
+    });
+  } catch (error) {
+    console.error('Upload to server failed:', error);
+    hideUploadProgress(slotIndex);
+    throw error;
+  }
+}
+
+/**
+ * Get authentication token for API
+ */
+async function getAuthToken() {
+  try {
+    // Extract user ID from Telegram data
+    const userId = tg?.initDataUnsafe?.user?.id || 12345; // Default for testing
+    
+    const response = await fetch(`${API_BASE_URL}/api/auth/token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ user_id: userId })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to get auth token');
+    }
+    
+    const data = await response.json();
+    return data.token;
+  } catch (error) {
+    console.error('Failed to get auth token:', error);
+    throw error;
+  }
+}
+
+/**
+ * Show upload progress indicator
+ */
+function showUploadProgress(slotIndex, percent) {
+  const slot = document.getElementById(`photoSlot${slotIndex}`);
+  if (!slot) return;
+  
+  // Find or create progress bar
+  let progressBar = slot.querySelector('.upload-progress');
+  if (!progressBar) {
+    progressBar = document.createElement('div');
+    progressBar.className = 'upload-progress';
+    progressBar.innerHTML = `
+      <div class="progress-bar">
+        <div class="progress-fill"></div>
+      </div>
+      <div class="progress-text">Загрузка...</div>
+    `;
+    slot.appendChild(progressBar);
+  }
+  
+  // Update progress
+  const progressFill = progressBar.querySelector('.progress-fill');
+  const progressText = progressBar.querySelector('.progress-text');
+  if (progressFill) {
+    progressFill.style.width = `${percent}%`;
+  }
+  if (progressText) {
+    progressText.textContent = percent >= 100 ? 'Готово!' : `Загрузка ${Math.round(percent)}%`;
+  }
+  
+  progressBar.style.display = 'block';
+}
+
+/**
+ * Hide upload progress indicator
+ */
+function hideUploadProgress(slotIndex) {
+  const slot = document.getElementById(`photoSlot${slotIndex}`);
+  if (!slot) return;
+  
+  const progressBar = slot.querySelector('.upload-progress');
+  if (progressBar) {
+    progressBar.style.display = 'none';
+  }
 }
 
 /**
