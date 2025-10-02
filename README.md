@@ -11,6 +11,7 @@
 
 ## ✨ Что включено
 
+### Infrastructure
 - 🐳 **Docker & Docker Compose** - полная контейнеризация приложения
 - 🔐 **HTTPS из коробки** - автоматические SSL сертификаты от Let's Encrypt через Traefik
 - 🚀 **CI/CD Pipeline** - автоматическое тестирование и развертывание через GitHub Actions
@@ -18,6 +19,17 @@
 - 💾 **PostgreSQL** - готовая конфигурация базы данных
 - ⚙️ **Конфигурация окружения** - управление через .env файлы
 - 🔒 **Security Best Practices** - безопасные настройки по умолчанию
+
+### Dating App Features (Implemented)
+- ✅ **Epic A**: Mini App foundation & authentication (JWT, HMAC validation)
+- ✅ **Epic B**: Onboarding, profiles, media gallery, geolocation
+  - 18+ age validation
+  - Photo upload (max 3, JPEG/PNG/WebP, 5MB limit)
+  - Geohash for location privacy (~5km precision)
+  - Privacy settings (hide age/distance/online)
+  - 111 tests passing, 70% code coverage
+
+📖 See [EPIC_A_IMPLEMENTATION.md](EPIC_A_IMPLEMENTATION.md) and [EPIC_B_IMPLEMENTATION.md](EPIC_B_IMPLEMENTATION.md) for details.
 
 ---
 
