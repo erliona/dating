@@ -19,6 +19,8 @@ class BotConfig:
     database_url: str
     webapp_url: str | None = None
     jwt_secret: str | None = None
+    photo_storage_path: str = "/app/photos"  # Path for local photo storage
+    photo_cdn_url: str | None = None  # Optional CDN URL for serving photos
 
 
 def load_config() -> BotConfig:
@@ -159,10 +161,16 @@ def load_config() -> BotConfig:
         # Generate a temporary secret for development
         import secrets
         jwt_secret = secrets.token_urlsafe(32)
+    
+    # Photo storage configuration
+    photo_storage_path = os.getenv("PHOTO_STORAGE_PATH", "/app/photos")
+    photo_cdn_url = os.getenv("PHOTO_CDN_URL")  # Optional CDN URL
 
     return BotConfig(
         token=token,
         database_url=database_url.render_as_string(hide_password=False),
         webapp_url=webapp_url,
-        jwt_secret=jwt_secret
+        jwt_secret=jwt_secret,
+        photo_storage_path=photo_storage_path,
+        photo_cdn_url=photo_cdn_url
     )

@@ -174,3 +174,36 @@ class TestNSFWDetection:
         assert isinstance(score, float)
         assert 0.0 <= score <= 1.0
         assert score == 1.0  # Placeholder always returns safe
+
+
+class TestPhotoStorage:
+    """Test photo storage functionality."""
+    
+    def test_storage_path_configuration(self):
+        """Test that photo storage path can be configured."""
+        from bot.config import BotConfig
+        
+        # Test with custom storage path
+        config = BotConfig(
+            token="test:token",
+            database_url="postgresql://test",
+            photo_storage_path="/custom/path",
+            photo_cdn_url=None
+        )
+        
+        assert config.photo_storage_path == "/custom/path"
+        assert config.photo_cdn_url is None
+    
+    def test_cdn_url_configuration(self):
+        """Test that CDN URL can be configured."""
+        from bot.config import BotConfig
+        
+        # Test with CDN URL
+        config = BotConfig(
+            token="test:token",
+            database_url="postgresql://test",
+            photo_storage_path="/app/photos",
+            photo_cdn_url="https://cdn.example.com"
+        )
+        
+        assert config.photo_cdn_url == "https://cdn.example.com"

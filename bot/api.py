@@ -287,16 +287,19 @@ async def upload_photo_handler(request: web.Request) -> web.Response:
         ext = ext_map.get(output_format, "jpg")
         filename = f"{user_id}_{slot_index}_{photo_hash[:16]}.{ext}"
         
-        # TODO: Upload to S3 or CDN
-        # For now, save locally
+        # Save to configured storage path
         import os
-        storage_path = "/tmp/dating_photos"
+        storage_path = config.photo_storage_path
         os.makedirs(storage_path, exist_ok=True)
         file_path = os.path.join(storage_path, filename)
         with open(file_path, "wb") as f:
             f.write(optimized_data)
         
-        photo_url = f"/photos/{filename}"
+        # Generate photo URL (use CDN if configured, otherwise local path)
+        if config.photo_cdn_url:
+            photo_url = f"{config.photo_cdn_url}/{filename}"
+        else:
+            photo_url = f"/photos/{filename}"
         
         logger.info(
             "Photo uploaded successfully",
@@ -403,6 +406,13 @@ def create_app(config: BotConfig, session_maker: async_sessionmaker) -> web.Appl
     
     for route in routes:
         cors.add(app.router.add_route(route.method, route.path, route.handler))
+    
+    # Add static file serving for photos (if not using CDN)
+    if not config.photo_cdn_url:
+        app.router.add_static('/photos/', config.photo_storage_path, show_index=False)
+        logger.info(f"Static photo serving enabled at /photos/ from {config.photo_storage_path}")
+    else:
+        logger.info(f"Using CDN for photos: {config.photo_cdn_url}")
     
     logger.info("HTTP API server created")
     
