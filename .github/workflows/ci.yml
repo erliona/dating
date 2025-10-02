@@ -102,6 +102,7 @@ jobs:
           DOMAIN=localhost
           PHOTO_STORAGE_PATH=/app/photos
           PHOTO_CDN_URL=
+          NSFW_THRESHOLD=0.7
           API_HOST=0.0.0.0
           API_PORT=8080
           EOF

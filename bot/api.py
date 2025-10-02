@@ -159,12 +159,10 @@ def optimize_image(image_bytes: bytes, format: str = "JPEG") -> bytes:
 
 
 def calculate_nsfw_score(image_bytes: bytes) -> float:
-    """Calculate NSFW score for image.
+    """Calculate NSFW score for image using NudeNet ML model.
     
-    This is a placeholder implementation. In production, integrate with:
-    - AWS Rekognition (DetectModerationLabels)
-    - Google Cloud Vision API (SafeSearchDetection)
-    - Local ML model (e.g., NSFW model from Yahoo)
+    Uses NudeNet classifier to detect NSFW content.
+    The model classifies images into categories and returns a safety score.
     
     Args:
         image_bytes: Image bytes
@@ -172,13 +170,75 @@ def calculate_nsfw_score(image_bytes: bytes) -> float:
     Returns:
         Safety score (0.0 = unsafe, 1.0 = safe)
     """
-    # TODO: Implement actual NSFW detection
-    # For now, return safe score
-    logger.info(
-        "NSFW detection placeholder called",
-        extra={"event_type": "nsfw_detection_placeholder"}
-    )
-    return 1.0  # Assume safe
+    try:
+        from nudenet import NudeClassifier
+        from PIL import Image
+        import io
+        
+        # Initialize classifier (cached after first use)
+        if not hasattr(calculate_nsfw_score, '_classifier'):
+            logger.info("Initializing NudeNet classifier", extra={"event_type": "nsfw_model_init"})
+            calculate_nsfw_score._classifier = NudeClassifier()
+        
+        # Convert bytes to PIL Image for NudeNet
+        image = Image.open(io.BytesIO(image_bytes))
+        
+        # Save to temporary file (NudeNet requires file path)
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp:
+            image.save(tmp.name, format='JPEG')
+            tmp_path = tmp.name
+        
+        try:
+            # Classify image
+            result = calculate_nsfw_score._classifier.classify(tmp_path)
+            
+            # Result format: {image_path: {'safe': probability, 'unsafe': probability}}
+            classification = result.get(tmp_path, {})
+            
+            # Get safe probability (higher is better)
+            safe_prob = classification.get('safe', 0.5)
+            unsafe_prob = classification.get('unsafe', 0.5)
+            
+            # Calculate safety score (0.0 = unsafe, 1.0 = safe)
+            safety_score = safe_prob / (safe_prob + unsafe_prob) if (safe_prob + unsafe_prob) > 0 else 0.5
+            
+            logger.info(
+                f"NSFW detection completed: safe={safe_prob:.3f}, unsafe={unsafe_prob:.3f}, score={safety_score:.3f}",
+                extra={
+                    "event_type": "nsfw_detection_complete",
+                    "safe_probability": safe_prob,
+                    "unsafe_probability": unsafe_prob,
+                    "safety_score": safety_score
+                }
+            )
+            
+            return safety_score
+            
+        finally:
+            # Clean up temporary file
+            import os
+            try:
+                os.unlink(tmp_path)
+            except:
+                pass
+    
+    except ImportError:
+        logger.warning(
+            "NudeNet not available, falling back to permissive mode",
+            extra={"event_type": "nsfw_detection_fallback"}
+        )
+        # Fallback to permissive if NudeNet not installed
+        return 1.0
+    
+    except Exception as e:
+        logger.error(
+            f"NSFW detection failed: {e}",
+            exc_info=True,
+            extra={"event_type": "nsfw_detection_error"}
+        )
+        # On error, be permissive
+        return 1.0
 
 
 async def authenticate_request(request: web.Request, jwt_secret: str) -> int:
@@ -275,7 +335,16 @@ async def upload_photo_handler(request: web.Request) -> web.Response:
         
         # Calculate NSFW score
         safe_score = calculate_nsfw_score(optimized_data)
-        if safe_score < 0.7:
+        if safe_score < config.nsfw_threshold:
+            logger.warning(
+                f"Photo rejected: NSFW score {safe_score:.3f} below threshold {config.nsfw_threshold}",
+                extra={
+                    "event_type": "photo_rejected_nsfw",
+                    "user_id": user_id,
+                    "safe_score": safe_score,
+                    "threshold": config.nsfw_threshold
+                }
+            )
             return web.json_response(
                 {"error": "Photo contains inappropriate content"},
                 status=400

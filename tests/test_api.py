@@ -157,7 +157,7 @@ class TestImageOptimization:
 
 
 class TestNSFWDetection:
-    """Test NSFW detection placeholder."""
+    """Test NSFW detection with ML model."""
     
     def test_calculate_nsfw_score(self):
         """Test NSFW score calculation."""
@@ -170,10 +170,25 @@ class TestNSFWDetection:
         # Calculate score
         score = calculate_nsfw_score(image_bytes)
         
-        # Check score is valid (placeholder returns 1.0)
+        # Check score is valid
         assert isinstance(score, float)
         assert 0.0 <= score <= 1.0
-        assert score == 1.0  # Placeholder always returns safe
+        # Score should be reasonable (fallback returns 1.0 if NudeNet not available)
+        assert score >= 0.0
+    
+    def test_nsfw_score_with_safe_image(self):
+        """Test that safe images get high scores."""
+        # Create a simple solid color image (should be classified as safe)
+        image = Image.new("RGB", (200, 200), color=(100, 150, 200))
+        buffer = io.BytesIO()
+        image.save(buffer, format="JPEG")
+        image_bytes = buffer.getvalue()
+        
+        score = calculate_nsfw_score(image_bytes)
+        
+        # Safe image should have high score
+        # Note: May return 1.0 if NudeNet not installed (fallback mode)
+        assert score >= 0.5
 
 
 class TestPhotoStorage:

@@ -96,6 +96,7 @@ services:
       WEBAPP_URL: ${WEBAPP_URL:-https://localhost}
       PHOTO_STORAGE_PATH: /app/photos
       PHOTO_CDN_URL: ${PHOTO_CDN_URL:-}  # Optional CDN URL
+      NSFW_THRESHOLD: ${NSFW_THRESHOLD:-0.7}  # NSFW detection threshold
       API_HOST: 0.0.0.0
       API_PORT: 8080
     volumes:

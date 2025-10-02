@@ -21,6 +21,7 @@ class BotConfig:
     jwt_secret: str | None = None
     photo_storage_path: str = "/app/photos"  # Path for local photo storage
     photo_cdn_url: str | None = None  # Optional CDN URL for serving photos
+    nsfw_threshold: float = 0.7  # NSFW detection threshold (0.0-1.0, higher = stricter)
 
 
 def load_config() -> BotConfig:
@@ -165,6 +166,17 @@ def load_config() -> BotConfig:
     # Photo storage configuration
     photo_storage_path = os.getenv("PHOTO_STORAGE_PATH", "/app/photos")
     photo_cdn_url = os.getenv("PHOTO_CDN_URL")  # Optional CDN URL
+    
+    # NSFW detection threshold (0.0-1.0, higher = stricter)
+    nsfw_threshold_str = os.getenv("NSFW_THRESHOLD", "0.7")
+    try:
+        nsfw_threshold = float(nsfw_threshold_str)
+        if not 0.0 <= nsfw_threshold <= 1.0:
+            logging.warning(f"Invalid NSFW_THRESHOLD {nsfw_threshold}, using default 0.7")
+            nsfw_threshold = 0.7
+    except ValueError:
+        logging.warning(f"Invalid NSFW_THRESHOLD format, using default 0.7")
+        nsfw_threshold = 0.7
 
     return BotConfig(
         token=token,
@@ -172,5 +184,6 @@ def load_config() -> BotConfig:
         webapp_url=webapp_url,
         jwt_secret=jwt_secret,
         photo_storage_path=photo_storage_path,
-        photo_cdn_url=photo_cdn_url
+        photo_cdn_url=photo_cdn_url,
+        nsfw_threshold=nsfw_threshold
     )
