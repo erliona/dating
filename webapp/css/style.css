@@ -437,6 +437,36 @@ body {
   margin-top: var(--spacing-sm);
 }
 
+/* Location Detection */
+.location-status {
+  padding: var(--spacing-sm);
+  margin: var(--spacing-sm) 0;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+}
+
+.location-status.success {
+  background: #4caf501a;
+  border: 1px solid #4caf50;
+  color: #4caf50;
+}
+
+.location-status.error {
+  background: #f443361a;
+  border: 1px solid #f44336;
+  color: #f44336;
+}
+
+.location-status.detecting {
+  background: #2481cc1a;
+  border: 1px solid #2481cc;
+  color: #2481cc;
+}
+
+.manual-location {
+  margin-top: var(--spacing-md);
+}
+
 .ready-checklist {
   display: flex;
   flex-direction: column;

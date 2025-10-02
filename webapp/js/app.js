@@ -455,6 +455,163 @@ function showSuccessScreen() {
 }
 
 // ============================================================================
+// Geolocation Detection
+// ============================================================================
+
+/**
+ * Detect user location using Telegram WebApp API and browser geolocation
+ */
+async function detectUserLocation() {
+  const statusEl = document.getElementById('locationStatus');
+  const detectBtn = document.getElementById('detectLocationBtn');
+  const cityInput = document.getElementById('cityInput');
+  const latInput = document.getElementById('latitude');
+  const lonInput = document.getElementById('longitude');
+  
+  if (!statusEl || !detectBtn) return;
+  
+  // Show detecting status
+  statusEl.className = 'location-status detecting';
+  statusEl.textContent = '🔍 Определяем ваше местоположение...';
+  statusEl.classList.remove('hidden');
+  detectBtn.disabled = true;
+  
+  try {
+    // First try Telegram's location API
+    if (tg && tg.LocationManager) {
+      try {
+        const location = await tg.LocationManager.getLocation();
+        if (location && location.latitude && location.longitude) {
+          await handleLocationSuccess(location.latitude, location.longitude);
+          return;
+        }
+      } catch (e) {
+        console.log('Telegram location not available, trying browser API');
+      }
+    }
+    
+    // Fallback to browser geolocation API
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          await handleLocationSuccess(
+            position.coords.latitude,
+            position.coords.longitude
+          );
+        },
+        (error) => {
+          handleLocationError(error);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
+    } else {
+      handleLocationError(new Error('Geolocation not supported'));
+    }
+  } catch (error) {
+    handleLocationError(error);
+  }
+}
+
+/**
+ * Handle successful location detection
+ */
+async function handleLocationSuccess(latitude, longitude) {
+  const statusEl = document.getElementById('locationStatus');
+  const detectBtn = document.getElementById('detectLocationBtn');
+  const cityInput = document.getElementById('cityInput');
+  const latInput = document.getElementById('latitude');
+  const lonInput = document.getElementById('longitude');
+  
+  // Store coordinates
+  latInput.value = latitude;
+  lonInput.value = longitude;
+  
+  // Try to reverse geocode to get city name
+  try {
+    const city = await reverseGeocode(latitude, longitude);
+    if (city) {
+      cityInput.value = city;
+      cityInput.readOnly = true;
+    }
+    
+    statusEl.className = 'location-status success';
+    statusEl.textContent = `✅ Местоположение определено: ${city || 'координаты сохранены'}`;
+    
+    triggerHaptic('notification', 'success');
+  } catch (error) {
+    console.error('Reverse geocoding failed:', error);
+    statusEl.className = 'location-status success';
+    statusEl.textContent = '✅ Координаты сохранены. Укажите город вручную.';
+    cityInput.readOnly = false;
+  }
+  
+  detectBtn.disabled = false;
+  detectBtn.textContent = '🔄 Определить заново';
+}
+
+/**
+ * Handle location detection error
+ */
+function handleLocationError(error) {
+  const statusEl = document.getElementById('locationStatus');
+  const detectBtn = document.getElementById('detectLocationBtn');
+  const cityInput = document.getElementById('cityInput');
+  
+  console.error('Location detection error:', error);
+  
+  statusEl.className = 'location-status error';
+  statusEl.textContent = '❌ Не удалось определить местоположение. Укажите город вручную.';
+  
+  cityInput.readOnly = false;
+  cityInput.focus();
+  
+  detectBtn.disabled = false;
+  
+  triggerHaptic('notification', 'error');
+}
+
+/**
+ * Reverse geocode coordinates to city name
+ */
+async function reverseGeocode(latitude, longitude) {
+  // Use Nominatim (OpenStreetMap) for reverse geocoding
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10&addressdetails=1`,
+      {
+        headers: {
+          'User-Agent': 'DatingMiniApp/1.0'
+        }
+      }
+    );
+    
+    if (!response.ok) {
+      throw new Error('Geocoding failed');
+    }
+    
+    const data = await response.json();
+    
+    // Try to extract city name from various fields
+    const address = data.address || {};
+    const city = address.city || 
+                 address.town || 
+                 address.village || 
+                 address.municipality ||
+                 address.county ||
+                 address.state;
+    
+    return city || null;
+  } catch (error) {
+    console.error('Reverse geocoding error:', error);
+    return null;
+  }
+}
+
+// ============================================================================
 // Photo Upload
 // ============================================================================
 
@@ -620,6 +777,12 @@ async function handleProfileSubmit(form) {
     city: formData.get('city') || ''
   };
   
+  // Validate city is provided
+  if (!profileData.city || profileData.city.trim() === '') {
+    showFormError('Укажите город');
+    return;
+  }
+  
   // Validate age (18+)
   const birthDate = new Date(profileData.birth_date);
   const today = new Date();
@@ -634,8 +797,34 @@ async function handleProfileSubmit(form) {
   // Add photos
   profileData.photos = uploadedPhotos;
   
+  // Add geolocation data if available
+  const latitude = formData.get('latitude');
+  const longitude = formData.get('longitude');
+  
+  if (latitude && longitude) {
+    profileData.latitude = parseFloat(latitude);
+    profileData.longitude = parseFloat(longitude);
+    
+    // Calculate geohash for privacy-preserving location storage
+    profileData.geohash = calculateGeohash(
+      profileData.latitude, 
+      profileData.longitude,
+      5 // precision ~5km for matching
+    );
+    
+    console.log('Location data:', {
+      city: profileData.city,
+      lat: profileData.latitude,
+      lon: profileData.longitude,
+      geohash: profileData.geohash
+    });
+  } else {
+    console.log('No GPS coordinates, using city only:', profileData.city);
+  }
+  
   try {
     // In production, this would send data to backend
+    // Backend will store exact coordinates for matching nearest users
     // For now, store in localStorage
     localStorage.setItem('profile_created', 'true');
     localStorage.setItem('profile_data', JSON.stringify(profileData));
@@ -648,6 +837,54 @@ async function handleProfileSubmit(form) {
     console.error('Error creating profile:', error);
     showFormError('Ошибка при создании анкеты. Попробуйте еще раз.');
   }
+}
+
+/**
+ * Calculate geohash for coordinates (privacy-preserving location)
+ */
+function calculateGeohash(latitude, longitude, precision = 5) {
+  const base32 = '0123456789bcdefghjkmnpqrstuvwxyz';
+  
+  let lat_min = -90.0, lat_max = 90.0;
+  let lon_min = -180.0, lon_max = 180.0;
+  
+  let geohash = [];
+  let bits = 0;
+  let bit_count = 0;
+  let even_bit = true;
+  
+  while (geohash.length < precision) {
+    if (even_bit) {
+      // Longitude
+      const mid = (lon_min + lon_max) / 2;
+      if (longitude > mid) {
+        bits |= (1 << (4 - bit_count));
+        lon_min = mid;
+      } else {
+        lon_max = mid;
+      }
+    } else {
+      // Latitude
+      const mid = (lat_min + lat_max) / 2;
+      if (latitude > mid) {
+        bits |= (1 << (4 - bit_count));
+        lat_min = mid;
+      } else {
+        lat_max = mid;
+      }
+    }
+    
+    even_bit = !even_bit;
+    bit_count++;
+    
+    if (bit_count === 5) {
+      geohash.push(base32[bits]);
+      bits = 0;
+      bit_count = 0;
+    }
+  }
+  
+  return geohash.join('');
 }
 
 /**
