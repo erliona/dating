@@ -25,8 +25,8 @@
         <!-- Step 1: Welcome -->
         <div id="onboarding-step-1" class="onboarding-step">
             <div class="onboarding-card">
-                <h1 class="onboarding-title">👋 Добро пожаловать!</h1>
-                <p class="onboarding-subtitle">Найдите интересных людей рядом с вами</p>
+                <h1 class="onboarding-title">👋 Добро пожаловать в Zintra!</h1>
+                <p class="onboarding-subtitle">Заполни анкету, чтобы начать знакомства</p>
                 
                 <div class="onboarding-features">
                     <div class="feature-item">
@@ -55,12 +55,35 @@
             <form id="profileForm">
                 <div class="form-group">
                     <label>Фото * (ровно 3 фото)</label>
-                    <div class="photo-upload-zone" id="photoUploadZone">
-                        <div class="upload-icon">📷</div>
-                        <p>Добавьте 3 фотографии</p>
-                        <input type="file" id="photoInput" accept="image/*" multiple style="display: none;">
+                    <div class="photo-slots-container">
+                        <div class="photo-slot" id="photoSlot0" onclick="openPhotoUpload(0)">
+                            <div class="photo-slot-content">
+                                <svg class="upload-icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                </svg>
+                                <p class="photo-slot-text">Фото 1</p>
+                            </div>
+                            <input type="file" id="photoInput0" accept="image/*" style="display: none;">
+                        </div>
+                        <div class="photo-slot" id="photoSlot1" onclick="openPhotoUpload(1)">
+                            <div class="photo-slot-content">
+                                <svg class="upload-icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                </svg>
+                                <p class="photo-slot-text">Фото 2</p>
+                            </div>
+                            <input type="file" id="photoInput1" accept="image/*" style="display: none;">
+                        </div>
+                        <div class="photo-slot" id="photoSlot2" onclick="openPhotoUpload(2)">
+                            <div class="photo-slot-content">
+                                <svg class="upload-icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                </svg>
+                                <p class="photo-slot-text">Фото 3</p>
+                            </div>
+                            <input type="file" id="photoInput2" accept="image/*" style="display: none;">
+                        </div>
                     </div>
-                    <div id="photoPreviewContainer" class="photo-preview-container"></div>
                     <p class="photo-counter">Загружено: <span id="photoCount">0</span> / 3</p>
                 </div>
                 

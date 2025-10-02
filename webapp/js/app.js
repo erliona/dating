@@ -11,6 +11,9 @@ let tg = null;
 let initData = null;
 let uploadedPhotos = [];
 
+// App version for cache invalidation
+const APP_VERSION = '1.1.0';
+
 /**
  * Initialize Telegram WebApp
  */
@@ -477,20 +480,7 @@ async function detectUserLocation() {
   detectBtn.disabled = true;
   
   try {
-    // First try Telegram's location API
-    if (tg && tg.LocationManager) {
-      try {
-        const location = await tg.LocationManager.getLocation();
-        if (location && location.latitude && location.longitude) {
-          await handleLocationSuccess(location.latitude, location.longitude);
-          return;
-        }
-      } catch (e) {
-        console.log('Telegram location not available, trying browser API');
-      }
-    }
-    
-    // Fallback to browser geolocation API
+    // Use browser geolocation API (more reliable across platforms)
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
@@ -504,12 +494,12 @@ async function detectUserLocation() {
         },
         {
           enableHighAccuracy: true,
-          timeout: 10000,
+          timeout: 15000,
           maximumAge: 0
         }
       );
     } else {
-      handleLocationError(new Error('Geolocation not supported'));
+      handleLocationError(new Error('Геолокация не поддерживается'));
     }
   } catch (error) {
     handleLocationError(error);
@@ -619,123 +609,130 @@ async function reverseGeocode(latitude, longitude) {
  * Setup photo upload handlers
  */
 function setupPhotoUpload() {
-  const uploadZone = document.getElementById('photoUploadZone');
-  const photoInput = document.getElementById('photoInput');
-  
-  if (!uploadZone || !photoInput) return;
-  
-  uploadZone.addEventListener('click', () => {
-    if (uploadedPhotos.length < 3) {
-      photoInput.click();
+  // Setup individual file inputs for each slot
+  for (let i = 0; i < 3; i++) {
+    const input = document.getElementById(`photoInput${i}`);
+    if (input) {
+      input.addEventListener('change', (e) => {
+        handlePhotoUpload(e.target.files[0], i);
+        // Reset input to allow selecting same file again
+        input.value = '';
+      });
     }
-  });
-  
-  photoInput.addEventListener('change', (e) => {
-    const files = Array.from(e.target.files);
-    handlePhotoUpload(files);
-    // Reset input to allow selecting same file again
-    photoInput.value = '';
-  });
-  
-  // Drag and drop
-  uploadZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    if (uploadedPhotos.length < 3) {
-      uploadZone.style.borderColor = 'var(--tg-theme-button-color)';
-    }
-  });
-  
-  uploadZone.addEventListener('dragleave', (e) => {
-    e.preventDefault();
-    uploadZone.style.borderColor = 'var(--tg-theme-hint-color)';
-  });
-  
-  uploadZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    uploadZone.style.borderColor = 'var(--tg-theme-hint-color)';
-    
-    if (uploadedPhotos.length < 3) {
-      const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
-      handlePhotoUpload(files);
-    }
-  });
+  }
 }
 
 /**
- * Handle photo upload
+ * Open photo upload for specific slot
  */
-function handlePhotoUpload(files) {
-  files.forEach(file => {
-    // Check if we already have 3 photos
-    if (uploadedPhotos.length >= 3) {
-      showFormError('Максимум 3 фотографии');
-      return;
-    }
-    
-    // Validate file
-    if (!file.type.startsWith('image/')) {
-      showFormError('Пожалуйста, выберите изображение');
-      return;
-    }
-    
-    if (file.size > 5 * 1024 * 1024) {
-      showFormError('Файл слишком большой. Максимум 5 МБ');
-      return;
-    }
-    
-    // Read and add photo
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      uploadedPhotos.push(e.target.result);
-      updatePhotoPreview();
-      triggerHaptic('notification', 'success');
-    };
-    
-    reader.readAsDataURL(file);
-  });
+function openPhotoUpload(slotIndex) {
+  const input = document.getElementById(`photoInput${slotIndex}`);
+  if (input) {
+    input.click();
+  }
 }
 
 /**
- * Update photo preview display
+ * Handle photo upload for a specific slot
  */
-function updatePhotoPreview() {
-  const container = document.getElementById('photoPreviewContainer');
-  const counter = document.getElementById('photoCount');
+function handlePhotoUpload(file, slotIndex) {
+  if (!file) return;
   
-  if (!container || !counter) return;
+  // Validate file
+  if (!file.type.startsWith('image/')) {
+    showFormError('Пожалуйста, выберите изображение');
+    return;
+  }
   
-  // Update counter
-  counter.textContent = uploadedPhotos.length;
+  if (file.size > 5 * 1024 * 1024) {
+    showFormError('Файл слишком большой. Максимум 5 МБ');
+    return;
+  }
   
-  // Clear container
-  container.innerHTML = '';
+  // Read and add photo
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    uploadedPhotos[slotIndex] = e.target.result;
+    updatePhotoSlot(slotIndex, e.target.result);
+    updatePhotoCounter();
+    triggerHaptic('notification', 'success');
+  };
   
-  // Add photo previews
-  uploadedPhotos.forEach((photo, index) => {
-    const item = document.createElement('div');
-    item.className = 'photo-preview-item';
-    
+  reader.readAsDataURL(file);
+}
+
+/**
+ * Update a specific photo slot
+ */
+function updatePhotoSlot(slotIndex, photoData) {
+  const slot = document.getElementById(`photoSlot${slotIndex}`);
+  if (!slot) return;
+  
+  // Clear existing content
+  slot.innerHTML = '';
+  
+  if (photoData) {
+    // Add photo
     const img = document.createElement('img');
-    img.src = photo;
-    img.alt = `Photo ${index + 1}`;
+    img.src = photoData;
+    img.alt = `Фото ${slotIndex + 1}`;
     
     const removeBtn = document.createElement('button');
     removeBtn.className = 'remove-photo';
     removeBtn.textContent = '×';
-    removeBtn.onclick = () => removePhoto(index);
+    removeBtn.onclick = (e) => {
+      e.stopPropagation();
+      removePhoto(slotIndex);
+    };
     
-    item.appendChild(img);
-    item.appendChild(removeBtn);
-    container.appendChild(item);
-  });
+    slot.appendChild(img);
+    slot.appendChild(removeBtn);
+    slot.classList.add('has-photo');
+  } else {
+    // Show upload placeholder
+    const content = document.createElement('div');
+    content.className = 'photo-slot-content';
+    content.innerHTML = `
+      <svg class="upload-icon-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 5V19M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <p class="photo-slot-text">Фото ${slotIndex + 1}</p>
+    `;
+    
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.id = `photoInput${slotIndex}`;
+    input.accept = 'image/*';
+    input.style.display = 'none';
+    input.addEventListener('change', (e) => {
+      handlePhotoUpload(e.target.files[0], slotIndex);
+      input.value = '';
+    });
+    
+    slot.appendChild(content);
+    slot.appendChild(input);
+    slot.classList.remove('has-photo');
+  }
 }
 
 /**
- * Remove photo from upload list
+ * Update photo counter
  */
-function removePhoto(index) {
-  uploadedPhotos.splice(index, 1);
-  updatePhotoPreview();
+function updatePhotoCounter() {
+  const counter = document.getElementById('photoCount');
+  if (!counter) return;
+  
+  const count = uploadedPhotos.filter(photo => photo).length;
+  counter.textContent = count;
+}
+
+/**
+ * Remove photo from specific slot
+ */
+function removePhoto(slotIndex) {
+  uploadedPhotos[slotIndex] = null;
+  updatePhotoSlot(slotIndex, null);
+  updatePhotoCounter();
   triggerHaptic('impact', 'light');
 }
 
@@ -761,7 +758,8 @@ function setupProfileForm() {
  */
 async function handleProfileSubmit(form) {
   // Validate photos (must have exactly 3)
-  if (uploadedPhotos.length !== 3) {
+  const validPhotos = uploadedPhotos.filter(photo => photo);
+  if (validPhotos.length !== 3) {
     showFormError('Требуется ровно 3 фотографии');
     return;
   }
@@ -794,8 +792,8 @@ async function handleProfileSubmit(form) {
     return;
   }
   
-  // Add photos
-  profileData.photos = uploadedPhotos;
+  // Add photos (filter out nulls)
+  profileData.photos = uploadedPhotos.filter(photo => photo);
   
   // Add geolocation data if available
   const latitude = formData.get('latitude');
@@ -924,10 +922,25 @@ function showFormError(message) {
 // ============================================================================
 
 /**
+ * Check and clear localStorage if app version changed
+ */
+function checkAndClearOldCache() {
+  const storedVersion = localStorage.getItem('app_version');
+  if (storedVersion !== APP_VERSION) {
+    console.log(`App version changed from ${storedVersion} to ${APP_VERSION}, clearing cache`);
+    localStorage.clear();
+    localStorage.setItem('app_version', APP_VERSION);
+  }
+}
+
+/**
  * Initialize the app
  */
 async function init() {
   console.log('App initialization started');
+  
+  // Clear old cache if version changed
+  checkAndClearOldCache();
   
   showLoading();
   
