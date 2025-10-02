@@ -684,18 +684,20 @@ function setupPhotoUpload() {
     
     if (input) {
       input.addEventListener('change', (e) => {
+        // Trigger haptic feedback when file is selected (not on click)
+        // This avoids interfering with iOS file picker
+        if (e.target.files[0]) {
+          triggerHaptic('impact', 'light');
+        }
         handlePhotoUpload(e.target.files[0], i);
         // Reset input to allow selecting same file again
         input.value = '';
       });
     }
     
-    // Add haptic feedback when clicking photo slot
-    if (slot) {
-      slot.addEventListener('click', () => {
-        triggerHaptic('impact', 'light');
-      });
-    }
+    // Don't add click handlers to photo slots on iOS
+    // The label's native behavior handles the click → file input trigger
+    // Additional handlers can interfere with iOS Safari's file picker
   }
 }
 
