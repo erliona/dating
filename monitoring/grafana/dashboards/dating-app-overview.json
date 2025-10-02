@@ -1,21 +1,60 @@
 {
-  "title": "Dating App - Overview",
+  "title": "Dating App - System Overview",
   "tags": [
     "dating",
-    "overview"
+    "overview",
+    "infrastructure"
   ],
   "timezone": "browser",
+  "editable": true,
   "panels": [
     {
       "id": 1,
-      "title": "Container Status",
+      "title": "Services Status",
       "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
-          "expr": "up{job=~\"cadvisor|postgres|traefik\"}",
-          "refId": "A"
+          "expr": "up",
+          "refId": "A",
+          "legendFormat": "{{job}}"
         }
       ],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "options": {
+                "0": {
+                  "text": "Down",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "Up",
+                  "color": "green"
+                }
+              },
+              "type": "value"
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "red"
+              },
+              {
+                "value": 1,
+                "color": "green"
+              }
+            ]
+          }
+        }
+      },
       "gridPos": {
         "x": 0,
         "y": 0,
@@ -25,15 +64,38 @@
     },
     {
       "id": 2,
-      "title": "CPU Usage",
-      "type": "graph",
+      "title": "Container CPU Usage",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
-          "expr": "rate(container_cpu_usage_seconds_total[5m]) * 100",
+          "expr": "rate(container_cpu_usage_seconds_total{name=~\".+\"}[5m]) * 100",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
       ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "color": {
+            "mode": "palette-classic"
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "gridPos": {
         "x": 8,
         "y": 0,
@@ -43,15 +105,37 @@
     },
     {
       "id": 3,
-      "title": "Memory Usage",
-      "type": "graph",
+      "title": "Container Memory Usage",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
-          "expr": "container_memory_usage_bytes / 1024 / 1024",
+          "expr": "container_memory_usage_bytes{name=~\".+\"} / 1024 / 1024",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
       ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "decmbytes",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "gridPos": {
         "x": 16,
         "y": 0,
@@ -61,15 +145,37 @@
     },
     {
       "id": 4,
-      "title": "Database Connections",
-      "type": "graph",
+      "title": "PostgreSQL Active Connections",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
-          "expr": "pg_stat_database_numbackends",
+          "expr": "pg_stat_database_numbackends{datname!=\"\"}",
           "legendFormat": "{{datname}}",
           "refId": "A"
         }
       ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "gridPos": {
         "x": 0,
         "y": 8,
@@ -79,20 +185,42 @@
     },
     {
       "id": 5,
-      "title": "Network Traffic",
-      "type": "graph",
+      "title": "Container Network Traffic",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
       "targets": [
         {
-          "expr": "rate(container_network_receive_bytes_total[5m])",
+          "expr": "rate(container_network_receive_bytes_total{name=~\".+\"}[5m])",
           "legendFormat": "{{name}} - RX",
           "refId": "A"
         },
         {
-          "expr": "rate(container_network_transmit_bytes_total[5m])",
+          "expr": "rate(container_network_transmit_bytes_total{name=~\".+\"}[5m])",
           "legendFormat": "{{name}} - TX",
           "refId": "B"
         }
       ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
       "gridPos": {
         "x": 12,
         "y": 8,
@@ -102,7 +230,7 @@
     },
     {
       "id": 6,
-      "title": "Recent Logs",
+      "title": "All Container Logs",
       "type": "logs",
       "datasource": {
         "type": "loki",
@@ -110,19 +238,74 @@
       },
       "targets": [
         {
-          "expr": "{job=\"docker\"} | json | line_format \"{{.log}}\"",
-          "refId": "A",
-          "datasource": {
-            "type": "loki",
-            "uid": "loki"
-          },
-          "legendFormat": "{{ container_name }}"
+          "expr": "{job=\"docker\"}",
+          "refId": "A"
         }
       ],
       "gridPos": {
         "x": 0,
         "y": 16,
-        "w": 24,
+        "w": 12,
+        "h": 10
+      },
+      "options": {
+        "showLabels": true,
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true,
+        "dedupStrategy": "none"
+      },
+      "description": "All logs from Docker containers. If no logs appear, ensure monitoring stack is running with: docker compose --profile monitoring up -d"
+    },
+    {
+      "id": 7,
+      "title": "Bot Application Logs (JSON Parsed)",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "expr": "{job=\"docker\", container_name=~\".*bot.*\"} | json | line_format \"[{{.level}}] {{.message}} | module={{.module}} func={{.function}}\"",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 10
+      },
+      "options": {
+        "showLabels": true,
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true,
+        "dedupStrategy": "none"
+      },
+      "description": "Bot application logs with JSON parsing to extract structured fields like level, message, module, and function"
+    },
+    {
+      "id": 8,
+      "title": "Bot Error and Warning Logs",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "expr": "{job=\"docker\", container_name=~\".*bot.*\"} | json | level=~\"ERROR|WARNING\" | line_format \"[{{.level}}] {{.message}}\"",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 26,
+        "w": 12,
         "h": 8
       },
       "options": {
@@ -130,9 +313,40 @@
         "showTime": true,
         "wrapLogMessage": true,
         "sortOrder": "Descending",
-        "enableLogDetails": true
+        "enableLogDetails": true,
+        "dedupStrategy": "none"
       },
-      "description": "Recent logs from all Docker containers. If no logs appear, ensure monitoring stack is running: `docker compose --profile monitoring up -d` or check [Troubleshooting Guide](https://github.com/erliona/dating/blob/main/monitoring/README.md#loki-logs-not-visible-in-grafana)"
+      "description": "Only ERROR and WARNING level logs from the bot application"
+    },
+    {
+      "id": 9,
+      "title": "Bot Events Timeline",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "expr": "{job=\"docker\", container_name=~\".*bot.*\"} | json | event_type!=\"\" | line_format \"Event: {{.event_type}} - {{.message}}\"",
+          "refId": "A"
+        }
+      ],
+      "gridPos": {
+        "x": 12,
+        "y": 26,
+        "w": 12,
+        "h": 8
+      },
+      "options": {
+        "showLabels": true,
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true,
+        "dedupStrategy": "none"
+      },
+      "description": "Timeline of bot lifecycle events (startup, shutdown, config_loaded, etc.)"
     }
   ],
   "refresh": "10s",

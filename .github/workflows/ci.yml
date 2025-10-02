@@ -84,3 +84,147 @@ jobs:
           pip-audit -r requirements.txt -r requirements-dev.txt --desc || echo "⚠ Security warnings found (non-blocking)"
           echo "✓ Security scan completed"
 
+      - name: Test Docker Compose configuration
+        run: |
+          # Create minimal .env for testing
+          cat > .env.test <<EOF
+          BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz-TestToken
+          POSTGRES_DB=dating_test
+          POSTGRES_USER=dating_test
+          POSTGRES_PASSWORD=TestPassword123
+          WEBAPP_URL=https://localhost
+          DOMAIN=localhost
+          EOF
+          
+          # Validate docker-compose.yml syntax
+          docker compose -f docker-compose.yml config > /dev/null
+          echo "✓ Docker Compose configuration is valid"
+
+      - name: Start monitoring stack
+        run: |
+          # Copy test environment
+          cp .env.test .env
+          
+          # Start monitoring services
+          echo "🚀 Starting monitoring stack..."
+          docker compose --profile monitoring up -d loki promtail grafana prometheus
+          
+          # Wait for services to be ready
+          echo "⏳ Waiting for services to start..."
+          sleep 20
+          
+          # Check service status
+          docker compose ps
+          
+          # Verify services are running
+          if ! docker compose ps loki | grep -q "Up"; then
+            echo "::error::Loki is not running"
+            docker compose logs loki
+            exit 1
+          fi
+          
+          if ! docker compose ps promtail | grep -q "Up"; then
+            echo "::error::Promtail is not running"
+            docker compose logs promtail
+            exit 1
+          fi
+          
+          if ! docker compose ps grafana | grep -q "Up"; then
+            echo "::error::Grafana is not running"
+            docker compose logs grafana
+            exit 1
+          fi
+          
+          if ! docker compose ps prometheus | grep -q "Up"; then
+            echo "::error::Prometheus is not running"
+            docker compose logs prometheus
+            exit 1
+          fi
+          
+          echo "✅ All monitoring services are running"
+
+      - name: Test Grafana dashboards
+        run: |
+          # Wait for Grafana to be fully ready
+          echo "⏳ Waiting for Grafana API..."
+          for i in {1..30}; do
+            if curl -f -s http://localhost:3000/api/health > /dev/null 2>&1; then
+              echo "✓ Grafana is ready"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "::error::Grafana failed to become ready"
+              docker compose logs grafana
+              exit 1
+            fi
+            sleep 2
+          done
+          
+          # Verify Grafana datasources
+          echo "🔍 Verifying Grafana datasources..."
+          
+          # Check Prometheus datasource
+          if curl -f -u admin:admin http://localhost:3000/api/datasources/uid/prometheus 2>/dev/null | grep -q "prometheus"; then
+            echo "✓ Prometheus datasource configured"
+          else
+            echo "::warning::Prometheus datasource not found"
+          fi
+          
+          # Check Loki datasource
+          if curl -f -u admin:admin http://localhost:3000/api/datasources/uid/loki 2>/dev/null | grep -q "loki"; then
+            echo "✓ Loki datasource configured"
+          else
+            echo "::warning::Loki datasource not found"
+          fi
+          
+          # List dashboards
+          echo "📊 Checking Grafana dashboards..."
+          DASHBOARDS=$(curl -s -u admin:admin http://localhost:3000/api/search?type=dash-db)
+          echo "$DASHBOARDS" | python3 -m json.tool || true
+          
+          # Verify our dashboards exist
+          if echo "$DASHBOARDS" | grep -q "System Overview"; then
+            echo "✓ System Overview dashboard found"
+          else
+            echo "::warning::System Overview dashboard not found"
+          fi
+          
+          if echo "$DASHBOARDS" | grep -q "Logs & Events"; then
+            echo "✓ Application Logs & Events dashboard found"
+          else
+            echo "::warning::Application Logs & Events dashboard not found"
+          fi
+
+      - name: Test log collection
+        run: |
+          # Generate test logs
+          echo "📝 Generating test logs..."
+          docker run --rm --name test-logger --log-driver=json-file \
+            alpine sh -c 'echo "{\"timestamp\":\"2024-10-02T12:00:00Z\",\"level\":\"INFO\",\"message\":\"Test log entry\"}"' || true
+          
+          sleep 5
+          
+          # Verify Loki is receiving logs (basic check)
+          echo "🔍 Testing Loki API..."
+          if curl -f http://localhost:3100/ready 2>/dev/null; then
+            echo "✓ Loki is ready to receive logs"
+          else
+            echo "::warning::Loki readiness check failed"
+          fi
+          
+          # Query Loki for labels
+          LABELS=$(curl -s http://localhost:3100/loki/api/v1/labels 2>/dev/null || echo '{"status":"error"}')
+          if echo "$LABELS" | grep -q "status.*success"; then
+            echo "✓ Loki API is responding"
+          else
+            echo "::warning::Loki API not fully functional"
+          fi
+
+      - name: Cleanup monitoring stack
+        if: always()
+        run: |
+          echo "🧹 Cleaning up monitoring stack..."
+          docker compose --profile monitoring down -v || true
+          rm -f .env .env.test || true
+          echo "✓ Cleanup completed"
+

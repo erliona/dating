@@ -1,57 +1,22 @@
 {
-  "title": "Dating App - Business Metrics",
-  "tags": ["dating", "business", "analytics"],
+  "title": "Dating App - Application Logs & Events",
+  "tags": ["dating", "logs", "events"],
   "timezone": "browser",
+  "editable": true,
   "panels": [
       {
         "id": 1,
-        "title": "Total Users",
+        "title": "Bot Lifecycle Events Count",
         "type": "stat",
-        "targets": [
-          {
-            "expr": "count(rate(app_user_profiles_total[5m]))",
-            "refId": "A"
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "color": {
-              "mode": "thresholds"
-            },
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                {
-                  "value": null,
-                  "color": "green"
-                },
-                {
-                  "value": 100,
-                  "color": "yellow"
-                },
-                {
-                  "value": 1000,
-                  "color": "red"
-                }
-              ]
-            }
-          }
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
         },
-        "gridPos": {
-          "x": 0,
-          "y": 0,
-          "w": 6,
-          "h": 4
-        }
-      },
-      {
-        "id": 2,
-        "title": "Total Matches",
-        "type": "stat",
         "targets": [
           {
-            "expr": "app_matches_total",
-            "refId": "A"
+            "expr": "count_over_time({job=\"docker\", container_name=~\".*bot.*\"} | json | event_type=~\"startup|shutdown\" [$__range])",
+            "refId": "A",
+            "legendFormat": "Lifecycle Events"
           }
         ],
         "fieldConfig": {
@@ -71,6 +36,52 @@
           }
         },
         "gridPos": {
+          "x": 0,
+          "y": 0,
+          "w": 6,
+          "h": 4
+        }
+      },
+      {
+        "id": 2,
+        "title": "Error Logs Count",
+        "type": "stat",
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
+        "targets": [
+          {
+            "expr": "count_over_time({job=\"docker\", container_name=~\".*bot.*\"} | json | level=\"ERROR\" [$__range])",
+            "refId": "A",
+            "legendFormat": "Errors"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "value": null,
+                  "color": "green"
+                },
+                {
+                  "value": 1,
+                  "color": "yellow"
+                },
+                {
+                  "value": 10,
+                  "color": "red"
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
           "x": 6,
           "y": 0,
           "w": 6,
@@ -79,32 +90,38 @@
       },
       {
         "id": 3,
-        "title": "Match Rate (%)",
-        "type": "gauge",
+        "title": "Warning Logs Count",
+        "type": "stat",
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
         "targets": [
           {
-            "expr": "(app_matches_total / app_likes_sent_total) * 100",
-            "refId": "A"
+            "expr": "count_over_time({job=\"docker\", container_name=~\".*bot.*\"} | json | level=\"WARNING\" [$__range])",
+            "refId": "A",
+            "legendFormat": "Warnings"
           }
         ],
         "fieldConfig": {
           "defaults": {
-            "min": 0,
-            "max": 100,
+            "color": {
+              "mode": "thresholds"
+            },
             "thresholds": {
               "mode": "absolute",
               "steps": [
                 {
                   "value": null,
-                  "color": "red"
+                  "color": "green"
                 },
                 {
-                  "value": 20,
+                  "value": 5,
                   "color": "yellow"
                 },
                 {
-                  "value": 40,
-                  "color": "green"
+                  "value": 20,
+                  "color": "orange"
                 }
               ]
             }
@@ -119,32 +136,30 @@
       },
       {
         "id": 4,
-        "title": "Engagement Rate (%)",
-        "type": "gauge",
+        "title": "Total Log Entries",
+        "type": "stat",
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
         "targets": [
           {
-            "expr": "(count(app_active_users) / count(app_total_users)) * 100",
-            "refId": "A"
+            "expr": "count_over_time({job=\"docker\", container_name=~\".*bot.*\"} [$__range])",
+            "refId": "A",
+            "legendFormat": "Total Logs"
           }
         ],
         "fieldConfig": {
           "defaults": {
-            "min": 0,
-            "max": 100,
+            "color": {
+              "mode": "thresholds"
+            },
             "thresholds": {
               "mode": "absolute",
               "steps": [
                 {
                   "value": null,
-                  "color": "red"
-                },
-                {
-                  "value": 30,
-                  "color": "yellow"
-                },
-                {
-                  "value": 60,
-                  "color": "green"
+                  "color": "blue"
                 }
               ]
             }
@@ -159,24 +174,83 @@
       },
       {
         "id": 5,
-        "title": "Commands Executed Over Time",
-        "type": "graph",
+        "title": "Log Levels Over Time",
+        "type": "timeseries",
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
         "targets": [
           {
-            "expr": "rate(app_commands_total[5m])",
-            "legendFormat": "Commands/sec",
+            "expr": "sum by (level) (count_over_time({job=\"docker\", container_name=~\".*bot.*\"} | json | __error__=\"\" [1m]))",
+            "legendFormat": "{{level}}",
             "refId": "A"
           }
         ],
-        "yaxes": [
-          {
-            "format": "short",
-            "label": "Commands/sec"
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "palette-classic"
+            }
           },
-          {
-            "format": "short"
+          "overrides": [
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "ERROR"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "mode": "fixed",
+                    "fixedColor": "red"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "WARNING"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "mode": "fixed",
+                    "fixedColor": "orange"
+                  }
+                }
+              ]
+            },
+            {
+              "matcher": {
+                "id": "byName",
+                "options": "INFO"
+              },
+              "properties": [
+                {
+                  "id": "color",
+                  "value": {
+                    "mode": "fixed",
+                    "fixedColor": "blue"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "multi"
           }
-        ],
+        },
         "gridPos": {
           "x": 0,
           "y": 4,
@@ -186,39 +260,36 @@
       },
       {
         "id": 6,
-        "title": "Interactions Over Time",
-        "type": "graph",
+        "title": "Event Types Over Time",
+        "type": "timeseries",
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
         "targets": [
           {
-            "expr": "rate(app_interactions_total[5m])",
-            "legendFormat": "Interactions/sec",
+            "expr": "sum by (event_type) (count_over_time({job=\"docker\", container_name=~\".*bot.*\"} | json | event_type!=\"\" [1m]))",
+            "legendFormat": "{{event_type}}",
             "refId": "A"
-          },
-          {
-            "expr": "rate(app_interaction_like[5m])",
-            "legendFormat": "Likes/sec",
-            "refId": "B"
-          },
-          {
-            "expr": "rate(app_interaction_dislike[5m])",
-            "legendFormat": "Dislikes/sec",
-            "refId": "C"
-          },
-          {
-            "expr": "rate(app_interaction_match[5m])",
-            "legendFormat": "Matches/sec",
-            "refId": "D"
           }
         ],
-        "yaxes": [
-          {
-            "format": "short",
-            "label": "Interactions/sec"
-          },
-          {
-            "format": "short"
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": {
+              "mode": "palette-classic"
+            }
           }
-        ],
+        },
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          },
+          "tooltip": {
+            "mode": "multi"
+          }
+        },
         "gridPos": {
           "x": 12,
           "y": 4,
@@ -228,56 +299,60 @@
       },
       {
         "id": 7,
-        "title": "Profile Actions",
-        "type": "graph",
+        "title": "Recent Bot Logs (All Levels)",
+        "type": "logs",
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
         "targets": [
           {
-            "expr": "rate(app_profile_create[5m])",
-            "legendFormat": "Creates",
+            "expr": "{job=\"docker\", container_name=~\".*bot.*\"} | json | line_format \"[{{.level}}] {{.message}}\"",
             "refId": "A"
-          },
-          {
-            "expr": "rate(app_profile_update[5m])",
-            "legendFormat": "Updates",
-            "refId": "B"
-          },
-          {
-            "expr": "rate(app_profile_delete[5m])",
-            "legendFormat": "Deletes",
-            "refId": "C"
           }
         ],
-        "yaxes": [
-          {
-            "format": "short",
-            "label": "Actions/sec"
-          },
-          {
-            "format": "short"
-          }
-        ],
+        "options": {
+          "showLabels": false,
+          "showTime": true,
+          "wrapLogMessage": true,
+          "sortOrder": "Descending",
+          "enableLogDetails": true,
+          "dedupStrategy": "none"
+        },
         "gridPos": {
           "x": 0,
           "y": 12,
           "w": 12,
-          "h": 8
+          "h": 10
         }
       },
       {
         "id": 8,
-        "title": "Command Distribution",
-        "type": "piechart",
+        "title": "Detailed Bot Logs with Metadata",
+        "type": "logs",
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
         "targets": [
           {
-            "expr": "topk(5, app_command_*)",
+            "expr": "{job=\"docker\", container_name=~\".*bot.*\"} | json",
             "refId": "A"
           }
         ],
+        "options": {
+          "showLabels": true,
+          "showTime": true,
+          "wrapLogMessage": false,
+          "sortOrder": "Descending",
+          "enableLogDetails": true,
+          "dedupStrategy": "none"
+        },
         "gridPos": {
           "x": 12,
           "y": 12,
           "w": 12,
-          "h": 8
+          "h": 10
         }
       }
   ],

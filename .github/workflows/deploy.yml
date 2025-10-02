@@ -494,6 +494,28 @@ jobs:
             echo "⚠️  Database health check unavailable (may still be starting)"
           fi
 
+          # Verify monitoring stack is running
+          echo ""
+          echo "=== Monitoring Stack Status ==="
+          MONITORING_SERVICES="prometheus grafana loki promtail cadvisor node-exporter postgres-exporter"
+          MONITORING_OK=true
+          
+          for service in $MONITORING_SERVICES; do
+            if run_docker compose ps "$service" 2>/dev/null | grep -q "Up"; then
+              echo "✓ $service is running"
+            else
+              echo "⚠️  $service is not running (may not be required)"
+              MONITORING_OK=false
+            fi
+          done
+          
+          if [ "$MONITORING_OK" = true ]; then
+            echo "✅ All monitoring services are running"
+          else
+            echo "⚠️  Some monitoring services are not running"
+            echo "Run 'docker compose --profile monitoring up -d' to start them"
+          fi
+
           # Cleanup old images
           echo ""
           echo "🧹 Cleaning up old images..."
@@ -501,6 +523,11 @@ jobs:
 
           echo ""
           echo "=== Deployment Completed Successfully ==="
+          echo ""
+          echo "📊 Access your monitoring dashboards:"
+          echo "  - Grafana:    http://${DEPLOY_HOST}:3000 (admin/admin)"
+          echo "  - Prometheus: http://${DEPLOY_HOST}:9090"
+          echo ""
           EOSSH
           
           echo ""
@@ -558,5 +585,48 @@ jobs:
             echo "::warning::Critical errors found in bot logs"
           fi
 
-          echo "✅ Health check passed - all services are running"
+          # Check monitoring services
+          echo ""
+          echo "=== Monitoring Services Health Check ==="
+          MONITORING_HEALTHY=true
+          
+          # Check Grafana
+          if run_docker compose ps grafana | grep -q "Up"; then
+            echo "✓ Grafana is running"
+          else
+            echo "::warning::Grafana is not running"
+            MONITORING_HEALTHY=false
+          fi
+          
+          # Check Loki
+          if run_docker compose ps loki | grep -q "Up"; then
+            echo "✓ Loki is running"
+          else
+            echo "::warning::Loki is not running"
+            MONITORING_HEALTHY=false
+          fi
+          
+          # Check Promtail
+          if run_docker compose ps promtail | grep -q "Up"; then
+            echo "✓ Promtail is running"
+          else
+            echo "::warning::Promtail is not running"
+            MONITORING_HEALTHY=false
+          fi
+          
+          # Check Prometheus
+          if run_docker compose ps prometheus | grep -q "Up"; then
+            echo "✓ Prometheus is running"
+          else
+            echo "::warning::Prometheus is not running"
+            MONITORING_HEALTHY=false
+          fi
+          
+          if [ "$MONITORING_HEALTHY" = true ]; then
+            echo "✅ All monitoring services are healthy"
+          else
+            echo "::warning::Some monitoring services are not running properly"
+          fi
+
+          echo "✅ Health check passed - all core services are running"
           EOSSH
