@@ -392,16 +392,49 @@ body {
   margin-bottom: var(--spacing-md);
 }
 
-.photo-preview {
-  margin: var(--spacing-xl) 0;
-  border-radius: var(--radius-lg);
-  overflow: hidden;
+.photo-preview-container {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-sm);
+  margin: var(--spacing-md) 0;
 }
 
-.photo-preview img {
+.photo-preview-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 2px solid var(--tg-theme-hint-color);
+}
+
+.photo-preview-item img {
   width: 100%;
-  max-height: 300px;
+  height: 100%;
   object-fit: cover;
+}
+
+.photo-preview-item .remove-photo {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.photo-counter {
+  font-size: var(--font-size-sm);
+  color: var(--tg-theme-hint-color);
+  margin-top: var(--spacing-sm);
 }
 
 .ready-checklist {

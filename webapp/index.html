@@ -43,115 +43,7 @@
                     </div>
                 </div>
                 
-                <button class="button button-primary" onclick="nextOnboardingStep()">Начать</button>
-                
-                <div class="onboarding-progress">
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: 0%"></div>
-                    </div>
-                    <div class="progress-text">Шаг 1 из 5</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Step 2: Basic Info Preview -->
-        <div id="onboarding-step-2" class="onboarding-step hidden">
-            <div class="onboarding-card">
-                <h2 class="onboarding-title">📝 Базовая информация</h2>
-                <p class="onboarding-subtitle">Расскажите нам о себе</p>
-                
-                <div class="info-preview">
-                    <div class="preview-item">✓ Имя</div>
-                    <div class="preview-item">✓ Дата рождения (18+)</div>
-                    <div class="preview-item">✓ Пол</div>
-                    <div class="preview-item">✓ Кого ищете</div>
-                </div>
-                
-                <button class="button button-primary" onclick="nextOnboardingStep()">Продолжить</button>
-                
-                <div class="onboarding-progress">
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: 25%"></div>
-                    </div>
-                    <div class="progress-text">Шаг 2 из 5</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Step 3: Photo Upload -->
-        <div id="onboarding-step-3" class="onboarding-step hidden">
-            <div class="onboarding-card">
-                <h2 class="onboarding-title">📸 Добавьте фото</h2>
-                <p class="onboarding-subtitle">Анкеты с фото получают в 5 раз больше откликов</p>
-                
-                <div class="photo-upload-zone" id="photoUploadZone">
-                    <div class="upload-icon">📷</div>
-                    <p>Нажмите или перетащите фото</p>
-                    <input type="file" id="photoInput" accept="image/*" style="display: none;">
-                </div>
-                
-                <div id="photoPreview" class="photo-preview hidden">
-                    <img id="photoPreviewImg" alt="Preview">
-                </div>
-                
-                <div class="button-group">
-                    <button class="button button-secondary" onclick="nextOnboardingStep()">Пропустить</button>
-                    <button class="button button-primary" onclick="nextOnboardingStep()">Далее</button>
-                </div>
-                
-                <div class="onboarding-progress">
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: 50%"></div>
-                    </div>
-                    <div class="progress-text">Шаг 3 из 5</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Step 4: Profile Details Preview -->
-        <div id="onboarding-step-4" class="onboarding-step hidden">
-            <div class="onboarding-card">
-                <h2 class="onboarding-title">✨ Дополнительно</h2>
-                <p class="onboarding-subtitle">Расскажите больше о себе</p>
-                
-                <div class="info-preview">
-                    <div class="preview-item">✓ Интересы и хобби</div>
-                    <div class="preview-item">✓ Местоположение</div>
-                    <div class="preview-item">✓ Цель знакомства</div>
-                    <div class="preview-item">✓ О себе</div>
-                </div>
-                
-                <button class="button button-primary" onclick="nextOnboardingStep()">Продолжить</button>
-                
-                <div class="onboarding-progress">
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: 75%"></div>
-                    </div>
-                    <div class="progress-text">Шаг 4 из 5</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Step 5: Ready to Create Profile -->
-        <div id="onboarding-step-5" class="onboarding-step hidden">
-            <div class="onboarding-card">
-                <h2 class="onboarding-title">🎉 Отлично!</h2>
-                <p class="onboarding-subtitle">Теперь создайте свою анкету</p>
-                
-                <div class="ready-checklist">
-                    <div class="checklist-item">✅ Вы узнали о возможностях</div>
-                    <div class="checklist-item">✅ Готовы заполнить анкету</div>
-                    <div class="checklist-item">✅ Начнёте знакомиться</div>
-                </div>
-                
-                <button class="button button-primary" onclick="startProfileCreation()">Создать анкету</button>
-                
-                <div class="onboarding-progress">
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: 100%"></div>
-                    </div>
-                    <div class="progress-text">Шаг 5 из 5</div>
-                </div>
+                <button class="button button-primary" onclick="startProfileCreation()">Начать</button>
             </div>
         </div>
     </div>
@@ -161,6 +53,17 @@
         <div class="info-card">
             <h2>Создание анкеты</h2>
             <form id="profileForm">
+                <div class="form-group">
+                    <label>Фото * (ровно 3 фото)</label>
+                    <div class="photo-upload-zone" id="photoUploadZone">
+                        <div class="upload-icon">📷</div>
+                        <p>Добавьте 3 фотографии</p>
+                        <input type="file" id="photoInput" accept="image/*" multiple style="display: none;">
+                    </div>
+                    <div id="photoPreviewContainer" class="photo-preview-container"></div>
+                    <p class="photo-counter">Загружено: <span id="photoCount">0</span> / 3</p>
+                </div>
+                
                 <div class="form-group">
                     <label>Имя *</label>
                     <input type="text" name="name" required minlength="2" maxlength="100" placeholder="Ваше имя">

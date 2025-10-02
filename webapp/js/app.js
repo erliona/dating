@@ -9,8 +9,7 @@
 
 let tg = null;
 let initData = null;
-let currentOnboardingStep = 1;
-let uploadedPhoto = null;
+let uploadedPhotos = [];
 
 /**
  * Initialize Telegram WebApp
@@ -415,13 +414,6 @@ function testThemeToggle() {
 // ============================================================================
 
 /**
- * Check if user has completed onboarding
- */
-function hasCompletedOnboarding() {
-  return localStorage.getItem('onboarding_completed') === 'true';
-}
-
-/**
  * Check if user has a profile
  */
 async function checkUserProfile() {
@@ -430,50 +422,22 @@ async function checkUserProfile() {
 }
 
 /**
- * Show onboarding screen
+ * Show onboarding screen (Welcome)
  */
 function showOnboarding() {
   document.getElementById('loading').classList.add('hidden');
   document.getElementById('onboarding').classList.remove('hidden');
   document.getElementById('profile-form').classList.add('hidden');
   document.getElementById('success-screen').classList.add('hidden');
-  showOnboardingStep(1);
-}
-
-/**
- * Show specific onboarding step
- */
-function showOnboardingStep(step) {
-  currentOnboardingStep = step;
-  
-  // Hide all steps
-  for (let i = 1; i <= 5; i++) {
-    const stepEl = document.getElementById(`onboarding-step-${i}`);
-    if (stepEl) stepEl.classList.add('hidden');
-  }
-  
-  // Show current step
-  const currentStepEl = document.getElementById(`onboarding-step-${step}`);
-  if (currentStepEl) currentStepEl.classList.remove('hidden');
   
   // Haptic feedback
   triggerHaptic('impact', 'light');
 }
 
 /**
- * Move to next onboarding step
- */
-function nextOnboardingStep() {
-  if (currentOnboardingStep < 5) {
-    showOnboardingStep(currentOnboardingStep + 1);
-  }
-}
-
-/**
- * Start profile creation
+ * Start profile creation (Step 2: Registration Form)
  */
 function startProfileCreation() {
-  localStorage.setItem('onboarding_completed', 'true');
   document.getElementById('onboarding').classList.add('hidden');
   document.getElementById('profile-form').classList.remove('hidden');
   triggerHaptic('notification', 'success');
@@ -483,6 +447,8 @@ function startProfileCreation() {
  * Show success screen
  */
 function showSuccessScreen() {
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('onboarding').classList.add('hidden');
   document.getElementById('profile-form').classList.add('hidden');
   document.getElementById('success-screen').classList.remove('hidden');
   triggerHaptic('notification', 'success');
@@ -498,26 +464,28 @@ function showSuccessScreen() {
 function setupPhotoUpload() {
   const uploadZone = document.getElementById('photoUploadZone');
   const photoInput = document.getElementById('photoInput');
-  const photoPreview = document.getElementById('photoPreview');
-  const photoPreviewImg = document.getElementById('photoPreviewImg');
   
   if (!uploadZone || !photoInput) return;
   
   uploadZone.addEventListener('click', () => {
-    photoInput.click();
+    if (uploadedPhotos.length < 3) {
+      photoInput.click();
+    }
   });
   
   photoInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      handlePhotoUpload(file);
-    }
+    const files = Array.from(e.target.files);
+    handlePhotoUpload(files);
+    // Reset input to allow selecting same file again
+    photoInput.value = '';
   });
   
   // Drag and drop
   uploadZone.addEventListener('dragover', (e) => {
     e.preventDefault();
-    uploadZone.style.borderColor = 'var(--tg-theme-button-color)';
+    if (uploadedPhotos.length < 3) {
+      uploadZone.style.borderColor = 'var(--tg-theme-button-color)';
+    }
   });
   
   uploadZone.addEventListener('dragleave', (e) => {
@@ -529,9 +497,9 @@ function setupPhotoUpload() {
     e.preventDefault();
     uploadZone.style.borderColor = 'var(--tg-theme-hint-color)';
     
-    const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('image/')) {
-      handlePhotoUpload(file);
+    if (uploadedPhotos.length < 3) {
+      const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+      handlePhotoUpload(files);
     }
   });
 }
@@ -539,34 +507,79 @@ function setupPhotoUpload() {
 /**
  * Handle photo upload
  */
-function handlePhotoUpload(file) {
-  // Validate file
-  if (!file.type.startsWith('image/')) {
-    alert('Пожалуйста, выберите изображение');
-    return;
-  }
-  
-  if (file.size > 5 * 1024 * 1024) {
-    alert('Файл слишком большой. Максимум 5 МБ');
-    return;
-  }
-  
-  // Show preview
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    uploadedPhoto = e.target.result;
-    const photoPreviewImg = document.getElementById('photoPreviewImg');
-    const photoPreview = document.getElementById('photoPreview');
-    
-    if (photoPreviewImg && photoPreview) {
-      photoPreviewImg.src = uploadedPhoto;
-      photoPreview.classList.remove('hidden');
+function handlePhotoUpload(files) {
+  files.forEach(file => {
+    // Check if we already have 3 photos
+    if (uploadedPhotos.length >= 3) {
+      showFormError('Максимум 3 фотографии');
+      return;
     }
     
-    triggerHaptic('notification', 'success');
-  };
+    // Validate file
+    if (!file.type.startsWith('image/')) {
+      showFormError('Пожалуйста, выберите изображение');
+      return;
+    }
+    
+    if (file.size > 5 * 1024 * 1024) {
+      showFormError('Файл слишком большой. Максимум 5 МБ');
+      return;
+    }
+    
+    // Read and add photo
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      uploadedPhotos.push(e.target.result);
+      updatePhotoPreview();
+      triggerHaptic('notification', 'success');
+    };
+    
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Update photo preview display
+ */
+function updatePhotoPreview() {
+  const container = document.getElementById('photoPreviewContainer');
+  const counter = document.getElementById('photoCount');
   
-  reader.readAsDataURL(file);
+  if (!container || !counter) return;
+  
+  // Update counter
+  counter.textContent = uploadedPhotos.length;
+  
+  // Clear container
+  container.innerHTML = '';
+  
+  // Add photo previews
+  uploadedPhotos.forEach((photo, index) => {
+    const item = document.createElement('div');
+    item.className = 'photo-preview-item';
+    
+    const img = document.createElement('img');
+    img.src = photo;
+    img.alt = `Photo ${index + 1}`;
+    
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'remove-photo';
+    removeBtn.textContent = '×';
+    removeBtn.onclick = () => removePhoto(index);
+    
+    item.appendChild(img);
+    item.appendChild(removeBtn);
+    container.appendChild(item);
+  });
+}
+
+/**
+ * Remove photo from upload list
+ */
+function removePhoto(index) {
+  uploadedPhotos.splice(index, 1);
+  updatePhotoPreview();
+  triggerHaptic('impact', 'light');
 }
 
 // ============================================================================
@@ -590,6 +603,12 @@ function setupProfileForm() {
  * Handle profile form submission
  */
 async function handleProfileSubmit(form) {
+  // Validate photos (must have exactly 3)
+  if (uploadedPhotos.length !== 3) {
+    showFormError('Требуется ровно 3 фотографии');
+    return;
+  }
+  
   const formData = new FormData(form);
   const profileData = {
     name: formData.get('name'),
@@ -612,10 +631,8 @@ async function handleProfileSubmit(form) {
     return;
   }
   
-  // Add photo if uploaded
-  if (uploadedPhoto) {
-    profileData.photo = uploadedPhoto;
-  }
+  // Add photos
+  profileData.photos = uploadedPhotos;
   
   try {
     // In production, this would send data to backend
@@ -642,6 +659,11 @@ function showFormError(message) {
     errorEl.textContent = message;
     errorEl.classList.remove('hidden');
     triggerHaptic('notification', 'error');
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+      errorEl.classList.add('hidden');
+    }, 5000);
   }
 }
 
@@ -689,11 +711,8 @@ async function init() {
   if (hasProfile) {
     // Show success screen for existing users
     showSuccessScreen();
-  } else if (hasCompletedOnboarding()) {
-    // Show profile form if onboarding completed but no profile
-    startProfileCreation();
   } else {
-    // Show onboarding for new users
+    // Show onboarding for new users (Step 1: Welcome)
     showOnboarding();
   }
   
