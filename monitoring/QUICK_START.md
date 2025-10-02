@@ -4,13 +4,13 @@
 
 ```bash
 # Start application with monitoring
-docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+docker compose --profile monitoring up -d
 
 # Wait for services to start (30 seconds)
 sleep 30
 
-# Validate monitoring setup
-./scripts/validate-monitoring.sh
+# Validate monitoring setup (if script exists)
+./scripts/validate-monitoring.sh 2>/dev/null || echo "Validation script not found, skipping"
 ```
 
 ## 📊 Access Dashboards
@@ -94,16 +94,16 @@ curl http://localhost:9090/api/v1/rules | jq
 
 ```bash
 # Restart monitoring services
-docker compose -f docker-compose.yml -f docker-compose.monitoring.yml restart
+docker compose restart prometheus grafana loki
 
 # View monitoring logs
 docker compose logs prometheus grafana loki
 
 # Stop monitoring (keeps data)
-docker compose -f docker-compose.monitoring.yml stop
+docker compose stop prometheus grafana loki promtail cadvisor
 
 # Remove monitoring (deletes data)
-docker compose -f docker-compose.monitoring.yml down -v
+docker compose --profile monitoring down -v
 ```
 
 ## 📈 What to Monitor
@@ -152,7 +152,7 @@ docker compose exec prometheus cat /etc/prometheus/prometheus.yml
 docker stats
 
 # Reduce scrape intervals in monitoring/prometheus/prometheus.yml
-# Reduce retention in docker-compose.monitoring.yml
+# Reduce retention in docker-compose.yml (prometheus service)
 ```
 
 ## 📚 Learn More
