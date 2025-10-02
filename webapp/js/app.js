@@ -645,18 +645,51 @@
       return;
     }
 
+    // Check if there are queued interactions to send along with profile
+    const queuedInteractions = getInteractionsQueue();
+    let queueMessage = "";
+    if (queuedInteractions && queuedInteractions.length > 0) {
+      payload.queued_interactions = queuedInteractions;
+      queueMessage = ` (включая ${queuedInteractions.length} отложенных действий)`;
+      debug(`Including ${queuedInteractions.length} queued interactions with profile`);
+    }
+    
+    // Include settings to sync them with the bot
+    if (typeof localStorage !== "undefined") {
+      const savedSettings = localStorage.getItem(SETTINGS_KEY);
+      if (savedSettings) {
+        try {
+          const settingsData = JSON.parse(savedSettings);
+          payload.settings = {
+            lang: settingsData.lang,
+            show_location: settingsData.showLocation,
+            show_age: settingsData.showAge,
+            notify_matches: settingsData.notifyMatches,
+            notify_messages: settingsData.notifyMessages,
+            age_min: settingsData.ageMin,
+            age_max: settingsData.ageMax,
+            max_distance: settingsData.maxDistance
+          };
+          debug("Including settings with profile");
+        } catch (e) {
+          debug("Error loading settings", e);
+        }
+      }
+    }
+
     debug("Sending profile data", payload);
     tg.sendData(JSON.stringify(payload));
     
-    // Save profile data for future editing
+    // Save profile data for future editing and clear interactions queue
     if (typeof localStorage !== "undefined") {
       localStorage.setItem(PROFILE_KEY, JSON.stringify(payload));
       localStorage.removeItem(STORAGE_KEY);
-      debug("Profile saved to localStorage");
+      localStorage.removeItem(INTERACTIONS_QUEUE_KEY); // Clear sent interactions
+      debug("Profile saved to localStorage and interactions queue cleared");
     }
     
-    // Don't close the app automatically - let user decide
-    showStatus("Анкета успешно отправлена! Теперь можешь перейти к просмотру метчей.");
+    // Note: tg.sendData() will close the WebApp - this is Telegram's intended behavior
+    showStatus(`Анкета отправлена${queueMessage}! Данные обрабатываются...`);
 
     if (autosaveStatus) {
       autosaveStatus.textContent = "";
@@ -842,21 +875,60 @@
   // Retry function for error state
   window.retryLoadMatches = loadMatches;
 
-  function sendInteraction(targetUserId, action) {
-    debug(`Sending ${action} to user ${targetUserId}`);
-    
-    if (!tg) {
-      showStatus(`Невозможно отправить действие без Telegram.`, true);
-      return;
+  // Queue for storing interactions locally to avoid closing the app
+  const INTERACTIONS_QUEUE_KEY = "dating-interactions-queue";
+  
+  function getInteractionsQueue() {
+    try {
+      const queue = localStorage.getItem(INTERACTIONS_QUEUE_KEY);
+      return queue ? JSON.parse(queue) : [];
+    } catch (e) {
+      debug("Error loading interactions queue", e);
+      return [];
     }
-
-    const payload = {
+  }
+  
+  function saveInteractionsQueue(queue) {
+    try {
+      localStorage.setItem(INTERACTIONS_QUEUE_KEY, JSON.stringify(queue));
+      debug("Interactions queue saved", queue);
+    } catch (e) {
+      debug("Error saving interactions queue", e);
+    }
+  }
+  
+  function queueInteraction(targetUserId, action) {
+    debug(`Queuing ${action} for user ${targetUserId}`);
+    
+    const queue = getInteractionsQueue();
+    queue.push({
       action: action,
-      target_user_id: targetUserId
-    };
-
-    debug("Sending interaction data", payload);
-    tg.sendData(JSON.stringify(payload));
+      target_user_id: targetUserId,
+      timestamp: Date.now()
+    });
+    saveInteractionsQueue(queue);
+    
+    // Show visual feedback that interaction was saved locally
+    const queueCount = queue.length;
+    showStatus(`${action === 'like' ? '❤️ Симпатия' : '👎 Дизлайк'} сохранён (${queueCount} в очереди)`, false);
+    setTimeout(() => {
+      if (document.getElementById("status")) {
+        document.getElementById("status").textContent = "";
+      }
+    }, 2000);
+  }
+  
+  function sendInteraction(targetUserId, action) {
+    debug(`Queueing ${action} for user ${targetUserId}`);
+    
+    // Instead of sending immediately via tg.sendData() (which would close the app),
+    // we queue the interaction locally. This allows users to continue browsing
+    // multiple profiles without the WebApp closing after each like/dislike.
+    queueInteraction(targetUserId, action);
+    
+    // Note: Queued interactions will be automatically sent to the bot when:
+    // 1. User submits or updates their profile
+    // This ensures actions are synced while maintaining good UX
   }
 
   function handleLike(profileId) {
@@ -961,25 +1033,18 @@
     // Update debug mode
     debugMode = settings.debugMode;
     
-    // Send settings to bot for persistence in database
-    if (tg) {
-      const payload = {
-        action: "update_settings",
-        lang: settings.lang,
-        show_location: settings.showLocation,
-        show_age: settings.showAge,
-        notify_matches: settings.notifyMatches,
-        notify_messages: settings.notifyMessages,
-        age_min: settings.ageMin,
-        age_max: settings.ageMax,
-        max_distance: settings.maxDistance
-      };
-      debug("Sending settings to bot", payload);
-      tg.sendData(JSON.stringify(payload));
-    } else {
-      debug("Telegram WebApp not available, settings saved locally only");
-      alert("Настройки сохранены локально!");
-    }
+    // Settings are now saved locally only to avoid closing the app
+    // They will be synced to the bot when the profile is next updated/submitted
+    // This prevents the WebApp from closing after every settings change
+    debug("Settings saved locally (will sync with bot on next profile update)");
+    
+    // Show user feedback
+    showStatus("✅ Настройки сохранены", false);
+    setTimeout(() => {
+      if (document.getElementById("status")) {
+        document.getElementById("status").textContent = "";
+      }
+    }, 2000);
   }
 
   // Settings event listeners

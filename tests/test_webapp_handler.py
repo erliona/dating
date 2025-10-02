@@ -223,3 +223,115 @@ class TestWebAppHandler:
         assert profile.interests == []
         assert profile.goal is None
         assert profile.photo_url is None
+    
+    async def test_webapp_handler_processes_queued_interactions(self) -> None:
+        """Test that webapp_handler correctly processes queued interactions."""
+        # Mock message with web_app_data
+        message = MagicMock()
+        message.from_user = MagicMock()
+        message.from_user.id = 12345
+        message.answer = AsyncMock()
+        message.bot = MagicMock()
+        
+        # Create profile data with queued interactions
+        profile_data = {
+            "name": "Alice",
+            "age": 25,
+            "gender": "female",
+            "preference": "male",
+            "queued_interactions": [
+                {"action": "like", "target_user_id": 67890, "timestamp": 1234567890},
+                {"action": "dislike", "target_user_id": 11111, "timestamp": 1234567891}
+            ]
+        }
+        
+        # Mock web_app_data
+        web_app_data = MagicMock()
+        web_app_data.data = json.dumps(profile_data)
+        message.web_app_data = web_app_data
+        
+        # Mock dependencies
+        with patch("bot.main.finalize_profile", new_callable=AsyncMock) as mock_finalize, \
+             patch("bot.main.handle_interaction", new_callable=AsyncMock) as mock_handle_interaction:
+            await webapp_handler(message)
+        
+        # Verify finalize_profile was called
+        mock_finalize.assert_called_once()
+        
+        # Verify handle_interaction was called for each queued interaction
+        assert mock_handle_interaction.call_count == 2
+        
+        # Check first interaction (like)
+        call_args_1 = mock_handle_interaction.call_args_list[0]
+        assert call_args_1[0][0] == message
+        assert call_args_1[0][1] == 12345  # from_user_id
+        assert call_args_1[0][2] == 67890  # target_user_id
+        assert call_args_1[0][3] == "like"  # action
+        
+        # Check second interaction (dislike)
+        call_args_2 = mock_handle_interaction.call_args_list[1]
+        assert call_args_2[0][0] == message
+        assert call_args_2[0][1] == 12345  # from_user_id
+        assert call_args_2[0][2] == 11111  # target_user_id
+        assert call_args_2[0][3] == "dislike"  # action
+    
+    async def test_webapp_handler_processes_settings(self) -> None:
+        """Test that webapp_handler correctly processes settings data."""
+        # Mock message with web_app_data
+        message = MagicMock()
+        message.from_user = MagicMock()
+        message.from_user.id = 12345
+        message.answer = AsyncMock()
+        message.bot = MagicMock()
+        
+        # Mock settings repository
+        mock_settings_repo = MagicMock()
+        mock_settings_repo.upsert = AsyncMock()
+        
+        # Create profile data with settings
+        profile_data = {
+            "name": "Alice",
+            "age": 25,
+            "gender": "female",
+            "preference": "male",
+            "settings": {
+                "lang": "ru",
+                "show_location": True,
+                "show_age": False,
+                "notify_matches": True,
+                "notify_messages": False,
+                "age_min": 20,
+                "age_max": 35,
+                "max_distance": 50
+            }
+        }
+        
+        # Mock web_app_data
+        web_app_data = MagicMock()
+        web_app_data.data = json.dumps(profile_data)
+        message.web_app_data = web_app_data
+        
+        # Mock dependencies
+        with patch("bot.main.finalize_profile", new_callable=AsyncMock) as mock_finalize, \
+             patch("bot.main.get_settings_repository") as mock_get_settings_repo:
+            mock_get_settings_repo.return_value = mock_settings_repo
+            await webapp_handler(message)
+        
+        # Verify finalize_profile was called
+        mock_finalize.assert_called_once()
+        
+        # Verify settings repository upsert was called
+        mock_settings_repo.upsert.assert_called_once()
+        call_args = mock_settings_repo.upsert.call_args
+        assert call_args[0][0] == 12345  # user_id
+        
+        # Check that settings were passed correctly
+        kwargs = call_args[1]
+        assert kwargs["lang"] == "ru"
+        assert kwargs["show_location"] is True
+        assert kwargs["show_age"] is False
+        assert kwargs["notify_matches"] is True
+        assert kwargs["notify_messages"] is False
+        assert kwargs["age_min"] == 20
+        assert kwargs["age_max"] == 35
+        assert kwargs["max_distance"] == 50
