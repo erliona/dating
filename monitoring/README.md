@@ -73,6 +73,8 @@ docker compose -f docker-compose.monitoring.yml down -v
 - System logs
 - Searchable and filterable
 
+**Important**: Loki logs require Promtail to be running to collect Docker container logs. Ensure you start the monitoring stack as shown in Quick Start above.
+
 ## 📈 Grafana Dashboards
 
 ### Pre-configured Dashboards
@@ -245,6 +247,104 @@ docker compose -f docker-compose.monitoring.yml up -d
 2. Verify firewall rules
 
 3. Check container logs for errors
+
+### Loki logs not visible in Grafana
+
+**Problem**: The "Recent Logs" panel in Grafana shows "No data" or logs are not appearing.
+
+**Root Causes & Solutions**:
+
+1. **Monitoring stack not started properly**
+   
+   The monitoring components (Loki, Promtail) must be explicitly started:
+   ```bash
+   # Ensure you're using the monitoring compose file
+   docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+   
+   # Verify Loki and Promtail are running
+   docker compose ps loki promtail
+   ```
+   
+   Both should show status: "Up"
+
+2. **Promtail not collecting logs**
+   
+   Check Promtail logs to verify it's working:
+   ```bash
+   docker compose logs promtail | tail -30
+   ```
+   
+   You should see messages like:
+   - "Starting Promtail"
+   - "client: connected"
+   - No errors about file permissions
+
+3. **Docker socket permissions**
+   
+   Promtail needs read access to `/var/lib/docker/containers`. Verify the volume mount:
+   ```bash
+   docker compose logs promtail | grep -i "permission\|error"
+   ```
+
+4. **Loki datasource not configured**
+   
+   In Grafana (http://localhost:3000):
+   - Go to Configuration → Data Sources
+   - Find "Loki"
+   - Click "Save & Test" 
+   - Should show green "Data source is working"
+
+5. **Test Loki directly**
+   
+   Query Loki API to verify it's receiving logs:
+   ```bash
+   curl -G -s "http://localhost:3100/loki/api/v1/query" \
+     --data-urlencode 'query={job="docker"}' \
+     | python3 -m json.tool | head -20
+   ```
+   
+   You should see log entries in the response.
+
+6. **Check Loki storage**
+   
+   Verify Loki has write permissions:
+   ```bash
+   docker compose logs loki | grep -i "error\|permission"
+   ```
+
+7. **Use correct LogQL queries**
+   
+   In Grafana Explore, try these queries:
+   ```logql
+   # All Docker container logs
+   {job="docker"}
+   
+   # Bot service logs specifically
+   {job="docker", container_name=~".*bot.*"}
+   
+   # Filter by log content
+   {job="docker"} |= "ERROR"
+   {job="docker"} |= "bot"
+   
+   # Webapp logs
+   {job="docker", container_name=~".*webapp.*"}
+   ```
+
+**Quick Verification Checklist**:
+- [ ] Started with monitoring compose file
+- [ ] Loki container is running (`docker compose ps loki`)
+- [ ] Promtail container is running (`docker compose ps promtail`)
+- [ ] No errors in Promtail logs
+- [ ] Loki datasource shows "Working" in Grafana
+- [ ] Test query `{job="docker"}` returns logs in Explore
+
+**Still not working?**
+Restart the monitoring stack:
+```bash
+docker compose -f docker-compose.monitoring.yml restart loki promtail
+# Wait 10 seconds for services to stabilize
+docker compose logs loki promtail
+```
 
 ## 📚 Resources
 

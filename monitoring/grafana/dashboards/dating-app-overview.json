@@ -1,6 +1,9 @@
 {
   "title": "Dating App - Overview",
-  "tags": ["dating", "overview"],
+  "tags": [
+    "dating",
+    "overview"
+  ],
   "timezone": "browser",
   "panels": [
     {
@@ -107,12 +110,13 @@
       },
       "targets": [
         {
-          "expr": "{job=\"docker\"}",
+          "expr": "{job=\"docker\"} | json | line_format \"{{.log}}\"",
           "refId": "A",
           "datasource": {
             "type": "loki",
             "uid": "loki"
-          }
+          },
+          "legendFormat": "{{ container_name }}"
         }
       ],
       "gridPos": {
@@ -127,7 +131,8 @@
         "wrapLogMessage": true,
         "sortOrder": "Descending",
         "enableLogDetails": true
-      }
+      },
+      "description": "Recent logs from all Docker containers. If no logs appear, ensure monitoring stack is running: `docker compose --profile monitoring up -d` or check [Troubleshooting Guide](https://github.com/erliona/dating/blob/main/monitoring/README.md#loki-logs-not-visible-in-grafana)"
     }
   ],
   "refresh": "10s",
