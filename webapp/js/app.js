@@ -482,6 +482,9 @@ async function detectUserLocation() {
   
   if (!statusEl || !detectBtn) return;
   
+  // Haptic feedback when starting location detection
+  triggerHaptic('impact', 'medium');
+  
   // Show detecting status
   statusEl.className = 'location-status detecting';
   statusEl.textContent = '🔍 Определяем ваше местоположение...';
@@ -672,11 +675,20 @@ function setupPhotoUpload() {
   // Setup individual file inputs for each slot
   for (let i = 0; i < 3; i++) {
     const input = document.getElementById(`photoInput${i}`);
+    const slot = document.getElementById(`photoSlot${i}`);
+    
     if (input) {
       input.addEventListener('change', (e) => {
         handlePhotoUpload(e.target.files[0], i);
         // Reset input to allow selecting same file again
         input.value = '';
+      });
+    }
+    
+    // Add haptic feedback when clicking photo slot
+    if (slot) {
+      slot.addEventListener('click', () => {
+        triggerHaptic('impact', 'light');
       });
     }
   }
@@ -811,6 +823,9 @@ function setupProfileForm() {
  * Handle profile form submission
  */
 async function handleProfileSubmit(form) {
+  // Haptic feedback on form submission attempt
+  triggerHaptic('impact', 'medium');
+  
   // Validate photos (must have exactly 3)
   const validPhotos = uploadedPhotos.filter(photo => photo);
   if (validPhotos.length !== 3) {
@@ -885,6 +900,9 @@ async function handleProfileSubmit(form) {
       
       console.log('Sending profile to bot:', payload);
       
+      // Haptic feedback on successful submission
+      triggerHaptic('notification', 'success');
+      
       // Send to bot (this will close the WebApp)
       tg.sendData(JSON.stringify(payload));
       
@@ -896,6 +914,9 @@ async function handleProfileSubmit(form) {
       localStorage.setItem('profile_created', 'true');
       localStorage.setItem('profile_data', JSON.stringify(profileData));
       console.warn('Telegram WebApp not available, saving to localStorage only');
+      
+      // Haptic feedback on successful save
+      triggerHaptic('notification', 'success');
       
       // Show success screen for demo
       showSuccessScreen();
