@@ -6,10 +6,15 @@ import logging
 import sys
 from datetime import datetime
 
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, Router
+from aiogram.filters import Command
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import KeyboardButton, Message, ReplyKeyboardMarkup, WebAppInfo
 
 from .config import load_config
+
+# Create router for handlers
+router = Router()
 
 
 class JsonFormatter(logging.Formatter):
@@ -56,6 +61,38 @@ def configure_logging():
     logging.getLogger("aiohttp").setLevel(logging.WARNING)
 
 
+@router.message(Command("start"))
+async def start_handler(message: Message) -> None:
+    """Send welcome message with WebApp button."""
+    config = load_config()
+    
+    if not config.webapp_url:
+        await message.answer(
+            "⚠️ WebApp is not configured. "
+            "Please set WEBAPP_URL environment variable."
+        )
+        return
+    
+    # Create keyboard with WebApp button
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                KeyboardButton(
+                    text="🚀 Открыть Mini App",
+                    web_app=WebAppInfo(url=config.webapp_url),
+                )
+            ]
+        ],
+        resize_keyboard=True,
+    )
+    
+    await message.answer(
+        "👋 Добро пожаловать в Dating Mini App!\n\n"
+        "Нажмите кнопку ниже, чтобы открыть приложение и создать свою анкету.",
+        reply_markup=keyboard,
+    )
+
+
 async def main() -> None:
     """Bootstrap the bot."""
     configure_logging()
@@ -85,6 +122,7 @@ async def main() -> None:
         logger.info("Bot instance created", extra={"event_type": "bot_created"})
         
         dp = Dispatcher(storage=MemoryStorage())
+        dp.include_router(router)
         logger.info(
             "Dispatcher initialized with MemoryStorage",
             extra={"event_type": "dispatcher_initialized"}

@@ -43,7 +43,7 @@ async def start_handler(message: Message) -> None:
         keyboard=[
             [
                 KeyboardButton(
-                    text="🚀 Open Mini App",
+                    text="🚀 Открыть Mini App",
                     web_app=WebAppInfo(url=config.webapp_url),
                 )
             ]
@@ -52,12 +52,8 @@ async def start_handler(message: Message) -> None:
     )
     
     await message.answer(
-        "👋 Welcome! Epic A features:\n"
-        "• WebApp SDK integration\n"
-        "• Theme handling\n"
-        "• Haptic feedback\n"
-        "• HMAC validation + JWT\n"
-        "• Deep-links routing",
+        "👋 Добро пожаловать в Dating Mini App!\n\n"
+        "Нажмите кнопку ниже, чтобы открыть приложение и создать свою анкету.",
         reply_markup=keyboard,
     )
 

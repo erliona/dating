@@ -20,73 +20,132 @@
         <p>Loading...</p>
     </div>
 
-    <!-- Main Content -->
-    <div id="content" class="container hidden">
-        <!-- Platform Information -->
-        <div class="info-card">
-            <h2>🚀 Mini App Initialized</h2>
-            <p>Epic A1: Telegram WebApp SDK integration successful</p>
-            <div id="platformInfo"></div>
-        </div>
-
-        <!-- Theme Demo -->
-        <div class="info-card">
-            <h2>🎨 Theme Demo</h2>
-            <p>Theme switches automatically with Telegram app settings (no reload required)</p>
-            <div id="themeColors" class="theme-colors"></div>
-        </div>
-
-        <!-- Haptic Feedback Demo -->
-        <div class="info-card">
-            <h2>📳 Haptic Feedback</h2>
-            <p>Test haptic feedback on supported devices:</p>
-            <div class="button-group">
-                <button class="button" onclick="testHaptic('impact', 'light')">Light</button>
-                <button class="button" onclick="testHaptic('impact', 'medium')">Medium</button>
-                <button class="button" onclick="testHaptic('impact', 'heavy')">Heavy</button>
-            </div>
-            <div class="button-group">
-                <button class="button-secondary button" onclick="testHaptic('notification', 'success')">Success</button>
-                <button class="button-secondary button" onclick="testHaptic('notification', 'warning')">Warning</button>
-                <button class="button-secondary button" onclick="testHaptic('notification', 'error')">Error</button>
+    <!-- Onboarding Flow -->
+    <div id="onboarding" class="container hidden">
+        <!-- Step 1: Welcome -->
+        <div id="onboarding-step-1" class="onboarding-step">
+            <div class="onboarding-card">
+                <h1 class="onboarding-title">👋 Добро пожаловать!</h1>
+                <p class="onboarding-subtitle">Найдите интересных людей рядом с вами</p>
+                
+                <div class="onboarding-features">
+                    <div class="feature-item">
+                        <div class="feature-icon">💬</div>
+                        <div class="feature-text">Общайтесь с новыми людьми</div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">❤️</div>
+                        <div class="feature-text">Находите совпадения</div>
+                    </div>
+                    <div class="feature-item">
+                        <div class="feature-icon">🎯</div>
+                        <div class="feature-text">Укажите свои цели</div>
+                    </div>
+                </div>
+                
+                <button class="button button-primary" onclick="startProfileCreation()">Начать</button>
             </div>
         </div>
+    </div>
 
-        <!-- BackButton Demo -->
+    <!-- Profile Form -->
+    <div id="profile-form" class="container hidden">
         <div class="info-card">
-            <h2>⬅️ Back Button</h2>
-            <p>BackButton support is active. Test it:</p>
-            <div class="button-group">
-                <button class="button" onclick="showBackButton()">Show Back Button</button>
-                <button class="button-secondary button" onclick="hideBackButton()">Hide Back Button</button>
+            <h2>Создание анкеты</h2>
+            <form id="profileForm">
+                <div class="form-group">
+                    <label>Фото * (ровно 3 фото)</label>
+                    <div class="photo-upload-zone" id="photoUploadZone">
+                        <div class="upload-icon">📷</div>
+                        <p>Добавьте 3 фотографии</p>
+                        <input type="file" id="photoInput" accept="image/*" multiple style="display: none;">
+                    </div>
+                    <div id="photoPreviewContainer" class="photo-preview-container"></div>
+                    <p class="photo-counter">Загружено: <span id="photoCount">0</span> / 3</p>
+                </div>
+                
+                <div class="form-group">
+                    <label>Имя *</label>
+                    <input type="text" name="name" required minlength="2" maxlength="100" placeholder="Ваше имя">
+                </div>
+                
+                <div class="form-group">
+                    <label>Дата рождения * (18+)</label>
+                    <input type="date" name="birth_date" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Пол *</label>
+                    <select name="gender" required>
+                        <option value="">Выберите</option>
+                        <option value="male">Мужской</option>
+                        <option value="female">Женский</option>
+                        <option value="other">Другой</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Ищу *</label>
+                    <select name="orientation" required>
+                        <option value="">Выберите</option>
+                        <option value="male">Мужчин</option>
+                        <option value="female">Женщин</option>
+                        <option value="any">Всех</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Цель знакомства *</label>
+                    <select name="goal" required>
+                        <option value="">Выберите</option>
+                        <option value="friendship">Дружба</option>
+                        <option value="dating">Свидания</option>
+                        <option value="relationship">Отношения</option>
+                        <option value="serious">Серьёзные отношения</option>
+                        <option value="casual">Лёгкое общение</option>
+                        <option value="networking">Нетворкинг</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>О себе</label>
+                    <textarea name="bio" maxlength="1000" rows="4" placeholder="Расскажите о себе..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Местоположение *</label>
+                    <button type="button" class="button button-secondary" id="detectLocationBtn" onclick="detectUserLocation()">
+                        📍 Определить автоматически
+                    </button>
+                    <div id="locationStatus" class="location-status hidden"></div>
+                    <div id="manualLocationFields" class="manual-location">
+                        <label>Город *</label>
+                        <input type="text" id="cityInput" name="city" placeholder="Москва" required>
+                    </div>
+                    <input type="hidden" id="latitude" name="latitude">
+                    <input type="hidden" id="longitude" name="longitude">
+                </div>
+                
+                <div id="formError" class="error-message hidden"></div>
+                
+                <button type="submit" class="button button-primary">Создать анкету</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Success Screen -->
+    <div id="success-screen" class="container hidden">
+        <div class="info-card text-center">
+            <h2>✅ Анкета создана!</h2>
+            <p class="mt-lg">Ваша анкета успешно создана и сохранена.</p>
+            <div class="placeholder-content">
+                <p>🚀 Скоро здесь появятся новые возможности:</p>
+                <ul class="info-list">
+                    <li>Просмотр других анкет</li>
+                    <li>Система совпадений</li>
+                    <li>Обмен сообщениями</li>
+                </ul>
             </div>
-        </div>
-
-        <!-- Deep Links Info -->
-        <div class="info-card">
-            <h2>🔗 Deep Links Support</h2>
-            <p>Epic A3: Deep-links startapp routing enabled</p>
-            <ul class="info-list">
-                <li><strong>Format:</strong> t.me/botname/appname?startapp=type_id</li>
-                <li><strong>Chat:</strong> startapp=chat_123</li>
-                <li><strong>Profile:</strong> startapp=profile_456</li>
-                <li><strong>Payment:</strong> startapp=payment_789</li>
-            </ul>
-        </div>
-
-        <!-- Features Checklist -->
-        <div class="info-card">
-            <h2>✅ Implemented Features</h2>
-            <ul class="info-list">
-                <li>✅ Telegram WebApp SDK Integration</li>
-                <li>✅ Theme Handling (Light/Dark)</li>
-                <li>✅ BackButton Support</li>
-                <li>✅ Safe Area Handling (viewport-fit=cover)</li>
-                <li>✅ Haptic Feedback API</li>
-                <li>✅ Cross-platform compatibility</li>
-                <li>✅ Deep-links routing</li>
-                <li>✅ Closing confirmation enabled</li>
-            </ul>
         </div>
     </div>
 
