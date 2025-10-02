@@ -24,8 +24,8 @@ const state = {
 // API service layer (separation of concerns)
 const api = {
     async getUserProfile() {
-        // In real implementation, this would fetch from backend
-        // For now, return mock data or null
+        // TODO: Currently returns mock data (null) for development/demo purposes.
+        // Backend integration is planned; replace with API call when backend is ready.
         return null;
     },
 
@@ -64,7 +64,8 @@ const api = {
     },
 
     async getRecommendations() {
-        // Mock recommendations - in real app, fetch from backend
+        // TODO: Currently returns mock recommendations for development/demo purposes.
+        // Backend integration is planned; replace with API call when backend is ready.
         return [
             {
                 user_id: 101,
@@ -88,7 +89,8 @@ const api = {
     },
 
     async getMatches() {
-        // Mock matches - in real app, fetch from backend
+        // TODO: Currently returns mock matches for development/demo purposes.
+        // Backend integration is planned; replace with API call when backend is ready.
         return [];
     }
 };
