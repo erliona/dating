@@ -24,8 +24,8 @@ const state = {
 // API service layer (separation of concerns)
 const api = {
     async getUserProfile() {
-        // In real implementation, this would fetch from backend
-        // For now, return mock data or null
+        // Stub implementation: returns null (no user profile loaded)
+        // Replace with backend fetch in a real implementation
         return null;
     },
 
