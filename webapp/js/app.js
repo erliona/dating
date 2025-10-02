@@ -892,23 +892,41 @@ async function handleProfileSubmit(form) {
   try {
     // Send data to Telegram bot
     if (tg && tg.sendData) {
-      // Prepare payload for bot
-      const payload = {
-        action: 'create_profile',
-        profile: profileData
+      // Note: tg.sendData() has a 4096-byte limit, so we can't send photos directly
+      // Photos should be uploaded via HTTP API separately
+      // For now, we only send profile metadata and store photos locally
+      
+      // Prepare payload without photos (to avoid exceeding size limit)
+      const profileMetadata = {
+        name: profileData.name,
+        birth_date: profileData.birth_date,
+        gender: profileData.gender,
+        orientation: profileData.orientation,
+        goal: profileData.goal,
+        bio: profileData.bio,
+        city: profileData.city,
+        latitude: profileData.latitude,
+        longitude: profileData.longitude,
+        geohash: profileData.geohash,
+        photo_count: profileData.photos.length
       };
       
-      console.log('Sending profile to bot:', payload);
+      const payload = {
+        action: 'create_profile',
+        profile: profileMetadata
+      };
+      
+      console.log('Sending profile metadata to bot:', payload);
+      
+      // Store full profile data (including photos) in localStorage
+      localStorage.setItem('profile_created', 'true');
+      localStorage.setItem('profile_data', JSON.stringify(profileData));
       
       // Haptic feedback on successful submission
       triggerHaptic('notification', 'success');
       
       // Send to bot (this will close the WebApp)
       tg.sendData(JSON.stringify(payload));
-      
-      // Store in localStorage for fallback/cache
-      localStorage.setItem('profile_created', 'true');
-      localStorage.setItem('profile_data', JSON.stringify(profileData));
     } else {
       // Fallback: store only in localStorage (for testing without bot)
       localStorage.setItem('profile_created', 'true');

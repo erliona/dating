@@ -151,7 +151,11 @@ async def handle_create_profile(
     session: AsyncSession,
     logger: logging.Logger
 ) -> None:
-    """Handle profile creation."""
+    """Handle profile creation.
+    
+    Note: Photos are not sent via sendData() due to the 4KB size limit.
+    Photos should be uploaded separately via HTTP API in a future update.
+    """
     profile_data = data.get("profile", {})
     
     # Validate profile data
@@ -202,13 +206,19 @@ async def handle_create_profile(
         }
     )
     
+    # Note: photo_count is included but photos themselves are stored locally
+    # TODO: Implement photo upload via HTTP API
+    photo_count = profile_data.get("photo_count", 0)
+    photo_status = f"📸 Фото: {photo_count}" if photo_count > 0 else "📸 Фото: не загружены"
+    
     await message.answer(
         "✅ Профиль создан!\n\n"
         f"Имя: {profile.name}\n"
         f"Возраст: {profile.birth_date}\n"
         f"Пол: {profile.gender}\n"
         f"Цель: {profile.goal}\n"
-        f"Город: {profile.city or 'не указан'}"
+        f"Город: {profile.city or 'не указан'}\n"
+        f"{photo_status}"
     )
 
 
