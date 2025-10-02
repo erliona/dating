@@ -22,11 +22,11 @@ This directory contains the monitoring and observability stack for the Dating ap
 ### Deploy with Monitoring
 
 ```bash
-# Start main application with monitoring stack
-docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+# Start main application with monitoring stack (recommended)
+docker compose --profile monitoring up -d
 
-# Or for development
-docker compose -f docker-compose.dev.yml -f docker-compose.monitoring.yml up -d
+# Or for development with monitoring
+docker compose -f docker-compose.dev.yml --profile monitoring up -d
 ```
 
 ### Access Dashboards
@@ -39,10 +39,10 @@ docker compose -f docker-compose.dev.yml -f docker-compose.monitoring.yml up -d
 
 ```bash
 # Stop all services including monitoring
-docker compose -f docker-compose.yml -f docker-compose.monitoring.yml down
+docker compose --profile monitoring down
 
 # Remove monitoring data volumes (⚠️ this deletes all metrics and logs)
-docker compose -f docker-compose.monitoring.yml down -v
+docker compose down -v
 ```
 
 ## 📊 Available Metrics
@@ -131,9 +131,10 @@ To receive alert notifications:
 
 1. Deploy Alertmanager:
 ```yaml
-# Add to docker-compose.monitoring.yml
+# Add to docker-compose.yml under the monitoring profile
 alertmanager:
   image: prom/alertmanager:v0.26.0
+  profiles: ["monitoring"]
   ports:
     - "9093:9093"
   volumes:
@@ -211,8 +212,8 @@ Clean old data:
 # Loki retention is configured to 30 days
 
 # To manually clean old data:
-docker compose -f docker-compose.monitoring.yml down -v
-docker compose -f docker-compose.monitoring.yml up -d
+docker compose --profile monitoring down -v
+docker compose --profile monitoring up -d
 ```
 
 ## 🐛 Troubleshooting
@@ -258,8 +259,8 @@ docker compose -f docker-compose.monitoring.yml up -d
    
    The monitoring components (Loki, Promtail) must be explicitly started:
    ```bash
-   # Ensure you're using the monitoring compose file
-   docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+   # Start with the monitoring profile
+   docker compose --profile monitoring up -d
    
    # Verify Loki and Promtail are running
    docker compose ps loki promtail
@@ -331,7 +332,7 @@ docker compose -f docker-compose.monitoring.yml up -d
    ```
 
 **Quick Verification Checklist**:
-- [ ] Started with monitoring compose file
+- [ ] Started with monitoring profile (`--profile monitoring`)
 - [ ] Loki container is running (`docker compose ps loki`)
 - [ ] Promtail container is running (`docker compose ps promtail`)
 - [ ] No errors in Promtail logs
@@ -341,7 +342,7 @@ docker compose -f docker-compose.monitoring.yml up -d
 **Still not working?**
 Restart the monitoring stack:
 ```bash
-docker compose -f docker-compose.monitoring.yml restart loki promtail
+docker compose restart loki promtail
 # Wait 10 seconds for services to stabilize
 docker compose logs loki promtail
 ```
