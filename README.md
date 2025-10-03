@@ -182,26 +182,28 @@ docker compose --profile monitoring up -d
 
 ```
 dating/
-├── .github/workflows/     # CI/CD pipelines
-│   ├── ci.yml            # Тестирование и сборка
-│   └── deploy.yml        # Автоматический деплой
-├── bot/                  # Код бота (добавьте свою логику)
-│   ├── main.py          # Точка входа
-│   └── config.py        # Конфигурация
-├── webapp/              # Веб-приложение (статика)
+├── bot/                  # Код бота (11 модулей)
+│   ├── main.py          # Точка входа, хендлеры
+│   ├── api.py           # HTTP API для фото
+│   ├── db.py            # Модели базы данных
+│   ├── repository.py    # Слой доступа к данным
+│   └── ...              # validation, security, geo, media, cache
+├── webapp/              # Mini App фронтенд
+│   ├── index.html       # Главная страница
+│   ├── js/              # JavaScript модули
+│   └── css/             # Стили
+├── tests/               # Тесты (254 теста, 82% покрытие)
 ├── migrations/          # Миграции Alembic
-│   └── versions/       # Версии миграций
-├── monitoring/         # Конфигурация мониторинга
-│   ├── prometheus/     # Конфиг Prometheus
-│   ├── grafana/        # Дашборды Grafana
-│   ├── loki/          # Конфиг Loki
-│   └── promtail/      # Конфиг Promtail
-├── docs/              # Документация
+├── monitoring/          # Конфигурация мониторинга
+│   ├── grafana/        # 3 дашборда Grafana
+│   ├── prometheus/     # Prometheus конфиг
+│   └── loki/          # Loki конфиг
+├── docs/               # Документация (см. DOCUMENTATION.md)
 ├── docker-compose.yml           # Production с HTTPS
 ├── docker-compose.dev.yml       # Development без HTTPS
-├── Dockerfile         # Образ бота
-├── .env.example      # Шаблон конфигурации
-├── requirements.txt  # Production зависимости
+├── Dockerfile          # Образ бота
+├── .env.example       # Шаблон конфигурации
+├── requirements.txt   # Production зависимости
 └── requirements-dev.txt # Dev зависимости
 ```
 
@@ -283,9 +285,25 @@ docker compose logs db
 
 ---
 
+## 📖 Документация
+
+### Основные документы
+- **[📘 Полная документация](DOCUMENTATION.md)** - Comprehensive guide (English)
+- **[📋 Индекс документации](docs/INDEX.md)** - Навигация по всей документации
+- **[🏗️ Архитектура](docs/ARCHITECTURE.md)** - Архитектура системы
+- **[🚀 Deployment](docs/DEPLOYMENT.md)** - Руководство по развертыванию
+- **[🧪 Тестирование](docs/TESTING.md)** - Запуск и написание тестов
+
+### Статус проекта
+- **[📊 Project Status](PROJECT_STATUS.md)** - Реализованные и планируемые функции
+- **[📝 Changelog](CHANGELOG.md)** - История изменений
+- **[🗺️ Roadmap](ROADMAP.md)** - План развития
+
+---
+
 ## 📞 Поддержка
 
-- 📖 **Документация**: см. [docs/](docs/)
+- 📖 **Документация**: [DOCUMENTATION.md](DOCUMENTATION.md) | [docs/](docs/)
 - 🐛 **Bug reports**: [GitHub Issues](https://github.com/erliona/dating/issues)
 - 💬 **Обсуждения**: [GitHub Discussions](https://github.com/erliona/dating/discussions)
 
