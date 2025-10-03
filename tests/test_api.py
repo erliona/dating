@@ -549,13 +549,34 @@ class TestUploadPhotoHandlerComplete:
         multipart_reader = AsyncMock()
         multipart_reader.__aiter__.return_value = [photo_field, slot_field]
         
-        request = MagicMock()
-        request.app = {"config": config, "session_maker": MagicMock()}
-        request.headers = {"Authorization": f"Bearer {token}"}
-        request.multipart = AsyncMock(return_value=multipart_reader)
+        # Mock database session and repository
+        mock_user = MagicMock()
+        mock_user.id = 1
         
-        # Call handler
-        response = await upload_photo_handler(request)
+        mock_photo = MagicMock()
+        mock_photo.id = 1
+        
+        mock_repository = AsyncMock()
+        mock_repository.get_user_by_tg_id = AsyncMock(return_value=mock_user)
+        mock_repository.add_photo = AsyncMock(return_value=mock_photo)
+        
+        mock_session = AsyncMock()
+        mock_session.commit = AsyncMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        
+        # Patch ProfileRepository to return our mock
+        from unittest.mock import patch
+        with patch('bot.api.ProfileRepository', return_value=mock_repository):
+            mock_session_maker = MagicMock(return_value=mock_session)
+            
+            request = MagicMock()
+            request.app = {"config": config, "session_maker": mock_session_maker}
+            request.headers = {"Authorization": f"Bearer {token}"}
+            request.multipart = AsyncMock(return_value=multipart_reader)
+            
+            # Call handler
+            response = await upload_photo_handler(request)
         
         # For this test, we expect success if NSFW score passes threshold
         # or appropriate error if photo is rejected

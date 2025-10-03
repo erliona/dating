@@ -410,6 +410,34 @@ async def upload_photo_handler(request: web.Request) -> web.Response:
         else:
             photo_url = f"/photos/{filename}"
         
+        # Get image dimensions
+        image = Image.open(BytesIO(optimized_data))
+        width, height = image.size
+        
+        # Save photo metadata to database
+        async with session_maker() as session:
+            repository = ProfileRepository(session)
+            
+            # Get internal user ID from Telegram user ID
+            user = await repository.get_user_by_tg_id(user_id)
+            if not user:
+                # Clean up the saved file if user not found
+                os.remove(file_path)
+                return error_response("not_found", "User not found", 404)
+            
+            # Add photo record to database
+            await repository.add_photo(
+                user_id=user.id,
+                url=photo_url,
+                sort_order=slot_index,
+                safe_score=safe_score,
+                file_size=len(optimized_data),
+                mime_type=mime_type,
+                width=width,
+                height=height
+            )
+            await session.commit()
+        
         logger.info(
             "Photo uploaded successfully",
             extra={
