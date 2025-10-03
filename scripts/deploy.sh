@@ -297,7 +297,7 @@ update_database_password_if_needed() {
   
   # Get new password from .env
   NEW_PASSWORD=$(grep '^POSTGRES_PASSWORD=' .env | cut -d'=' -f2-)
-  DB_USER=$(grep '^POSTGRES_USER=' .env | cut -d'=' -f2- || echo "dating")
+  DB_USER=$( (grep '^POSTGRES_USER=' .env | cut -d'=' -f2-) || echo "dating")
 
   # Escape single quotes for SQL (replace ' with '')
   ESCAPED_PASSWORD=${NEW_PASSWORD//\'/\'\'}
