@@ -110,6 +110,17 @@ async function loadProfileForEdit() {
         });
         
         if (!response.ok) {
+            // Try to get error details from response
+            let errorMessage = `HTTP ${response.status}`;
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.error || errorMessage;
+            } catch (e) {
+                // Ignore JSON parse errors
+            }
+            
+            console.error('Failed to load profile:', response.status, errorMessage);
+            
             // Handle 404 - profile doesn't exist yet
             if (response.status === 404) {
                 console.log('Profile not found, redirecting to profile creation');
@@ -117,7 +128,51 @@ async function loadProfileForEdit() {
                 startProfileCreation();
                 return;
             }
-            throw new Error(`Failed to load profile: ${response.status}`);
+            
+            // Handle 401 - authentication error, try to refresh token
+            if (response.status === 401) {
+                console.log('Auth token expired or invalid, refreshing...');
+                authToken = null; // Clear the invalid token
+                authToken = await getAuthToken(); // Get a new token
+                
+                // Retry the request with new token
+                const retryResponse = await fetch(`${API_BASE_URL}/api/profile`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (retryResponse.ok) {
+                    const data = await retryResponse.json();
+                    const profile = data.profile;
+                    
+                    // Populate form fields
+                    document.getElementById('editName').value = profile.name || '';
+                    document.getElementById('editBio').value = profile.bio || '';
+                    document.getElementById('editCity').value = profile.city || '';
+                    
+                    // Load photos if available
+                    if (profile.photos && profile.photos.length > 0) {
+                        profile.photos.forEach((photo, index) => {
+                            const photoSlot = document.getElementById(`editPhotoSlot${index}`);
+                            if (photoSlot && photo.url) {
+                                photoSlot.style.backgroundImage = `url(${photo.url})`;
+                                photoSlot.style.backgroundSize = 'cover';
+                                photoSlot.style.backgroundPosition = 'center';
+                                photoSlot.querySelector('span').style.display = 'none';
+                            }
+                        });
+                    }
+                    
+                    console.log('Profile loaded successfully after token refresh');
+                    return;
+                }
+                
+                // If retry also failed, fall through to error handling
+                console.error('Retry failed:', retryResponse.status);
+            }
+            
+            throw new Error(`Failed to load profile: ${response.status} - ${errorMessage}`);
         }
         
         const data = await response.json();
