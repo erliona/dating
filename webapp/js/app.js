@@ -14,7 +14,7 @@ let uploadProgress = [0, 0, 0]; // Track upload progress for each slot
 let authToken = null; // JWT token for API authentication
 
 // App version for cache invalidation
-const APP_VERSION = '1.2.0'; // Updated for HTTP upload feature
+const APP_VERSION = '1.3.0'; // Updated for profile editing feature
 
 // API configuration
 const API_BASE_URL = window.location.protocol + '//' + window.location.hostname + ':8080';
@@ -486,9 +486,10 @@ async function checkUserProfile() {
  */
 function updateVersionText() {
   const versionElements = [
-    'appVersionText',
-    'appVersionTextForm',
-    'appVersionTextSuccess'
+    'appVersionText',        // Welcome screen
+    'appVersionTextForm',    // Profile form
+    'appVersionTextSuccess', // Success screen
+    'appVersionTextEdit'     // Profile edit screen
   ];
   
   versionElements.forEach(id => {

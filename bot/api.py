@@ -494,6 +494,168 @@ async def check_profile_handler(request: web.Request) -> web.Response:
         )
 
 
+async def get_profile_handler(request: web.Request) -> web.Response:
+    """Get user's profile data.
+    
+    Requires JWT authentication.
+    
+    Returns JSON with profile data including:
+    - name, bio, city, birth_date
+    - gender, orientation, goal
+    - photos
+    - location data
+    """
+    config: BotConfig = request.app["config"]
+    session_maker: async_sessionmaker = request.app["session_maker"]
+    
+    try:
+        # Authenticate
+        user_id = await authenticate_request(request, config.jwt_secret)
+        
+        async with session_maker() as session:
+            repository = ProfileRepository(session)
+            
+            # Get user by Telegram ID
+            user = await repository.get_user_by_tg_id(user_id)
+            
+            if not user:
+                return web.json_response(
+                    {"error": "User not found"},
+                    status=404
+                )
+            
+            # Get profile
+            profile = await repository.get_profile_by_user_id(user.id)
+            
+            if not profile:
+                return web.json_response(
+                    {"error": "Profile not found"},
+                    status=404
+                )
+            
+            # Get photos
+            photos = await repository.get_user_photos(user.id)
+            
+            # Calculate age
+            age = (datetime.now().date() - profile.birth_date).days // 365
+            
+            # Build response
+            profile_data = {
+                "name": profile.name,
+                "age": age,
+                "birth_date": profile.birth_date.isoformat(),
+                "gender": profile.gender,
+                "orientation": profile.orientation,
+                "goal": profile.goal,
+                "bio": profile.bio,
+                "city": profile.city,
+                "country": profile.country,
+                "latitude": profile.latitude,
+                "longitude": profile.longitude,
+                "height_cm": profile.height_cm,
+                "education": profile.education,
+                "has_children": profile.has_children,
+                "wants_children": profile.wants_children,
+                "smoking": profile.smoking,
+                "drinking": profile.drinking,
+                "interests": profile.interests,
+                "hide_age": profile.hide_age,
+                "hide_distance": profile.hide_distance,
+                "hide_online": profile.hide_online,
+                "photos": [{"url": p.url, "sort_order": p.sort_order} for p in photos]
+            }
+            
+            return web.json_response({
+                "profile": profile_data
+            })
+    
+    except AuthenticationError as e:
+        return web.json_response(
+            {"error": str(e)},
+            status=401
+        )
+    except Exception as e:
+        logger.error(f"Get profile failed: {e}", exc_info=True)
+        return web.json_response(
+            {"error": "Internal server error"},
+            status=500
+        )
+
+
+async def update_profile_handler(request: web.Request) -> web.Response:
+    """Update user's profile data.
+    
+    Requires JWT authentication.
+    
+    Accepts JSON body with fields to update:
+    - name, bio, city
+    - height_cm, education, has_children, wants_children
+    - smoking, drinking, interests
+    - hide_age, hide_distance, hide_online
+    """
+    config: BotConfig = request.app["config"]
+    session_maker: async_sessionmaker = request.app["session_maker"]
+    
+    try:
+        # Authenticate
+        user_id = await authenticate_request(request, config.jwt_secret)
+        
+        # Parse request body
+        try:
+            data = await request.json()
+        except json.JSONDecodeError:
+            return web.json_response(
+                {"error": "Invalid JSON"},
+                status=400
+            )
+        
+        async with session_maker() as session:
+            repository = ProfileRepository(session)
+            
+            # Get user by Telegram ID
+            user = await repository.get_user_by_tg_id(user_id)
+            
+            if not user:
+                return web.json_response(
+                    {"error": "User not found"},
+                    status=404
+                )
+            
+            # Update profile
+            profile = await repository.update_profile(user.id, data)
+            
+            if not profile:
+                return web.json_response(
+                    {"error": "Profile not found"},
+                    status=404
+                )
+            
+            # Commit changes
+            await session.commit()
+            
+            logger.info(
+                "Profile updated via API",
+                extra={"event_type": "profile_updated_api", "user_id": user_id}
+            )
+            
+            return web.json_response({
+                "success": True,
+                "message": "Profile updated successfully"
+            })
+    
+    except AuthenticationError as e:
+        return web.json_response(
+            {"error": str(e)},
+            status=401
+        )
+    except Exception as e:
+        logger.error(f"Update profile failed: {e}", exc_info=True)
+        return web.json_response(
+            {"error": "Internal server error"},
+            status=500
+        )
+
+
 async def discover_handler(request: web.Request) -> web.Response:
     """Get candidate profiles for discovery with filters and pagination.
     
@@ -1032,6 +1194,8 @@ def create_app(config: BotConfig, session_maker: async_sessionmaker) -> web.Appl
     routes = [
         web.get("/health", health_check_handler),
         web.get("/api/profile/check", check_profile_handler),
+        web.get("/api/profile", get_profile_handler),
+        web.patch("/api/profile", update_profile_handler),
         web.post("/api/photos/upload", upload_photo_handler),
         web.post("/api/auth/token", generate_token_handler),
         # Discovery and interactions
