@@ -96,13 +96,10 @@ async function loadProfileForEdit() {
     try {
         console.log('Loading profile for edit');
         
-        // Get JWT token
+        // Get or generate JWT token
         if (!authToken) {
-            console.error('No auth token available');
-            if (tg && tg.showAlert) {
-                tg.showAlert('Ошибка авторизации. Перезапустите приложение.');
-            }
-            return;
+            console.log('No auth token, generating one...');
+            authToken = await getAuthToken();
         }
         
         // Fetch profile from API
@@ -165,13 +162,10 @@ async function saveProfileChanges() {
             return;
         }
         
-        // Get JWT token
+        // Get or generate JWT token
         if (!authToken) {
-            console.error('No auth token available');
-            if (tg && tg.showAlert) {
-                tg.showAlert('Ошибка авторизации. Перезапустите приложение.');
-            }
-            return;
+            console.log('No auth token, generating one...');
+            authToken = await getAuthToken();
         }
         
         // Prepare update data
