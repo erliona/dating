@@ -324,6 +324,115 @@
         </div>
     </div>
 
+    <!-- Profile Edit Screen -->
+    <div id="profile-edit-screen" class="container hidden">
+        <div class="screen-header">
+            <h2>Мой профиль</h2>
+        </div>
+        <div class="profile-edit-content">
+            <div class="profile-photos-edit">
+                <h3>Фото профиля</h3>
+                <div class="photo-slots-container">
+                    <div class="photo-slot-edit" id="editPhotoSlot0">
+                        <span>Фото 1</span>
+                    </div>
+                    <div class="photo-slot-edit" id="editPhotoSlot1">
+                        <span>Фото 2</span>
+                    </div>
+                    <div class="photo-slot-edit" id="editPhotoSlot2">
+                        <span>Фото 3</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="profile-info-section">
+                <h3>Основная информация</h3>
+                <div class="info-item">
+                    <label>Имя</label>
+                    <input type="text" id="editName" class="edit-input" placeholder="Ваше имя">
+                </div>
+                <div class="info-item">
+                    <label>О себе</label>
+                    <textarea id="editBio" class="edit-textarea" rows="4" placeholder="Расскажите о себе..."></textarea>
+                </div>
+                <div class="info-item">
+                    <label>Город</label>
+                    <input type="text" id="editCity" class="edit-input" placeholder="Москва">
+                </div>
+            </div>
+            
+            <button class="button button-primary" onclick="saveProfileChanges()">Сохранить изменения</button>
+        </div>
+    </div>
+
+    <!-- Settings Screen -->
+    <div id="settings-screen" class="container hidden">
+        <div class="screen-header">
+            <h2>Настройки</h2>
+        </div>
+        <div class="settings-content">
+            <div class="settings-section">
+                <h3>Приватность</h3>
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <div class="setting-title">Скрыть возраст</div>
+                        <div class="setting-description">Ваш возраст не будет виден другим</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="hideAge">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <div class="setting-title">Скрыть расстояние</div>
+                        <div class="setting-description">Расстояние до вас не будет показано</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="hideDistance">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h3>Уведомления</h3>
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <div class="setting-title">Новые матчи</div>
+                        <div class="setting-description">Уведомления о новых совпадениях</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="notifyMatches" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <div class="setting-title">Новые сообщения</div>
+                        <div class="setting-description">Уведомления о сообщениях</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="notifyMessages" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h3>О приложении</h3>
+                <div class="setting-item-static">
+                    <div class="setting-title">Версия</div>
+                    <div class="setting-value">1.3.0</div>
+                </div>
+                <div class="setting-item-static">
+                    <div class="setting-title">Техподдержка</div>
+                    <div class="setting-value">@support</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Match Modal -->
     <div id="matchModal" class="modal hidden">
         <div class="modal-content match-modal">
@@ -338,8 +447,33 @@
         </div>
     </div>
 
+    <!-- Bottom Navigation -->
+    <nav id="bottom-nav" class="bottom-nav hidden">
+        <button class="nav-item" onclick="showProfileEdit()" data-tab="profile">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <span>Профиль</span>
+        </button>
+        <button class="nav-item active" onclick="showDiscoveryFromNav()" data-tab="discovery">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+            </svg>
+            <span>Знакомства</span>
+        </button>
+        <button class="nav-item" onclick="showSettings()" data-tab="settings">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3"></path>
+            </svg>
+            <span>Настройки</span>
+        </button>
+    </nav>
+
     <!-- Application Script -->
     <script src="js/app.js"></script>
     <script src="js/discovery.js"></script>
+    <script src="js/navigation.js"></script>
 </body>
 </html>
