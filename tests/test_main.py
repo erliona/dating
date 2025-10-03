@@ -367,3 +367,137 @@ class TestHandleCreateProfile:
         message.answer.assert_called_once()
         assert "Профиль создан" in message.answer.call_args[0][0]
         session.commit.assert_called_once()
+
+
+@pytest.mark.asyncio
+class TestMainFunction:
+    """Test main() bootstrap function."""
+    
+    async def test_main_config_load_error(self):
+        """Test main() handles configuration load error."""
+        with patch('bot.main.load_config') as mock_load:
+            mock_load.side_effect = RuntimeError("Config error")
+            
+            with pytest.raises(RuntimeError, match="Config error"):
+                from bot.main import main
+                await main()
+    
+    async def test_main_bot_creation_with_database(self):
+        """Test main() creates bot with database configuration."""
+        with patch('bot.main.load_config') as mock_load, \
+             patch('bot.main.Bot') as mock_bot, \
+             patch('bot.main.Dispatcher') as mock_dispatcher, \
+             patch('bot.main.create_async_engine') as mock_engine, \
+             patch('bot.main.sessionmaker') as mock_sessionmaker, \
+             patch('bot.main.asyncio.gather') as mock_gather:
+            
+            # Mock config with database
+            mock_config = MagicMock()
+            mock_config.token = "123:abc"
+            mock_config.database_url = "postgresql://localhost/db"
+            mock_config.webapp_url = "https://example.com"
+            mock_load.return_value = mock_config
+            
+            # Mock Bot and Dispatcher
+            mock_bot_instance = MagicMock()
+            mock_bot.return_value = mock_bot_instance
+            mock_dp_instance = MagicMock()
+            mock_dp_instance.workflow_data = {}
+            mock_dispatcher.return_value = mock_dp_instance
+            
+            # Mock database setup
+            mock_engine_instance = MagicMock()
+            mock_engine.return_value = mock_engine_instance
+            mock_session_maker = MagicMock()
+            mock_sessionmaker.return_value = mock_session_maker
+            
+            # Mock gather to avoid actually running the bot
+            mock_gather.side_effect = KeyboardInterrupt()
+            
+            try:
+                from bot.main import main
+                await main()
+            except KeyboardInterrupt:
+                pass
+            
+            # Verify bot was created
+            mock_bot.assert_called_once_with(token="123:abc")
+            
+            # Verify database engine was created
+            mock_engine.assert_called_once()
+            assert "postgresql://localhost/db" in str(mock_engine.call_args)
+            
+            # Verify session maker was stored in dispatcher
+            assert "session_maker" in mock_dp_instance.workflow_data
+    
+    async def test_main_without_database(self):
+        """Test main() handles missing database configuration."""
+        with patch('bot.main.load_config') as mock_load, \
+             patch('bot.main.Bot') as mock_bot, \
+             patch('bot.main.Dispatcher') as mock_dispatcher, \
+             patch('bot.api.run_api_server') as mock_api_server, \
+             patch('bot.main.asyncio.gather') as mock_gather:
+            
+            # Mock config without database
+            mock_config = MagicMock()
+            mock_config.token = "123:abc"
+            mock_config.database_url = None
+            mock_config.webapp_url = "https://example.com"
+            mock_load.return_value = mock_config
+            
+            # Mock Bot and Dispatcher
+            mock_bot_instance = MagicMock()
+            mock_bot.return_value = mock_bot_instance
+            mock_dp_instance = MagicMock()
+            mock_dp_instance.workflow_data = {}
+            mock_dispatcher.return_value = mock_dp_instance
+            
+            # Mock API server to return a completed future
+            mock_api_server.return_value = AsyncMock()
+            
+            # Mock gather to avoid actually running the bot
+            mock_gather.side_effect = KeyboardInterrupt()
+            
+            try:
+                from bot.main import main
+                await main()
+            except KeyboardInterrupt:
+                pass
+            
+            # Verify bot was created
+            mock_bot.assert_called_once_with(token="123:abc")
+            
+            # Verify no session maker in dispatcher
+            assert "session_maker" not in mock_dp_instance.workflow_data or \
+                   mock_dp_instance.workflow_data.get("session_maker") is None
+    
+    async def test_main_bot_execution_error(self):
+        """Test main() handles bot execution error."""
+        with patch('bot.main.load_config') as mock_load, \
+             patch('bot.main.Bot') as mock_bot, \
+             patch('bot.main.Dispatcher') as mock_dispatcher, \
+             patch('bot.api.run_api_server') as mock_api_server, \
+             patch('bot.main.asyncio.gather') as mock_gather:
+            
+            # Mock config
+            mock_config = MagicMock()
+            mock_config.token = "123:abc"
+            mock_config.database_url = None
+            mock_load.return_value = mock_config
+            
+            # Mock Bot and Dispatcher
+            mock_bot_instance = MagicMock()
+            mock_bot.return_value = mock_bot_instance
+            mock_dp_instance = MagicMock()
+            mock_dp_instance.workflow_data = {}
+            mock_dispatcher.return_value = mock_dp_instance
+            
+            # Mock API server
+            mock_api_server.return_value = AsyncMock()
+            
+            # Mock gather to raise an error
+            mock_gather.side_effect = Exception("Bot error")
+            
+            with pytest.raises(Exception, match="Bot error"):
+                from bot.main import main
+                await main()

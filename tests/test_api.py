@@ -222,3 +222,285 @@ class TestPhotoStorage:
         )
         
         assert config.photo_cdn_url == "https://cdn.example.com"
+
+
+@pytest.mark.asyncio
+class TestAuthenticateRequest:
+    """Test request authentication."""
+    
+    async def test_authenticate_missing_header(self):
+        """Test authentication fails when Authorization header is missing."""
+        from aiohttp import web
+        from bot.api import authenticate_request, AuthenticationError
+        
+        # Create mock request without Authorization header
+        request = MagicMock()
+        request.headers = {}
+        
+        with pytest.raises(AuthenticationError, match="Missing Authorization header"):
+            await authenticate_request(request, "secret")
+    
+    async def test_authenticate_invalid_header_format(self):
+        """Test authentication fails with invalid header format."""
+        from bot.api import authenticate_request, AuthenticationError
+        
+        # Create mock request with invalid Authorization header
+        request = MagicMock()
+        request.headers = {"Authorization": "InvalidFormat token"}
+        
+        with pytest.raises(AuthenticationError, match="Invalid Authorization header format"):
+            await authenticate_request(request, "secret")
+    
+    async def test_authenticate_invalid_token(self):
+        """Test authentication fails with invalid token."""
+        from bot.api import authenticate_request, AuthenticationError
+        
+        request = MagicMock()
+        request.headers = {"Authorization": "Bearer invalid-token"}
+        
+        with pytest.raises(AuthenticationError):
+            await authenticate_request(request, "secret")
+    
+    async def test_authenticate_valid_token(self):
+        """Test successful authentication with valid token."""
+        from bot.api import authenticate_request, create_jwt_token
+        
+        user_id = 12345
+        jwt_secret = "test-secret"
+        token = create_jwt_token(user_id, jwt_secret)
+        
+        request = MagicMock()
+        request.headers = {"Authorization": f"Bearer {token}"}
+        
+        result_user_id = await authenticate_request(request, jwt_secret)
+        assert result_user_id == user_id
+
+
+@pytest.mark.asyncio
+class TestHealthCheckHandler:
+    """Test health check endpoint."""
+    
+    async def test_health_check(self):
+        """Test health check returns OK status."""
+        from bot.api import health_check_handler
+        
+        request = MagicMock()
+        response = await health_check_handler(request)
+        
+        assert response.status == 200
+        # Check response body
+        import json
+        body = json.loads(response.body.decode())
+        assert body["status"] == "ok"
+
+
+@pytest.mark.asyncio
+class TestGenerateTokenHandler:
+    """Test token generation endpoint."""
+    
+    async def test_generate_token_missing_user_id(self):
+        """Test token generation fails without user_id."""
+        from bot.api import generate_token_handler
+        from bot.config import BotConfig
+        
+        config = BotConfig(
+            token="test:token",
+            database_url="postgresql://test",
+            jwt_secret="test-secret"
+        )
+        
+        request = MagicMock()
+        request.app = {"config": config}
+        request.json = AsyncMock(return_value={})
+        
+        response = await generate_token_handler(request)
+        assert response.status == 400
+    
+    async def test_generate_token_success(self):
+        """Test successful token generation."""
+        from bot.api import generate_token_handler
+        from bot.config import BotConfig
+        import json
+        
+        config = BotConfig(
+            token="test:token",
+            database_url="postgresql://test",
+            jwt_secret="test-secret"
+        )
+        
+        request = MagicMock()
+        request.app = {"config": config}
+        request.json = AsyncMock(return_value={"user_id": 12345})
+        
+        response = await generate_token_handler(request)
+        assert response.status == 200
+        
+        body = json.loads(response.body.decode())
+        assert "token" in body
+        assert "expires_in" in body
+        assert body["expires_in"] == 3600
+    
+    async def test_generate_token_exception_handling(self):
+        """Test token generation handles exceptions."""
+        from bot.api import generate_token_handler
+        from bot.config import BotConfig
+        
+        config = BotConfig(
+            token="test:token",
+            database_url="postgresql://test",
+            jwt_secret="test-secret"
+        )
+        
+        request = MagicMock()
+        request.app = {"config": config}
+        request.json = AsyncMock(side_effect=Exception("JSON error"))
+        
+        response = await generate_token_handler(request)
+        assert response.status == 500
+
+
+@pytest.mark.asyncio
+class TestUploadPhotoHandler:
+    """Test photo upload endpoint."""
+    
+    async def test_upload_photo_authentication_required(self):
+        """Test photo upload requires authentication."""
+        from bot.api import upload_photo_handler
+        from bot.config import BotConfig
+        
+        config = BotConfig(
+            token="test:token",
+            database_url="postgresql://test",
+            jwt_secret="test-secret",
+            photo_storage_path="/tmp/photos"
+        )
+        
+        request = MagicMock()
+        request.app = {"config": config, "session_maker": MagicMock()}
+        request.headers = {}  # No Authorization header
+        
+        response = await upload_photo_handler(request)
+        assert response.status == 401
+    
+    async def test_upload_photo_no_data(self):
+        """Test photo upload fails without photo data."""
+        from bot.api import upload_photo_handler, create_jwt_token
+        from bot.config import BotConfig
+        
+        config = BotConfig(
+            token="test:token",
+            database_url="postgresql://test",
+            jwt_secret="test-secret",
+            photo_storage_path="/tmp/photos"
+        )
+        
+        user_id = 12345
+        token = create_jwt_token(user_id, config.jwt_secret)
+        
+        # Mock multipart reader that returns no photo data
+        multipart_reader = AsyncMock()
+        multipart_reader.__aiter__.return_value = []
+        
+        request = MagicMock()
+        request.app = {"config": config, "session_maker": MagicMock()}
+        request.headers = {"Authorization": f"Bearer {token}"}
+        request.multipart = AsyncMock(return_value=multipart_reader)
+        
+        response = await upload_photo_handler(request)
+        assert response.status == 400
+    
+    async def test_upload_photo_invalid_slot_index(self):
+        """Test photo upload fails with invalid slot_index."""
+        from bot.api import upload_photo_handler, create_jwt_token
+        from bot.config import BotConfig
+        
+        config = BotConfig(
+            token="test:token",
+            database_url="postgresql://test",
+            jwt_secret="test-secret",
+            photo_storage_path="/tmp/photos"
+        )
+        
+        user_id = 12345
+        token = create_jwt_token(user_id, config.jwt_secret)
+        
+        # Create fake photo data
+        photo_data = b"fake photo"
+        
+        # Mock multipart field
+        photo_field = AsyncMock()
+        photo_field.name = "photo"
+        photo_field.read = AsyncMock(return_value=photo_data)
+        
+        slot_field = AsyncMock()
+        slot_field.name = "slot_index"
+        slot_field.read = AsyncMock(return_value=b"5")  # Invalid (max is 2)
+        
+        multipart_reader = AsyncMock()
+        multipart_reader.__aiter__.return_value = [photo_field, slot_field]
+        
+        request = MagicMock()
+        request.app = {"config": config, "session_maker": MagicMock()}
+        request.headers = {"Authorization": f"Bearer {token}"}
+        request.multipart = AsyncMock(return_value=multipart_reader)
+        
+        response = await upload_photo_handler(request)
+        assert response.status == 400
+
+
+class TestCreateApp:
+    """Test create_app function."""
+    
+    def test_create_app_without_cdn(self, tmp_path):
+        """Test app creation without CDN URL."""
+        from bot.api import create_app
+        from bot.config import BotConfig
+        import warnings
+        import os
+        
+        storage_path = str(tmp_path / "photos")
+        os.makedirs(storage_path, exist_ok=True)
+        
+        config = BotConfig(
+            token="test:token",
+            database_url="postgresql://test",
+            jwt_secret="test-secret",
+            photo_storage_path=storage_path,
+            photo_cdn_url=None
+        )
+        
+        session_maker = MagicMock()
+        
+        # Suppress aiohttp AppKey warnings in tests
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            app = create_app(config, session_maker)
+        
+        assert app is not None
+        # Access via dict syntax is acceptable in tests
+        assert app["config"] == config
+        assert app["session_maker"] == session_maker
+    
+    def test_create_app_with_cdn(self):
+        """Test app creation with CDN URL."""
+        from bot.api import create_app
+        from bot.config import BotConfig
+        import warnings
+        
+        config = BotConfig(
+            token="test:token",
+            database_url="postgresql://test",
+            jwt_secret="test-secret",
+            photo_storage_path="/tmp/photos",
+            photo_cdn_url="https://cdn.example.com"
+        )
+        
+        session_maker = MagicMock()
+        
+        # Suppress aiohttp AppKey warnings in tests
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            app = create_app(config, session_maker)
+        
+        assert app is not None
+        assert app["config"].photo_cdn_url == "https://cdn.example.com"
