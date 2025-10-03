@@ -425,20 +425,20 @@ function testThemeToggle() {
  * Check if user has a profile
  */
 async function checkUserProfile() {
-  // Check if user has completed profile creation
-  const profileCreated = localStorage.getItem('profile_created') === 'true';
+  // Get current user ID
+  const currentUserId = tg?.initDataUnsafe?.user?.id;
   
-  // If no profile flag, definitely no profile
-  if (!profileCreated) {
+  if (!currentUserId) {
+    console.warn('No user ID available, cannot check profile');
     return false;
   }
   
-  // Validate that the profile is for the current user
+  // Check localStorage first for quick result
+  const profileCreated = localStorage.getItem('profile_created') === 'true';
   const storedUserId = localStorage.getItem('profile_user_id');
-  const currentUserId = tg?.initDataUnsafe?.user?.id;
   
   // If user IDs don't match, clear the old profile data
-  if (currentUserId && storedUserId && storedUserId !== String(currentUserId)) {
+  if (profileCreated && storedUserId && storedUserId !== String(currentUserId)) {
     console.log('User ID mismatch, clearing old profile data');
     localStorage.removeItem('profile_created');
     localStorage.removeItem('profile_data');
@@ -446,7 +446,57 @@ async function checkUserProfile() {
     return false;
   }
   
-  return true;
+  // If localStorage says no profile, definitely no profile
+  if (!profileCreated) {
+    return false;
+  }
+  
+  // Verify with backend API to ensure database has the profile
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/profile/check?user_id=${currentUserId}`);
+    
+    if (!response.ok) {
+      console.error('Profile check API failed:', response.status);
+      // If API fails, trust localStorage for now
+      return profileCreated;
+    }
+    
+    const data = await response.json();
+    const hasProfileInDB = data.has_profile;
+    
+    // If localStorage says profile exists but DB doesn't have it, clear localStorage
+    if (profileCreated && !hasProfileInDB) {
+      console.log('Profile not found in database, clearing localStorage');
+      localStorage.removeItem('profile_created');
+      localStorage.removeItem('profile_data');
+      localStorage.removeItem('profile_user_id');
+      return false;
+    }
+    
+    return hasProfileInDB;
+  } catch (error) {
+    console.error('Error checking profile with API:', error);
+    // If API call fails, trust localStorage
+    return profileCreated;
+  }
+}
+
+/**
+ * Update version text on all pages
+ */
+function updateVersionText() {
+  const versionElements = [
+    'appVersionText',
+    'appVersionTextForm',
+    'appVersionTextSuccess'
+  ];
+  
+  versionElements.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.textContent = APP_VERSION;
+    }
+  });
 }
 
 /**
@@ -458,11 +508,8 @@ function showOnboarding() {
   document.getElementById('profile-form').classList.add('hidden');
   document.getElementById('success-screen').classList.add('hidden');
   
-  // Set version text
-  const versionEl = document.getElementById('appVersionText');
-  if (versionEl) {
-    versionEl.textContent = APP_VERSION;
-  }
+  // Set version text on all pages
+  updateVersionText();
   
   // Haptic feedback
   triggerHaptic('impact', 'light');
@@ -474,6 +521,10 @@ function showOnboarding() {
 function startProfileCreation() {
   document.getElementById('onboarding').classList.add('hidden');
   document.getElementById('profile-form').classList.remove('hidden');
+  
+  // Set version text on all pages
+  updateVersionText();
+  
   triggerHaptic('notification', 'success');
 }
 
@@ -485,6 +536,10 @@ function showSuccessScreen() {
   document.getElementById('onboarding').classList.add('hidden');
   document.getElementById('profile-form').classList.add('hidden');
   document.getElementById('success-screen').classList.remove('hidden');
+  
+  // Set version text on all pages
+  updateVersionText();
+  
   triggerHaptic('notification', 'success');
 }
 

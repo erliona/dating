@@ -435,6 +435,65 @@ async def generate_token_handler(request: web.Request) -> web.Response:
         )
 
 
+async def check_profile_handler(request: web.Request) -> web.Response:
+    """Check if user has a profile in the database.
+    
+    Expects query parameter:
+    - user_id: Telegram user ID
+    
+    Returns JSON with:
+    - has_profile: Boolean indicating if profile exists
+    - user_id: The user ID checked
+    """
+    config: BotConfig = request.app["config"]
+    session_maker: async_sessionmaker = request.app["session_maker"]
+    
+    try:
+        # Get user_id from query parameter
+        user_id_str = request.query.get("user_id")
+        if not user_id_str:
+            return web.json_response(
+                {"error": "user_id query parameter required"},
+                status=400
+            )
+        
+        try:
+            user_id = int(user_id_str)
+        except ValueError:
+            return web.json_response(
+                {"error": "user_id must be a valid integer"},
+                status=400
+            )
+        
+        # Check database for profile
+        async with session_maker() as session:
+            repository = ProfileRepository(session)
+            
+            # Get user by Telegram ID
+            user = await repository.get_user_by_tg_id(user_id)
+            
+            if not user:
+                return web.json_response({
+                    "has_profile": False,
+                    "user_id": user_id
+                })
+            
+            # Check if user has a profile
+            profile = await repository.get_profile_by_user_id(user.id)
+            
+            return web.json_response({
+                "has_profile": profile is not None,
+                "user_id": user_id
+            })
+    
+    except Exception as e:
+        logger.error(f"Profile check failed: {e}", exc_info=True)
+        return web.json_response(
+            {"error": "Internal server error"},
+            status=500
+        )
+
+
 async def health_check_handler(request: web.Request) -> web.Response:
     """Health check endpoint."""
     return web.json_response({"status": "ok"})
@@ -469,6 +528,7 @@ def create_app(config: BotConfig, session_maker: async_sessionmaker) -> web.Appl
     # Add routes
     routes = [
         web.get("/health", health_check_handler),
+        web.get("/api/profile/check", check_profile_handler),
         web.post("/api/photos/upload", upload_photo_handler),
         web.post("/api/auth/token", generate_token_handler),
     ]

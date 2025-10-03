@@ -644,3 +644,146 @@ class TestUploadPhotoHandlerComplete:
         
         response = await upload_photo_handler(request)
         assert response.status == 400
+
+
+
+@pytest.mark.asyncio
+class TestCheckProfileHandler:
+    """Test profile check endpoint."""
+    
+    async def test_check_profile_exists(self):
+        """Test checking for existing profile."""
+        from bot.api import check_profile_handler
+        from bot.config import BotConfig
+        from bot.db import User, Profile
+        from datetime import date
+        
+        config = BotConfig(
+            token="test:token",
+            database_url="postgresql://test",
+            jwt_secret="test-secret"
+        )
+        
+        user_id = 12345
+        
+        # Mock user and profile with required fields
+        mock_user = User(id=1, tg_id=user_id)
+        mock_profile = Profile(
+            id=1, 
+            user_id=1, 
+            name="Test User",
+            birth_date=date(1990, 1, 1),
+            gender="male",
+            orientation="female",
+            goal="relationship"
+        )
+        
+        # Mock repository
+        mock_repository = AsyncMock()
+        mock_repository.get_user_by_tg_id = AsyncMock(return_value=mock_user)
+        mock_repository.get_profile_by_user_id = AsyncMock(return_value=mock_profile)
+        
+        # Mock session properly as async context manager
+        mock_session = MagicMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        
+        def mock_session_maker():
+            return mock_session
+        
+        # Mock request
+        request = MagicMock()
+        request.app = {"config": config, "session_maker": mock_session_maker}
+        request.query = {"user_id": str(user_id)}
+        
+        with patch("bot.api.ProfileRepository", return_value=mock_repository):
+            response = await check_profile_handler(request)
+        
+        assert response.status == 200
+        data = json.loads(response.body)
+        assert data["has_profile"] is True
+        assert data["user_id"] == user_id
+    
+    async def test_check_profile_not_exists(self):
+        """Test checking for non-existing profile."""
+        from bot.api import check_profile_handler
+        from bot.config import BotConfig
+        
+        config = BotConfig(
+            token="test:token",
+            database_url="postgresql://test",
+            jwt_secret="test-secret"
+        )
+        
+        user_id = 12345
+        
+        # Mock repository - no user found
+        mock_repository = AsyncMock()
+        mock_repository.get_user_by_tg_id = AsyncMock(return_value=None)
+        
+        # Mock session properly as async context manager
+        mock_session = MagicMock()
+        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
+        mock_session.__aexit__ = AsyncMock(return_value=None)
+        
+        def mock_session_maker():
+            return mock_session
+        
+        # Mock request
+        request = MagicMock()
+        request.app = {"config": config, "session_maker": mock_session_maker}
+        request.query = {"user_id": str(user_id)}
+        
+        with patch("bot.api.ProfileRepository", return_value=mock_repository):
+            response = await check_profile_handler(request)
+        
+        assert response.status == 200
+        data = json.loads(response.body)
+        assert data["has_profile"] is False
+        assert data["user_id"] == user_id
+    
+    async def test_check_profile_missing_user_id(self):
+        """Test profile check without user_id parameter."""
+        from bot.api import check_profile_handler
+        from bot.config import BotConfig
+        
+        config = BotConfig(
+            token="test:token",
+            database_url="postgresql://test",
+            jwt_secret="test-secret"
+        )
+        
+        # Mock request without user_id
+        request = MagicMock()
+        request.app = {"config": config, "session_maker": MagicMock()}
+        request.query = {}
+        
+        response = await check_profile_handler(request)
+        
+        assert response.status == 400
+        data = json.loads(response.body)
+        assert "error" in data
+        assert "user_id" in data["error"].lower()
+    
+    async def test_check_profile_invalid_user_id(self):
+        """Test profile check with invalid user_id parameter."""
+        from bot.api import check_profile_handler
+        from bot.config import BotConfig
+        
+        config = BotConfig(
+            token="test:token",
+            database_url="postgresql://test",
+            jwt_secret="test-secret"
+        )
+        
+        # Mock request with invalid user_id
+        request = MagicMock()
+        request.app = {"config": config, "session_maker": MagicMock()}
+        request.query = {"user_id": "not_a_number"}
+        
+        response = await check_profile_handler(request)
+        
+        assert response.status == 400
+        data = json.loads(response.body)
+        assert "error" in data
+        assert "integer" in data["error"].lower()
