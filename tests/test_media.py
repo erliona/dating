@@ -157,40 +157,67 @@ class TestGeneratePhotoFilename:
 class TestRemoveExifData:
     """Test EXIF data removal."""
     
-    def test_remove_exif_placeholder(self):
-        """Test EXIF removal placeholder implementation."""
+    def test_remove_exif_with_jpeg(self):
+        """Test EXIF removal with JPEG image."""
         from bot.media import remove_exif_data
+        from PIL import Image
+        from io import BytesIO
         
-        # Create simple test data
-        test_data = b"fake photo data"
+        # Create a simple JPEG image with EXIF-like data
+        img = Image.new('RGB', (100, 100), color='red')
+        buffer = BytesIO()
+        img.save(buffer, format='JPEG')
+        test_data = buffer.getvalue()
         
-        # Currently returns original data (placeholder)
+        # Remove EXIF data
         result = remove_exif_data(test_data)
-        assert result == test_data
+        
+        # Should return valid image bytes
+        assert result is not None
+        assert len(result) > 0
+        
+        # Verify it's still a valid image
+        result_img = Image.open(BytesIO(result))
+        assert result_img.size == (100, 100)
     
     def test_remove_exif_error_handling(self):
         """Test EXIF removal handles errors gracefully."""
         from bot.media import remove_exif_data
         
-        # Test with empty data
-        result = remove_exif_data(b"")
-        assert result == b""
+        # Test with invalid data - should return original data on error
+        invalid_data = b"not an image"
+        result = remove_exif_data(invalid_data)
+        assert result == invalid_data
 
 
 class TestCalculateNsfwScore:
     """Test NSFW score calculation."""
     
-    def test_calculate_nsfw_score_placeholder(self):
-        """Test NSFW detection placeholder implementation."""
+    def test_calculate_nsfw_score_fallback(self):
+        """Test NSFW detection fallback when NudeNet not available."""
+        from bot.media import calculate_nsfw_score
+        from PIL import Image
+        from io import BytesIO
+        
+        # Create a simple test image
+        img = Image.new('RGB', (100, 100), color='blue')
+        buffer = BytesIO()
+        img.save(buffer, format='JPEG')
+        test_data = buffer.getvalue()
+        
+        # Should return 1.0 (safe) as fallback if NudeNet not installed
+        # or actual score if NudeNet is available
+        score = calculate_nsfw_score(test_data)
+        assert 0.0 <= score <= 1.0
+    
+    def test_calculate_nsfw_score_with_invalid_data(self):
+        """Test NSFW detection with invalid data."""
         from bot.media import calculate_nsfw_score
         
-        # Create simple test data
-        test_data = b"fake photo data"
-        
-        # Currently returns 1.0 (safe) as placeholder
-        score = calculate_nsfw_score(test_data)
+        # Test with invalid data - should fall back to permissive (1.0)
+        invalid_data = b"not an image"
+        score = calculate_nsfw_score(invalid_data)
         assert score == 1.0
-        assert 0.0 <= score <= 1.0
 
 
 class TestSavePhotoToStorage:
@@ -247,10 +274,15 @@ class TestValidateAndProcessPhoto:
     def test_validate_and_process_photo_success(self, tmp_path):
         """Test successful photo validation and processing."""
         from bot.media import validate_and_process_photo
+        from PIL import Image
+        from io import BytesIO
         import base64
         
-        # Create valid test photo data (small JPEG-like data)
-        test_data = b"\xFF\xD8\xFF\xE0" + b"\x00" * 100  # JPEG header + data
+        # Create a valid test JPEG image
+        img = Image.new('RGB', (100, 100), color='green')
+        buffer = BytesIO()
+        img.save(buffer, format='JPEG')
+        test_data = buffer.getvalue()
         base64_data = base64.b64encode(test_data).decode('utf-8')
         
         storage_path = str(tmp_path / "photos")
@@ -265,7 +297,8 @@ class TestValidateAndProcessPhoto:
         assert "safe_score" in result
         
         assert result["file_size"] > 0
-        assert result["safe_score"] == 1.0  # Placeholder returns 1.0
+        # NSFW score should be between 0 and 1 (actual NudeNet or fallback)
+        assert 0.0 <= result["safe_score"] <= 1.0
     
     def test_validate_and_process_photo_invalid_base64(self, tmp_path):
         """Test processing with invalid base64 data."""

@@ -106,10 +106,10 @@ def decode_base64_photo(base64_data: str) -> tuple[Optional[bytes], Optional[str
 
 
 def remove_exif_data(photo_bytes: bytes) -> bytes:
-    """Remove EXIF metadata from photo.
+    """Remove EXIF metadata from photo using Pillow.
     
-    This is a basic implementation that strips EXIF for JPEG images.
-    For production, consider using Pillow library for more robust handling.
+    Strips all EXIF metadata including GPS coordinates, camera info, etc.
+    This protects user privacy by removing location and device information.
     
     Args:
         photo_bytes: Original photo bytes
@@ -118,24 +118,49 @@ def remove_exif_data(photo_bytes: bytes) -> bytes:
         Photo bytes with EXIF removed
     """
     try:
-        # For now, return original bytes
-        # TODO: Implement proper EXIF removal with Pillow
-        # from PIL import Image
-        # image = Image.open(BytesIO(photo_bytes))
-        # data = list(image.getdata())
-        # image_without_exif = Image.new(image.mode, image.size)
-        # image_without_exif.putdata(data)
+        from PIL import Image
+        
+        # Open image from bytes
+        image = Image.open(BytesIO(photo_bytes))
+        
+        # Create a new image without EXIF data
+        # Get image data and create new image
+        data = list(image.getdata())
+        image_without_exif = Image.new(image.mode, image.size)
+        image_without_exif.putdata(data)
+        
+        # Save to bytes
+        output = BytesIO()
+        # Preserve original format
+        format_name = image.format or 'JPEG'
+        
+        # Save without EXIF
+        if format_name == 'JPEG':
+            image_without_exif.save(output, format='JPEG', quality=95)
+        elif format_name == 'PNG':
+            image_without_exif.save(output, format='PNG', optimize=True)
+        elif format_name == 'WEBP':
+            image_without_exif.save(output, format='WEBP', quality=95)
+        else:
+            # Default to JPEG
+            image_without_exif.save(output, format='JPEG', quality=95)
+        
+        result_bytes = output.getvalue()
         
         logger.info(
-            "EXIF removal placeholder",
-            extra={"event_type": "exif_removal"}
+            "EXIF data removed successfully",
+            extra={
+                "event_type": "exif_removal_success",
+                "original_size": len(photo_bytes),
+                "cleaned_size": len(result_bytes)
+            }
         )
         
-        return photo_bytes
+        return result_bytes
     
     except Exception as e:
         logger.warning(
-            "Failed to remove EXIF data",
+            f"Failed to remove EXIF data: {e}",
             exc_info=True,
             extra={"event_type": "exif_removal_failed"}
         )
@@ -144,25 +169,84 @@ def remove_exif_data(photo_bytes: bytes) -> bytes:
 
 
 def calculate_nsfw_score(photo_bytes: bytes) -> float:
-    """Calculate NSFW score for photo.
+    """Calculate NSFW score for photo using NudeNet ML model.
     
-    This is a placeholder for NSFW detection. In production, integrate
-    with a service like AWS Rekognition, Google Vision API, or a local ML model.
+    Uses NudeNet classifier to detect NSFW content.
+    The model classifies images into categories and returns a safety score.
     
     Args:
         photo_bytes: Photo bytes
         
     Returns:
-        NSFW score (0.0 = safe, 1.0 = explicit)
+        Safety score (0.0 = unsafe, 1.0 = safe)
     """
-    # Placeholder: return safe score
-    # TODO: Implement actual NSFW detection
-    logger.info(
-        "NSFW detection placeholder",
-        extra={"event_type": "nsfw_detection"}
-    )
+    try:
+        from nudenet import NudeClassifier
+        from PIL import Image
+        import tempfile
+        
+        # Initialize classifier (cached after first use)
+        if not hasattr(calculate_nsfw_score, '_classifier'):
+            logger.info("Initializing NudeNet classifier", extra={"event_type": "nsfw_model_init"})
+            calculate_nsfw_score._classifier = NudeClassifier()
+        
+        # Convert bytes to PIL Image for NudeNet
+        image = Image.open(BytesIO(photo_bytes))
+        
+        # Save to temporary file (NudeNet requires file path)
+        with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp:
+            image.save(tmp.name, format='JPEG')
+            tmp_path = tmp.name
+        
+        try:
+            # Classify image
+            result = calculate_nsfw_score._classifier.classify(tmp_path)
+            
+            # Result format: {image_path: {'safe': probability, 'unsafe': probability}}
+            classification = result.get(tmp_path, {})
+            
+            # Get safe probability (higher is better)
+            safe_prob = classification.get('safe', 0.5)
+            unsafe_prob = classification.get('unsafe', 0.5)
+            
+            # Calculate safety score (0.0 = unsafe, 1.0 = safe)
+            safety_score = safe_prob / (safe_prob + unsafe_prob) if (safe_prob + unsafe_prob) > 0 else 0.5
+            
+            logger.info(
+                f"NSFW detection completed: safe={safe_prob:.3f}, unsafe={unsafe_prob:.3f}, score={safety_score:.3f}",
+                extra={
+                    "event_type": "nsfw_detection_complete",
+                    "safe_probability": safe_prob,
+                    "unsafe_probability": unsafe_prob,
+                    "safety_score": safety_score
+                }
+            )
+            
+            return safety_score
+            
+        finally:
+            # Clean up temporary file
+            try:
+                os.unlink(tmp_path)
+            except:
+                pass
     
-    return 1.0  # Assume safe for now
+    except ImportError:
+        logger.warning(
+            "NudeNet not available, falling back to permissive mode",
+            extra={"event_type": "nsfw_detection_fallback"}
+        )
+        # Fallback to permissive if NudeNet not installed
+        return 1.0
+    
+    except Exception as e:
+        logger.error(
+            f"NSFW detection failed: {e}",
+            exc_info=True,
+            extra={"event_type": "nsfw_detection_error"}
+        )
+        # On error, be permissive
+        return 1.0
 
 
 def generate_photo_filename(user_id: int, photo_hash: str, mime_type: str) -> str:
