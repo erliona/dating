@@ -179,3 +179,74 @@ class Photo(Base):
         CheckConstraint("safe_score >= 0.0 AND safe_score <= 1.0", name="safe_score_range"),
         Index("idx_photos_user_id_sort", "user_id", "sort_order"),
     )
+
+
+class InteractionType(str, Enum):
+    """Interaction type enum."""
+    LIKE = "like"
+    SUPERLIKE = "superlike"
+    PASS = "pass"
+
+
+class Interaction(Base):
+    """Interaction table - stores likes, superlikes, and passes."""
+    __tablename__ = "interactions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    target_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    interaction_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+    
+    __table_args__ = (
+        UniqueConstraint("user_id", "target_id", name="unique_user_target_interaction"),
+        CheckConstraint(
+            "interaction_type IN ('like', 'superlike', 'pass')",
+            name="valid_interaction_type"
+        ),
+        Index("idx_interactions_user_id", "user_id"),
+        Index("idx_interactions_target_id", "target_id"),
+        Index("idx_interactions_user_target", "user_id", "target_id"),
+    )
+
+
+class Match(Base):
+    """Match table - stores mutual matches between users."""
+    __tablename__ = "matches"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user1_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    user2_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
+    
+    __table_args__ = (
+        UniqueConstraint("user1_id", "user2_id", name="unique_match_pair"),
+        CheckConstraint("user1_id < user2_id", name="user1_less_than_user2"),
+        Index("idx_matches_user1", "user1_id"),
+        Index("idx_matches_user2", "user2_id"),
+    )
+
+
+class Favorite(Base):
+    """Favorite table - stores user's favorite profiles."""
+    __tablename__ = "favorites"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    target_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
+    
+    __table_args__ = (
+        UniqueConstraint("user_id", "target_id", name="unique_user_favorite"),
+        Index("idx_favorites_user_id", "user_id"),
+        Index("idx_favorites_target_id", "target_id"),
+    )
