@@ -207,7 +207,7 @@ def optimize_image(image_bytes: bytes, format: str = "JPEG") -> bytes:
         output.close()
 
 
-def calculate_nsfw_score(image_bytes: bytes) -> float:
+def calculate_nsfw_score(image_bytes: bytes, classifier=None) -> float:
     """Calculate NSFW score for image using NudeNet ML model.
     
     Uses NudeNet classifier to detect NSFW content.
@@ -215,19 +215,22 @@ def calculate_nsfw_score(image_bytes: bytes) -> float:
     
     Args:
         image_bytes: Image bytes
+        classifier: Optional NudeClassifier instance (from app state)
         
     Returns:
         Safety score (0.0 = unsafe, 1.0 = safe)
     """
+    # If no classifier provided, use fallback
+    if classifier is None:
+        logger.warning(
+            "NudeNet not available, falling back to permissive mode",
+            extra={"event_type": "nsfw_detection_fallback"}
+        )
+        return 1.0
+    
     try:
-        from nudenet import NudeClassifier
         from PIL import Image
         import io
-        
-        # Initialize classifier (cached after first use)
-        if not hasattr(calculate_nsfw_score, '_classifier'):
-            logger.info("Initializing NudeNet classifier", extra={"event_type": "nsfw_model_init"})
-            calculate_nsfw_score._classifier = NudeClassifier()
         
         # Convert bytes to PIL Image for NudeNet
         image = Image.open(io.BytesIO(image_bytes))
@@ -240,7 +243,7 @@ def calculate_nsfw_score(image_bytes: bytes) -> float:
         
         try:
             # Classify image
-            result = calculate_nsfw_score._classifier.classify(tmp_path)
+            result = classifier.classify(tmp_path)
             
             # Result format: {image_path: {'safe': probability, 'unsafe': probability}}
             classification = result.get(tmp_path, {})
@@ -271,14 +274,6 @@ def calculate_nsfw_score(image_bytes: bytes) -> float:
                 os.unlink(tmp_path)
             except OSError:
                 pass
-    
-    except ImportError:
-        logger.warning(
-            "NudeNet not available, falling back to permissive mode",
-            extra={"event_type": "nsfw_detection_fallback"}
-        )
-        # Fallback to permissive if NudeNet not installed
-        return 1.0
     
     except Exception as e:
         logger.error(
@@ -376,8 +371,9 @@ async def upload_photo_handler(request: web.Request) -> web.Response:
         output_format = format_map.get(mime_type, "JPEG")
         optimized_data = optimize_image(photo_data, output_format)
         
-        # Calculate NSFW score
-        safe_score = calculate_nsfw_score(optimized_data)
+        # Calculate NSFW score using classifier from app state
+        classifier = request.app.get("nsfw_classifier")
+        safe_score = calculate_nsfw_score(optimized_data, classifier)
         if safe_score < config.nsfw_threshold:
             logger.warning(
                 f"Photo rejected: NSFW score {safe_score:.3f} below threshold {config.nsfw_threshold}",
@@ -409,6 +405,64 @@ async def upload_photo_handler(request: web.Request) -> web.Response:
             photo_url = f"{config.photo_cdn_url}/{filename}"
         else:
             photo_url = f"/photos/{filename}"
+        
+        # Get image dimensions
+        image = Image.open(BytesIO(optimized_data))
+        width, height = image.size
+        
+        # Save photo metadata to database
+        async with session_maker() as session:
+            repository = ProfileRepository(session)
+            
+            # Get internal user ID from Telegram user ID
+            user = await repository.get_user_by_tg_id(user_id)
+            if not user:
+                # Clean up the saved file if user not found
+                os.remove(file_path)
+                return error_response("not_found", "User not found", 404)
+            
+            # Check if photo already exists in this slot
+            existing_photos = await repository.get_user_photos(user.id)
+            for existing_photo in existing_photos:
+                if existing_photo.sort_order == slot_index:
+                    # Delete old photo from database and file system
+                    await repository.delete_photo(existing_photo.id, user.id)
+                    
+                    # Try to delete old file (ignore errors if file doesn't exist)
+                    old_filename = existing_photo.url.split('/')[-1]
+                    old_file_path = os.path.join(storage_path, old_filename)
+                    try:
+                        if os.path.exists(old_file_path):
+                            os.remove(old_file_path)
+                    except OSError:
+                        logger.warning(
+                            f"Failed to delete old photo file: {old_file_path}",
+                            extra={"event_type": "old_photo_delete_failed"}
+                        )
+                    
+                    logger.info(
+                        "Replaced existing photo in slot",
+                        extra={
+                            "event_type": "photo_replaced",
+                            "user_id": user_id,
+                            "slot_index": slot_index,
+                            "old_photo_id": existing_photo.id
+                        }
+                    )
+                    break
+            
+            # Add photo record to database
+            await repository.add_photo(
+                user_id=user.id,
+                url=photo_url,
+                sort_order=slot_index,
+                safe_score=safe_score,
+                file_size=len(optimized_data),
+                mime_type=mime_type,
+                width=width,
+                height=height
+            )
+            await session.commit()
         
         logger.info(
             "Photo uploaded successfully",
@@ -500,20 +554,22 @@ async def check_profile_handler(request: web.Request) -> web.Response:
         if not init_data:
             return error_response("unauthorized", "init_data parameter required for authentication", 401)
         
-        # Verify init_data signature and extract user_id
-        # In production, you should verify the signature using bot token
-        from urllib.parse import parse_qs
+        # Verify init_data signature using cryptographic validation
+        from bot.security import validate_webapp_init_data, ValidationError
         try:
-            params = parse_qs(init_data)
-            user_param = params.get('user', [''])[0]
-            if not user_param:
-                logger.warning("init_data missing user parameter")
+            validated_data = validate_webapp_init_data(
+                init_data,
+                config.token,
+                max_age_seconds=3600
+            )
+            
+            # Extract authenticated user ID from validated data
+            user_data = validated_data.get('user', {})
+            if not isinstance(user_data, dict):
+                logger.warning("init_data user data is not a dictionary")
                 return error_response("unauthorized", "Unauthorized: invalid init_data", 401)
             
-            import json
-            user_data = json.loads(user_param)
             authenticated_user_id = user_data.get('id')
-            
             if not authenticated_user_id:
                 logger.warning("init_data user missing id field")
                 return error_response("unauthorized", "Unauthorized: invalid init_data", 401)
@@ -521,9 +577,9 @@ async def check_profile_handler(request: web.Request) -> web.Response:
             # Verify that requested user_id matches authenticated user_id
             if authenticated_user_id != requested_user_id:
                 return error_response("unauthorized", "Can only check own profile", 403)
-        except (ValueError, json.JSONDecodeError, KeyError) as e:
-            # If init_data parsing fails, reject the request
-            logger.warning(f"Failed to parse init_data for authentication: {e}")
+        except ValidationError as e:
+            # If init_data validation fails, reject the request
+            logger.warning(f"init_data validation failed: {e}")
             return error_response("unauthorized", "Unauthorized: invalid init_data", 401)
         
         # Check database for profile
@@ -750,10 +806,13 @@ async def discover_handler(request: web.Request) -> web.Response:
                 verified_only=verified_only
             )
             
-            # Get photos for each profile
+            # Get photos for all profiles in a single query (avoid N+1)
+            user_ids = [profile.user_id for profile in profiles]
+            photos_by_user = await repository.get_photos_for_users(user_ids)
+            
             profiles_data = []
             for profile in profiles:
-                photos = await repository.get_user_photos(profile.user_id)
+                photos = photos_by_user.get(profile.user_id, [])
                 profiles_data.append({
                     "id": profile.id,
                     "user_id": profile.user_id,
@@ -974,10 +1033,14 @@ async def matches_handler(request: web.Request) -> web.Response:
                 cursor=cursor
             )
             
+            # Get photos for all profiles in a single query (avoid N+1)
+            user_ids = [profile.user_id for match, profile in matches_with_profiles]
+            photos_by_user = await repository.get_photos_for_users(user_ids)
+            
             # Format response
             matches_data = []
             for match, profile in matches_with_profiles:
-                photos = await repository.get_user_photos(profile.user_id)
+                photos = photos_by_user.get(profile.user_id, [])
                 matches_data.append({
                     "match_id": match.id,
                     "created_at": match.created_at.isoformat(),
@@ -1150,10 +1213,14 @@ async def get_favorites_handler(request: web.Request) -> web.Response:
                 cursor=cursor
             )
             
+            # Get photos for all profiles in a single query (avoid N+1)
+            user_ids = [profile.user_id for favorite, profile in favorites_with_profiles]
+            photos_by_user = await repository.get_photos_for_users(user_ids)
+            
             # Format response
             favorites_data = []
             for favorite, profile in favorites_with_profiles:
-                photos = await repository.get_user_photos(profile.user_id)
+                photos = photos_by_user.get(profile.user_id, [])
                 favorites_data.append({
                     "favorite_id": favorite.id,
                     "created_at": favorite.created_at.isoformat(),
@@ -1206,6 +1273,15 @@ def create_app(config: BotConfig, session_maker: async_sessionmaker) -> web.Appl
     # Store config and session maker
     app["config"] = config
     app["session_maker"] = session_maker
+    
+    # Initialize NSFW classifier (if available)
+    try:
+        from nudenet import NudeClassifier
+        logger.info("Initializing NudeNet classifier", extra={"event_type": "nsfw_model_init"})
+        app["nsfw_classifier"] = NudeClassifier()
+    except ImportError:
+        logger.warning("NudeNet not available, NSFW detection will use fallback mode")
+        app["nsfw_classifier"] = None
     
     # Setup CORS
     cors = cors_setup(app, defaults={

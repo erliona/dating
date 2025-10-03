@@ -271,6 +271,37 @@ class ProfileRepository:
         )
         return list(result.scalars().all())
     
+    async def get_photos_for_users(self, user_ids: list[int]) -> dict[int, list[Photo]]:
+        """Get photos for multiple users in a single query.
+        
+        This is optimized to avoid N+1 query problems when fetching
+        photos for many profiles at once.
+        
+        Args:
+            user_ids: List of internal user IDs
+            
+        Returns:
+            Dictionary mapping user_id to list of Photo objects
+        """
+        if not user_ids:
+            return {}
+        
+        result = await self.session.execute(
+            select(Photo)
+            .where(Photo.user_id.in_(user_ids))
+            .order_by(Photo.user_id, Photo.sort_order)
+        )
+        photos = result.scalars().all()
+        
+        # Group photos by user_id
+        photos_by_user = {}
+        for photo in photos:
+            if photo.user_id not in photos_by_user:
+                photos_by_user[photo.user_id] = []
+            photos_by_user[photo.user_id].append(photo)
+        
+        return photos_by_user
+    
     async def delete_photo(self, photo_id: int, user_id: int) -> bool:
         """Delete a photo.
         
@@ -516,6 +547,7 @@ class ProfileRepository:
         
         Idempotent - returns existing match if already exists.
         Normalizes user IDs so user1_id < user2_id.
+        Handles race conditions by catching unique constraint violations.
         
         Args:
             user1_id: First user ID
@@ -524,6 +556,8 @@ class ProfileRepository:
         Returns:
             Match object
         """
+        from sqlalchemy.exc import IntegrityError
+        
         # Normalize user IDs (user1_id should be less than user2_id)
         if user1_id > user2_id:
             user1_id, user2_id = user2_id, user1_id
@@ -552,7 +586,35 @@ class ProfileRepository:
         # Create new match
         match = Match(user1_id=user1_id, user2_id=user2_id)
         self.session.add(match)
-        await self.session.flush()
+        
+        try:
+            await self.session.flush()
+        except IntegrityError:
+            # Race condition: another transaction created the match
+            # Roll back and fetch the existing match
+            await self.session.rollback()
+            result = await self.session.execute(
+                select(Match).where(
+                    Match.user1_id == user1_id,
+                    Match.user2_id == user2_id
+                )
+            )
+            match = result.scalar_one_or_none()
+            
+            if match:
+                logger.info(
+                    "Match already exists (race condition)",
+                    extra={
+                        "event_type": "match_race_condition",
+                        "user1_id": user1_id,
+                        "user2_id": user2_id,
+                        "match_id": match.id
+                    }
+                )
+                return match
+            else:
+                # Unexpected: constraint violation but match still not found
+                raise
         
         # Invalidate match cache for both users
         cache.delete_pattern(f"matches:{user1_id}:")

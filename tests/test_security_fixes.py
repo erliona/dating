@@ -1,14 +1,21 @@
 """Tests for security fixes related to authentication and validation."""
 
+import hashlib
+import hmac
 import json
+import time
 from datetime import date
 from unittest.mock import AsyncMock, MagicMock, patch
+from urllib.parse import urlencode
 
 import pytest
 
 from bot.api import check_profile_handler, like_handler, pass_handler
 from bot.config import BotConfig
 from bot.db import User, Profile
+
+
+from tests.test_utils import create_valid_init_data
 
 
 @pytest.mark.asyncio
@@ -124,8 +131,9 @@ class TestAuthenticationSecurity:
         authenticated_user_id = 12345
         requested_user_id = 67890
         
-        # Mock request where authenticated user_id doesn't match requested user_id
-        init_data = f"user={json.dumps({'id': authenticated_user_id})}"
+        # Create properly signed init_data with authenticated user's ID
+        init_data = create_valid_init_data(config.token, authenticated_user_id)
+        
         request = MagicMock()
         request.app = {"config": config, "session_maker": MagicMock()}
         request.query = {
