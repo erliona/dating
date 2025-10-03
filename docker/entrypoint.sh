@@ -46,7 +46,19 @@ attempt_password_migration() {
   if command -v psql > /dev/null 2>&1; then
     # Use a temporary .pgpass file for secure password handling
     TMP_PGPASS=$(mktemp)
-    echo "$DB_HOST:$DB_PORT:$DB_NAME:postgres:${POSTGRES_PASSWORD:-}" > "$TMP_PGPASS"
+    # Validate POSTGRES_PASSWORD is set and non-empty
+    if [ -z "${POSTGRES_PASSWORD:-}" ]; then
+      log_error "POSTGRES_PASSWORD is not set or is empty. Cannot perform password migration."
+      rm -f "$TMP_PGPASS"
+      return 1
+    fi
+    # Escape special characters for .pgpass (colon, backslash, newline)
+    escape_pgpass() {
+      # Escape backslash first, then colon, then newline
+      printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/:/\\:/g' -e ':a;N;$!ba;s/\n/\\n/g'
+    }
+    ESCAPED_POSTGRES_PASSWORD=$(escape_pgpass "$POSTGRES_PASSWORD")
+    echo "$DB_HOST:$DB_PORT:$DB_NAME:postgres:$ESCAPED_POSTGRES_PASSWORD" > "$TMP_PGPASS"
     chmod 600 "$TMP_PGPASS"
     if PGPASSFILE="$TMP_PGPASS" psql -h "$DB_HOST" -p "$DB_PORT" -U postgres -d "$DB_NAME" -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD';" 2>/dev/null; then
       log_info "Successfully updated database password for user: $DB_USER"
