@@ -225,7 +225,29 @@ docker compose exec db psql -U dating dating -c "SELECT COUNT(*) FROM users;"
 
 If you need to change the database password:
 
-### Method 1: Using PostgreSQL ALTER USER (Recommended)
+### Method 1: Automatic Password Migration (Recommended - New!)
+
+The system now includes automatic password migration. Simply update the password in your `.env` file and restart:
+
+```bash
+# 1. Update password in .env file
+sed -i 's/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=new_secure_password/' .env
+
+# 2. For local deployments:
+docker compose restart bot
+
+# 3. For production deployments using deploy script:
+# The deployment script automatically synchronizes the password
+./scripts/deploy.sh -H your-host -u your-user
+```
+
+**How it works:**
+- The bot's entrypoint script automatically detects password mismatches
+- It attempts to update the PostgreSQL user password to match the `.env` file
+- If successful, migrations proceed normally without data loss
+- No manual database commands needed!
+
+### Method 2: Manual PostgreSQL ALTER USER (If Method 1 Fails)
 
 ```bash
 # Change password without data loss
@@ -238,7 +260,7 @@ sed -i 's/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=new_password/' .env
 docker compose restart bot
 ```
 
-### Method 2: Backup and Restore (If Method 1 Fails)
+### Method 3: Backup and Restore (Last Resort)
 
 ```bash
 # 1. Create backup
