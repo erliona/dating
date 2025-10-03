@@ -59,7 +59,9 @@ attempt_password_migration() {
     ESCAPED_POSTGRES_PASSWORD=$(escape_pgpass "$POSTGRES_PASSWORD")
     echo "$DB_HOST:$DB_PORT:$DB_NAME:postgres:$ESCAPED_POSTGRES_PASSWORD" > "$TMP_PGPASS"
     chmod 600 "$TMP_PGPASS"
-    if PGPASSFILE="$TMP_PGPASS" psql -h "$DB_HOST" -p "$DB_PORT" -U postgres -d "$DB_NAME" -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD';" 2>/dev/null; then
+    # Escape single quotes in the password for SQL
+    ESCAPED_DB_PASSWORD=$(printf "%s" "$DB_PASSWORD" | sed "s/'/''/g")
+    if PGPASSFILE="$TMP_PGPASS" psql -h "$DB_HOST" -p "$DB_PORT" -U postgres -d "$DB_NAME" -c "ALTER USER $DB_USER WITH PASSWORD '\$ESCAPED_DB_PASSWORD';" 2>/dev/null; then
       log_info "Successfully updated database password for user: $DB_USER"
       rm -f "$TMP_PGPASS"
       return 0
