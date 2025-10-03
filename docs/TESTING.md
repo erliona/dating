@@ -2,6 +2,25 @@
 
 Руководство по тестированию Dating Bot приложения.
 
+**Current Status**: 162 tests, 76% code coverage
+
+## Test Coverage Summary
+
+| Module | Coverage | Description |
+|--------|----------|-------------|
+| bot/db.py | 100% | Database models |
+| bot/repository.py | 100% | Database repository operations |
+| bot/geo.py | 97% | Geolocation utilities |
+| bot/media.py | 93% | Photo validation and storage |
+| bot/security.py | 88% | Security and encryption |
+| bot/validation.py | 86% | Data validation |
+| bot/config.py | 72% | Configuration management |
+| bot/main.py | 70% | Bot handlers and main entry point |
+| bot/api.py | 36% | HTTP API endpoints |
+| **TOTAL** | **76%** | Overall test coverage |
+
+---
+
 ## Содержание
 
 - [Запуск тестов](#запуск-тестов)
@@ -68,21 +87,36 @@ pytest -n 4 -v
 
 ```
 tests/
-├── conftest.py                  # Pytest fixtures и конфигурация
-├── test_analytics.py            # Тесты аналитики
-├── test_bot_handlers.py         # Тесты обработчиков бота
-├── test_bot_logic.py            # Тесты бизнес-логики
-├── test_cache.py                # Тесты кэширования
-├── test_config.py               # Тесты конфигурации
-├── test_database.py             # Тесты моделей БД
-├── test_enhanced_matching.py    # Тесты алгоритма матчинга
-├── test_handlers_extended.py   # Расширенные тесты обработчиков
-├── test_integration.py          # Интеграционные тесты
-├── test_interactions.py         # Тесты взаимодействий пользователей
-├── test_security.py             # Тесты безопасности
-├── test_sprint4_task2.py        # Legacy тесты
-└── test_webapp_handler.py       # Тесты WebApp интеграции
+├── __init__.py                  # Test suite marker
+├── test_api.py                  # API endpoints, JWT, image optimization (14 tests)
+├── test_config.py               # Configuration validation (3 tests)
+├── test_geo.py                  # Geolocation utilities (20 tests)
+├── test_main.py                 # Bot handlers, logging, WebApp data (14 tests)
+├── test_media.py                # Photo validation and storage (27 tests)
+├── test_repository.py           # Database CRUD operations (14 tests)
+├── test_security.py             # Security and encryption (59 tests)
+└── test_validation.py           # Data validation functions (47 tests)
 ```
+
+**Total**: 162 tests covering all core functionality
+
+### Test Categories
+
+#### Unit Tests (148 tests)
+- **Configuration**: Bot config loading, JWT secret generation
+- **Validation**: Profile data validation, age checks, field validation
+- **Geolocation**: Geohash encoding, coordinate validation, location processing
+- **Media**: Photo validation, MIME type detection, EXIF removal, storage
+- **Security**: Encryption, key derivation, password hashing, token generation
+- **Repository**: User/profile CRUD, photo management
+- **Bot Handlers**: Command handlers, WebApp data processing, logging
+- **API**: JWT authentication, image optimization, NSFW detection
+
+#### Integration Tests (14 tests)
+- WebApp data flow (bot → database)
+- Profile creation and updates
+- Photo upload pipeline
+- Authentication flow
 
 ### Fixtures (conftest.py)
 
