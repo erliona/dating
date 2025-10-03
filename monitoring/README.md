@@ -1,6 +1,6 @@
-# Monitoring Stack for Dating App
+# 📊 Dating App Monitoring & Debugging
 
-This directory contains the monitoring and observability stack for the Dating app, including Prometheus, Grafana, Loki, and related components.
+Comprehensive monitoring setup using Grafana, Prometheus, Loki, and Promtail for system metrics and log aggregation.
 
 ## 🎯 Components
 
@@ -11,11 +11,11 @@ This directory contains the monitoring and observability stack for the Dating ap
 - **Postgres Exporter** - Database metrics
 
 ### Visualization
-- **Grafana** - Dashboards and visualization
+- **Grafana** - Dashboards and visualization with 3 pre-configured dashboards
 
 ### Logging
-- **Loki** - Log aggregation system
-- **Promtail** - Log shipper
+- **Loki** - Log aggregation system (30-day retention)
+- **Promtail** - Log shipper with automatic JSON parsing
 
 ## 🚀 Quick Start
 
@@ -31,7 +31,9 @@ docker compose -f docker-compose.dev.yml --profile monitoring up -d
 
 ### Access Dashboards
 
-- **Grafana**: http://localhost:3000 (admin/admin)
+- **Grafana**: http://localhost:3000
+  - Default credentials: `admin` / `admin` (change on first login)
+  - Pre-configured dashboards available immediately
 - **Prometheus**: http://localhost:9090
 - **cAdvisor**: http://localhost:8081
 
@@ -45,9 +47,193 @@ docker compose --profile monitoring down
 docker compose down -v
 ```
 
-## 📊 Available Metrics
+## 📈 Available Dashboards
 
-### Container Metrics (cAdvisor)
+### 1. System Overview Dashboard
+**Path**: Home > Dating App - System Overview
+
+**Metrics**:
+- Services status (up/down)
+- Container CPU usage
+- Container memory usage
+- PostgreSQL active connections
+- Network traffic
+- All container logs
+- Bot application logs (JSON parsed)
+- Bot error and warning logs
+- Bot events timeline
+
+### 2. Debug Dashboard (✨ NEW)
+**Path**: Home > Dating App - Debug Dashboard
+
+**Perfect for troubleshooting and debugging!**
+
+**Features**:
+- **Live Application Logs**: Real-time logs from all bot services with JSON parsing
+- **Error Logs Only**: Filtered view of ERROR and CRITICAL logs with full context (logger, function, line number)
+- **Warning Logs**: Separate panel for warning-level logs
+- **Log Levels Distribution**: Time series chart showing log volume by level over time
+- **Events Timeline**: Track specific events by type (profile_created, user_updated, photo_uploaded, match_created, etc.)
+- **Service Health Indicators**: 
+  - Bot service status (up/down)
+  - CPU usage gauge with thresholds
+  - Memory usage gauge with thresholds
+  - Database connections counter
+- **API Requests Panel**: Log view of all HTTP requests and responses
+- **Database Queries Panel**: Track database operations from repository logs
+- **User Actions Panel**: Monitor user-facing events (profiles, matches, likes, photos)
+
+**Auto-refresh**: 30 seconds  
+**Default time range**: Last 1 hour
+
+### 3. Business Metrics Dashboard
+**Path**: Home > Dating App - Business Metrics
+
+**Metrics**:
+- User registrations
+- Profile completions
+- Matches created
+- Photo uploads
+- Active users
+- Business KPIs
+
+## 🔍 Log Query Examples
+
+All logs from the bot are structured JSON with the following fields:
+- `timestamp`: ISO 8601 timestamp
+- `level`: Log level (INFO, WARNING, ERROR, CRITICAL)
+- `logger`: Logger name (e.g., bot.main, bot.repository, bot.media)
+- `message`: Human-readable log message
+- `module`: Python module name
+- `function`: Function name where log was generated
+- `line`: Line number in source code
+- `event_type`: Optional event type for filtering (e.g., "profile_created", "photo_uploaded")
+- Custom fields depending on context (user_id, filename, safe_score, etc.)
+
+### Common LogQL Queries (for Loki)
+
+#### View all bot logs
+```logql
+{container_name=~".*bot.*"}
+```
+
+#### View only errors and critical logs
+```logql
+{container_name=~".*bot.*"} | json | level =~ "ERROR|CRITICAL"
+```
+
+#### View specific event types
+```logql
+{container_name=~".*bot.*"} | json | event_type = "profile_created"
+```
+
+#### View logs for specific user
+```logql
+{container_name=~".*bot.*"} | json | user_id = "12345"
+```
+
+#### View all photo-related events
+```logql
+{container_name=~".*bot.*"} | json | event_type =~ "photo_.*"
+```
+
+#### View NSFW rejection events
+```logql
+{container_name=~".*bot.*"} | json | event_type = "photo_rejected_nsfw"
+```
+
+#### View database operations
+```logql
+{container_name=~".*bot.*"} | json | logger =~ ".*repository.*|.*db.*"
+```
+
+#### View API requests and responses
+```logql
+{container_name=~".*bot.*"} | json | event_type =~ ".*request.*|.*response.*"
+```
+
+#### Count logs by level over time
+```logql
+sum by (level) (count_over_time({container_name=~".*bot.*"} | json [1m]))
+```
+
+## 🐛 Debugging Workflows
+
+### Troubleshooting User Issues
+
+1. **Find all actions for a user**:
+   - Open **Debug Dashboard**
+   - Go to **Explore** in Grafana
+   - Query:
+     ```logql
+     {container_name=~".*bot.*"} | json | user_id = "<USER_ID>"
+     ```
+
+2. **Check for errors specific to user**:
+   ```logql
+   {container_name=~".*bot.*"} | json | user_id = "<USER_ID>" | level = "ERROR"
+   ```
+
+3. **Track user's profile creation flow**:
+   ```logql
+   {container_name=~".*bot.*"} | json | user_id = "<USER_ID>" | event_type =~ "profile_.*"
+   ```
+
+### Investigating Performance Issues
+
+1. Open **Debug Dashboard**
+2. Check **Bot CPU Usage** gauge - should be < 80%
+3. Check **Bot Memory Usage** gauge - should be < 90%
+4. Review **Database Connections** - high count may indicate connection leaks
+5. Correlate with **Log Levels Distribution** for spike in errors during performance issues
+6. Check **Events Timeline** for unusual activity patterns
+
+### Analyzing Photo Upload Issues
+
+1. **Use Debug Dashboard "User Actions" panel** or query:
+   ```logql
+   {container_name=~".*bot.*"} | json | event_type =~ "photo_.*"
+   ```
+
+2. **Check for NSFW rejections**:
+   ```logql
+   {container_name=~".*bot.*"} | json | event_type = "photo_rejected_nsfw"
+   ```
+
+3. **Look for EXIF removal operations**:
+   ```logql
+   {container_name=~".*bot.*"} | json | event_type = "exif_removal_success"
+   ```
+
+4. **Check for upload errors**:
+   ```logql
+   {container_name=~".*bot.*"} | json | level = "ERROR" | message =~ ".*photo.*|.*upload.*"
+   ```
+
+### Tracking Match Algorithm Performance
+
+**View all match-related events**:
+```logql
+{container_name=~".*bot.*"} | json | event_type =~ "match_.*"
+```
+
+**Count matches created per time window**:
+```logql
+sum(count_over_time({container_name=~".*bot.*"} | json | event_type = "match_created" [5m]))
+```
+
+### Debugging API Endpoints
+
+1. **View all API requests in last hour**:
+   - Open **Debug Dashboard**
+   - Check **API Requests by Endpoint** panel
+
+2. **Find slow requests** (in Explore):
+   ```logql
+   {container_name=~".*bot.*"} | json | event_type = "request" | duration > 1000
+   ```
+
+## 📊 Available Metrics (Prometheus)
 - CPU usage per container
 - Memory usage and limits
 - Network I/O
