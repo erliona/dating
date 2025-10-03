@@ -60,45 +60,29 @@ def error_response(code: str, message: str, status: int = 400) -> web.Response:
     )
 
 
-def require_user(handler):
-    """Decorator to authenticate request and load user.
+async def get_user_or_error(repository: ProfileRepository, user_id: int) -> tuple[Optional[object], Optional[web.Response]]:
+    """Get user by Telegram ID or return error response.
     
-    Automatically handles:
-    - JWT authentication
-    - User lookup by Telegram ID
-    - Error responses for missing users
+    Helper function to reduce code duplication in API handlers.
     
-    The decorated handler receives user_id and user as keyword arguments.
+    Args:
+        repository: ProfileRepository instance
+        user_id: Telegram user ID
+        
+    Returns:
+        Tuple of (user, error_response). If user is found, error_response is None.
+        If user is not found, user is None and error_response contains the error.
+        
+    Example:
+        user, error = await get_user_or_error(repository, user_id)
+        if error:
+            return error
+        # Use user...
     """
-    from functools import wraps
-    
-    @wraps(handler)
-    async def wrapper(request: web.Request) -> web.Response:
-        config: BotConfig = request.app["config"]
-        session_maker: async_sessionmaker = request.app["session_maker"]
-        
-        try:
-            # Authenticate request
-            user_id = await authenticate_request(request, config.jwt_secret)
-            
-            # Get user from database
-            async with session_maker() as session:
-                repository = ProfileRepository(session)
-                user = await repository.get_user_by_tg_id(user_id)
-                
-                if not user:
-                    return error_response("not_found", "User not found", 404)
-                
-                # Call the actual handler with user_id and user
-                return await handler(request, user_id=user_id, user=user, repository=repository)
-        
-        except AuthenticationError as e:
-            return error_response("invalid_init_data", str(e), 401)
-        except Exception as e:
-            logger.error(f"Request failed: {e}", exc_info=True)
-            return error_response("internal_error", "Internal server error", 500)
-    
-    return wrapper
+    user = await repository.get_user_by_tg_id(user_id)
+    if not user:
+        return None, error_response("not_found", "User not found", 404)
+    return user, None
 
 
 def create_jwt_token(user_id: int, jwt_secret: str, expires_in: int = 3600) -> str:
@@ -582,10 +566,9 @@ async def get_profile_handler(request: web.Request) -> web.Response:
             repository = ProfileRepository(session)
             
             # Get user by Telegram ID
-            user = await repository.get_user_by_tg_id(user_id)
-            
-            if not user:
-                return error_response("not_found", "User not found", 404)
+            user, error = await get_user_or_error(repository, user_id)
+            if error:
+                return error
             
             # Get profile
             profile = await repository.get_profile_by_user_id(user.id)
@@ -667,10 +650,9 @@ async def update_profile_handler(request: web.Request) -> web.Response:
             repository = ProfileRepository(session)
             
             # Get user by Telegram ID
-            user = await repository.get_user_by_tg_id(user_id)
-            
-            if not user:
-                return error_response("not_found", "User not found", 404)
+            user, error = await get_user_or_error(repository, user_id)
+            if error:
+                return error
             
             # Update profile
             profile = await repository.update_profile(user.id, data)
@@ -738,12 +720,9 @@ async def discover_handler(request: web.Request) -> web.Response:
             repository = ProfileRepository(session)
             
             # Get user
-            user = await repository.get_user_by_tg_id(user_id)
-            if not user:
-                return web.json_response(
-                    {"error": {"code": "not_found", "message": "User not found"}},
-                    status=404
-                )
+            user, error = await get_user_or_error(repository, user_id)
+            if error:
+                return error
             
             # Find candidates
             profiles, next_cursor = await repository.find_candidates(
@@ -844,12 +823,9 @@ async def like_handler(request: web.Request) -> web.Response:
             repository = ProfileRepository(session)
             
             # Get user
-            user = await repository.get_user_by_tg_id(user_id)
-            if not user:
-                return web.json_response(
-                    {"error": {"code": "not_found", "message": "User not found"}},
-                    status=404
-                )
+            user, error = await get_user_or_error(repository, user_id)
+            if error:
+                return error
             
             # Create interaction (idempotent)
             await repository.create_interaction(
@@ -913,12 +889,9 @@ async def pass_handler(request: web.Request) -> web.Response:
             repository = ProfileRepository(session)
             
             # Get user
-            user = await repository.get_user_by_tg_id(user_id)
-            if not user:
-                return web.json_response(
-                    {"error": {"code": "not_found", "message": "User not found"}},
-                    status=404
-                )
+            user, error = await get_user_or_error(repository, user_id)
+            if error:
+                return error
             
             # Create pass interaction
             await repository.create_interaction(
@@ -966,12 +939,9 @@ async def matches_handler(request: web.Request) -> web.Response:
             repository = ProfileRepository(session)
             
             # Get user
-            user = await repository.get_user_by_tg_id(user_id)
-            if not user:
-                return web.json_response(
-                    {"error": {"code": "not_found", "message": "User not found"}},
-                    status=404
-                )
+            user, error = await get_user_or_error(repository, user_id)
+            if error:
+                return error
             
             # Get matches
             matches_with_profiles, next_cursor = await repository.get_matches(
@@ -1043,12 +1013,9 @@ async def add_favorite_handler(request: web.Request) -> web.Response:
             repository = ProfileRepository(session)
             
             # Get user
-            user = await repository.get_user_by_tg_id(user_id)
-            if not user:
-                return web.json_response(
-                    {"error": {"code": "not_found", "message": "User not found"}},
-                    status=404
-                )
+            user, error = await get_user_or_error(repository, user_id)
+            if error:
+                return error
             
             # Add to favorites
             favorite = await repository.add_favorite(user.id, target_id)
@@ -1092,12 +1059,9 @@ async def remove_favorite_handler(request: web.Request) -> web.Response:
             repository = ProfileRepository(session)
             
             # Get user
-            user = await repository.get_user_by_tg_id(user_id)
-            if not user:
-                return web.json_response(
-                    {"error": {"code": "not_found", "message": "User not found"}},
-                    status=404
-                )
+            user, error = await get_user_or_error(repository, user_id)
+            if error:
+                return error
             
             # Remove from favorites
             removed = await repository.remove_favorite(user.id, target_id)
@@ -1151,12 +1115,9 @@ async def get_favorites_handler(request: web.Request) -> web.Response:
             repository = ProfileRepository(session)
             
             # Get user
-            user = await repository.get_user_by_tg_id(user_id)
-            if not user:
-                return web.json_response(
-                    {"error": {"code": "not_found", "message": "User not found"}},
-                    status=404
-                )
+            user, error = await get_user_or_error(repository, user_id)
+            if error:
+                return error
             
             # Get favorites
             favorites_with_profiles, next_cursor = await repository.get_favorites(

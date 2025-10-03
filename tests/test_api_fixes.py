@@ -2,10 +2,11 @@
 
 import io
 from datetime import date, timedelta
+from unittest.mock import AsyncMock, MagicMock
 
 from PIL import Image
 
-from bot.api import calculate_age, error_response, optimize_image
+from bot.api import calculate_age, error_response, get_user_or_error, optimize_image
 
 
 class TestAgeCalculation:
@@ -55,6 +56,41 @@ class TestErrorResponse:
         """Test error_response with default status."""
         response = error_response("not_found", "Not found")
         assert response.status == 400  # Default status
+
+
+class TestGetUserOrError:
+    """Tests for get_user_or_error helper function (Issue #7)."""
+    
+    async def test_get_user_or_error_returns_user(self):
+        """Test that get_user_or_error returns user when found."""
+        # Mock repository
+        repository = MagicMock()
+        mock_user = MagicMock()
+        mock_user.id = 123
+        repository.get_user_by_tg_id = AsyncMock(return_value=mock_user)
+        
+        # Call helper
+        user, error = await get_user_or_error(repository, 456)
+        
+        # Verify
+        assert user == mock_user
+        assert error is None
+        repository.get_user_by_tg_id.assert_called_once_with(456)
+    
+    async def test_get_user_or_error_returns_error(self):
+        """Test that get_user_or_error returns error when user not found."""
+        # Mock repository
+        repository = MagicMock()
+        repository.get_user_by_tg_id = AsyncMock(return_value=None)
+        
+        # Call helper
+        user, error = await get_user_or_error(repository, 456)
+        
+        # Verify
+        assert user is None
+        assert error is not None
+        assert error.status == 404
+        repository.get_user_by_tg_id.assert_called_once_with(456)
 
 
 class TestImageOptimization:
