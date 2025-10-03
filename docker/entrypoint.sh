@@ -54,8 +54,18 @@ attempt_password_migration() {
     fi
     # Escape special characters for .pgpass (colon, backslash, newline)
     escape_pgpass() {
-      # Escape backslash first, then colon, then newline
-      printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/:/\\:/g' -e ':a;N;$!ba;s/\n/\\n/g'
+      # Escape special characters for .pgpass:
+      # 1. Escape backslashes ( \ -> \\ )
+      # 2. Escape colons ( : -> \: )
+      # 3. Escape newlines ( \n -> \\n )
+      input="$1"
+      # Escape backslashes
+      input=$(printf '%s' "$input" | sed 's/\\/\\\\/g')
+      # Escape colons
+      input=$(printf '%s' "$input" | sed 's/:/\\:/g')
+      # Escape newlines
+      input=$(printf '%s' "$input" | sed ':a;N;$!ba;s/\n/\\n/g')
+      printf '%s' "$input"
     }
     ESCAPED_POSTGRES_PASSWORD=$(escape_pgpass "$POSTGRES_PASSWORD")
     echo "$DB_HOST:$DB_PORT:$DB_NAME:postgres:$ESCAPED_POSTGRES_PASSWORD" > "$TMP_PGPASS"
