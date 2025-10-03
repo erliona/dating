@@ -1,10 +1,14 @@
 """Tests for HTTP API photo upload functionality."""
 
 import base64
+import hashlib
+import hmac
 import io
 import json
+import time
 from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
+from urllib.parse import urlencode
 
 import jwt
 import pytest
@@ -17,6 +21,43 @@ from bot.api import (
     optimize_image,
     verify_jwt_token,
 )
+
+
+def create_valid_init_data(bot_token: str, user_id: int, auth_date: int = None) -> str:
+    """Helper to create valid initData with correct HMAC signature."""
+    if auth_date is None:
+        auth_date = int(time.time())
+    
+    user_data = {
+        "id": user_id,
+        "first_name": "Test",
+        "username": "testuser"
+    }
+    
+    data = {
+        "user": json.dumps(user_data),
+        "auth_date": str(auth_date),
+        "hash": ""  # Will be calculated
+    }
+    
+    # Calculate HMAC
+    data_check_string = '\n'.join([f"{k}={v}" for k, v in sorted(data.items()) if k != 'hash'])
+    
+    secret_key = hmac.new(
+        key="WebAppData".encode(),
+        msg=bot_token.encode(),
+        digestmod=hashlib.sha256
+    ).digest()
+    
+    calculated_hash = hmac.new(
+        key=secret_key,
+        msg=data_check_string.encode(),
+        digestmod=hashlib.sha256
+    ).hexdigest()
+    
+    data['hash'] = calculated_hash
+    
+    return urlencode(data)
 
 
 class TestJWTAuthentication:
@@ -712,9 +753,8 @@ class TestCheckProfileHandler:
         def mock_session_maker():
             return mock_session
         
-        # Mock request with init_data for authentication
-        import json as json_module
-        init_data = f"user={json_module.dumps({'id': user_id})}"
+        # Mock request with properly signed init_data for authentication
+        init_data = create_valid_init_data(config.token, user_id)
         request = MagicMock()
         request.app = {"config": config, "session_maker": mock_session_maker}
         request.query = {"user_id": str(user_id), "init_data": init_data}
@@ -752,9 +792,8 @@ class TestCheckProfileHandler:
         def mock_session_maker():
             return mock_session
         
-        # Mock request with init_data for authentication
-        import json as json_module
-        init_data = f"user={json_module.dumps({'id': user_id})}"
+        # Mock request with properly signed init_data for authentication
+        init_data = create_valid_init_data(config.token, user_id)
         request = MagicMock()
         request.app = {"config": config, "session_maker": mock_session_maker}
         request.query = {"user_id": str(user_id), "init_data": init_data}

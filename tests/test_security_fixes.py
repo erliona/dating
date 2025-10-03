@@ -1,14 +1,55 @@
 """Tests for security fixes related to authentication and validation."""
 
+import hashlib
+import hmac
 import json
+import time
 from datetime import date
 from unittest.mock import AsyncMock, MagicMock, patch
+from urllib.parse import urlencode
 
 import pytest
 
 from bot.api import check_profile_handler, like_handler, pass_handler
 from bot.config import BotConfig
 from bot.db import User, Profile
+
+
+def create_valid_init_data(bot_token: str, user_id: int, auth_date: int = None) -> str:
+    """Helper to create valid initData with correct HMAC signature."""
+    if auth_date is None:
+        auth_date = int(time.time())
+    
+    user_data = {
+        "id": user_id,
+        "first_name": "Test",
+        "username": "testuser"
+    }
+    
+    data = {
+        "user": json.dumps(user_data),
+        "auth_date": str(auth_date),
+        "hash": ""  # Will be calculated
+    }
+    
+    # Calculate HMAC
+    data_check_string = '\n'.join([f"{k}={v}" for k, v in sorted(data.items()) if k != 'hash'])
+    
+    secret_key = hmac.new(
+        key="WebAppData".encode(),
+        msg=bot_token.encode(),
+        digestmod=hashlib.sha256
+    ).digest()
+    
+    calculated_hash = hmac.new(
+        key=secret_key,
+        msg=data_check_string.encode(),
+        digestmod=hashlib.sha256
+    ).hexdigest()
+    
+    data['hash'] = calculated_hash
+    
+    return urlencode(data)
 
 
 @pytest.mark.asyncio
@@ -124,8 +165,9 @@ class TestAuthenticationSecurity:
         authenticated_user_id = 12345
         requested_user_id = 67890
         
-        # Mock request where authenticated user_id doesn't match requested user_id
-        init_data = f"user={json.dumps({'id': authenticated_user_id})}"
+        # Create properly signed init_data with authenticated user's ID
+        init_data = create_valid_init_data(config.token, authenticated_user_id)
+        
         request = MagicMock()
         request.app = {"config": config, "session_maker": MagicMock()}
         request.query = {

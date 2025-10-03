@@ -528,20 +528,22 @@ async def check_profile_handler(request: web.Request) -> web.Response:
         if not init_data:
             return error_response("unauthorized", "init_data parameter required for authentication", 401)
         
-        # Verify init_data signature and extract user_id
-        # In production, you should verify the signature using bot token
-        from urllib.parse import parse_qs
+        # Verify init_data signature using cryptographic validation
+        from bot.security import validate_webapp_init_data, ValidationError
         try:
-            params = parse_qs(init_data)
-            user_param = params.get('user', [''])[0]
-            if not user_param:
-                logger.warning("init_data missing user parameter")
+            validated_data = validate_webapp_init_data(
+                init_data,
+                config.token,
+                max_age_seconds=3600
+            )
+            
+            # Extract authenticated user ID from validated data
+            user_data = validated_data.get('user', {})
+            if not isinstance(user_data, dict):
+                logger.warning("init_data user data is not a dictionary")
                 return error_response("unauthorized", "Unauthorized: invalid init_data", 401)
             
-            import json
-            user_data = json.loads(user_param)
             authenticated_user_id = user_data.get('id')
-            
             if not authenticated_user_id:
                 logger.warning("init_data user missing id field")
                 return error_response("unauthorized", "Unauthorized: invalid init_data", 401)
@@ -549,9 +551,9 @@ async def check_profile_handler(request: web.Request) -> web.Response:
             # Verify that requested user_id matches authenticated user_id
             if authenticated_user_id != requested_user_id:
                 return error_response("unauthorized", "Can only check own profile", 403)
-        except (ValueError, json.JSONDecodeError, KeyError) as e:
-            # If init_data parsing fails, reject the request
-            logger.warning(f"Failed to parse init_data for authentication: {e}")
+        except ValidationError as e:
+            # If init_data validation fails, reject the request
+            logger.warning(f"init_data validation failed: {e}")
             return error_response("unauthorized", "Unauthorized: invalid init_data", 401)
         
         # Check database for profile
