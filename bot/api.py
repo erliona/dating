@@ -1282,6 +1282,10 @@ def create_app(config: BotConfig, session_maker: async_sessionmaker) -> web.Appl
     except ImportError:
         logger.warning("NudeNet not available, NSFW detection will use fallback mode")
         app["nsfw_classifier"] = None
+    except Exception as e:
+        logger.warning(f"Failed to initialize NSFW classifier: {e}", exc_info=True)
+        logger.warning("NSFW detection will use fallback mode")
+        app["nsfw_classifier"] = None
     
     # Setup CORS
     cors = cors_setup(app, defaults={
