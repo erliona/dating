@@ -1091,7 +1091,7 @@ async function handleProfileSubmit(form) {
     return;
   }
   
-  // Validate age (18+)
+  // Validate age (18-120 years)
   const birthDate = new Date(profileData.birth_date);
   const today = new Date();
   const age = today.getFullYear() - birthDate.getFullYear();
@@ -1099,6 +1099,11 @@ async function handleProfileSubmit(form) {
   
   if (age < 18 || (age === 18 && monthDiff < 0)) {
     showFormError('Вам должно быть не менее 18 лет');
+    return;
+  }
+  
+  if (age > 120) {
+    showFormError('Неверная дата рождения');
     return;
   }
   

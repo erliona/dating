@@ -19,6 +19,7 @@ class Cache:
         self._storage: dict[str, tuple[Any, float]] = {}
         self._hits = 0
         self._misses = 0
+        self._last_cleanup = time.time()
     
     def get(self, key: str) -> Optional[Any]:
         """Get value from cache.
@@ -29,6 +30,9 @@ class Cache:
         Returns:
             Cached value or None if not found or expired
         """
+        # Periodic automatic cleanup to prevent memory leaks
+        self._auto_cleanup()
+        
         if key not in self._storage:
             self._misses += 1
             return None
@@ -43,6 +47,19 @@ class Cache:
         
         self._hits += 1
         return value
+    
+    def _auto_cleanup(self) -> None:
+        """Automatically cleanup expired entries periodically.
+        
+        Called on each get() to prevent memory leaks. Only runs every 5 minutes.
+        """
+        now = time.time()
+        # Only cleanup every 5 minutes to avoid overhead
+        if now - self._last_cleanup < 300:
+            return
+        
+        self.cleanup_expired()
+        self._last_cleanup = now
     
     def set(self, key: str, value: Any, ttl: int = 300) -> None:
         """Set value in cache with TTL.

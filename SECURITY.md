@@ -29,19 +29,33 @@ This document describes the security measures implemented in the Dating Bot appl
 ### 2. API Protection Measures
 
 #### Rate Limiting
-The bot now includes rate limiting to prevent abuse and DoS attacks:
+The application includes rate limiting to prevent abuse and DoS attacks:
 
 - **Configuration**: 20 requests per user per 60 seconds (configurable)
-- **Implementation**: In-memory rate limiter with automatic cleanup
+- **Implementation**: In-memory rate limiter with automatic TTL-based cleanup
 - **Location**: `bot/security.py` - `RateLimiter` class
-- **Applied to**: All WebApp data handlers
+- **Applied to**: All authenticated API endpoints
+- **Response**: Returns HTTP 429 (Too Many Requests) when limit exceeded
 
-Example configuration:
+The rate limiter automatically cleans up expired entries every 60 seconds to prevent memory leaks.
+
+Example usage:
 ```python
-rate_limit_config = RateLimitConfig(
+from bot.security import RateLimiter
+
+# Initialize rate limiter
+rate_limiter = RateLimiter(
     max_requests=20,  # Maximum requests per window
     window_seconds=60  # Time window in seconds
 )
+
+# Check if request is allowed
+if rate_limiter.is_allowed(user_id):
+    # Process request
+    pass
+else:
+    # Return 429 error
+    pass
 ```
 
 #### Input Validation and Sanitization
@@ -86,6 +100,15 @@ Enhanced authentication using Telegram's official validation algorithm:
 - Proper error handling without exposing internals
 - Comprehensive logging for security events
 
+#### JWT Token Validation
+Enhanced JWT token validation in `bot/api.py`:
+
+- **Format validation**: Authorization header must start with "Bearer "
+- **Empty token detection**: Rejects empty tokens after "Bearer " prefix
+- **Whitespace handling**: Strips whitespace from tokens
+- **Expiration check**: Validates JWT expiration time
+- **Suspicious activity logging**: Logs all authentication failures with IP and endpoint
+
 #### Bot Token Validation
 Enhanced token validation in `bot/config.py`:
 
@@ -99,17 +122,28 @@ Enhanced token validation in `bot/config.py`:
 - Rate limiting provides basic session protection
 - All authentication events are logged for audit purposes
 
-### 4. Security Logging
+### 4. Security Logging and Suspicious Activity Detection
 
-Enhanced security logging throughout the application:
+Enhanced security logging throughout the application with automatic detection of suspicious patterns:
 
 **Logged Events**:
-- Rate limit violations (WARNING level)
+- Rate limit violations (WARNING level) - includes user_id, IP, and endpoint
+- Authentication failures (WARNING level) - includes reason (missing_header, invalid_format, empty_token, invalid_token)
 - WebApp data validation failures (WARNING level)
-- Authentication failures (WARNING level)
 - Profile validation errors (WARNING level)
 - Database connection errors (ERROR level)
 - Unexpected exceptions (EXCEPTION level with stack traces)
+
+**Suspicious Activity Detection**:
+- Multiple authentication failures from same IP
+- Empty or malformed Authorization headers
+- Rate limit exceeded events
+- All security events include:
+  - Event type for easy filtering
+  - User ID (when available)
+  - IP address (when available)
+  - Endpoint path
+  - Timestamp (automatic via logging)
 
 **Log Format**:
 ```
@@ -138,6 +172,37 @@ Enhanced security logging throughout the application:
 - Alembic migrations version controlled
 - Migration safety checks before deployment
 - Database backups recommended before major updates
+
+### 7. Memory Leak Prevention
+
+#### Cache TTL Management
+The in-memory cache system includes automatic TTL-based cleanup:
+
+- **Auto-cleanup**: Runs every 5 minutes during cache access
+- **TTL enforcement**: All cached items have time-to-live
+- **Default TTL**: 5 minutes (300 seconds)
+- **Manual cleanup**: `cleanup_expired()` method available
+- **Statistics tracking**: Monitor cache size and hit rates
+
+```python
+from bot.cache import get_cache
+
+cache = get_cache()
+cache.set("key", "value", ttl=300)  # 5 minute TTL
+value = cache.get("key")  # Auto-cleanup runs periodically
+```
+
+#### Rate Limiter Cleanup
+The rate limiter includes automatic cleanup of expired request history:
+
+- **Auto-cleanup**: Runs every 60 seconds during rate limit checks
+- **Window-based**: Only keeps requests within the time window
+- **Memory efficient**: Removes empty user entries automatically
+
+#### Session Management
+- JWT tokens have 24-hour expiration
+- No indefinite sessions stored in memory
+- Token validation includes expiration checks
 
 ### 6. HTTPS and Transport Security
 
