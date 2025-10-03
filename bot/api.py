@@ -28,6 +28,7 @@ from .media import (
     validate_photo_size,
 )
 from .repository import ProfileRepository
+from .validation import calculate_age
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,64 @@ WEBP_QUALITY = 80  # WebP compression quality (0-100)
 class AuthenticationError(Exception):
     """Raised when authentication fails."""
     pass
+
+
+def error_response(code: str, message: str, status: int = 400) -> web.Response:
+    """Create standardized error response.
+    
+    Args:
+        code: Error code (e.g., 'not_found', 'validation_error')
+        message: Human-readable error message
+        status: HTTP status code
+        
+    Returns:
+        JSON response with standardized error format
+    """
+    return web.json_response(
+        {"error": {"code": code, "message": message}},
+        status=status
+    )
+
+
+def require_user(handler):
+    """Decorator to authenticate request and load user.
+    
+    Automatically handles:
+    - JWT authentication
+    - User lookup by Telegram ID
+    - Error responses for missing users
+    
+    The decorated handler receives user_id and user as keyword arguments.
+    """
+    from functools import wraps
+    
+    @wraps(handler)
+    async def wrapper(request: web.Request) -> web.Response:
+        config: BotConfig = request.app["config"]
+        session_maker: async_sessionmaker = request.app["session_maker"]
+        
+        try:
+            # Authenticate request
+            user_id = await authenticate_request(request, config.jwt_secret)
+            
+            # Get user from database
+            async with session_maker() as session:
+                repository = ProfileRepository(session)
+                user = await repository.get_user_by_tg_id(user_id)
+                
+                if not user:
+                    return error_response("not_found", "User not found", 404)
+                
+                # Call the actual handler with user_id and user
+                return await handler(request, user_id=user_id, user=user, repository=repository)
+        
+        except AuthenticationError as e:
+            return error_response("invalid_init_data", str(e), 401)
+        except Exception as e:
+            logger.error(f"Request failed: {e}", exc_info=True)
+            return error_response("internal_error", "Internal server error", 500)
+    
+    return wrapper
 
 
 def create_jwt_token(user_id: int, jwt_secret: str, expires_in: int = 3600) -> str:
@@ -95,9 +154,12 @@ def optimize_image(image_bytes: bytes, format: str = "JPEG") -> bytes:
     Returns:
         Optimized image bytes
     """
+    input_buffer = BytesIO(image_bytes)
+    output = BytesIO()
+    
     try:
         # Open image
-        image = Image.open(BytesIO(image_bytes))
+        image = Image.open(input_buffer)
         
         # Convert RGBA to RGB for JPEG
         if format == "JPEG" and image.mode in ("RGBA", "LA", "P"):
@@ -128,7 +190,6 @@ def optimize_image(image_bytes: bytes, format: str = "JPEG") -> bytes:
             )
         
         # Save optimized image
-        output = BytesIO()
         if format == "JPEG":
             image.save(output, format="JPEG", quality=JPEG_QUALITY, optimize=True)
         elif format == "WEBP":
@@ -155,6 +216,11 @@ def optimize_image(image_bytes: bytes, format: str = "JPEG") -> bytes:
         logger.error(f"Image optimization failed: {e}", exc_info=True)
         # Return original if optimization fails
         return image_bytes
+    
+    finally:
+        # Ensure BytesIO objects are properly closed
+        input_buffer.close()
+        output.close()
 
 
 def calculate_nsfw_score(image_bytes: bytes) -> float:
@@ -300,27 +366,21 @@ async def upload_photo_handler(request: web.Request) -> web.Response:
                 slot_index = int(slot_index_str.decode("utf-8"))
         
         if not photo_data:
-            return web.json_response(
-                {"error": "No photo data provided"},
-                status=400
-            )
+            return error_response("validation_error", "No photo data provided")
         
         if slot_index is None or slot_index < 0 or slot_index >= MAX_PHOTOS_PER_USER:
-            return web.json_response(
-                {"error": f"Invalid slot_index. Must be 0-{MAX_PHOTOS_PER_USER - 1}"},
-                status=400
-            )
+            return error_response("validation_error", f"Invalid slot_index. Must be 0-{MAX_PHOTOS_PER_USER - 1}")
         
         # Validate photo size
         is_valid, error = validate_photo_size(photo_data)
         if not is_valid:
-            return web.json_response({"error": error}, status=400)
+            return error_response("validation_error", error)
         
         # Detect and validate MIME type
         mime_type = detect_mime_type(photo_data)
         is_valid, error = validate_mime_type(mime_type)
         if not is_valid:
-            return web.json_response({"error": error}, status=400)
+            return error_response("validation_error", error)
         
         # Optimize image
         format_map = {
@@ -344,10 +404,7 @@ async def upload_photo_handler(request: web.Request) -> web.Response:
                     "threshold": config.nsfw_threshold
                 }
             )
-            return web.json_response(
-                {"error": "Photo contains inappropriate content"},
-                status=400
-            )
+            return error_response("validation_error", "Photo contains inappropriate content")
         
         # Save photo to storage
         photo_hash = hashlib.sha256(optimized_data).hexdigest()
@@ -391,15 +448,12 @@ async def upload_photo_handler(request: web.Request) -> web.Response:
         })
     
     except AuthenticationError as e:
-        return web.json_response({"error": str(e)}, status=401)
+        return error_response("invalid_init_data", str(e), 401)
     except PhotoValidationError as e:
-        return web.json_response({"error": str(e)}, status=400)
+        return error_response("validation_error", str(e))
     except Exception as e:
         logger.error(f"Photo upload failed: {e}", exc_info=True)
-        return web.json_response(
-            {"error": "Internal server error"},
-            status=500
-        )
+        return error_response("internal_error", "Internal server error", 500)
 
 
 async def generate_token_handler(request: web.Request) -> web.Response:
@@ -414,10 +468,7 @@ async def generate_token_handler(request: web.Request) -> web.Response:
         user_id = data.get("user_id")
         
         if not user_id:
-            return web.json_response(
-                {"error": "user_id required"},
-                status=400
-            )
+            return error_response("validation_error", "user_id required")
         
         token = create_jwt_token(user_id, config.jwt_secret)
         
@@ -428,10 +479,7 @@ async def generate_token_handler(request: web.Request) -> web.Response:
     
     except Exception as e:
         logger.error(f"Token generation failed: {e}", exc_info=True)
-        return web.json_response(
-            {"error": "Internal server error"},
-            status=500
-        )
+        return error_response("internal_error", "Internal server error", 500)
 
 
 async def check_profile_handler(request: web.Request) -> web.Response:
@@ -454,18 +502,12 @@ async def check_profile_handler(request: web.Request) -> web.Response:
         # Get user_id from query parameter
         user_id_str = request.query.get("user_id")
         if not user_id_str:
-            return web.json_response(
-                {"error": "user_id query parameter required"},
-                status=400
-            )
+            return error_response("validation_error", "user_id query parameter required")
         
         try:
             requested_user_id = int(user_id_str)
         except ValueError:
-            return web.json_response(
-                {"error": "user_id must be a valid integer"},
-                status=400
-            )
+            return error_response("validation_error", "user_id must be a valid integer")
         
         # Authenticate using init_data from Telegram WebApp
         # The init_data contains user information signed by Telegram
@@ -486,10 +528,7 @@ async def check_profile_handler(request: web.Request) -> web.Response:
                     
                     # Verify that requested user_id matches authenticated user_id
                     if authenticated_user_id != requested_user_id:
-                        return web.json_response(
-                            {"error": "Unauthorized: can only check own profile"},
-                            status=403
-                        )
+                        return error_response("unauthorized", "Can only check own profile", 403)
             except (ValueError, json.JSONDecodeError, KeyError):
                 # If init_data parsing fails, allow for backward compatibility
                 # but log the issue
@@ -518,10 +557,7 @@ async def check_profile_handler(request: web.Request) -> web.Response:
     
     except Exception as e:
         logger.error(f"Profile check failed: {e}", exc_info=True)
-        return web.json_response(
-            {"error": "Internal server error"},
-            status=500
-        )
+        return error_response("internal_error", "Internal server error", 500)
 
 
 async def get_profile_handler(request: web.Request) -> web.Response:
@@ -549,25 +585,19 @@ async def get_profile_handler(request: web.Request) -> web.Response:
             user = await repository.get_user_by_tg_id(user_id)
             
             if not user:
-                return web.json_response(
-                    {"error": "User not found"},
-                    status=404
-                )
+                return error_response("not_found", "User not found", 404)
             
             # Get profile
             profile = await repository.get_profile_by_user_id(user.id)
             
             if not profile:
-                return web.json_response(
-                    {"error": "Profile not found"},
-                    status=404
-                )
+                return error_response("not_found", "Profile not found", 404)
             
             # Get photos
             photos = await repository.get_user_photos(user.id)
             
             # Calculate age
-            age = (datetime.now().date() - profile.birth_date).days // 365
+            age = calculate_age(profile.birth_date)
             
             # Build response
             profile_data = {
@@ -600,16 +630,10 @@ async def get_profile_handler(request: web.Request) -> web.Response:
             })
     
     except AuthenticationError as e:
-        return web.json_response(
-            {"error": str(e)},
-            status=401
-        )
+        return error_response("invalid_init_data", str(e), 401)
     except Exception as e:
         logger.error(f"Get profile failed: {e}", exc_info=True)
-        return web.json_response(
-            {"error": "Internal server error"},
-            status=500
-        )
+        return error_response("internal_error", "Internal server error", 500)
 
 
 async def update_profile_handler(request: web.Request) -> web.Response:
@@ -646,19 +670,13 @@ async def update_profile_handler(request: web.Request) -> web.Response:
             user = await repository.get_user_by_tg_id(user_id)
             
             if not user:
-                return web.json_response(
-                    {"error": "User not found"},
-                    status=404
-                )
+                return error_response("not_found", "User not found", 404)
             
             # Update profile
             profile = await repository.update_profile(user.id, data)
             
             if not profile:
-                return web.json_response(
-                    {"error": "Profile not found"},
-                    status=404
-                )
+                return error_response("not_found", "Profile not found", 404)
             
             # Commit changes
             await session.commit()
@@ -674,16 +692,10 @@ async def update_profile_handler(request: web.Request) -> web.Response:
             })
     
     except AuthenticationError as e:
-        return web.json_response(
-            {"error": str(e)},
-            status=401
-        )
+        return error_response("invalid_init_data", str(e), 401)
     except Exception as e:
         logger.error(f"Update profile failed: {e}", exc_info=True)
-        return web.json_response(
-            {"error": "Internal server error"},
-            status=500
-        )
+        return error_response("internal_error", "Internal server error", 500)
 
 
 async def discover_handler(request: web.Request) -> web.Response:
@@ -759,7 +771,7 @@ async def discover_handler(request: web.Request) -> web.Response:
                     "id": profile.id,
                     "user_id": profile.user_id,
                     "name": profile.name,
-                    "age": (datetime.now().date() - profile.birth_date).days // 365,
+                    "age": calculate_age(profile.birth_date),
                     "gender": profile.gender,
                     "goal": profile.goal,
                     "bio": profile.bio,
@@ -979,7 +991,7 @@ async def matches_handler(request: web.Request) -> web.Response:
                         "id": profile.id,
                         "user_id": profile.user_id,
                         "name": profile.name,
-                        "age": (datetime.now().date() - profile.birth_date).days // 365,
+                        "age": calculate_age(profile.birth_date),
                         "bio": profile.bio,
                         "photos": [{"url": p.url} for p in photos[:1]]  # First photo only
                     }
@@ -1164,7 +1176,7 @@ async def get_favorites_handler(request: web.Request) -> web.Response:
                         "id": profile.id,
                         "user_id": profile.user_id,
                         "name": profile.name,
-                        "age": (datetime.now().date() - profile.birth_date).days // 365,
+                        "age": calculate_age(profile.birth_date),
                         "bio": profile.bio,
                         "photos": [{"url": p.url} for p in photos[:1]]  # First photo only
                     }
