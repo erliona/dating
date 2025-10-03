@@ -29,7 +29,7 @@
                 
                 <button class="button button-primary" onclick="startProfileCreation()">Начать знакомства</button>
                 
-                <p class="app-version">v<span id="appVersionText">1.1.0</span></p>
+                <p class="app-version">v<span id="appVersionText">1.3.0</span></p>
             </div>
         </div>
     </div>
@@ -139,7 +139,7 @@
                 
                 <button type="submit" class="button button-primary">Создать анкету</button>
                 
-                <p class="app-version">v<span id="appVersionTextForm">1.1.0</span></p>
+                <p class="app-version">v<span id="appVersionTextForm">1.3.0</span></p>
             </form>
         </div>
     </div>
@@ -149,20 +149,331 @@
         <div class="info-card text-center">
             <h2>✅ Анкета создана!</h2>
             <p class="mt-lg">Ваша анкета успешно создана и сохранена.</p>
-            <div class="placeholder-content">
-                <p>🚀 Скоро здесь появятся новые возможности:</p>
-                <ul class="info-list">
-                    <li>Просмотр других анкет</li>
-                    <li>Система совпадений</li>
-                    <li>Обмен сообщениями</li>
-                </ul>
-            </div>
+            <button class="button button-primary" onclick="showDiscovery()">Начать знакомства</button>
             
-            <p class="app-version">v<span id="appVersionTextSuccess">1.1.0</span></p>
+            <p class="app-version">v<span id="appVersionTextSuccess">1.2.0</span></p>
         </div>
     </div>
 
+    <!-- Discovery/Swipes Screen -->
+    <div id="discovery-screen" class="container hidden">
+        <!-- Top Navigation -->
+        <div class="discovery-header">
+            <button class="icon-button" onclick="showFilters()" title="Фильтры">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="4" y1="6" x2="20" y2="6"></line>
+                    <line x1="4" y1="12" x2="20" y2="12"></line>
+                    <line x1="4" y1="18" x2="20" y2="18"></line>
+                    <circle cx="7" cy="6" r="2" fill="currentColor"></circle>
+                    <circle cx="17" cy="12" r="2" fill="currentColor"></circle>
+                    <circle cx="14" cy="18" r="2" fill="currentColor"></circle>
+                </svg>
+            </button>
+            <h2 class="discovery-title">Знакомства</h2>
+            <div class="nav-buttons">
+                <button class="icon-button" onclick="showMatches()" title="Матчи">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                    </svg>
+                    <span class="badge" id="matchesBadge" style="display: none;">0</span>
+                </button>
+                <button class="icon-button" onclick="showFavorites()" title="Избранное">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Card Stack -->
+        <div class="card-stack" id="cardStack">
+            <div class="empty-state" id="emptyState">
+                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+                    <line x1="9" y1="9" x2="9.01" y2="9"></line>
+                    <line x1="15" y1="9" x2="15.01" y2="9"></line>
+                </svg>
+                <h3>Нет анкет</h3>
+                <p>Попробуйте изменить фильтры или вернитесь позже</p>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons" id="actionButtons">
+            <button class="action-btn action-pass" onclick="handlePass()" title="Пропустить">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+            <button class="action-btn action-superlike" onclick="handleSuperlike()" title="Суперлайк">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                </svg>
+            </button>
+            <button class="action-btn action-like" onclick="handleLike()" title="Лайк">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                </svg>
+            </button>
+            <button class="action-btn action-favorite" onclick="handleAddFavorite()" title="В избранное">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- Filters Screen -->
+    <div id="filters-screen" class="container hidden">
+        <div class="filters-header">
+            <button class="icon-button" onclick="hideFilters()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"></path>
+                </svg>
+            </button>
+            <h2>Фильтры</h2>
+            <button class="text-button" onclick="resetFilters()">Сбросить</button>
+        </div>
+        
+        <div class="filters-content">
+            <div class="filter-group">
+                <label class="filter-label">Возраст</label>
+                <div class="range-inputs">
+                    <input type="number" id="filterAgeMin" min="18" max="100" placeholder="От">
+                    <span>—</span>
+                    <input type="number" id="filterAgeMax" min="18" max="100" placeholder="До">
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label">Рост (см)</label>
+                <div class="range-inputs">
+                    <input type="number" id="filterHeightMin" min="100" max="250" placeholder="От">
+                    <span>—</span>
+                    <input type="number" id="filterHeightMax" min="100" max="250" placeholder="До">
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label">Цель знакомства</label>
+                <select id="filterGoal" class="filter-select">
+                    <option value="">Любая</option>
+                    <option value="friendship">Дружба</option>
+                    <option value="dating">Свидания</option>
+                    <option value="relationship">Отношения</option>
+                    <option value="serious">Серьёзные отношения</option>
+                    <option value="casual">Лёгкое общение</option>
+                    <option value="networking">Нетворкинг</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label">Образование</label>
+                <select id="filterEducation" class="filter-select">
+                    <option value="">Любое</option>
+                    <option value="high_school">Среднее</option>
+                    <option value="bachelor">Бакалавриат</option>
+                    <option value="master">Магистратура</option>
+                    <option value="phd">PhD</option>
+                    <option value="other">Другое</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label class="filter-label">
+                    <input type="checkbox" id="filterVerifiedOnly">
+                    Только верифицированные
+                </label>
+            </div>
+
+            <button class="button button-primary" onclick="applyFilters()">Применить фильтры</button>
+        </div>
+    </div>
+
+    <!-- Matches Screen -->
+    <div id="matches-screen" class="container hidden">
+        <div class="screen-header">
+            <button class="icon-button" onclick="showDiscovery()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"></path>
+                </svg>
+            </button>
+            <h2>Мои матчи</h2>
+            <div></div>
+        </div>
+        <div class="matches-list" id="matchesList">
+            <!-- Matches will be loaded here -->
+        </div>
+    </div>
+
+    <!-- Favorites Screen -->
+    <div id="favorites-screen" class="container hidden">
+        <div class="screen-header">
+            <button class="icon-button" onclick="showDiscovery()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M19 12H5M12 19l-7-7 7-7"></path>
+                </svg>
+            </button>
+            <h2>Избранное</h2>
+            <div></div>
+        </div>
+        <div class="favorites-list" id="favoritesList">
+            <!-- Favorites will be loaded here -->
+        </div>
+    </div>
+
+    <!-- Profile Edit Screen -->
+    <div id="profile-edit-screen" class="container hidden">
+        <div class="screen-header">
+            <h2>Мой профиль</h2>
+        </div>
+        <div class="profile-edit-content">
+            <div class="profile-photos-edit">
+                <h3>Фото профиля</h3>
+                <div class="photo-slots-container">
+                    <div class="photo-slot-edit" id="editPhotoSlot0">
+                        <span>Фото 1</span>
+                    </div>
+                    <div class="photo-slot-edit" id="editPhotoSlot1">
+                        <span>Фото 2</span>
+                    </div>
+                    <div class="photo-slot-edit" id="editPhotoSlot2">
+                        <span>Фото 3</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="profile-info-section">
+                <h3>Основная информация</h3>
+                <div class="info-item">
+                    <label>Имя</label>
+                    <input type="text" id="editName" class="edit-input" placeholder="Ваше имя">
+                </div>
+                <div class="info-item">
+                    <label>О себе</label>
+                    <textarea id="editBio" class="edit-textarea" rows="4" placeholder="Расскажите о себе..."></textarea>
+                </div>
+                <div class="info-item">
+                    <label>Город</label>
+                    <input type="text" id="editCity" class="edit-input" placeholder="Москва">
+                </div>
+            </div>
+            
+            <button class="button button-primary" onclick="saveProfileChanges()">Сохранить изменения</button>
+        </div>
+    </div>
+
+    <!-- Settings Screen -->
+    <div id="settings-screen" class="container hidden">
+        <div class="screen-header">
+            <h2>Настройки</h2>
+        </div>
+        <div class="settings-content">
+            <div class="settings-section">
+                <h3>Приватность</h3>
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <div class="setting-title">Скрыть возраст</div>
+                        <div class="setting-description">Ваш возраст не будет виден другим</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="hideAge">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <div class="setting-title">Скрыть расстояние</div>
+                        <div class="setting-description">Расстояние до вас не будет показано</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="hideDistance">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h3>Уведомления</h3>
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <div class="setting-title">Новые матчи</div>
+                        <div class="setting-description">Уведомления о новых совпадениях</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="notifyMatches" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <div class="setting-title">Новые сообщения</div>
+                        <div class="setting-description">Уведомления о сообщениях</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="notifyMessages" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h3>О приложении</h3>
+                <div class="setting-item-static">
+                    <div class="setting-title">Версия</div>
+                    <div class="setting-value">1.3.0</div>
+                </div>
+                <div class="setting-item-static">
+                    <div class="setting-title">Техподдержка</div>
+                    <div class="setting-value">@support</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Match Modal -->
+    <div id="matchModal" class="modal hidden">
+        <div class="modal-content match-modal">
+            <div class="match-icon">
+                <svg width="80" height="80" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                </svg>
+            </div>
+            <h2>Это матч!</h2>
+            <p id="matchText">Вы понравились друг другу</p>
+            <button class="button button-primary" onclick="closeMatchModal()">Продолжить</button>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation -->
+    <nav id="bottom-nav" class="bottom-nav hidden">
+        <button class="nav-item" onclick="showProfileEdit()" data-tab="profile">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <span>Профиль</span>
+        </button>
+        <button class="nav-item active" onclick="showDiscoveryFromNav()" data-tab="discovery">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+            </svg>
+            <span>Знакомства</span>
+        </button>
+        <button class="nav-item" onclick="showSettings()" data-tab="settings">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M12 1v6m0 6v6m9-9h-6m-6 0H3"></path>
+            </svg>
+            <span>Настройки</span>
+        </button>
+    </nav>
+
     <!-- Application Script -->
     <script src="js/app.js"></script>
+    <script src="js/discovery.js"></script>
+    <script src="js/navigation.js"></script>
 </body>
 </html>

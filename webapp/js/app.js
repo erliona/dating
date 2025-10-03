@@ -540,6 +540,9 @@ function showSuccessScreen() {
   // Set version text on all pages
   updateVersionText();
   
+  // Mark that user has profile
+  localStorage.setItem('hasProfile', 'true');
+  
   triggerHaptic('notification', 'success');
 }
 

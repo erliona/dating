@@ -494,6 +494,509 @@ async def check_profile_handler(request: web.Request) -> web.Response:
         )
 
 
+async def discover_handler(request: web.Request) -> web.Response:
+    """Get candidate profiles for discovery with filters and pagination.
+    
+    Query params:
+    - limit: Max candidates to return (default 10, max 50)
+    - cursor: Profile ID for pagination
+    - age_min, age_max: Age filters
+    - max_distance_km: Distance filter
+    - goal: Relationship goal
+    - height_min, height_max: Height filters
+    - has_children, smoking, drinking: Boolean filters
+    - education: Education level
+    - verified_only: Only verified profiles
+    """
+    config: BotConfig = request.app["config"]
+    session_maker: async_sessionmaker = request.app["session_maker"]
+    
+    try:
+        # Authenticate
+        user_id = await authenticate_request(request, config.jwt_secret)
+        
+        # Parse query parameters
+        limit = min(int(request.query.get("limit", 10)), 50)
+        cursor = int(request.query["cursor"]) if "cursor" in request.query else None
+        age_min = int(request.query["age_min"]) if "age_min" in request.query else None
+        age_max = int(request.query["age_max"]) if "age_max" in request.query else None
+        max_distance_km = float(request.query["max_distance_km"]) if "max_distance_km" in request.query else None
+        goal = request.query.get("goal")
+        height_min = int(request.query["height_min"]) if "height_min" in request.query else None
+        height_max = int(request.query["height_max"]) if "height_max" in request.query else None
+        has_children = request.query.get("has_children") == "true" if "has_children" in request.query else None
+        smoking = request.query.get("smoking") == "true" if "smoking" in request.query else None
+        drinking = request.query.get("drinking") == "true" if "drinking" in request.query else None
+        education = request.query.get("education")
+        verified_only = request.query.get("verified_only") == "true"
+        
+        async with session_maker() as session:
+            repository = ProfileRepository(session)
+            
+            # Get user
+            user = await repository.get_user_by_tg_id(user_id)
+            if not user:
+                return web.json_response(
+                    {"error": {"code": "not_found", "message": "User not found"}},
+                    status=404
+                )
+            
+            # Find candidates
+            profiles, next_cursor = await repository.find_candidates(
+                user_id=user.id,
+                limit=limit,
+                cursor=cursor,
+                age_min=age_min,
+                age_max=age_max,
+                max_distance_km=max_distance_km,
+                goal=goal,
+                height_min=height_min,
+                height_max=height_max,
+                has_children=has_children,
+                smoking=smoking,
+                drinking=drinking,
+                education=education,
+                verified_only=verified_only
+            )
+            
+            # Get photos for each profile
+            profiles_data = []
+            for profile in profiles:
+                photos = await repository.get_user_photos(profile.user_id)
+                profiles_data.append({
+                    "id": profile.id,
+                    "user_id": profile.user_id,
+                    "name": profile.name,
+                    "age": (datetime.now().date() - profile.birth_date).days // 365,
+                    "gender": profile.gender,
+                    "goal": profile.goal,
+                    "bio": profile.bio,
+                    "interests": profile.interests or [],
+                    "height_cm": profile.height_cm,
+                    "education": profile.education,
+                    "city": profile.city,
+                    "photos": [{"url": p.url, "is_verified": p.is_verified} for p in photos]
+                })
+            
+            return web.json_response({
+                "profiles": profiles_data,
+                "next_cursor": next_cursor,
+                "count": len(profiles_data)
+            })
+    
+    except AuthenticationError as e:
+        return web.json_response(
+            {"error": {"code": "invalid_init_data", "message": str(e)}},
+            status=401
+        )
+    except ValueError as e:
+        return web.json_response(
+            {"error": {"code": "validation_error", "message": str(e)}},
+            status=400
+        )
+    except Exception as e:
+        logger.error(f"Discovery failed: {e}", exc_info=True)
+        return web.json_response(
+            {"error": {"code": "internal_error", "message": "Internal server error"}},
+            status=500
+        )
+
+
+async def like_handler(request: web.Request) -> web.Response:
+    """Handle like/superlike action.
+    
+    Body:
+    - target_id: User ID to like
+    - type: "like" or "superlike" (default "like")
+    
+    Returns:
+    - match_id: If mutual match created
+    """
+    config: BotConfig = request.app["config"]
+    session_maker: async_sessionmaker = request.app["session_maker"]
+    
+    try:
+        # Authenticate
+        user_id = await authenticate_request(request, config.jwt_secret)
+        
+        # Parse body
+        data = await request.json()
+        target_id = data.get("target_id")
+        interaction_type = data.get("type", "like")
+        
+        if not target_id:
+            return web.json_response(
+                {"error": {"code": "validation_error", "message": "target_id is required"}},
+                status=400
+            )
+        
+        if interaction_type not in ["like", "superlike"]:
+            return web.json_response(
+                {"error": {"code": "validation_error", "message": "type must be 'like' or 'superlike'"}},
+                status=400
+            )
+        
+        async with session_maker() as session:
+            repository = ProfileRepository(session)
+            
+            # Get user
+            user = await repository.get_user_by_tg_id(user_id)
+            if not user:
+                return web.json_response(
+                    {"error": {"code": "not_found", "message": "User not found"}},
+                    status=404
+                )
+            
+            # Create interaction (idempotent)
+            await repository.create_interaction(
+                user_id=user.id,
+                target_id=target_id,
+                interaction_type=interaction_type
+            )
+            
+            # Check for mutual like
+            match_id = None
+            if await repository.check_mutual_like(user.id, target_id):
+                # Create match (idempotent)
+                match = await repository.create_match(user.id, target_id)
+                match_id = match.id
+            
+            await session.commit()
+            
+            response = {"success": True}
+            if match_id:
+                response["match_id"] = match_id
+            
+            return web.json_response(response)
+    
+    except AuthenticationError as e:
+        return web.json_response(
+            {"error": {"code": "invalid_init_data", "message": str(e)}},
+            status=401
+        )
+    except Exception as e:
+        logger.error(f"Like action failed: {e}", exc_info=True)
+        return web.json_response(
+            {"error": {"code": "internal_error", "message": "Internal server error"}},
+            status=500
+        )
+
+
+async def pass_handler(request: web.Request) -> web.Response:
+    """Handle pass/dislike action.
+    
+    Body:
+    - target_id: User ID to pass
+    """
+    config: BotConfig = request.app["config"]
+    session_maker: async_sessionmaker = request.app["session_maker"]
+    
+    try:
+        # Authenticate
+        user_id = await authenticate_request(request, config.jwt_secret)
+        
+        # Parse body
+        data = await request.json()
+        target_id = data.get("target_id")
+        
+        if not target_id:
+            return web.json_response(
+                {"error": {"code": "validation_error", "message": "target_id is required"}},
+                status=400
+            )
+        
+        async with session_maker() as session:
+            repository = ProfileRepository(session)
+            
+            # Get user
+            user = await repository.get_user_by_tg_id(user_id)
+            if not user:
+                return web.json_response(
+                    {"error": {"code": "not_found", "message": "User not found"}},
+                    status=404
+                )
+            
+            # Create pass interaction
+            await repository.create_interaction(
+                user_id=user.id,
+                target_id=target_id,
+                interaction_type="pass"
+            )
+            
+            await session.commit()
+            
+            return web.json_response({"success": True})
+    
+    except AuthenticationError as e:
+        return web.json_response(
+            {"error": {"code": "invalid_init_data", "message": str(e)}},
+            status=401
+        )
+    except Exception as e:
+        logger.error(f"Pass action failed: {e}", exc_info=True)
+        return web.json_response(
+            {"error": {"code": "internal_error", "message": "Internal server error"}},
+            status=500
+        )
+
+
+async def matches_handler(request: web.Request) -> web.Response:
+    """Get user's matches with pagination.
+    
+    Query params:
+    - limit: Max matches to return (default 20, max 100)
+    - cursor: Match ID for pagination
+    """
+    config: BotConfig = request.app["config"]
+    session_maker: async_sessionmaker = request.app["session_maker"]
+    
+    try:
+        # Authenticate
+        user_id = await authenticate_request(request, config.jwt_secret)
+        
+        # Parse query parameters
+        limit = min(int(request.query.get("limit", 20)), 100)
+        cursor = int(request.query["cursor"]) if "cursor" in request.query else None
+        
+        async with session_maker() as session:
+            repository = ProfileRepository(session)
+            
+            # Get user
+            user = await repository.get_user_by_tg_id(user_id)
+            if not user:
+                return web.json_response(
+                    {"error": {"code": "not_found", "message": "User not found"}},
+                    status=404
+                )
+            
+            # Get matches
+            matches_with_profiles, next_cursor = await repository.get_matches(
+                user_id=user.id,
+                limit=limit,
+                cursor=cursor
+            )
+            
+            # Format response
+            matches_data = []
+            for match, profile in matches_with_profiles:
+                photos = await repository.get_user_photos(profile.user_id)
+                matches_data.append({
+                    "match_id": match.id,
+                    "created_at": match.created_at.isoformat(),
+                    "profile": {
+                        "id": profile.id,
+                        "user_id": profile.user_id,
+                        "name": profile.name,
+                        "age": (datetime.now().date() - profile.birth_date).days // 365,
+                        "bio": profile.bio,
+                        "photos": [{"url": p.url} for p in photos[:1]]  # First photo only
+                    }
+                })
+            
+            return web.json_response({
+                "matches": matches_data,
+                "next_cursor": next_cursor,
+                "count": len(matches_data)
+            })
+    
+    except AuthenticationError as e:
+        return web.json_response(
+            {"error": {"code": "invalid_init_data", "message": str(e)}},
+            status=401
+        )
+    except Exception as e:
+        logger.error(f"Get matches failed: {e}", exc_info=True)
+        return web.json_response(
+            {"error": {"code": "internal_error", "message": "Internal server error"}},
+            status=500
+        )
+
+
+async def add_favorite_handler(request: web.Request) -> web.Response:
+    """Add profile to favorites.
+    
+    Body:
+    - target_id: User ID to add to favorites
+    """
+    config: BotConfig = request.app["config"]
+    session_maker: async_sessionmaker = request.app["session_maker"]
+    
+    try:
+        # Authenticate
+        user_id = await authenticate_request(request, config.jwt_secret)
+        
+        # Parse body
+        data = await request.json()
+        target_id = data.get("target_id")
+        
+        if not target_id:
+            return web.json_response(
+                {"error": {"code": "validation_error", "message": "target_id is required"}},
+                status=400
+            )
+        
+        async with session_maker() as session:
+            repository = ProfileRepository(session)
+            
+            # Get user
+            user = await repository.get_user_by_tg_id(user_id)
+            if not user:
+                return web.json_response(
+                    {"error": {"code": "not_found", "message": "User not found"}},
+                    status=404
+                )
+            
+            # Add to favorites
+            favorite = await repository.add_favorite(user.id, target_id)
+            await session.commit()
+            
+            return web.json_response({
+                "success": True,
+                "favorite_id": favorite.id
+            })
+    
+    except AuthenticationError as e:
+        return web.json_response(
+            {"error": {"code": "invalid_init_data", "message": str(e)}},
+            status=401
+        )
+    except Exception as e:
+        logger.error(f"Add favorite failed: {e}", exc_info=True)
+        return web.json_response(
+            {"error": {"code": "internal_error", "message": "Internal server error"}},
+            status=500
+        )
+
+
+async def remove_favorite_handler(request: web.Request) -> web.Response:
+    """Remove profile from favorites.
+    
+    Path param:
+    - target_id: User ID to remove from favorites
+    """
+    config: BotConfig = request.app["config"]
+    session_maker: async_sessionmaker = request.app["session_maker"]
+    
+    try:
+        # Authenticate
+        user_id = await authenticate_request(request, config.jwt_secret)
+        
+        # Get target_id from path
+        target_id = int(request.match_info["target_id"])
+        
+        async with session_maker() as session:
+            repository = ProfileRepository(session)
+            
+            # Get user
+            user = await repository.get_user_by_tg_id(user_id)
+            if not user:
+                return web.json_response(
+                    {"error": {"code": "not_found", "message": "User not found"}},
+                    status=404
+                )
+            
+            # Remove from favorites
+            removed = await repository.remove_favorite(user.id, target_id)
+            await session.commit()
+            
+            if not removed:
+                return web.json_response(
+                    {"error": {"code": "not_found", "message": "Favorite not found"}},
+                    status=404
+                )
+            
+            return web.json_response({"success": True})
+    
+    except AuthenticationError as e:
+        return web.json_response(
+            {"error": {"code": "invalid_init_data", "message": str(e)}},
+            status=401
+        )
+    except ValueError:
+        return web.json_response(
+            {"error": {"code": "validation_error", "message": "Invalid target_id"}},
+            status=400
+        )
+    except Exception as e:
+        logger.error(f"Remove favorite failed: {e}", exc_info=True)
+        return web.json_response(
+            {"error": {"code": "internal_error", "message": "Internal server error"}},
+            status=500
+        )
+
+
+async def get_favorites_handler(request: web.Request) -> web.Response:
+    """Get user's favorites with pagination.
+    
+    Query params:
+    - limit: Max favorites to return (default 20, max 100)
+    - cursor: Favorite ID for pagination
+    """
+    config: BotConfig = request.app["config"]
+    session_maker: async_sessionmaker = request.app["session_maker"]
+    
+    try:
+        # Authenticate
+        user_id = await authenticate_request(request, config.jwt_secret)
+        
+        # Parse query parameters
+        limit = min(int(request.query.get("limit", 20)), 100)
+        cursor = int(request.query["cursor"]) if "cursor" in request.query else None
+        
+        async with session_maker() as session:
+            repository = ProfileRepository(session)
+            
+            # Get user
+            user = await repository.get_user_by_tg_id(user_id)
+            if not user:
+                return web.json_response(
+                    {"error": {"code": "not_found", "message": "User not found"}},
+                    status=404
+                )
+            
+            # Get favorites
+            favorites_with_profiles, next_cursor = await repository.get_favorites(
+                user_id=user.id,
+                limit=limit,
+                cursor=cursor
+            )
+            
+            # Format response
+            favorites_data = []
+            for favorite, profile in favorites_with_profiles:
+                photos = await repository.get_user_photos(profile.user_id)
+                favorites_data.append({
+                    "favorite_id": favorite.id,
+                    "created_at": favorite.created_at.isoformat(),
+                    "profile": {
+                        "id": profile.id,
+                        "user_id": profile.user_id,
+                        "name": profile.name,
+                        "age": (datetime.now().date() - profile.birth_date).days // 365,
+                        "bio": profile.bio,
+                        "photos": [{"url": p.url} for p in photos[:1]]  # First photo only
+                    }
+                })
+            
+            return web.json_response({
+                "favorites": favorites_data,
+                "next_cursor": next_cursor,
+                "count": len(favorites_data)
+            })
+    
+    except AuthenticationError as e:
+        return web.json_response(
+            {"error": {"code": "invalid_init_data", "message": str(e)}},
+            status=401
+        )
+    except Exception as e:
+        logger.error(f"Get favorites failed: {e}", exc_info=True)
+        return web.json_response(
+            {"error": {"code": "internal_error", "message": "Internal server error"}},
+            status=500
+        )
+
+
 async def health_check_handler(request: web.Request) -> web.Response:
     """Health check endpoint."""
     return web.json_response({"status": "ok"})
@@ -531,6 +1034,15 @@ def create_app(config: BotConfig, session_maker: async_sessionmaker) -> web.Appl
         web.get("/api/profile/check", check_profile_handler),
         web.post("/api/photos/upload", upload_photo_handler),
         web.post("/api/auth/token", generate_token_handler),
+        # Discovery and interactions
+        web.get("/api/discover", discover_handler),
+        web.post("/api/like", like_handler),
+        web.post("/api/pass", pass_handler),
+        web.get("/api/matches", matches_handler),
+        # Favorites
+        web.post("/api/favorites", add_favorite_handler),
+        web.delete("/api/favorites/{target_id}", remove_favorite_handler),
+        web.get("/api/favorites", get_favorites_handler),
     ]
     
     for route in routes:
