@@ -59,19 +59,19 @@ class TestValidateName:
         """Test empty name."""
         is_valid, error = validate_name("")
         assert is_valid is False
-        assert "required" in error.lower()
+        assert "обязательно" in error.lower()
     
     def test_name_too_short(self):
         """Test name too short."""
         is_valid, error = validate_name("A")
         assert is_valid is False
-        assert "2 characters" in error
+        assert "2 символа" in error
     
     def test_name_too_long(self):
         """Test name too long."""
         is_valid, error = validate_name("A" * 101)
         assert is_valid is False
-        assert "100 characters" in error
+        assert "100 символов" in error
     
     def test_name_with_spaces(self):
         """Test name with leading/trailing spaces."""
@@ -143,7 +143,7 @@ class TestValidateGender:
         """Test invalid gender."""
         is_valid, error = validate_gender("invalid")
         assert is_valid is False
-        assert "must be one of" in error.lower()
+        assert "должен быть одним из" in error.lower()
 
 
 class TestValidateOrientation:
@@ -160,7 +160,7 @@ class TestValidateOrientation:
         """Test invalid orientation."""
         is_valid, error = validate_orientation("invalid")
         assert is_valid is False
-        assert "must be one of" in error.lower()
+        assert "должна быть одной из" in error.lower()
 
 
 class TestValidateGoal:
@@ -177,7 +177,7 @@ class TestValidateGoal:
         """Test invalid goal."""
         is_valid, error = validate_goal("invalid")
         assert is_valid is False
-        assert "must be one of" in error.lower()
+        assert "должна быть одной из" in error.lower()
 
 
 class TestValidateBio:
@@ -367,7 +367,7 @@ class TestValidateProfileData:
         }
         is_valid, error = validate_profile_data(data)
         assert is_valid is False
-        assert "2 characters" in error
+        assert "2 символа" in error
     
     def test_under_age_in_profile(self):
         """Test profile with under 18 age."""
@@ -416,13 +416,13 @@ class TestValidateNameEdgeCases:
         """Test name validation with non-string type."""
         is_valid, error = validate_name(123)
         assert is_valid is False
-        assert "must be a string" in error.lower()
+        assert "должно быть строкой" in error.lower()
     
     def test_name_none(self):
         """Test name validation with None."""
         is_valid, error = validate_name(None)
         assert is_valid is False
-        assert "required" in error.lower()
+        assert "обязательно" in error.lower()
 
 
 class TestValidateBirthDateEdgeCases:
@@ -448,7 +448,7 @@ class TestValidateGenderEdgeCases:
         """Test gender validation with None."""
         is_valid, error = validate_gender(None)
         assert is_valid is False
-        assert "required" in error.lower()
+        assert "обязателен" in error.lower()
 
 
 class TestValidateOrientationEdgeCases:
@@ -458,7 +458,7 @@ class TestValidateOrientationEdgeCases:
         """Test orientation validation with None."""
         is_valid, error = validate_orientation(None)
         assert is_valid is False
-        assert "required" in error.lower()
+        assert "обязательна" in error.lower()
 
 
 class TestValidateGoalEdgeCases:
@@ -468,7 +468,7 @@ class TestValidateGoalEdgeCases:
         """Test goal validation with None."""
         is_valid, error = validate_goal(None)
         assert is_valid is False
-        assert "required" in error.lower()
+        assert "обязательна" in error.lower()
 
 
 class TestValidateBioEdgeCases:
