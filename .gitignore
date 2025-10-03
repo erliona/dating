@@ -57,6 +57,14 @@ monitoring/**/data/
 .tmp/
 tmp/
 
+# Database backups (should be stored elsewhere, not in git)
+backups/
+*.sql
+*.sql.gz
+*.sql.bz2
+*_backup_*.sql*
+db_backup_*
+
 # Old webapp files (kept for reference, not for deployment)
 webapp/*_old.*
 

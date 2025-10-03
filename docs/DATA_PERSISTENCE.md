@@ -92,7 +92,25 @@ crontab -e
 
 ### Manual Backup
 
-Before any risky operation, create a backup:
+#### Quick Backup (Using Script)
+
+The easiest way to create a backup:
+
+```bash
+# Run the backup script
+./scripts/backup_database.sh
+```
+
+This script will:
+- ✅ Check database connectivity
+- ✅ Show current statistics
+- ✅ Create timestamped backup
+- ✅ Automatically compress the backup
+- ✅ Show backup details and next steps
+
+#### Manual Backup (Without Script)
+
+If you prefer to do it manually:
 
 ```bash
 # Create backups directory
@@ -133,6 +151,33 @@ rclone copy backups/db_backup_*.sql.gz gdrive:dating-backups/
 ## 🔄 Restore from Backup
 
 ### Restore Recent Backup
+
+#### Quick Restore (Using Script)
+
+The easiest way to restore from a backup:
+
+```bash
+# List available backups
+ls -lh backups/
+
+# Restore from backup
+./scripts/restore_database.sh backups/db_backup_20241003_143000.sql.gz
+
+# Or restore without confirmation prompt
+./scripts/restore_database.sh -f backups/db_backup_20241003_143000.sql.gz
+```
+
+This script will:
+- ✅ Check database connectivity
+- ✅ Show current data statistics
+- ✅ Create a pre-restore backup for safety
+- ✅ Restore from the specified backup
+- ✅ Restart the bot
+- ✅ Show restored data statistics
+
+#### Manual Restore (Without Script)
+
+If you prefer to do it manually:
 
 ```bash
 # List available backups
