@@ -634,16 +634,42 @@ jobs:
             sudo docker "$@"
           }
 
-          # Check if bot container is running
-          if ! run_docker compose ps bot | grep -q "Up"; then
+          # Check if bot container is running and healthy
+          BOT_STATUS=$(run_docker compose ps bot --format json 2>/dev/null || echo '{}')
+          if echo "$BOT_STATUS" | grep -q '"State":"running"'; then
+            # Check if container has health check and if it's healthy
+            if echo "$BOT_STATUS" | grep -q '"Health":'; then
+              if ! echo "$BOT_STATUS" | grep -q '"Health":"healthy"'; then
+                echo "::error::Bot container is running but unhealthy!"
+                run_docker compose ps bot
+                run_docker compose logs --tail=50 bot
+                exit 1
+              fi
+            fi
+            echo "✓ Bot container is running and healthy"
+          else
             echo "::error::Bot container is not running!"
+            run_docker compose ps bot
             run_docker compose logs --tail=50 bot
             exit 1
           fi
 
-          # Check if database is running
-          if ! run_docker compose ps db | grep -q "Up"; then
+          # Check if database is running and healthy
+          DB_STATUS=$(run_docker compose ps db --format json 2>/dev/null || echo '{}')
+          if echo "$DB_STATUS" | grep -q '"State":"running"'; then
+            # Check if container has health check and if it's healthy
+            if echo "$DB_STATUS" | grep -q '"Health":'; then
+              if ! echo "$DB_STATUS" | grep -q '"Health":"healthy"'; then
+                echo "::error::Database container is running but unhealthy!"
+                run_docker compose ps db
+                run_docker compose logs --tail=50 db
+                exit 1
+              fi
+            fi
+            echo "✓ Database container is running and healthy"
+          else
             echo "::error::Database container is not running!"
+            run_docker compose ps db
             run_docker compose logs --tail=50 db
             exit 1
           fi
@@ -656,39 +682,37 @@ jobs:
           # Check monitoring services
           echo ""
           echo "=== Monitoring Services Health Check ==="
+          
+          check_monitoring_service() {
+            local service_name=$1
+            local status=$(run_docker compose ps "$service_name" --format json 2>/dev/null || echo '{}')
+            
+            if echo "$status" | grep -q '"State":"running"'; then
+              # Check health status if present
+              if echo "$status" | grep -q '"Health":'; then
+                if echo "$status" | grep -q '"Health":"healthy"'; then
+                  echo "✓ $service_name is running and healthy"
+                  return 0
+                else
+                  echo "::warning::$service_name is running but not healthy"
+                  return 1
+                fi
+              else
+                echo "✓ $service_name is running"
+                return 0
+              fi
+            else
+              echo "::warning::$service_name is not running"
+              return 1
+            fi
+          }
+          
           MONITORING_HEALTHY=true
-          
-          # Check Grafana
-          if run_docker compose ps grafana | grep -q "Up"; then
-            echo "✓ Grafana is running"
-          else
-            echo "::warning::Grafana is not running"
-            MONITORING_HEALTHY=false
-          fi
-          
-          # Check Loki
-          if run_docker compose ps loki | grep -q "Up"; then
-            echo "✓ Loki is running"
-          else
-            echo "::warning::Loki is not running"
-            MONITORING_HEALTHY=false
-          fi
-          
-          # Check Promtail
-          if run_docker compose ps promtail | grep -q "Up"; then
-            echo "✓ Promtail is running"
-          else
-            echo "::warning::Promtail is not running"
-            MONITORING_HEALTHY=false
-          fi
-          
-          # Check Prometheus
-          if run_docker compose ps prometheus | grep -q "Up"; then
-            echo "✓ Prometheus is running"
-          else
-            echo "::warning::Prometheus is not running"
-            MONITORING_HEALTHY=false
-          fi
+          for service in grafana loki promtail prometheus; do
+            if ! check_monitoring_service "$service"; then
+              MONITORING_HEALTHY=false
+            fi
+          done
           
           if [ "$MONITORING_HEALTHY" = true ]; then
             echo "✅ All monitoring services are healthy"

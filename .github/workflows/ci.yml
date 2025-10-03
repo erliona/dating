@@ -127,32 +127,43 @@ jobs:
           # Check service status
           docker compose ps
           
-          # Verify services are running
-          if ! docker compose ps loki | grep -q "Up"; then
-            echo "::error::Loki is not running"
-            docker compose logs loki
+          # Verify services are running and healthy
+          check_service_health() {
+            local service=$1
+            local status=$(docker compose ps "$service" --format json 2>/dev/null || echo '{}')
+            
+            if echo "$status" | grep -q '"State":"running"'; then
+              # Check health if available
+              if echo "$status" | grep -q '"Health":'; then
+                if ! echo "$status" | grep -q '"Health":"healthy"'; then
+                  echo "::error::$service is running but not healthy"
+                  docker compose ps "$service"
+                  docker compose logs "$service"
+                  return 1
+                fi
+              fi
+              echo "✓ $service is running and healthy"
+              return 0
+            else
+              echo "::error::$service is not running"
+              docker compose ps "$service"
+              docker compose logs "$service"
+              return 1
+            fi
+          }
+          
+          ALL_HEALTHY=true
+          for service in loki promtail grafana prometheus; do
+            if ! check_service_health "$service"; then
+              ALL_HEALTHY=false
+            fi
+          done
+          
+          if [ "$ALL_HEALTHY" = true ]; then
+            echo "✅ All monitoring services are running and healthy"
+          else
             exit 1
           fi
-          
-          if ! docker compose ps promtail | grep -q "Up"; then
-            echo "::error::Promtail is not running"
-            docker compose logs promtail
-            exit 1
-          fi
-          
-          if ! docker compose ps grafana | grep -q "Up"; then
-            echo "::error::Grafana is not running"
-            docker compose logs grafana
-            exit 1
-          fi
-          
-          if ! docker compose ps prometheus | grep -q "Up"; then
-            echo "::error::Prometheus is not running"
-            docker compose logs prometheus
-            exit 1
-          fi
-          
-          echo "✅ All monitoring services are running"
 
       - name: Test Grafana dashboards
         run: |
