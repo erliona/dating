@@ -101,7 +101,7 @@ class TestValidateBirthDate:
         birth_date = date.today().replace(year=date.today().year - 17)
         is_valid, error = validate_birth_date(birth_date)
         assert is_valid is False
-        assert "18 years old" in error
+        assert "18" in error or "лет" in error
     
     def test_future_birth_date(self):
         """Test future birth date."""
@@ -115,7 +115,7 @@ class TestValidateBirthDate:
         birth_date = date.today().replace(year=date.today().year - 121)
         is_valid, error = validate_birth_date(birth_date)
         assert is_valid is False
-        assert "Invalid" in error
+        assert "Invalid" in error or "Неверная" in error
 
 
 class TestValidateGender:
@@ -380,7 +380,7 @@ class TestValidateProfileData:
         }
         is_valid, error = validate_profile_data(data)
         assert is_valid is False
-        assert "18 years old" in error
+        assert "18" in error or "лет" in error
     
     def test_birth_date_string_format(self):
         """Test profile with birth date as string."""

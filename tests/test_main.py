@@ -320,6 +320,51 @@ class TestHandleCreateProfile:
         message.answer.assert_called_once()
         assert "Validation error" in message.answer.call_args[0][0]
     
+    async def test_handle_create_profile_duplicate(self):
+        """Test profile creation when profile already exists."""
+        message = MagicMock(spec=Message)
+        message.answer = AsyncMock()
+        message.from_user = MagicMock(
+            id=12345,
+            username="testuser",
+            first_name="Test",
+            language_code="en",
+            is_premium=False
+        )
+        
+        data = {
+            "profile": {
+                "name": "John Doe",
+                "birth_date": "1990-01-01",
+                "gender": "male",
+                "orientation": "female",
+                "goal": "relationship",
+                "city": "Moscow"
+            }
+        }
+        
+        # Mock repository
+        repository = MagicMock()
+        mock_user = MagicMock()
+        mock_user.id = 1
+        repository.create_or_update_user = AsyncMock(return_value=mock_user)
+        
+        # Mock existing profile
+        existing_profile = MagicMock()
+        existing_profile.id = 1
+        repository.get_profile_by_user_id = AsyncMock(return_value=existing_profile)
+        
+        session = MagicMock()
+        logger = logging.getLogger(__name__)
+        
+        await handle_create_profile(message, data, repository, session, logger)
+        
+        # Should show error message about existing profile
+        message.answer.assert_called_once()
+        assert "уже есть профиль" in message.answer.call_args[0][0]
+        # Should not create profile or commit
+        repository.create_profile.assert_not_called()
+    
     async def test_handle_create_profile_success(self):
         """Test successful profile creation."""
         message = MagicMock(spec=Message)
@@ -348,6 +393,9 @@ class TestHandleCreateProfile:
         mock_user = MagicMock()
         mock_user.id = 1
         repository.create_or_update_user = AsyncMock(return_value=mock_user)
+        
+        # No existing profile
+        repository.get_profile_by_user_id = AsyncMock(return_value=None)
         
         mock_profile = MagicMock()
         mock_profile.id = 1
