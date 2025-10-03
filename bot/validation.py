@@ -71,10 +71,10 @@ def validate_birth_date(birth_date: date) -> tuple[bool, Optional[str]]:
     age = calculate_age(birth_date)
     
     if age < 18:
-        return False, "You must be at least 18 years old"
+        return False, "Вам должно быть не менее 18 лет"
     
     if age > 120:
-        return False, "Invalid birth date"
+        return False, "Неверная дата рождения"
     
     return True, None
 

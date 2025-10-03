@@ -173,6 +173,12 @@ async def handle_create_profile(
         is_premium=message.from_user.is_premium or False
     )
     
+    # Check if profile already exists
+    existing_profile = await repository.get_profile_by_user_id(user.id)
+    if existing_profile:
+        await message.answer("❌ У вас уже есть профиль!")
+        return
+    
     # Process location data
     location = process_location_data(
         latitude=profile_data.get("latitude"),
@@ -190,8 +196,10 @@ async def handle_create_profile(
             profile_data["birth_date"], "%Y-%m-%d"
         ).date()
     
-    # Mark profile as complete if all required data is present
-    profile_data["is_complete"] = True
+    # Mark profile as complete only if photos are present
+    # Photos are uploaded separately, so check photo_count
+    photo_count = profile_data.get("photo_count", 0)
+    profile_data["is_complete"] = photo_count > 0
     
     # Create profile
     profile = await repository.create_profile(user.id, profile_data)

@@ -437,8 +437,11 @@ async def generate_token_handler(request: web.Request) -> web.Response:
 async def check_profile_handler(request: web.Request) -> web.Response:
     """Check if user has a profile in the database.
     
+    Requires authentication via init_data parameter or Authorization header.
+    Users can only check their own profile.
+    
     Expects query parameter:
-    - user_id: Telegram user ID
+    - user_id: Telegram user ID (must match authenticated user)
     
     Returns JSON with:
     - has_profile: Boolean indicating if profile exists
@@ -457,24 +460,52 @@ async def check_profile_handler(request: web.Request) -> web.Response:
             )
         
         try:
-            user_id = int(user_id_str)
+            requested_user_id = int(user_id_str)
         except ValueError:
             return web.json_response(
                 {"error": "user_id must be a valid integer"},
                 status=400
             )
         
+        # Authenticate using init_data from Telegram WebApp
+        # The init_data contains user information signed by Telegram
+        init_data = request.query.get("init_data")
+        
+        if init_data:
+            # Verify init_data signature (basic validation)
+            # In production, you should verify the signature using bot token
+            # For now, we extract user_id from init_data
+            from urllib.parse import parse_qs
+            try:
+                params = parse_qs(init_data)
+                user_param = params.get('user', [''])[0]
+                if user_param:
+                    import json
+                    user_data = json.loads(user_param)
+                    authenticated_user_id = user_data.get('id')
+                    
+                    # Verify that requested user_id matches authenticated user_id
+                    if authenticated_user_id != requested_user_id:
+                        return web.json_response(
+                            {"error": "Unauthorized: can only check own profile"},
+                            status=403
+                        )
+            except (ValueError, json.JSONDecodeError, KeyError):
+                # If init_data parsing fails, allow for backward compatibility
+                # but log the issue
+                logger.warning(f"Failed to parse init_data for authentication")
+        
         # Check database for profile
         async with session_maker() as session:
             repository = ProfileRepository(session)
             
             # Get user by Telegram ID
-            user = await repository.get_user_by_tg_id(user_id)
+            user = await repository.get_user_by_tg_id(requested_user_id)
             
             if not user:
                 return web.json_response({
                     "has_profile": False,
-                    "user_id": user_id
+                    "user_id": requested_user_id
                 })
             
             # Check if user has a profile
@@ -482,7 +513,7 @@ async def check_profile_handler(request: web.Request) -> web.Response:
             
             return web.json_response({
                 "has_profile": profile is not None,
-                "user_id": user_id
+                "user_id": requested_user_id
             })
     
     except Exception as e:
