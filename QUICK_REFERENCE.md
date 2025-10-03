@@ -55,13 +55,35 @@ pytest tests/ -v
 ### Check Database
 ```bash
 # Connect to PostgreSQL
-psql -U dating dating
+docker compose exec db psql -U dating dating
 
 # View profiles
 SELECT * FROM profiles;
 
 # View users
 SELECT * FROM users;
+
+# Check database size
+SELECT pg_size_pretty(pg_database_size('dating'));
+```
+
+### Backup Database
+```bash
+# Quick backup (recommended)
+./scripts/backup_database.sh
+
+# Manual backup
+docker compose exec db pg_dump -U dating dating > backup_$(date +%Y%m%d).sql
+gzip backup_*.sql
+```
+
+### Restore Database
+```bash
+# Quick restore (recommended)
+./scripts/restore_database.sh backups/db_backup_20241003.sql.gz
+
+# Manual restore
+gunzip < backup.sql.gz | docker compose exec -T db psql -U dating dating
 ```
 
 ### Run Bot Locally

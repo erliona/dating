@@ -160,9 +160,20 @@ docker compose exec db psql -U dating -d dating
 docker compose down
 ```
 
-### Остановить и удалить данные (⚠️ удалит все профили!)
+### ⚠️ ОПАСНО: Остановить и удалить ВСЕ данные
 
 ```bash
+# ⛔ ВНИМАНИЕ: Эта команда УДАЛИТ ВСЕ ДАННЫЕ БЕЗВОЗВРАТНО!
+# - Удалит все профили пользователей
+# - Удалит всю историю взаимодействий
+# - Удалит все сообщения
+# - Удалит все настройки
+# - Восстановление будет НЕВОЗМОЖНО без резервной копии!
+
+# ВСЕГДА делайте резервную копию ПЕРЕД использованием этой команды:
+docker compose exec db pg_dump -U dating dating > backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Только после создания резервной копии:
 docker compose down -v
 ```
 
@@ -211,9 +222,15 @@ docker compose restart bot
 
 **Решение**:
 ```bash
-# Пересоздайте БД (⚠️ удалит данные)
+# Сначала создайте резервную копию!
+docker compose exec db pg_dump -U dating dating > backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Пересоздайте БД (⚠️ удалит данные!)
 docker compose down -v
 docker compose up -d
+
+# Восстановите данные из резервной копии:
+docker compose exec -T db psql -U dating dating < backup_*.sql
 ```
 
 ### WebApp показывает 404

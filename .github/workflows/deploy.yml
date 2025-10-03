@@ -424,6 +424,7 @@ jobs:
           # Check if database password has changed
           PASSWORD_CHANGED=false
           VOLUME_EXISTS=false
+          DB_BACKUP_NEEDED=false
           
           # Check if database volume exists
           if run_docker volume inspect dating_postgres_data >/dev/null 2>&1; then
@@ -436,14 +437,14 @@ jobs:
             if [ -n "$OLD_PASSWORD" ] && [ -n "$NEW_PASSWORD" ] && [ "$OLD_PASSWORD" != "$NEW_PASSWORD" ]; then
               echo "⚠️  Database password has changed!"
               PASSWORD_CHANGED=true
+              DB_BACKUP_NEEDED=true
             fi
           elif [ "$VOLUME_EXISTS" = true ]; then
-            # No .env.previous but volume exists - this is a problem!
-            # The volume has an unknown password, so we must recreate it
-            echo "⚠️  Database volume exists but no .env.previous file found!"
-            echo "⚠️  This usually means .env was deleted but database wasn't."
-            echo "⚠️  Database will be reset to avoid authentication failures."
-            PASSWORD_CHANGED=true
+            # No .env.previous but volume exists
+            # This is common on first deployment with existing data
+            echo "ℹ️  Database volume exists but no .env.previous file found"
+            echo "ℹ️  Assuming this is the first deployment - preserving existing data"
+            # Do NOT set PASSWORD_CHANGED=true here to preserve data
           fi
 
           # Stop old containers gracefully
@@ -452,12 +453,79 @@ jobs:
             run_docker compose down
           fi
 
-          # If password changed, we need to reset the database volume
-          # because PostgreSQL only uses POSTGRES_PASSWORD on initial DB creation
-          if [ "$PASSWORD_CHANGED" = true ]; then
-            echo "🗑️  Removing database volume due to password change..."
-            run_docker volume rm dating_postgres_data 2>/dev/null || true
-            echo "✓ Database will be recreated with new password"
+          # If password changed, backup and restore the database instead of deleting
+          if [ "$PASSWORD_CHANGED" = true ] && [ "$DB_BACKUP_NEEDED" = true ]; then
+            echo "💾 Creating database backup before password change..."
+            
+            # Start database with old password to backup
+            echo "Starting database with old password for backup..."
+            cp .env.previous .env.temp
+            run_docker compose up -d db
+            
+            # Wait for database to be ready
+            for i in {1..30}; do
+              if run_docker compose exec -T db pg_isready -U "${POSTGRES_USER:-dating}" >/dev/null 2>&1; then
+                break
+              fi
+              sleep 1
+            done
+            
+            # Create backup directory if it doesn't exist
+            mkdir -p ./backups
+            BACKUP_FILE="./backups/db_backup_$(date +%Y%m%d_%H%M%S).sql"
+            
+            # Backup database
+            echo "Creating backup at $BACKUP_FILE..."
+            if run_docker compose exec -T db pg_dump -U "${POSTGRES_USER:-dating}" "${POSTGRES_DB:-dating}" > "$BACKUP_FILE" 2>/dev/null; then
+              echo "✓ Database backup created successfully"
+              
+              # Stop database
+              run_docker compose down
+              
+              # Remove old volume
+              echo "Removing old database volume..."
+              run_docker volume rm dating_postgres_data 2>/dev/null || true
+              
+              # Restore .env with new password
+              cp .env .env.temp
+              
+              # Start database with new password
+              echo "Starting database with new password..."
+              run_docker compose up -d db
+              
+              # Wait for database to be ready
+              for i in {1..30}; do
+                if run_docker compose exec -T db pg_isready -U "${POSTGRES_USER:-dating}" >/dev/null 2>&1; then
+                  break
+                fi
+                sleep 1
+              done
+              
+              # Restore backup
+              echo "Restoring database from backup..."
+              if cat "$BACKUP_FILE" | run_docker compose exec -T db psql -U "${POSTGRES_USER:-dating}" "${POSTGRES_DB:-dating}" >/dev/null 2>&1; then
+                echo "✓ Database restored successfully with new password"
+                # Keep backup file for safety
+                echo "✓ Backup file kept at: $BACKUP_FILE"
+              else
+                echo "❌ Failed to restore database!"
+                echo "⚠️  Backup file saved at: $BACKUP_FILE"
+                echo "⚠️  Please restore manually if needed"
+              fi
+              
+              # Stop database before full compose up
+              run_docker compose down
+              
+              # Clean up temp file
+              rm -f .env.temp
+            else
+              echo "❌ Failed to create database backup!"
+              echo "⚠️  Skipping password change to preserve data"
+              echo "⚠️  Please change password manually or contact administrator"
+              # Restore old .env to keep old password
+              cp .env.previous .env
+              PASSWORD_CHANGED=false
+            fi
           fi
 
           # Save current .env as .env.previous for next deployment

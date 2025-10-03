@@ -333,7 +333,10 @@ docker compose config
 - `traefik_certs` - SSL сертификаты
 - `prometheus_data`, `grafana_data`, `loki_data` - мониторинг
 
-**Важно**: Не используйте `docker compose down -v` в production!
+**⚠️ КРИТИЧЕСКИ ВАЖНО**: 
+- **НИКОГДА не используйте `docker compose down -v` без резервной копии!**
+- Эта команда **БЕЗВОЗВРАТНО УДАЛЯЕТ ВСЕ ДАННЫЕ** (профили, матчи, сообщения)
+- См. [Data Persistence Guide](DATA_PERSISTENCE.md) для безопасных методов
 
 ### Документация
 

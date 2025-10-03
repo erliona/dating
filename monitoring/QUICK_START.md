@@ -102,7 +102,9 @@ docker compose logs prometheus grafana loki
 # Stop monitoring (keeps data)
 docker compose stop prometheus grafana loki promtail cadvisor
 
-# Remove monitoring (deletes data)
+# Remove monitoring (⚠️ deletes monitoring data only, not app data)
+# Note: This only affects monitoring volumes (prometheus_data, grafana_data, loki_data)
+# It does NOT delete your application database (postgres_data)
 docker compose --profile monitoring down -v
 ```
 
