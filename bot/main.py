@@ -362,7 +362,7 @@ async def main() -> None:
         logger.info("Shutting down bot", extra={"event_type": "shutdown"})
         try:
             await bot.session.close()
-        except:
+        except Exception:
             pass
 
 
