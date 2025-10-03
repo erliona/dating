@@ -128,11 +128,11 @@ def load_config() -> BotConfig:
         
         # Validate credentials are not empty or whitespace-only
         if not postgres_user.strip():
-            raise RuntimeError("POSTGRES_USER cannot be empty or whitespace")
+            raise RuntimeError("POSTGRES_USER cannot be empty or whitespace-only")
         if not postgres_password.strip():
-            raise RuntimeError("POSTGRES_PASSWORD cannot be empty or whitespace")
+            raise RuntimeError("POSTGRES_PASSWORD cannot be empty or whitespace-only")
         if not postgres_db.strip():
-            raise RuntimeError("POSTGRES_DB cannot be empty or whitespace")
+            raise RuntimeError("POSTGRES_DB cannot be empty or whitespace-only")
         
         # Check for common placeholder patterns in password
         password_placeholders = [
