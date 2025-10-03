@@ -1,360 +1,364 @@
 {
   "title": "Dating App - Application Logs & Events",
-  "tags": ["dating", "logs", "events"],
+  "tags": [
+    "dating",
+    "logs",
+    "events"
+  ],
   "timezone": "browser",
   "editable": true,
   "panels": [
-      {
-        "id": 1,
-        "title": "Bot Lifecycle Events Count",
-        "type": "stat",
-        "datasource": {
-          "type": "loki",
-          "uid": "loki"
-        },
-        "targets": [
-          {
-            "expr": "count_over_time({job=\"docker\", container_name=~\".*bot.*\"} | json | event_type=~\"startup|shutdown\" [$__range])",
-            "refId": "A",
-            "legendFormat": "Lifecycle Events"
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "color": {
-              "mode": "thresholds"
-            },
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                {
-                  "value": null,
-                  "color": "blue"
-                }
-              ]
-            }
-          }
-        },
-        "gridPos": {
-          "x": 0,
-          "y": 0,
-          "w": 6,
-          "h": 4
-        }
+    {
+      "id": 1,
+      "title": "Bot Lifecycle Events Count",
+      "type": "stat",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
       },
-      {
-        "id": 2,
-        "title": "Error Logs Count",
-        "type": "stat",
-        "datasource": {
-          "type": "loki",
-          "uid": "loki"
-        },
-        "targets": [
-          {
-            "expr": "count_over_time({job=\"docker\", container_name=~\".*bot.*\"} | json | level=\"ERROR\" [$__range])",
-            "refId": "A",
-            "legendFormat": "Errors"
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "color": {
-              "mode": "thresholds"
-            },
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                {
-                  "value": null,
-                  "color": "green"
-                },
-                {
-                  "value": 1,
-                  "color": "yellow"
-                },
-                {
-                  "value": 10,
-                  "color": "red"
-                }
-              ]
-            }
-          }
-        },
-        "gridPos": {
-          "x": 6,
-          "y": 0,
-          "w": 6,
-          "h": 4
+      "targets": [
+        {
+          "expr": "count_over_time({job=\"docker\", container_name=~\".*bot.*\"} | json | event_type=~\"startup|shutdown\" [$__range])",
+          "refId": "A",
+          "legendFormat": "Lifecycle Events"
         }
-      },
-      {
-        "id": 3,
-        "title": "Warning Logs Count",
-        "type": "stat",
-        "datasource": {
-          "type": "loki",
-          "uid": "loki"
-        },
-        "targets": [
-          {
-            "expr": "count_over_time({job=\"docker\", container_name=~\".*bot.*\"} | json | level=\"WARNING\" [$__range])",
-            "refId": "A",
-            "legendFormat": "Warnings"
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "color": {
-              "mode": "thresholds"
-            },
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                {
-                  "value": null,
-                  "color": "green"
-                },
-                {
-                  "value": 5,
-                  "color": "yellow"
-                },
-                {
-                  "value": 20,
-                  "color": "orange"
-                }
-              ]
-            }
-          }
-        },
-        "gridPos": {
-          "x": 12,
-          "y": 0,
-          "w": 6,
-          "h": 4
-        }
-      },
-      {
-        "id": 4,
-        "title": "Total Log Entries",
-        "type": "stat",
-        "datasource": {
-          "type": "loki",
-          "uid": "loki"
-        },
-        "targets": [
-          {
-            "expr": "count_over_time({job=\"docker\", container_name=~\".*bot.*\"} [$__range])",
-            "refId": "A",
-            "legendFormat": "Total Logs"
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "color": {
-              "mode": "thresholds"
-            },
-            "thresholds": {
-              "mode": "absolute",
-              "steps": [
-                {
-                  "value": null,
-                  "color": "blue"
-                }
-              ]
-            }
-          }
-        },
-        "gridPos": {
-          "x": 18,
-          "y": 0,
-          "w": 6,
-          "h": 4
-        }
-      },
-      {
-        "id": 5,
-        "title": "Log Levels Over Time",
-        "type": "timeseries",
-        "datasource": {
-          "type": "loki",
-          "uid": "loki"
-        },
-        "targets": [
-          {
-            "expr": "sum by (level) (count_over_time({job=\"docker\", container_name=~\".*bot.*\"} | json | __error__=\"\" [1m]))",
-            "legendFormat": "{{level}}",
-            "refId": "A"
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "short",
-            "color": {
-              "mode": "palette-classic"
-            }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
           },
-          "overrides": [
-            {
-              "matcher": {
-                "id": "byName",
-                "options": "ERROR"
-              },
-              "properties": [
-                {
-                  "id": "color",
-                  "value": {
-                    "mode": "fixed",
-                    "fixedColor": "red"
-                  }
-                }
-              ]
-            },
-            {
-              "matcher": {
-                "id": "byName",
-                "options": "WARNING"
-              },
-              "properties": [
-                {
-                  "id": "color",
-                  "value": {
-                    "mode": "fixed",
-                    "fixedColor": "orange"
-                  }
-                }
-              ]
-            },
-            {
-              "matcher": {
-                "id": "byName",
-                "options": "INFO"
-              },
-              "properties": [
-                {
-                  "id": "color",
-                  "value": {
-                    "mode": "fixed",
-                    "fixedColor": "blue"
-                  }
-                }
-              ]
-            }
-          ]
-        },
-        "options": {
-          "legend": {
-            "displayMode": "list",
-            "placement": "bottom"
-          },
-          "tooltip": {
-            "mode": "multi"
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "blue"
+              }
+            ]
           }
-        },
-        "gridPos": {
-          "x": 0,
-          "y": 4,
-          "w": 12,
-          "h": 8
         }
       },
-      {
-        "id": 6,
-        "title": "Event Types Over Time",
-        "type": "timeseries",
-        "datasource": {
-          "type": "loki",
-          "uid": "loki"
-        },
-        "targets": [
-          {
-            "expr": "sum by (event_type) (count_over_time({job=\"docker\", container_name=~\".*bot.*\"} | json | event_type!=\"\" [1m]))",
-            "legendFormat": "{{event_type}}",
-            "refId": "A"
-          }
-        ],
-        "fieldConfig": {
-          "defaults": {
-            "unit": "short",
-            "color": {
-              "mode": "palette-classic"
-            }
-          }
-        },
-        "options": {
-          "legend": {
-            "displayMode": "list",
-            "placement": "bottom"
-          },
-          "tooltip": {
-            "mode": "multi"
-          }
-        },
-        "gridPos": {
-          "x": 12,
-          "y": 4,
-          "w": 12,
-          "h": 8
-        }
-      },
-      {
-        "id": 7,
-        "title": "Recent Bot Logs (All Levels)",
-        "type": "logs",
-        "datasource": {
-          "type": "loki",
-          "uid": "loki"
-        },
-        "targets": [
-          {
-            "expr": "{job=\"docker\", container_name=~\".*bot.*\"} | json | line_format \"[{{.level}}] {{.message}}\"",
-            "refId": "A"
-          }
-        ],
-        "options": {
-          "showLabels": false,
-          "showTime": true,
-          "wrapLogMessage": true,
-          "sortOrder": "Descending",
-          "enableLogDetails": true,
-          "dedupStrategy": "none"
-        },
-        "gridPos": {
-          "x": 0,
-          "y": 12,
-          "w": 12,
-          "h": 10
-        }
-      },
-      {
-        "id": 8,
-        "title": "Detailed Bot Logs with Metadata",
-        "type": "logs",
-        "datasource": {
-          "type": "loki",
-          "uid": "loki"
-        },
-        "targets": [
-          {
-            "expr": "{job=\"docker\", container_name=~\".*bot.*\"} | json",
-            "refId": "A"
-          }
-        ],
-        "options": {
-          "showLabels": true,
-          "showTime": true,
-          "wrapLogMessage": false,
-          "sortOrder": "Descending",
-          "enableLogDetails": true,
-          "dedupStrategy": "none"
-        },
-        "gridPos": {
-          "x": 12,
-          "y": 12,
-          "w": 12,
-          "h": 10
-        }
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
       }
+    },
+    {
+      "id": 2,
+      "title": "Error Logs Count",
+      "type": "stat",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "expr": "count_over_time({job=\"docker\", container_name=~\".*bot.*\"} | json | level=\"ERROR\" [$__range])",
+          "refId": "A",
+          "legendFormat": "Errors"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "green"
+              },
+              {
+                "value": 1,
+                "color": "yellow"
+              },
+              {
+                "value": 10,
+                "color": "red"
+              }
+            ]
+          }
+        }
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      }
+    },
+    {
+      "id": 3,
+      "title": "Warning Logs Count",
+      "type": "stat",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "expr": "count_over_time({job=\"docker\", container_name=~\".*bot.*\"} | json | level=\"WARNING\" [$__range])",
+          "refId": "A",
+          "legendFormat": "Warnings"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "green"
+              },
+              {
+                "value": 5,
+                "color": "yellow"
+              },
+              {
+                "value": 20,
+                "color": "orange"
+              }
+            ]
+          }
+        }
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      }
+    },
+    {
+      "id": 4,
+      "title": "Total Log Entries",
+      "type": "stat",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "expr": "count_over_time({job=\"docker\", container_name=~\".*bot.*\"} [$__range])",
+          "refId": "A",
+          "legendFormat": "Total Logs"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "value": null,
+                "color": "blue"
+              }
+            ]
+          }
+        }
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      }
+    },
+    {
+      "id": 5,
+      "title": "Log Levels Over Time",
+      "type": "timeseries",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "expr": "sum by (level) (count_over_time({job=\"docker\", container_name=~\".*bot.*\"} | json | __error__=\"\" [1m]))",
+          "legendFormat": "{{level}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "ERROR"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "WARNING"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "INFO"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "id": 6,
+      "title": "Event Types Over Time",
+      "type": "timeseries",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "expr": "sum by (event_type) (count_over_time({job=\"docker\", container_name=~\".*bot.*\"} | json | event_type!=\"\" [1m]))",
+          "legendFormat": "{{event_type}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      }
+    },
+    {
+      "id": 7,
+      "title": "Recent Bot Logs (All Levels)",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "expr": "{job=\"docker\", container_name=~\".*bot.*\"} | json | line_format \"[{{.level}}] {{.message}}\"",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showLabels": false,
+        "showTime": true,
+        "wrapLogMessage": true,
+        "sortOrder": "Descending",
+        "enableLogDetails": true,
+        "dedupStrategy": "none"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 10
+      }
+    },
+    {
+      "id": 8,
+      "title": "Detailed Bot Logs with Metadata",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "targets": [
+        {
+          "expr": "{job=\"docker\", container_name=~\".*bot.*\"} | json",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showLabels": true,
+        "showTime": true,
+        "wrapLogMessage": false,
+        "sortOrder": "Descending",
+        "enableLogDetails": true,
+        "dedupStrategy": "none"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 10
+      }
+    }
   ],
   "refresh": "30s",
   "schemaVersion": 27,
@@ -362,5 +366,7 @@
   "time": {
     "from": "now-6h",
     "to": "now"
-  }
+  },
+  "uid": "dating-app-business-metrics",
+  "id": null
 }

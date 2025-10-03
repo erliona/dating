@@ -407,3 +407,91 @@ class TestValidateProfileData:
         is_valid, error = validate_profile_data(data)
         assert is_valid is False
         assert "Invalid birth date format" in error
+
+
+class TestValidateNameEdgeCases:
+    """Additional edge case tests for name validation."""
+    
+    def test_name_non_string_type(self):
+        """Test name validation with non-string type."""
+        is_valid, error = validate_name(123)
+        assert is_valid is False
+        assert "must be a string" in error.lower()
+    
+    def test_name_none(self):
+        """Test name validation with None."""
+        is_valid, error = validate_name(None)
+        assert is_valid is False
+        assert "required" in error.lower()
+
+
+class TestValidateBirthDateEdgeCases:
+    """Additional edge case tests for birth date validation."""
+    
+    def test_birth_date_none(self):
+        """Test birth date validation with None."""
+        is_valid, error = validate_birth_date(None)
+        assert is_valid is False
+        assert "required" in error.lower()
+    
+    def test_birth_date_invalid_type(self):
+        """Test birth date validation with invalid type."""
+        is_valid, error = validate_birth_date("2000-01-01")
+        assert is_valid is False
+        assert "invalid" in error.lower()
+
+
+class TestValidateGenderEdgeCases:
+    """Additional edge case tests for gender validation."""
+    
+    def test_gender_none(self):
+        """Test gender validation with None."""
+        is_valid, error = validate_gender(None)
+        assert is_valid is False
+        assert "required" in error.lower()
+
+
+class TestValidateOrientationEdgeCases:
+    """Additional edge case tests for orientation validation."""
+    
+    def test_orientation_none(self):
+        """Test orientation validation with None."""
+        is_valid, error = validate_orientation(None)
+        assert is_valid is False
+        assert "required" in error.lower()
+
+
+class TestValidateGoalEdgeCases:
+    """Additional edge case tests for goal validation."""
+    
+    def test_goal_none(self):
+        """Test goal validation with None."""
+        is_valid, error = validate_goal(None)
+        assert is_valid is False
+        assert "required" in error.lower()
+
+
+class TestValidateBioEdgeCases:
+    """Additional edge case tests for bio validation."""
+    
+    def test_bio_non_string_type(self):
+        """Test bio validation with non-string type."""
+        is_valid, error = validate_bio(123)
+        assert is_valid is False
+        assert "must be a string" in error.lower()
+
+
+class TestValidateInterestsEdgeCases:
+    """Additional edge case tests for interests validation."""
+    
+    def test_interests_non_list_type(self):
+        """Test interests validation with non-list type."""
+        is_valid, error = validate_interests("not a list")
+        assert is_valid is False
+        assert "must be a list" in error.lower()
+    
+    def test_interests_non_string_items(self):
+        """Test interests validation with non-string items."""
+        is_valid, error = validate_interests([123, 456])
+        assert is_valid is False
+        assert "must be a string" in error.lower()
