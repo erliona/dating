@@ -207,7 +207,7 @@ def optimize_image(image_bytes: bytes, format: str = "JPEG") -> bytes:
         output.close()
 
 
-def calculate_nsfw_score(image_bytes: bytes) -> float:
+def calculate_nsfw_score(image_bytes: bytes, classifier=None) -> float:
     """Calculate NSFW score for image using NudeNet ML model.
     
     Uses NudeNet classifier to detect NSFW content.
@@ -215,19 +215,22 @@ def calculate_nsfw_score(image_bytes: bytes) -> float:
     
     Args:
         image_bytes: Image bytes
+        classifier: Optional NudeClassifier instance (from app state)
         
     Returns:
         Safety score (0.0 = unsafe, 1.0 = safe)
     """
+    # If no classifier provided, use fallback
+    if classifier is None:
+        logger.warning(
+            "NudeNet not available, falling back to permissive mode",
+            extra={"event_type": "nsfw_detection_fallback"}
+        )
+        return 1.0
+    
     try:
-        from nudenet import NudeClassifier
         from PIL import Image
         import io
-        
-        # Initialize classifier (cached after first use)
-        if not hasattr(calculate_nsfw_score, '_classifier'):
-            logger.info("Initializing NudeNet classifier", extra={"event_type": "nsfw_model_init"})
-            calculate_nsfw_score._classifier = NudeClassifier()
         
         # Convert bytes to PIL Image for NudeNet
         image = Image.open(io.BytesIO(image_bytes))
@@ -240,7 +243,7 @@ def calculate_nsfw_score(image_bytes: bytes) -> float:
         
         try:
             # Classify image
-            result = calculate_nsfw_score._classifier.classify(tmp_path)
+            result = classifier.classify(tmp_path)
             
             # Result format: {image_path: {'safe': probability, 'unsafe': probability}}
             classification = result.get(tmp_path, {})
@@ -271,14 +274,6 @@ def calculate_nsfw_score(image_bytes: bytes) -> float:
                 os.unlink(tmp_path)
             except OSError:
                 pass
-    
-    except ImportError:
-        logger.warning(
-            "NudeNet not available, falling back to permissive mode",
-            extra={"event_type": "nsfw_detection_fallback"}
-        )
-        # Fallback to permissive if NudeNet not installed
-        return 1.0
     
     except Exception as e:
         logger.error(
@@ -376,8 +371,9 @@ async def upload_photo_handler(request: web.Request) -> web.Response:
         output_format = format_map.get(mime_type, "JPEG")
         optimized_data = optimize_image(photo_data, output_format)
         
-        # Calculate NSFW score
-        safe_score = calculate_nsfw_score(optimized_data)
+        # Calculate NSFW score using classifier from app state
+        classifier = request.app.get("nsfw_classifier")
+        safe_score = calculate_nsfw_score(optimized_data, classifier)
         if safe_score < config.nsfw_threshold:
             logger.warning(
                 f"Photo rejected: NSFW score {safe_score:.3f} below threshold {config.nsfw_threshold}",
@@ -1236,6 +1232,15 @@ def create_app(config: BotConfig, session_maker: async_sessionmaker) -> web.Appl
     # Store config and session maker
     app["config"] = config
     app["session_maker"] = session_maker
+    
+    # Initialize NSFW classifier (if available)
+    try:
+        from nudenet import NudeClassifier
+        logger.info("Initializing NudeNet classifier", extra={"event_type": "nsfw_model_init"})
+        app["nsfw_classifier"] = NudeClassifier()
+    except ImportError:
+        logger.warning("NudeNet not available, NSFW detection will use fallback mode")
+        app["nsfw_classifier"] = None
     
     # Setup CORS
     cors = cors_setup(app, defaults={
