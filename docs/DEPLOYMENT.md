@@ -417,11 +417,13 @@ docker run --rm \
 ### Восстановление из backup
 
 ```bash
-# Восстановить БД
+# Восстановить БД из существующей резервной копии
 gunzip < backup-20240101.sql.gz | docker compose exec -T db psql -U dating dating
 
-# Или полностью пересоздать
-docker compose down -v  # ⚠️ удалит текущие данные
+# Или полностью пересоздать (ТОЛЬКО если у вас есть резервная копия!)
+# ⚠️ ВНИМАНИЕ: down -v УДАЛИТ ВСЕ ДАННЫЕ БЕЗВОЗВРАТНО!
+# Убедитесь, что у вас есть резервная копия перед выполнением!
+docker compose down -v  # ⛔ ОПАСНО: удалит текущие данные НАВСЕГДА
 docker compose up -d
 gunzip < backup-20240101.sql.gz | docker compose exec -T db psql -U dating dating
 ```
@@ -492,12 +494,34 @@ docker compose ps db
 # Если контейнер stopped
 docker compose up -d db
 
-# Если пароль изменился - требуется пересоздать volume
-# ⚠️ Это удалит все данные! Сделайте backup сначала
-docker compose exec db pg_dump -U dating dating > backup.sql
+# Если пароль изменился - используйте безопасный метод смены пароля
+# ⚠️ НЕ ИСПОЛЬЗУЙТЕ docker compose down -v без резервной копии!
+
+# Шаг 1: Создайте резервную копию (ОБЯЗАТЕЛЬНО!)
+BACKUP_FILE="backup_$(date +%Y%m%d_%H%M%S).sql"
+docker compose exec db pg_dump -U dating dating > "$BACKUP_FILE"
+echo "Резервная копия создана: $BACKUP_FILE"
+
+# Шаг 2: Сохраните резервную копию в безопасное место
+# Скопируйте файл на другой сервер или в облачное хранилище!
+
+# Шаг 3: Остановите сервисы и удалите volume (⛔ ОПАСНО!)
 docker compose down -v
+
+# Шаг 4: Обновите пароль в .env файле
+# Отредактируйте .env и измените POSTGRES_PASSWORD
+
+# Шаг 5: Запустите сервисы с новым паролем
 docker compose up -d
-docker compose exec -T db psql -U dating dating < backup.sql
+
+# Шаг 6: Дождитесь готовности базы данных
+sleep 10
+
+# Шаг 7: Восстановите данные из резервной копии
+docker compose exec -T db psql -U dating dating < "$BACKUP_FILE"
+
+# Шаг 8: Проверьте восстановление
+docker compose exec db psql -U dating dating -c "SELECT COUNT(*) FROM users;"
 ```
 
 ### SSL сертификат не получается
