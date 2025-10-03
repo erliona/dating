@@ -44,15 +44,18 @@ attempt_password_migration() {
   # Try to connect as postgres superuser (available in docker postgres container)
   # and update the user's password
   if command -v psql > /dev/null 2>&1; then
-    # Try using postgres superuser to update the password
-    export PGPASSWORD="${POSTGRES_PASSWORD:-}"
-    if psql -h "$DB_HOST" -p "$DB_PORT" -U postgres -d "$DB_NAME" -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD';" 2>/dev/null; then
+    # Use a temporary .pgpass file for secure password handling
+    TMP_PGPASS=$(mktemp)
+    echo "$DB_HOST:$DB_PORT:$DB_NAME:postgres:${POSTGRES_PASSWORD:-}" > "$TMP_PGPASS"
+    chmod 600 "$TMP_PGPASS"
+    if PGPASSFILE="$TMP_PGPASS" psql -h "$DB_HOST" -p "$DB_PORT" -U postgres -d "$DB_NAME" -c "ALTER USER $DB_USER WITH PASSWORD '$DB_PASSWORD';" 2>/dev/null; then
       log_info "Successfully updated database password for user: $DB_USER"
+      rm -f "$TMP_PGPASS"
       return 0
     else
       log_warn "Could not update password using postgres superuser"
     fi
-    unset PGPASSWORD
+    rm -f "$TMP_PGPASS"
   fi
   
   log_warn "Password migration failed - manual intervention may be required"
