@@ -389,7 +389,7 @@ class TestMainFunction:
              patch('bot.main.Dispatcher') as mock_dispatcher, \
              patch('bot.main.create_async_engine') as mock_engine, \
              patch('bot.main.sessionmaker') as mock_sessionmaker, \
-             patch('bot.main.asyncio.gather') as mock_gather:
+             patch('bot.api.run_api_server') as mock_api_server:
             
             # Mock config with database
             mock_config = MagicMock()
@@ -403,6 +403,8 @@ class TestMainFunction:
             mock_bot.return_value = mock_bot_instance
             mock_dp_instance = MagicMock()
             mock_dp_instance.workflow_data = {}
+            # Mock start_polling to return immediately
+            mock_dp_instance.start_polling = AsyncMock(return_value=None)
             mock_dispatcher.return_value = mock_dp_instance
             
             # Mock database setup
@@ -411,14 +413,13 @@ class TestMainFunction:
             mock_session_maker = MagicMock()
             mock_sessionmaker.return_value = mock_session_maker
             
-            # Mock gather to avoid actually running the bot
-            mock_gather.side_effect = KeyboardInterrupt()
+            # Mock API server to be called and return awaitable
+            async def noop_api_server(*args, **kwargs):
+                return None
+            mock_api_server.side_effect = noop_api_server
             
-            try:
-                from bot.main import main
-                await main()
-            except KeyboardInterrupt:
-                pass
+            from bot.main import main
+            await main()
             
             # Verify bot was created
             mock_bot.assert_called_once_with(token="123:abc")
@@ -434,9 +435,7 @@ class TestMainFunction:
         """Test main() handles missing database configuration."""
         with patch('bot.main.load_config') as mock_load, \
              patch('bot.main.Bot') as mock_bot, \
-             patch('bot.main.Dispatcher') as mock_dispatcher, \
-             patch('bot.api.run_api_server') as mock_api_server, \
-             patch('bot.main.asyncio.gather') as mock_gather:
+             patch('bot.main.Dispatcher') as mock_dispatcher:
             
             # Mock config without database
             mock_config = MagicMock()
@@ -450,19 +449,12 @@ class TestMainFunction:
             mock_bot.return_value = mock_bot_instance
             mock_dp_instance = MagicMock()
             mock_dp_instance.workflow_data = {}
+            # Mock start_polling to return immediately
+            mock_dp_instance.start_polling = AsyncMock(return_value=None)
             mock_dispatcher.return_value = mock_dp_instance
             
-            # Mock API server to return a completed future
-            mock_api_server.return_value = AsyncMock()
-            
-            # Mock gather to avoid actually running the bot
-            mock_gather.side_effect = KeyboardInterrupt()
-            
-            try:
-                from bot.main import main
-                await main()
-            except KeyboardInterrupt:
-                pass
+            from bot.main import main
+            await main()
             
             # Verify bot was created
             mock_bot.assert_called_once_with(token="123:abc")
@@ -475,9 +467,7 @@ class TestMainFunction:
         """Test main() handles bot execution error."""
         with patch('bot.main.load_config') as mock_load, \
              patch('bot.main.Bot') as mock_bot, \
-             patch('bot.main.Dispatcher') as mock_dispatcher, \
-             patch('bot.api.run_api_server') as mock_api_server, \
-             patch('bot.main.asyncio.gather') as mock_gather:
+             patch('bot.main.Dispatcher') as mock_dispatcher:
             
             # Mock config
             mock_config = MagicMock()
@@ -490,13 +480,9 @@ class TestMainFunction:
             mock_bot.return_value = mock_bot_instance
             mock_dp_instance = MagicMock()
             mock_dp_instance.workflow_data = {}
+            # Mock start_polling to raise an error
+            mock_dp_instance.start_polling = AsyncMock(side_effect=Exception("Bot error"))
             mock_dispatcher.return_value = mock_dp_instance
-            
-            # Mock API server
-            mock_api_server.return_value = AsyncMock()
-            
-            # Mock gather to raise an error
-            mock_gather.side_effect = Exception("Bot error")
             
             with pytest.raises(Exception, match="Bot error"):
                 from bot.main import main

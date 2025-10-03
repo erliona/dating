@@ -285,10 +285,17 @@ async def main() -> None:
         api_host = os.getenv("API_HOST", "0.0.0.0")
         api_port = int(os.getenv("API_PORT", "8080"))
         
+        # Prepare API server coroutine
+        async def noop():
+            """No-op coroutine for when API server is not needed."""
+            pass
+        
+        api_server_task = run_api_server(config, async_session_maker, api_host, api_port) if async_session_maker else noop()
+        
         # Run both services concurrently
         await asyncio.gather(
             dp.start_polling(bot),
-            run_api_server(config, async_session_maker, api_host, api_port) if async_session_maker else asyncio.sleep(0)
+            api_server_task
         )
     except Exception as exc:
         logger.error(
