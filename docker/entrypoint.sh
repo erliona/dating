@@ -27,13 +27,19 @@ attempt_password_migration() {
     return 1
   fi
   
-  # Parse the database URL
-  DB_USER=$(echo "$BOT_DATABASE_URL" | sed -n 's|^.*://\([^:]*\):.*@.*$|\1|p')
-  DB_PASSWORD=$(echo "$BOT_DATABASE_URL" | sed -n 's|^.*://[^:]*:\([^@]*\)@.*$|\1|p')
-  DB_HOST=$(echo "$BOT_DATABASE_URL" | sed -n 's|^.*@\(.*\):[0-9]*/.*$|\1|p')
-  DB_PORT=$(echo "$BOT_DATABASE_URL" | sed -n 's|^.*:\([0-9]*\)/.*$|\1|p')
-  DB_NAME=$(echo "$BOT_DATABASE_URL" | sed -n 's|^.*/\([^/]*\)$|\1|p')
-  
+  # Parse the database URL robustly using Python
+  eval "$(python3 -c '
+import sys
+from urllib.parse import urlparse, unquote
+url = sys.argv[1]
+p = urlparse(url)
+user = unquote(p.username) if p.username else ""
+password = unquote(p.password) if p.password else ""
+host = p.hostname or ""
+port = str(p.port) if p.port else ""
+dbname = p.path.lstrip("/") if p.path else ""
+print(f"DB_USER=\"{user}\"\nDB_PASSWORD=\"{password}\"\nDB_HOST=\"{host}\"\nDB_PORT=\"{port}\"\nDB_NAME=\"{dbname}\"")
+' "$BOT_DATABASE_URL")"
   if [ -z "$DB_USER" ] || [ -z "$DB_PASSWORD" ] || [ -z "$DB_HOST" ] || [ -z "$DB_PORT" ] || [ -z "$DB_NAME" ]; then
     log_warn "Could not parse database credentials from BOT_DATABASE_URL"
     return 1
