@@ -269,7 +269,39 @@ async def main() -> None:
         raise
     
     try:
+        # Validate token format before creating Bot instance
+        if not config.token or len(config.token) < 10:
+            logger.error(
+                "Invalid BOT_TOKEN: token is empty or too short",
+                extra={"event_type": "invalid_token"}
+            )
+            raise ValueError("BOT_TOKEN is not properly configured")
+        
+        logger.info("Creating bot instance...", extra={"event_type": "bot_creation_start"})
         bot = Bot(token=config.token)
+        
+        # Try to get bot info to validate token early
+        try:
+            bot_info = await bot.get_me()
+            logger.info(
+                f"Bot authenticated successfully: @{bot_info.username}",
+                extra={
+                    "event_type": "bot_authenticated",
+                    "bot_username": bot_info.username,
+                    "bot_id": bot_info.id
+                }
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to authenticate with Telegram: {e}",
+                exc_info=True,
+                extra={"event_type": "telegram_auth_failed"}
+            )
+            raise ValueError(
+                "Failed to authenticate with Telegram API. "
+                "Please check your BOT_TOKEN is valid and Telegram API is accessible."
+            ) from e
+        
         logger.info("Bot instance created", extra={"event_type": "bot_created"})
         
         dp = Dispatcher(storage=MemoryStorage())
@@ -328,6 +360,10 @@ async def main() -> None:
         raise
     finally:
         logger.info("Shutting down bot", extra={"event_type": "shutdown"})
+        try:
+            await bot.session.close()
+        except:
+            pass
 
 
 if __name__ == "__main__":
