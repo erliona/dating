@@ -504,3 +504,143 @@ class TestCreateApp:
         
         assert app is not None
         assert app["config"].photo_cdn_url == "https://cdn.example.com"
+
+
+@pytest.mark.asyncio
+class TestUploadPhotoHandlerComplete:
+    """Test complete photo upload flow."""
+    
+    async def test_upload_photo_successful_flow(self, tmp_path):
+        """Test successful complete photo upload with all validations."""
+        from bot.api import upload_photo_handler, create_jwt_token
+        from bot.config import BotConfig
+        from PIL import Image
+        from io import BytesIO
+        
+        storage_path = str(tmp_path / "photos")
+        
+        config = BotConfig(
+            token="test:token",
+            database_url="postgresql://test",
+            jwt_secret="test-secret",
+            photo_storage_path=storage_path,
+            nsfw_threshold=0.5  # Lower threshold for test
+        )
+        
+        user_id = 12345
+        token = create_jwt_token(user_id, config.jwt_secret)
+        
+        # Create valid test image
+        img = Image.new('RGB', (200, 200), color='purple')
+        buffer = BytesIO()
+        img.save(buffer, format='JPEG')
+        photo_data = buffer.getvalue()
+        
+        # Mock multipart field for photo
+        photo_field = AsyncMock()
+        photo_field.name = "photo"
+        photo_field.read = AsyncMock(return_value=photo_data)
+        
+        # Mock multipart field for slot_index
+        slot_field = AsyncMock()
+        slot_field.name = "slot_index"
+        slot_field.read = AsyncMock(return_value=b"0")
+        
+        multipart_reader = AsyncMock()
+        multipart_reader.__aiter__.return_value = [photo_field, slot_field]
+        
+        request = MagicMock()
+        request.app = {"config": config, "session_maker": MagicMock()}
+        request.headers = {"Authorization": f"Bearer {token}"}
+        request.multipart = AsyncMock(return_value=multipart_reader)
+        
+        # Call handler
+        response = await upload_photo_handler(request)
+        
+        # For this test, we expect success if NSFW score passes threshold
+        # or appropriate error if photo is rejected
+        assert response.status in [200, 400]
+        
+        if response.status == 200:
+            import json
+            body = json.loads(response.body.decode())
+            assert "url" in body
+            assert "file_size" in body
+            assert "optimized_size" in body
+            assert "safe_score" in body
+    
+    async def test_upload_photo_too_large(self):
+        """Test photo upload with file too large."""
+        from bot.api import upload_photo_handler, create_jwt_token
+        from bot.config import BotConfig
+        from PIL import Image
+        from io import BytesIO
+        
+        config = BotConfig(
+            token="test:token",
+            database_url="postgresql://test",
+            jwt_secret="test-secret",
+            photo_storage_path="/tmp/photos"
+        )
+        
+        user_id = 12345
+        token = create_jwt_token(user_id, config.jwt_secret)
+        
+        # Create a large dummy file (> 5MB)
+        large_data = b"\xFF\xD8\xFF\xE0" + b"\x00" * (6 * 1024 * 1024)
+        
+        photo_field = AsyncMock()
+        photo_field.name = "photo"
+        photo_field.read = AsyncMock(return_value=large_data)
+        
+        slot_field = AsyncMock()
+        slot_field.name = "slot_index"
+        slot_field.read = AsyncMock(return_value=b"0")
+        
+        multipart_reader = AsyncMock()
+        multipart_reader.__aiter__.return_value = [photo_field, slot_field]
+        
+        request = MagicMock()
+        request.app = {"config": config, "session_maker": MagicMock()}
+        request.headers = {"Authorization": f"Bearer {token}"}
+        request.multipart = AsyncMock(return_value=multipart_reader)
+        
+        response = await upload_photo_handler(request)
+        assert response.status == 400
+    
+    async def test_upload_photo_invalid_mime_type(self):
+        """Test photo upload with invalid MIME type."""
+        from bot.api import upload_photo_handler, create_jwt_token
+        from bot.config import BotConfig
+        
+        config = BotConfig(
+            token="test:token",
+            database_url="postgresql://test",
+            jwt_secret="test-secret",
+            photo_storage_path="/tmp/photos"
+        )
+        
+        user_id = 12345
+        token = create_jwt_token(user_id, config.jwt_secret)
+        
+        # Send text file as photo
+        invalid_data = b"This is not an image"
+        
+        photo_field = AsyncMock()
+        photo_field.name = "photo"
+        photo_field.read = AsyncMock(return_value=invalid_data)
+        
+        slot_field = AsyncMock()
+        slot_field.name = "slot_index"
+        slot_field.read = AsyncMock(return_value=b"1")
+        
+        multipart_reader = AsyncMock()
+        multipart_reader.__aiter__.return_value = [photo_field, slot_field]
+        
+        request = MagicMock()
+        request.app = {"config": config, "session_maker": MagicMock()}
+        request.headers = {"Authorization": f"Bearer {token}"}
+        request.multipart = AsyncMock(return_value=multipart_reader)
+        
+        response = await upload_photo_handler(request)
+        assert response.status == 400

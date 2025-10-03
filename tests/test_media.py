@@ -180,6 +180,53 @@ class TestRemoveExifData:
         result_img = Image.open(BytesIO(result))
         assert result_img.size == (100, 100)
     
+    def test_remove_exif_with_png(self):
+        """Test EXIF removal with PNG image."""
+        from bot.media import remove_exif_data
+        from PIL import Image
+        from io import BytesIO
+        
+        # Create a PNG image
+        img = Image.new('RGB', (100, 100), color='blue')
+        buffer = BytesIO()
+        img.save(buffer, format='PNG')
+        test_data = buffer.getvalue()
+        
+        # Remove EXIF data
+        result = remove_exif_data(test_data)
+        
+        # Should return valid image bytes
+        assert result is not None
+        assert len(result) > 0
+        
+        # Verify it's still a valid image
+        result_img = Image.open(BytesIO(result))
+        assert result_img.size == (100, 100)
+        assert result_img.format == 'PNG'
+    
+    def test_remove_exif_with_webp(self):
+        """Test EXIF removal with WebP image."""
+        from bot.media import remove_exif_data
+        from PIL import Image
+        from io import BytesIO
+        
+        # Create a WebP image
+        img = Image.new('RGB', (100, 100), color='green')
+        buffer = BytesIO()
+        img.save(buffer, format='WEBP')
+        test_data = buffer.getvalue()
+        
+        # Remove EXIF data
+        result = remove_exif_data(test_data)
+        
+        # Should return valid image bytes
+        assert result is not None
+        assert len(result) > 0
+        
+        # Verify it's still a valid image
+        result_img = Image.open(BytesIO(result))
+        assert result_img.size == (100, 100)
+    
     def test_remove_exif_error_handling(self):
         """Test EXIF removal handles errors gracefully."""
         from bot.media import remove_exif_data
