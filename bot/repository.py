@@ -516,6 +516,7 @@ class ProfileRepository:
         
         Idempotent - returns existing match if already exists.
         Normalizes user IDs so user1_id < user2_id.
+        Handles race conditions by catching unique constraint violations.
         
         Args:
             user1_id: First user ID
@@ -524,6 +525,8 @@ class ProfileRepository:
         Returns:
             Match object
         """
+        from sqlalchemy.exc import IntegrityError
+        
         # Normalize user IDs (user1_id should be less than user2_id)
         if user1_id > user2_id:
             user1_id, user2_id = user2_id, user1_id
@@ -552,7 +555,35 @@ class ProfileRepository:
         # Create new match
         match = Match(user1_id=user1_id, user2_id=user2_id)
         self.session.add(match)
-        await self.session.flush()
+        
+        try:
+            await self.session.flush()
+        except IntegrityError:
+            # Race condition: another transaction created the match
+            # Roll back and fetch the existing match
+            await self.session.rollback()
+            result = await self.session.execute(
+                select(Match).where(
+                    Match.user1_id == user1_id,
+                    Match.user2_id == user2_id
+                )
+            )
+            match = result.scalar_one_or_none()
+            
+            if match:
+                logger.info(
+                    "Match already exists (race condition)",
+                    extra={
+                        "event_type": "match_race_condition",
+                        "user1_id": user1_id,
+                        "user2_id": user2_id,
+                        "match_id": match.id
+                    }
+                )
+                return match
+            else:
+                # Unexpected: constraint violation but match still not found
+                raise
         
         # Invalidate match cache for both users
         cache.delete_pattern(f"matches:{user1_id}:")
