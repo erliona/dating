@@ -284,75 +284,14 @@ sum(count_over_time({container_name=~".*bot.*"} | json | event_type = "match_cre
    - Recent bot logs with JSON parsing
    - Detailed bot logs with metadata
 
-### Structured Logging
+3. **Dating App - Discovery & Matching** (✨ NEW)
+   - Discovery actions over time
+   - Total likes and passes (24h)
+   - Total matches created (24h)
+   - User actions distribution
+   - Discovery & matching events log
 
-The bot application uses **JSON structured logging** for better log parsing and analysis in Grafana:
-
-```json
-{
-  "timestamp": "2024-10-02T12:36:09.468968Z",
-  "level": "INFO",
-  "logger": "bot.main",
-  "message": "Configuration loaded successfully",
-  "module": "main",
-  "function": "main",
-  "line": 67,
-  "event_type": "config_loaded",
-  "webapp_url": "https://example.com",
-  "database_configured": true
-}
-```
-
-This allows Grafana to:
-- Filter logs by level (INFO, WARNING, ERROR)
-- Extract event types for tracking
-- Parse metadata fields
-- Create time-series visualizations from logs
-
-### Creating Custom Dashboards
-
-1. Open Grafana at http://localhost:3000
-2. Login with admin/admin (change password on first login)
-3. Click "+" → "Dashboard"
-4. Add panels with Prometheus or Loki queries
-
-### Dashboard Query Examples
-
-**Container CPU Usage:**
-```promql
-rate(container_cpu_usage_seconds_total{name=~".+"}[5m]) * 100
-```
-
-**Memory Usage:**
-```promql
-container_memory_usage_bytes{name=~".+"} / 1024 / 1024
-```
-
-**Database Connections:**
-```promql
-pg_stat_database_numbackends{datname!=""}
-```
-
-**All Bot Logs (Loki):**
-```logql
-{job="docker", container_name=~".*bot.*"}
-```
-
-**Bot JSON Logs with Parsing:**
-```logql
-{job="docker", container_name=~".*bot.*"} | json | line_format "[{{.level}}] {{.message}}"
-```
-
-**Error Logs Only:**
-```logql
-{job="docker", container_name=~".*bot.*"} | json | level="ERROR"
-```
-
-**Bot Events:**
-```logql
-{job="docker", container_name=~".*bot.*"} | json | event_type!=""
-```
-
+All dashboards use structured logging with JSON parsing for rich filtering and analysis.
 ## 🔔 Alerts
 
 Prometheus is configured with basic alerting rules in `prometheus/alerts.yml`:
