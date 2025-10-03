@@ -228,7 +228,9 @@ class TestLikeInteractionTypes:
             mock_repository = MagicMock()
             
             user = User(id=1, tg_id=12345, username="test")
+            target_user = User(id=123, tg_id=67890, username="target")
             mock_repository.get_user_by_tg_id = AsyncMock(return_value=user)
+            mock_repository.get_user_by_id = AsyncMock(return_value=target_user)
             mock_repository.create_interaction = AsyncMock()
             mock_repository.check_mutual_like = AsyncMock(return_value=False)
             
@@ -263,7 +265,9 @@ class TestLikeInteractionTypes:
             mock_repository = MagicMock()
             
             user = User(id=1, tg_id=12345, username="test")
+            target_user = User(id=123, tg_id=67890, username="target")
             mock_repository.get_user_by_tg_id = AsyncMock(return_value=user)
+            mock_repository.get_user_by_id = AsyncMock(return_value=target_user)
             mock_repository.create_interaction = AsyncMock()
             mock_repository.check_mutual_like = AsyncMock(return_value=False)
             

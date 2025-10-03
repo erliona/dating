@@ -100,6 +100,20 @@ class ProfileRepository:
         )
         return result.scalar_one_or_none()
     
+    async def get_user_by_id(self, user_id: int) -> Optional[User]:
+        """Get user by internal user ID.
+        
+        Args:
+            user_id: Internal user ID
+            
+        Returns:
+            User object or None
+        """
+        result = await self.session.execute(
+            select(User).where(User.id == user_id)
+        )
+        return result.scalar_one_or_none()
+    
     async def create_profile(self, user_id: int, profile_data: dict) -> Profile:
         """Create a new profile.
         
@@ -341,9 +355,20 @@ class ProfileRepository:
             Profile.user_id.not_in(interacted_ids) if interacted_ids else True
         )
         
-        # Apply orientation filters
+        # Apply mutual orientation filters
+        # Filter 1: Current user's preference for candidate's gender
         if current_profile.orientation != "any":
             query = query.where(Profile.gender == current_profile.orientation)
+        
+        # Filter 2: Candidate's preference for current user's gender (mutual compatibility)
+        # Candidates who want "any" gender should see everyone
+        # Otherwise, they should only see people matching their orientation
+        query = query.where(
+            or_(
+                Profile.orientation == "any",
+                Profile.orientation == current_profile.gender
+            )
+        )
         
         # Age filter based on birth_date
         if age_min is not None:

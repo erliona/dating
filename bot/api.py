@@ -497,26 +497,34 @@ async def check_profile_handler(request: web.Request) -> web.Response:
         # The init_data contains user information signed by Telegram
         init_data = request.query.get("init_data")
         
-        if init_data:
-            # Verify init_data signature (basic validation)
-            # In production, you should verify the signature using bot token
-            # For now, we extract user_id from init_data
-            from urllib.parse import parse_qs
-            try:
-                params = parse_qs(init_data)
-                user_param = params.get('user', [''])[0]
-                if user_param:
-                    import json
-                    user_data = json.loads(user_param)
-                    authenticated_user_id = user_data.get('id')
-                    
-                    # Verify that requested user_id matches authenticated user_id
-                    if authenticated_user_id != requested_user_id:
-                        return error_response("unauthorized", "Can only check own profile", 403)
-            except (ValueError, json.JSONDecodeError, KeyError):
-                # If init_data parsing fails, allow for backward compatibility
-                # but log the issue
-                logger.warning(f"Failed to parse init_data for authentication")
+        if not init_data:
+            return error_response("unauthorized", "init_data parameter required for authentication", 401)
+        
+        # Verify init_data signature and extract user_id
+        # In production, you should verify the signature using bot token
+        from urllib.parse import parse_qs
+        try:
+            params = parse_qs(init_data)
+            user_param = params.get('user', [''])[0]
+            if not user_param:
+                logger.warning("init_data missing user parameter")
+                return error_response("unauthorized", "Unauthorized: invalid init_data", 401)
+            
+            import json
+            user_data = json.loads(user_param)
+            authenticated_user_id = user_data.get('id')
+            
+            if not authenticated_user_id:
+                logger.warning("init_data user missing id field")
+                return error_response("unauthorized", "Unauthorized: invalid init_data", 401)
+            
+            # Verify that requested user_id matches authenticated user_id
+            if authenticated_user_id != requested_user_id:
+                return error_response("unauthorized", "Can only check own profile", 403)
+        except (ValueError, json.JSONDecodeError, KeyError) as e:
+            # If init_data parsing fails, reject the request
+            logger.warning(f"Failed to parse init_data for authentication: {e}")
+            return error_response("unauthorized", "Unauthorized: invalid init_data", 401)
         
         # Check database for profile
         async with session_maker() as session:
@@ -827,6 +835,14 @@ async def like_handler(request: web.Request) -> web.Response:
             if error:
                 return error
             
+            # Validate target user exists
+            target_user = await repository.get_user_by_id(target_id)
+            if not target_user:
+                return web.json_response(
+                    {"error": {"code": "not_found", "message": "Target user not found"}},
+                    status=404
+                )
+            
             # Create interaction (idempotent)
             await repository.create_interaction(
                 user_id=user.id,
@@ -892,6 +908,14 @@ async def pass_handler(request: web.Request) -> web.Response:
             user, error = await get_user_or_error(repository, user_id)
             if error:
                 return error
+            
+            # Validate target user exists
+            target_user = await repository.get_user_by_id(target_id)
+            if not target_user:
+                return web.json_response(
+                    {"error": {"code": "not_found", "message": "Target user not found"}},
+                    status=404
+                )
             
             # Create pass interaction
             await repository.create_interaction(
