@@ -5,7 +5,6 @@ progress tracking, and image optimization.
 """
 
 import asyncio
-import base64
 import hashlib
 import json
 import logging
@@ -220,7 +219,7 @@ def calculate_nsfw_score(image_bytes: bytes) -> float:
             import os
             try:
                 os.unlink(tmp_path)
-            except:
+            except OSError:
                 pass
     
     except ImportError:

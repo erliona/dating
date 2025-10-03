@@ -206,8 +206,8 @@ async def handle_create_profile(
         }
     )
     
-    # Note: photo_count is included but photos themselves are stored locally
-    # TODO: Implement photo upload via HTTP API
+    # Note: Photos are uploaded via HTTP API (see bot/api.py upload_photo_handler)
+    # The photo_count reflects photos already uploaded to the server
     photo_count = profile_data.get("photo_count", 0)
     photo_status = f"📸 Фото: {photo_count}" if photo_count > 0 else "📸 Фото: не загружены"
     
