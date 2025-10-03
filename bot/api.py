@@ -421,6 +421,36 @@ async def upload_photo_handler(request: web.Request) -> web.Response:
                 os.remove(file_path)
                 return error_response("not_found", "User not found", 404)
             
+            # Check if photo already exists in this slot
+            existing_photos = await repository.get_user_photos(user.id)
+            for existing_photo in existing_photos:
+                if existing_photo.sort_order == slot_index:
+                    # Delete old photo from database and file system
+                    await repository.delete_photo(existing_photo.id, user.id)
+                    
+                    # Try to delete old file (ignore errors if file doesn't exist)
+                    old_filename = existing_photo.url.split('/')[-1]
+                    old_file_path = os.path.join(storage_path, old_filename)
+                    try:
+                        if os.path.exists(old_file_path):
+                            os.remove(old_file_path)
+                    except OSError:
+                        logger.warning(
+                            f"Failed to delete old photo file: {old_file_path}",
+                            extra={"event_type": "old_photo_delete_failed"}
+                        )
+                    
+                    logger.info(
+                        "Replaced existing photo in slot",
+                        extra={
+                            "event_type": "photo_replaced",
+                            "user_id": user_id,
+                            "slot_index": slot_index,
+                            "old_photo_id": existing_photo.id
+                        }
+                    )
+                    break
+            
             # Add photo record to database
             await repository.add_photo(
                 user_id=user.id,
