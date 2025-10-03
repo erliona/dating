@@ -776,10 +776,13 @@ async def discover_handler(request: web.Request) -> web.Response:
                 verified_only=verified_only
             )
             
-            # Get photos for each profile
+            # Get photos for all profiles in a single query (avoid N+1)
+            user_ids = [profile.user_id for profile in profiles]
+            photos_by_user = await repository.get_photos_for_users(user_ids)
+            
             profiles_data = []
             for profile in profiles:
-                photos = await repository.get_user_photos(profile.user_id)
+                photos = photos_by_user.get(profile.user_id, [])
                 profiles_data.append({
                     "id": profile.id,
                     "user_id": profile.user_id,
@@ -1000,10 +1003,14 @@ async def matches_handler(request: web.Request) -> web.Response:
                 cursor=cursor
             )
             
+            # Get photos for all profiles in a single query (avoid N+1)
+            user_ids = [profile.user_id for match, profile in matches_with_profiles]
+            photos_by_user = await repository.get_photos_for_users(user_ids)
+            
             # Format response
             matches_data = []
             for match, profile in matches_with_profiles:
-                photos = await repository.get_user_photos(profile.user_id)
+                photos = photos_by_user.get(profile.user_id, [])
                 matches_data.append({
                     "match_id": match.id,
                     "created_at": match.created_at.isoformat(),
@@ -1176,10 +1183,14 @@ async def get_favorites_handler(request: web.Request) -> web.Response:
                 cursor=cursor
             )
             
+            # Get photos for all profiles in a single query (avoid N+1)
+            user_ids = [profile.user_id for favorite, profile in favorites_with_profiles]
+            photos_by_user = await repository.get_photos_for_users(user_ids)
+            
             # Format response
             favorites_data = []
             for favorite, profile in favorites_with_profiles:
-                photos = await repository.get_user_photos(profile.user_id)
+                photos = photos_by_user.get(profile.user_id, [])
                 favorites_data.append({
                     "favorite_id": favorite.id,
                     "created_at": favorite.created_at.isoformat(),

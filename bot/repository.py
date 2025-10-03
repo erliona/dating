@@ -271,6 +271,37 @@ class ProfileRepository:
         )
         return list(result.scalars().all())
     
+    async def get_photos_for_users(self, user_ids: list[int]) -> dict[int, list[Photo]]:
+        """Get photos for multiple users in a single query.
+        
+        This is optimized to avoid N+1 query problems when fetching
+        photos for many profiles at once.
+        
+        Args:
+            user_ids: List of internal user IDs
+            
+        Returns:
+            Dictionary mapping user_id to list of Photo objects
+        """
+        if not user_ids:
+            return {}
+        
+        result = await self.session.execute(
+            select(Photo)
+            .where(Photo.user_id.in_(user_ids))
+            .order_by(Photo.user_id, Photo.sort_order)
+        )
+        photos = result.scalars().all()
+        
+        # Group photos by user_id
+        photos_by_user = {}
+        for photo in photos:
+            if photo.user_id not in photos_by_user:
+                photos_by_user[photo.user_id] = []
+            photos_by_user[photo.user_id].append(photo)
+        
+        return photos_by_user
+    
     async def delete_photo(self, photo_id: int, user_id: int) -> bool:
         """Delete a photo.
         
