@@ -30,6 +30,7 @@ attempt_password_migration() {
   # Parse the database URL
   DB_USER=$(echo "$BOT_DATABASE_URL" | sed -n 's|^.*://\([^:]*\):.*@.*$|\1|p')
   DB_PASSWORD=$(echo "$BOT_DATABASE_URL" | sed -n 's|^.*://[^:]*:\([^@]*\)@.*$|\1|p')
+  DB_HOST=$(echo "$BOT_DATABASE_URL" | sed -n 's|^.*@\(.*\):[0-9]*/.*$|\1|p')
   DB_PORT=$(echo "$BOT_DATABASE_URL" | sed -n 's|^.*:\([0-9]*\)/.*$|\1|p')
   DB_NAME=$(echo "$BOT_DATABASE_URL" | sed -n 's|^.*/\([^/]*\)$|\1|p')
   
