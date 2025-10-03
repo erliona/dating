@@ -711,6 +711,38 @@ histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))
 rate({job="docker"} |= "error" [1m])
 ```
 
+## 🔄 Idempotent Deployments
+
+All monitoring components are designed for **idempotent deployments** - you can safely redeploy multiple times:
+
+### Grafana Provisioning (Idempotent ✓)
+- **Datasources** identified by `uid` in `datasources.yml`
+- **Dashboards** identified by `uid` in JSON files
+- Redeployment updates configurations, doesn't duplicate
+- User data persists in `grafana_data` volume
+
+### Metrics & Logs Persistence (Idempotent ✓)
+- **Prometheus** data stored in `prometheus_data` volume (30-day retention)
+- **Loki** logs stored in `loki_data` volume (30-day retention)
+- Redeployment preserves all historical data
+- New data appends without affecting existing data
+
+### Configuration Updates
+```bash
+# Update Grafana dashboards/datasources
+docker compose restart grafana  # Reloads provisioning
+
+# Update Prometheus config
+docker compose restart prometheus
+
+# Update Loki config
+docker compose restart loki
+```
+
+All services automatically reload configurations on restart without data loss.
+
+**See full idempotency guide:** [📘 Deployment Idempotency](../docs/DEPLOYMENT_IDEMPOTENCY.md)
+
 ## 🔒 Security Notes
 
 1. Change default Grafana password immediately

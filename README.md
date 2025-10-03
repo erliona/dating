@@ -89,7 +89,9 @@ docker compose ps
 
 2. Push в main ветку запустит автоматический деплой
 
-См. подробности: [📘 Deployment Guide](docs/DEPLOYMENT.md)
+См. подробности: 
+- [📘 Deployment Guide](docs/DEPLOYMENT.md)
+- [🔄 Deployment Idempotency Guide](docs/DEPLOYMENT_IDEMPOTENCY.md) - Database, logs, Grafana
 
 ---
 
