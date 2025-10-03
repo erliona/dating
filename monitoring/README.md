@@ -40,11 +40,16 @@ docker compose -f docker-compose.dev.yml --profile monitoring up -d
 ### Stop Monitoring Stack
 
 ```bash
-# Stop all services including monitoring
+# Stop all services including monitoring (keeps all data)
 docker compose --profile monitoring down
 
-# Remove monitoring data volumes (⚠️ this deletes all metrics and logs)
-docker compose down -v
+# ⚠️ DANGER: Remove ALL volumes including database! 
+# This command deletes EVERYTHING: app data, monitoring data, SSL certs
+# See docs/DATA_PERSISTENCE.md before using this command!
+# docker compose down -v  # DON'T USE THIS without backup!
+
+# Safe: Remove only monitoring volumes (keeps app data)
+docker volume rm dating_prometheus_data dating_grafana_data dating_loki_data
 ```
 
 ## 📈 Available Dashboards
@@ -388,8 +393,10 @@ Clean old data:
 # Prometheus retention is configured to 30 days
 # Loki retention is configured to 30 days
 
-# To manually clean old data:
-docker compose --profile monitoring down -v
+# To manually clean old monitoring data (safe - only affects monitoring):
+# This ONLY removes monitoring volumes, NOT your application database
+docker compose --profile monitoring down
+docker volume rm dating_prometheus_data dating_grafana_data dating_loki_data
 docker compose --profile monitoring up -d
 ```
 
