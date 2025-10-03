@@ -72,13 +72,18 @@ attempt_password_migration() {
     chmod 600 "$TMP_PGPASS"
     # Escape single quotes in the password for SQL
     ESCAPED_DB_PASSWORD=$(printf "%s" "$DB_PASSWORD" | sed "s/'/''/g")
-    if PGPASSFILE="$TMP_PGPASS" psql -h "$DB_HOST" -p "$DB_PORT" -U postgres -d "$DB_NAME" -c "ALTER USER $DB_USER WITH PASSWORD '$ESCAPED_DB_PASSWORD';" 2>/dev/null; then
+    # Write the SQL command to a temporary file to avoid exposing the password in the process list
+    TMP_SQL=$(mktemp)
+    echo "ALTER USER $DB_USER WITH PASSWORD '$ESCAPED_DB_PASSWORD';" > "$TMP_SQL"
+    chmod 600 "$TMP_SQL"
+    if PGPASSFILE="$TMP_PGPASS" psql -h "$DB_HOST" -p "$DB_PORT" -U postgres -d "$DB_NAME" -f "$TMP_SQL" 2>/dev/null; then
       log_info "Successfully updated database password for user: $DB_USER"
-      rm -f "$TMP_PGPASS"
+      rm -f "$TMP_PGPASS" "$TMP_SQL"
       return 0
     else
       log_warn "Could not update password using postgres superuser"
     fi
+    rm -f "$TMP_SQL"
     rm -f "$TMP_PGPASS"
   fi
   
