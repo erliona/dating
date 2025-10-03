@@ -287,39 +287,6 @@ run_docker() {
   sudo docker "$@"
 }
 
-# Function to update database password if it changed
-update_database_password_if_needed() {
-  # Check if database is running
-  if ! run_docker compose ps db 2>/dev/null | grep -q "Up"; then
-    # Database not running, no need to update password
-    return 0
-  fi
-  
-  # Get new password from .env
-  NEW_PASSWORD=$(grep '^POSTGRES_PASSWORD=' .env | cut -d'=' -f2-)
-  DB_USER=$( (grep '^POSTGRES_USER=' .env | cut -d'=' -f2-) || echo "dating")
-
-  # Escape single quotes for SQL (replace ' with '')
-  ESCAPED_PASSWORD=${NEW_PASSWORD//\'/\'\'}
-
-  if [ -z "$NEW_PASSWORD" ]; then
-    return 0
-  fi
-
-  echo "🔐 Checking if database password needs to be updated..."
-
-  # Try to update the password (safe operation, idempotent)
-  # This ensures the password in the database matches the .env file
-  if run_docker compose exec -T db sh -c "echo '*:*:*:$DB_USER:$NEW_PASSWORD' > /tmp/pgpass && chmod 600 /tmp/pgpass && PGPASSFILE=/tmp/pgpass psql -U \"$DB_USER\" -d \"$DB_USER\" -c \"ALTER USER $DB_USER WITH PASSWORD '$ESCAPED_PASSWORD';\" && rm -f /tmp/pgpass" 2>/dev/null; then
-    echo "✓ Database password synchronized with configuration"
-  else
-    echo "⚠️  Could not verify/update database password (container may not be ready)"
-  fi
-}
-
-# Update database password before stopping containers if it changed
-update_database_password_if_needed
-
 # Stop old containers gracefully
 if run_docker compose ps -q 2>/dev/null | grep -q .; then
   echo "🛑 Stopping existing containers..."

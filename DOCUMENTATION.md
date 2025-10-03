@@ -142,28 +142,6 @@ docker compose exec bot alembic revision --autogenerate -m "Description"
 docker compose exec bot alembic current
 ```
 
-### Password Management
-
-**Automatic Password Migration (New!):**
-
-The system now automatically handles password changes without requiring database resets:
-
-```bash
-# Simply update .env and restart
-sed -i 's/POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=new_password/' .env
-docker compose restart bot
-
-# The bot automatically detects and fixes password mismatches
-```
-
-**Features:**
-- ✅ Automatic password synchronization
-- ✅ Exponential backoff for database connections
-- ✅ Enhanced environment variable validation
-- ✅ No data loss on password changes
-
-See `docs/DATA_PERSISTENCE.md` for detailed password change procedures.
-
 ### Backup & Restore
 
 ```bash

@@ -111,61 +111,20 @@ def load_config() -> BotConfig:
         postgres_port = os.getenv("POSTGRES_PORT", "5432")
         postgres_db = os.getenv("POSTGRES_DB")
         
-        # Validate required database credentials
-        missing_vars = []
-        if not postgres_user:
-            missing_vars.append("POSTGRES_USER")
-        if not postgres_password:
-            missing_vars.append("POSTGRES_PASSWORD")
-        if not postgres_db:
-            missing_vars.append("POSTGRES_DB")
-        
-        if missing_vars:
+        if all([postgres_user, postgres_password, postgres_db]):
+            # URL-encode the username and password to handle special characters
+            encoded_user = quote_plus(postgres_user)
+            encoded_password = quote_plus(postgres_password)
+            database_url_raw = (
+                f"postgresql+asyncpg://{encoded_user}:{encoded_password}"
+                f"@{postgres_host}:{postgres_port}/{postgres_db}"
+            )
+        else:
             raise RuntimeError(
-                f"Missing required database environment variables: {', '.join(missing_vars)}. "
-                "Either set BOT_DATABASE_URL directly, or set POSTGRES_USER, POSTGRES_PASSWORD, and POSTGRES_DB."
+                "BOT_DATABASE_URL environment variable is required to start the bot. "
+                "Alternatively, set POSTGRES_USER, POSTGRES_PASSWORD, and POSTGRES_DB "
+                "to automatically construct the database URL."
             )
-        
-        # Validate credentials are not empty or whitespace-only
-        if not postgres_user.strip():
-            raise RuntimeError("POSTGRES_USER cannot be empty or whitespace-only")
-        if not postgres_password.strip():
-            raise RuntimeError("POSTGRES_PASSWORD cannot be empty or whitespace-only")
-        if not postgres_db.strip():
-            raise RuntimeError("POSTGRES_DB cannot be empty or whitespace-only")
-        
-        # Check for common placeholder patterns in password
-        password_placeholders = [
-            "your-",
-            "replace-",
-            "change-",
-            "example",
-            "placeholder",
-            "password-here",
-            "changeme",
-        ]
-        password_lower = postgres_password.lower()
-        if any(pattern in password_lower for pattern in password_placeholders):
-            raise RuntimeError(
-                "POSTGRES_PASSWORD appears to be a placeholder value. "
-                "Please set a real secure password."
-            )
-        
-        # Warn about weak passwords (only in development)
-        if postgres_password in ["dating", "password", "admin", "root", "postgres", "test"]:
-            import logging
-            logging.warning(
-                "⚠️  POSTGRES_PASSWORD is set to a common/weak value. "
-                "This is acceptable for local development but MUST be changed for production deployments."
-            )
-        
-        # URL-encode the username and password to handle special characters
-        encoded_user = quote_plus(postgres_user)
-        encoded_password = quote_plus(postgres_password)
-        database_url_raw = (
-            f"postgresql+asyncpg://{encoded_user}:{encoded_password}"
-            f"@{postgres_host}:{postgres_port}/{postgres_db}"
-        )
 
     try:
         database_url = make_url(database_url_raw)
