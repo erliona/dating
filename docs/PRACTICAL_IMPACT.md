@@ -1,4 +1,4 @@
-# Practical Impact of Bug Fixes - October 2024
+# Practical Impact of Bug Fixes - October 2025
 
 This document shows the real-world user experience improvements from the bug fixes.
 
@@ -410,5 +410,5 @@ While these issues are now fixed, there are opportunities for enhancement:
 
 ---
 
-*Last updated: October 2024*  
-*Related docs: BUG_FIXES_OCTOBER_2024.md, PHOTO_UPLOAD_FIX.md*
+*Last updated: October 2025*  
+*Related docs: BUG_FIXES_OCTOBER_2025.md, PHOTO_UPLOAD_FIX.md*
