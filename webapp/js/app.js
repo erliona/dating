@@ -433,7 +433,7 @@ async function checkUserProfile() {
     return false;
   }
   
-  // Check localStorage first for quick result
+  // Check localStorage for quick result
   const profileCreated = localStorage.getItem('profile_created') === 'true';
   const storedUserId = localStorage.getItem('profile_user_id');
   
@@ -443,40 +443,40 @@ async function checkUserProfile() {
     localStorage.removeItem('profile_created');
     localStorage.removeItem('profile_data');
     localStorage.removeItem('profile_user_id');
-    return false;
   }
   
-  // If localStorage says no profile, definitely no profile
-  if (!profileCreated) {
-    return false;
-  }
-  
-  // Verify with backend API to ensure database has the profile
+  // ALWAYS verify with backend API to ensure database has the profile
+  // This is the source of truth, not localStorage
   try {
     const response = await fetch(`${API_BASE_URL}/api/profile/check?user_id=${currentUserId}`);
     
     if (!response.ok) {
       console.error('Profile check API failed:', response.status);
-      // If API fails, trust localStorage for now
+      // If API fails, trust localStorage as fallback
       return profileCreated;
     }
     
     const data = await response.json();
     const hasProfileInDB = data.has_profile;
     
-    // If localStorage says profile exists but DB doesn't have it, clear localStorage
-    if (profileCreated && !hasProfileInDB) {
+    // Sync localStorage with database state
+    if (hasProfileInDB && !profileCreated) {
+      // Profile exists in DB but not in localStorage - update localStorage
+      console.log('Profile found in database, updating localStorage');
+      localStorage.setItem('profile_created', 'true');
+      localStorage.setItem('profile_user_id', String(currentUserId));
+    } else if (!hasProfileInDB && profileCreated) {
+      // Profile doesn't exist in DB but localStorage says it does - clear localStorage
       console.log('Profile not found in database, clearing localStorage');
       localStorage.removeItem('profile_created');
       localStorage.removeItem('profile_data');
       localStorage.removeItem('profile_user_id');
-      return false;
     }
     
     return hasProfileInDB;
   } catch (error) {
     console.error('Error checking profile with API:', error);
-    // If API call fails, trust localStorage
+    // If API call fails, trust localStorage as fallback
     return profileCreated;
   }
 }
@@ -755,7 +755,6 @@ function setupPhotoUpload() {
   // Setup individual file inputs for each slot
   for (let i = 0; i < 3; i++) {
     const input = document.getElementById(`photoInput${i}`);
-    const slot = document.getElementById(`photoSlot${i}`);
     
     if (input) {
       input.addEventListener('change', async (e) => {
@@ -767,11 +766,8 @@ function setupPhotoUpload() {
           // Handle the upload
           await handlePhotoUpload(e.target.files[0], i);
           
-          // Reset input AFTER handling upload (delayed for iOS compatibility)
-          // Immediate reset can cause iOS gallery to close prematurely
-          setTimeout(() => {
-            e.target.value = '';
-          }, 100);
+          // Reset input to allow selecting the same file again
+          e.target.value = '';
         }
       });
     }
