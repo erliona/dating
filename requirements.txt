@@ -7,5 +7,5 @@ PyJWT>=2.8  # JWT token generation and validation
 aiohttp>=3.9  # HTTP server for photo upload API
 Pillow>=10.0  # Image processing and optimization
 aiohttp-cors>=0.7  # CORS support for API
-nudenet>=3.0  # NSFW content detection ML model
+nudenet>=2.0,<3.0  # NSFW content detection ML model (v2.x has NudeClassifier)
 onnxruntime>=1.16  # Runtime for NudeNet model

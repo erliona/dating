@@ -24,6 +24,7 @@ RUN apt-get update \
     && apt-get install --no-install-recommends -y \
         libpq5 \
         netcat-traditional \
+        libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy virtual environment from builder
