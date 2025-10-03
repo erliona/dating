@@ -152,6 +152,67 @@ class TestDatabaseURLValidation:
         assert "dbhost" in config.database_url
         assert "5433" in config.database_url
     
+    def test_database_url_missing_user(self, monkeypatch):
+        """Test error when POSTGRES_USER is missing."""
+        monkeypatch.setenv("BOT_TOKEN", "123456789:ABCdefGHIjklMNOpqrsTUVwxyz")
+        monkeypatch.setenv("POSTGRES_PASSWORD", "testpass")
+        monkeypatch.setenv("POSTGRES_DB", "testdb")
+        with pytest.raises(RuntimeError, match="Missing required database environment variables: POSTGRES_USER"):
+            load_config()
+    
+    def test_database_url_missing_password(self, monkeypatch):
+        """Test error when POSTGRES_PASSWORD is missing."""
+        monkeypatch.setenv("BOT_TOKEN", "123456789:ABCdefGHIjklMNOpqrsTUVwxyz")
+        monkeypatch.setenv("POSTGRES_USER", "testuser")
+        monkeypatch.setenv("POSTGRES_DB", "testdb")
+        with pytest.raises(RuntimeError, match="Missing required database environment variables: POSTGRES_PASSWORD"):
+            load_config()
+    
+    def test_database_url_missing_db(self, monkeypatch):
+        """Test error when POSTGRES_DB is missing."""
+        monkeypatch.setenv("BOT_TOKEN", "123456789:ABCdefGHIjklMNOpqrsTUVwxyz")
+        monkeypatch.setenv("POSTGRES_USER", "testuser")
+        monkeypatch.setenv("POSTGRES_PASSWORD", "testpass")
+        with pytest.raises(RuntimeError, match="Missing required database environment variables: POSTGRES_DB"):
+            load_config()
+    
+    def test_database_url_empty_user(self, monkeypatch):
+        """Test error when POSTGRES_USER is empty."""
+        monkeypatch.setenv("BOT_TOKEN", "123456789:ABCdefGHIjklMNOpqrsTUVwxyz")
+        monkeypatch.setenv("POSTGRES_USER", "   ")
+        monkeypatch.setenv("POSTGRES_PASSWORD", "testpass")
+        monkeypatch.setenv("POSTGRES_DB", "testdb")
+        with pytest.raises(RuntimeError, match="POSTGRES_USER cannot be empty"):
+            load_config()
+    
+    def test_database_url_empty_password(self, monkeypatch):
+        """Test error when POSTGRES_PASSWORD is empty."""
+        monkeypatch.setenv("BOT_TOKEN", "123456789:ABCdefGHIjklMNOpqrsTUVwxyz")
+        monkeypatch.setenv("POSTGRES_USER", "testuser")
+        monkeypatch.setenv("POSTGRES_PASSWORD", "   ")
+        monkeypatch.setenv("POSTGRES_DB", "testdb")
+        with pytest.raises(RuntimeError, match="POSTGRES_PASSWORD cannot be empty"):
+            load_config()
+    
+    def test_database_url_placeholder_password(self, monkeypatch):
+        """Test error when POSTGRES_PASSWORD is a placeholder."""
+        monkeypatch.setenv("BOT_TOKEN", "123456789:ABCdefGHIjklMNOpqrsTUVwxyz")
+        monkeypatch.setenv("POSTGRES_USER", "testuser")
+        monkeypatch.setenv("POSTGRES_PASSWORD", "your-password-here")
+        monkeypatch.setenv("POSTGRES_DB", "testdb")
+        with pytest.raises(RuntimeError, match="POSTGRES_PASSWORD appears to be a placeholder"):
+            load_config()
+    
+    def test_database_url_weak_password_warning(self, monkeypatch, caplog):
+        """Test warning when POSTGRES_PASSWORD is weak."""
+        monkeypatch.setenv("BOT_TOKEN", "123456789:ABCdefGHIjklMNOpqrsTUVwxyz")
+        monkeypatch.setenv("POSTGRES_USER", "testuser")
+        monkeypatch.setenv("POSTGRES_PASSWORD", "password")
+        monkeypatch.setenv("POSTGRES_DB", "testdb")
+        config = load_config()
+        assert "weak value" in caplog.text.lower()
+        assert config.database_url is not None
+    
     def test_database_url_special_chars_encoded(self, monkeypatch):
         """Test special characters in password are URL-encoded."""
         monkeypatch.setenv("BOT_TOKEN", "123456789:ABCdefGHIjklMNOpqrsTUVwxyz")
