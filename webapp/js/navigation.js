@@ -94,11 +94,55 @@ function showSettings() {
  */
 async function loadProfileForEdit() {
     try {
-        // In a real app, fetch profile from API
-        // For now, just placeholder
         console.log('Loading profile for edit');
+        
+        // Get JWT token
+        if (!authToken) {
+            console.error('No auth token available');
+            if (tg && tg.showAlert) {
+                tg.showAlert('Ошибка авторизации. Перезапустите приложение.');
+            }
+            return;
+        }
+        
+        // Fetch profile from API
+        const response = await fetch(`${API_BASE_URL}/api/profile`, {
+            headers: {
+                'Authorization': `Bearer ${authToken}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Failed to load profile: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const profile = data.profile;
+        
+        // Populate form fields
+        document.getElementById('editName').value = profile.name || '';
+        document.getElementById('editBio').value = profile.bio || '';
+        document.getElementById('editCity').value = profile.city || '';
+        
+        // Load photos if available
+        if (profile.photos && profile.photos.length > 0) {
+            profile.photos.forEach((photo, index) => {
+                const photoSlot = document.getElementById(`editPhotoSlot${index}`);
+                if (photoSlot && photo.url) {
+                    photoSlot.style.backgroundImage = `url(${photo.url})`;
+                    photoSlot.style.backgroundSize = 'cover';
+                    photoSlot.style.backgroundPosition = 'center';
+                    photoSlot.querySelector('span').style.display = 'none';
+                }
+            });
+        }
+        
+        console.log('Profile loaded successfully');
     } catch (error) {
         console.error('Error loading profile:', error);
+        if (tg && tg.showAlert) {
+            tg.showAlert('Не удалось загрузить профиль');
+        }
     }
 }
 
@@ -113,13 +157,68 @@ async function saveProfileChanges() {
     const city = document.getElementById('editCity').value;
     
     try {
-        // In a real app, send to API
-        // For now, just show success message
-        if (tg && tg.showAlert) {
-            tg.showAlert('Изменения сохранены ✓');
+        // Validate required fields
+        if (!name || name.trim().length < 2) {
+            if (tg && tg.showAlert) {
+                tg.showAlert('Имя должно содержать минимум 2 символа');
+            }
+            return;
         }
         
-        triggerHaptic('notification', 'success');
+        // Get JWT token
+        if (!authToken) {
+            console.error('No auth token available');
+            if (tg && tg.showAlert) {
+                tg.showAlert('Ошибка авторизации. Перезапустите приложение.');
+            }
+            return;
+        }
+        
+        // Prepare update data
+        const updateData = {
+            name: name.trim(),
+            bio: bio ? bio.trim() : null,
+            city: city ? city.trim() : null
+        };
+        
+        // Send to API
+        const response = await fetch(`${API_BASE_URL}/api/profile`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify(updateData)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Failed to update profile: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            if (tg && tg.showAlert) {
+                tg.showAlert('Изменения сохранены ✓');
+            }
+            triggerHaptic('notification', 'success');
+            
+            // Update localStorage if profile data is cached
+            const storedProfile = localStorage.getItem('profile_data');
+            if (storedProfile) {
+                try {
+                    const profileData = JSON.parse(storedProfile);
+                    profileData.name = updateData.name;
+                    profileData.bio = updateData.bio;
+                    profileData.city = updateData.city;
+                    localStorage.setItem('profile_data', JSON.stringify(profileData));
+                } catch (e) {
+                    console.warn('Failed to update cached profile:', e);
+                }
+            }
+        } else {
+            throw new Error('Update failed');
+        }
     } catch (error) {
         console.error('Error saving profile:', error);
         
