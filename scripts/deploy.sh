@@ -298,16 +298,19 @@ update_database_password_if_needed() {
   # Get new password from .env
   NEW_PASSWORD=$(grep '^POSTGRES_PASSWORD=' .env | cut -d'=' -f2-)
   DB_USER=$(grep '^POSTGRES_USER=' .env | cut -d'=' -f2- || echo "dating")
-  
+
+  # Escape single quotes for SQL (replace ' with '')
+  ESCAPED_PASSWORD=${NEW_PASSWORD//\'/\'\'}
+
   if [ -z "$NEW_PASSWORD" ]; then
     return 0
   fi
-  
+
   echo "🔐 Checking if database password needs to be updated..."
-  
+
   # Try to update the password (safe operation, idempotent)
   # This ensures the password in the database matches the .env file
-  if run_docker compose exec -T db env PGPASSWORD="$NEW_PASSWORD" psql -U "$DB_USER" -d "$DB_USER" -c "ALTER USER $DB_USER WITH PASSWORD '$NEW_PASSWORD';" 2>/dev/null; then
+  if run_docker compose exec -T db env PGPASSWORD="$NEW_PASSWORD" psql -U "$DB_USER" -d "$DB_USER" -c "ALTER USER $DB_USER WITH PASSWORD '$ESCAPED_PASSWORD';" 2>/dev/null; then
     echo "✓ Database password synchronized with configuration"
   else
     echo "⚠️  Could not verify/update database password (container may not be ready)"
