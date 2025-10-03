@@ -683,15 +683,21 @@ function setupPhotoUpload() {
     const slot = document.getElementById(`photoSlot${i}`);
     
     if (input) {
-      input.addEventListener('change', (e) => {
+      input.addEventListener('change', async (e) => {
         // Trigger haptic feedback when file is selected (not on click)
         // This avoids interfering with iOS file picker
-        if (e.target.files[0]) {
+        if (e.target.files && e.target.files[0]) {
           triggerHaptic('impact', 'light');
+          
+          // Handle the upload
+          await handlePhotoUpload(e.target.files[0], i);
+          
+          // Reset input AFTER handling upload (delayed for iOS compatibility)
+          // Immediate reset can cause iOS gallery to close prematurely
+          setTimeout(() => {
+            e.target.value = '';
+          }, 100);
         }
-        handlePhotoUpload(e.target.files[0], i);
-        // Reset input to allow selecting same file again
-        input.value = '';
       });
     }
     
