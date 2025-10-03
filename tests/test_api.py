@@ -691,10 +691,12 @@ class TestCheckProfileHandler:
         def mock_session_maker():
             return mock_session
         
-        # Mock request
+        # Mock request with init_data for authentication
+        import json as json_module
+        init_data = f"user={json_module.dumps({'id': user_id})}"
         request = MagicMock()
         request.app = {"config": config, "session_maker": mock_session_maker}
-        request.query = {"user_id": str(user_id)}
+        request.query = {"user_id": str(user_id), "init_data": init_data}
         
         with patch("bot.api.ProfileRepository", return_value=mock_repository):
             response = await check_profile_handler(request)
@@ -729,10 +731,12 @@ class TestCheckProfileHandler:
         def mock_session_maker():
             return mock_session
         
-        # Mock request
+        # Mock request with init_data for authentication
+        import json as json_module
+        init_data = f"user={json_module.dumps({'id': user_id})}"
         request = MagicMock()
         request.app = {"config": config, "session_maker": mock_session_maker}
-        request.query = {"user_id": str(user_id)}
+        request.query = {"user_id": str(user_id), "init_data": init_data}
         
         with patch("bot.api.ProfileRepository", return_value=mock_repository):
             response = await check_profile_handler(request)
