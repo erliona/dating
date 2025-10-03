@@ -510,20 +510,30 @@ docker compose --profile monitoring up -d
    
    Check Promtail logs to verify it's working:
    ```bash
-   docker compose logs promtail | tail -30
+   docker compose logs promtail | tail -50
    ```
    
    You should see messages like:
    - "Starting Promtail"
-   - "client: connected"
-   - No errors about file permissions
+   - "client: connected" or "client/client.go" messages
+   - "Seeked" messages indicating it's reading log files
+   - No errors about file permissions or "no such file"
+   
+   If you see errors about Docker socket or container discovery, restart Promtail:
+   ```bash
+   docker compose restart promtail
+   ```
 
 3. **Docker socket permissions**
    
-   Promtail needs read access to `/var/lib/docker/containers`. Verify the volume mount:
+   Promtail uses Docker service discovery to automatically find containers. Verify it has access:
    ```bash
-   docker compose logs promtail | grep -i "permission\|error"
+   docker compose logs promtail | grep -i "permission\|error\|discovery"
    ```
+   
+   Common issues:
+   - Docker socket not accessible: Make sure `/var/run/docker.sock` is mounted
+   - Container path issues: Promtail uses Docker API to find log files
 
 4. **Loki datasource not configured**
    
@@ -532,24 +542,42 @@ docker compose --profile monitoring up -d
    - Find "Loki"
    - Click "Save & Test" 
    - Should show green "Data source is working"
+   
+   If the test fails:
+   - Check Loki is running: `docker compose ps loki`
+   - Check Loki logs: `docker compose logs loki | tail -20`
+   - Verify URL is correct: `http://loki:3100`
 
 5. **Test Loki directly**
    
    Query Loki API to verify it's receiving logs:
    ```bash
+   # Check if Loki is ready
+   curl http://localhost:3100/ready
+   
+   # Query for logs
    curl -G -s "http://localhost:3100/loki/api/v1/query" \
      --data-urlencode 'query={job="docker"}' \
-     | python3 -m json.tool | head -20
+     --data-urlencode 'limit=10' \
+     | python3 -m json.tool
    ```
    
-   You should see log entries in the response.
+   You should see:
+   - `/ready` returns "ready"
+   - Query returns `"status": "success"` and some log entries
 
 6. **Check Loki storage**
    
-   Verify Loki has write permissions:
+   Verify Loki has write permissions and is storing logs:
    ```bash
+   # Check for errors
    docker compose logs loki | grep -i "error\|permission"
+   
+   # Check if Loki is accepting data
+   docker compose logs loki | grep -i "POST /loki/api/v1/push"
    ```
+   
+   If you see "POST /loki/api/v1/push" messages, Promtail is successfully sending logs to Loki.
 
 7. **Use correct LogQL queries**
    
@@ -559,31 +587,87 @@ docker compose --profile monitoring up -d
    {job="docker"}
    
    # Bot service logs specifically
-   {job="docker", container_name=~".*bot.*"}
+   {container_name=~".*bot.*"}
+   
+   # Specific container by name
+   {container_name="dating-bot-1"}
    
    # Filter by log content
    {job="docker"} |= "ERROR"
-   {job="docker"} |= "bot"
+   {container_name=~".*bot.*"} |= "profile"
    
    # Webapp logs
-   {job="docker", container_name=~".*webapp.*"}
+   {container_name=~".*webapp.*"}
+   
+   # All logs from dating project
+   {job="docker"} | json
+   ```
+
+8. **Restart monitoring stack**
+   
+   If logs are still not appearing, restart the monitoring services:
+   ```bash
+   # Restart Loki and Promtail
+   docker compose restart loki promtail
+   
+   # Wait 10-15 seconds for services to stabilize
+   sleep 15
+   
+   # Check logs to verify they're working
+   docker compose logs --tail=50 loki promtail
    ```
 
 **Quick Verification Checklist**:
 - [ ] Started with monitoring profile (`--profile monitoring`)
 - [ ] Loki container is running (`docker compose ps loki`)
 - [ ] Promtail container is running (`docker compose ps promtail`)
-- [ ] No errors in Promtail logs
+- [ ] No errors in Promtail logs about Docker socket or discovery
+- [ ] Promtail logs show "Seeked" messages (reading files)
+- [ ] Loki logs show "POST /loki/api/v1/push" (receiving data)
 - [ ] Loki datasource shows "Working" in Grafana
 - [ ] Test query `{job="docker"}` returns logs in Explore
 
-**Still not working?**
-Restart the monitoring stack:
+**Advanced debugging**:
+
+Check Promtail targets:
 ```bash
-docker compose restart loki promtail
-# Wait 10 seconds for services to stabilize
-docker compose logs loki promtail
+# Promtail exposes its targets on port 9080
+curl http://localhost:9080/targets | python3 -m json.tool
 ```
+
+This shows which containers Promtail discovered and is scraping.
+
+**Still not working?**
+
+1. Check Docker Compose project name:
+   ```bash
+   docker compose ps --format json | python3 -m json.tool | grep -i project
+   ```
+   
+   The project name should be "dating". If it's different, update the filter in `promtail-config.yml`.
+
+2. Verify container logs are being written:
+   ```bash
+   # Check bot container is producing logs
+   docker compose logs bot --tail=10
+   
+   # Check actual Docker log file exists
+   docker inspect $(docker compose ps -q bot) | grep LogPath
+   ```
+
+3. Complete restart of monitoring stack:
+   ```bash
+   # Stop monitoring services
+   docker compose --profile monitoring down
+   
+   # Start them again
+   docker compose --profile monitoring up -d
+   
+   # Follow logs to see startup
+   docker compose logs -f loki promtail
+   ```
+   
+   Press Ctrl+C when you see "client connected" or "Seeked" messages from Promtail.
 
 ## 📚 Resources
 
