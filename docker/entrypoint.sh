@@ -19,81 +19,6 @@ log_error() {
   echo "${RED}✗${NC} $1"
 }
 
-# Function to attempt password migration when authentication fails
-# This helps handle password changes without requiring database volume reset
-attempt_password_migration() {
-  if [ -z "${BOT_DATABASE_URL:-}" ]; then
-    log_warn "BOT_DATABASE_URL is not set, cannot attempt password migration"
-    return 1
-  fi
-  
-  # Parse the database URL robustly using Python
-  eval "$(python3 -c '
-import sys
-from urllib.parse import urlparse, unquote
-url = sys.argv[1]
-p = urlparse(url)
-user = unquote(p.username) if p.username else ""
-password = unquote(p.password) if p.password else ""
-host = p.hostname or ""
-port = str(p.port) if p.port else ""
-dbname = p.path.lstrip("/") if p.path else ""
-print(f"DB_USER=\"{user}\"\nDB_PASSWORD=\"{password}\"\nDB_HOST=\"{host}\"\nDB_PORT=\"{port}\"\nDB_NAME=\"{dbname}\"")
-' "$BOT_DATABASE_URL")"
-  if [ -z "$DB_USER" ] || [ -z "$DB_PASSWORD" ] || [ -z "$DB_HOST" ] || [ -z "$DB_PORT" ] || [ -z "$DB_NAME" ]; then
-    log_warn "Could not parse database credentials from BOT_DATABASE_URL"
-    return 1
-  fi
-  
-  log_info "Attempting to update database password for user: $DB_USER"
-  
-  # Try to connect as postgres superuser (available in docker postgres container)
-  # and update the user's password
-  if command -v psql > /dev/null 2>&1; then
-    # Use a temporary .pgpass file for secure password handling
-    TMP_PGPASS=$(mktemp)
-    # Validate POSTGRES_PASSWORD is set and non-empty
-    if [ -z "${POSTGRES_PASSWORD:-}" ]; then
-      log_error "POSTGRES_PASSWORD is not set or is empty. Cannot perform password migration."
-      rm -f "$TMP_PGPASS"
-      return 1
-    fi
-    # Escape special characters for .pgpass (colon, backslash, newline)
-    escape_pgpass() {
-      # Escape special characters for .pgpass:
-      # 1. Escape backslashes ( \ -> \\ )
-      # 2. Escape colons ( : -> \: )
-      # 3. Escape newlines ( \n -> \\n )
-      input="$1"
-      # Escape backslashes
-      input=$(printf '%s' "$input" | sed 's/\\/\\\\/g')
-      # Escape colons
-      input=$(printf '%s' "$input" | sed 's/:/\\:/g')
-      # Escape newlines
-      input=$(printf '%s' "$input" | sed ':a;N;$!ba;s/\n/\\n/g')
-      printf '%s' "$input"
-    }
-    ESCAPED_POSTGRES_PASSWORD=$(escape_pgpass "$POSTGRES_PASSWORD")
-    echo "$DB_HOST:$DB_PORT:$DB_NAME:postgres:$ESCAPED_POSTGRES_PASSWORD" > "$TMP_PGPASS"
-    chmod 600 "$TMP_PGPASS"
-    # Escape single quotes in the password for SQL
-    ESCAPED_DB_PASSWORD=$(printf "%s" "$DB_PASSWORD" | sed "s/'/''/g")
-    # Write the SQL command to a temporary file to avoid exposing the password in the process list
-    SQL_CMD="ALTER USER $DB_USER WITH PASSWORD '$ESCAPED_DB_PASSWORD';"
-    if printf "%s\n" "$SQL_CMD" | PGPASSFILE="$TMP_PGPASS" psql -h "$DB_HOST" -p "$DB_PORT" -U postgres -d "$DB_NAME" 2>/dev/null; then
-      log_info "Successfully updated database password for user: $DB_USER"
-      rm -f "$TMP_PGPASS"
-      return 0
-    else
-      log_warn "Could not update password using postgres superuser"
-    fi
-    rm -f "$TMP_PGPASS"
-  fi
-  
-  log_warn "Password migration failed - manual intervention may be required"
-  return 1
-}
-
 # Function to check database connectivity with timeout
 check_database_connection() {
   if [ -z "${BOT_DATABASE_URL:-}" ]; then
@@ -130,38 +55,28 @@ check_database_connection() {
   return 0
 }
 
-# Wait for database to be ready with exponential backoff
+# Wait for database to be ready
 wait_for_database() {
-  MAX_RETRIES=12
-  RETRY_COUNT=0
-  WAIT_SECONDS=1
+  MAX_WAIT=30
+  WAIT_COUNT=0
   
   echo "⏳ Waiting for database to be ready..."
   
-  while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+  while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
     if check_database_connection; then
       log_info "Database is ready"
       return 0
     fi
-    
-    RETRY_COUNT=$((RETRY_COUNT + 1))
-    
-    if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-      echo "   Attempt $RETRY_COUNT/$MAX_RETRIES - waiting ${WAIT_SECONDS}s before retry..."
-      sleep "$WAIT_SECONDS"
-      
-      # Exponential backoff: double wait time up to 16 seconds max
-      if [ $WAIT_SECONDS -lt 16 ]; then
-        WAIT_SECONDS=$((WAIT_SECONDS * 2))
-      fi
-    fi
+    WAIT_COUNT=$((WAIT_COUNT + 1))
+    echo "   Attempt $WAIT_COUNT/$MAX_WAIT - waiting 2s..."
+    sleep 2
   done
   
-  log_error "Database not ready after ${MAX_RETRIES} attempts"
+  log_error "Database not ready after ${MAX_WAIT} attempts"
   return 1
 }
 
-# Run database migrations with retry and password migration support
+# Run database migrations
 run_migrations() {
   if [ "${RUN_DB_MIGRATIONS:-true}" != "true" ]; then
     echo "Skipping database migrations (RUN_DB_MIGRATIONS=${RUN_DB_MIGRATIONS})."
@@ -176,72 +91,36 @@ run_migrations() {
     exit 1
   fi
   
-  # Retry logic for database migrations with exponential backoff
-  MAX_RETRIES=6
-  RETRY_COUNT=0
-  WAIT_SECONDS=2
-  PASSWORD_MIGRATION_ATTEMPTED=false
+  # Retry logic for database migrations
+  MAX_RETRIES=5
+  RETRY_DELAY=3
   
-  while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    MIGRATION_OUTPUT=$(alembic upgrade head 2>&1)
-    MIGRATION_STATUS=$?
-    
-    if [ $MIGRATION_STATUS -eq 0 ]; then
+  for i in $(seq 1 $MAX_RETRIES); do
+    if alembic upgrade head 2>&1; then
       log_info "Database migrations completed successfully"
       return 0
-    fi
-    
-    RETRY_COUNT=$((RETRY_COUNT + 1))
-    
-    # Check if this is an authentication failure
-    if echo "$MIGRATION_OUTPUT" | grep -qi "password authentication failed\|authentication failed\|no password supplied"; then
-      if [ "$PASSWORD_MIGRATION_ATTEMPTED" = "false" ]; then
-        log_warn "Authentication failed - attempting password migration..."
-        if attempt_password_migration; then
-          PASSWORD_MIGRATION_ATTEMPTED=true
-          log_info "Password migration successful, retrying migrations..."
-          # Reset retry count to give migrations another chance with new password
-          RETRY_COUNT=0
-          WAIT_SECONDS=2
-          continue
-        else
-          PASSWORD_MIGRATION_ATTEMPTED=true
-          log_warn "Password migration failed"
-        fi
-      fi
-    fi
-    
-    if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-      log_warn "Database migration attempt $RETRY_COUNT/$MAX_RETRIES failed, retrying in ${WAIT_SECONDS}s..."
-      sleep "$WAIT_SECONDS"
-      
-      # Exponential backoff: double wait time up to 16 seconds max
-      if [ $WAIT_SECONDS -lt 16 ]; then
-        WAIT_SECONDS=$((WAIT_SECONDS * 2))
-      fi
     else
-      log_error "Failed to apply database migrations after $MAX_RETRIES attempts"
-      echo ""
-      echo "Last error output:"
-      echo "$MIGRATION_OUTPUT"
-      echo ""
-      echo "Common causes:"
-      echo "  1. Password mismatch: The database was initialized with a different password"
-      echo "     than what's currently in POSTGRES_PASSWORD environment variable."
-      echo "  2. Database not ready: The database server may still be initializing."
-      echo "  3. Network issue: Cannot reach the database server."
-      echo ""
-      echo "Automatic password migration was attempted but failed."
-      echo ""
-      echo "To fix password issues manually:"
-      echo "  - Option 1: Update password in PostgreSQL:"
-      echo "              docker compose exec db psql -U postgres -d dating -c \"ALTER USER dating WITH PASSWORD 'new_password';\""
-      echo "  - Option 2: Reset the database (⚠️ WILL DELETE ALL DATA!):"
-      echo "              First backup: docker compose exec db pg_dump -U dating dating > backup.sql"
-      echo "              Then reset: docker compose down -v && docker compose up"
-      echo "              Then restore: docker compose exec -T db psql -U dating dating < backup.sql"
-      echo ""
-      exit 1
+      if [ "$i" -eq "$MAX_RETRIES" ]; then
+        log_error "Failed to apply database migrations after $MAX_RETRIES attempts"
+        echo ""
+        echo "Common causes:"
+        echo "  1. Password mismatch: The database was initialized with a different password"
+        echo "     than what's currently in POSTGRES_PASSWORD environment variable."
+        echo "  2. Database not ready: The database server may still be initializing."
+        echo "  3. Network issue: Cannot reach the database server."
+        echo ""
+        echo "To fix password issues:"
+        echo "  - Option 1: Reset the database (⚠️ WILL DELETE ALL DATA!):"
+        echo "              First backup: docker compose exec db pg_dump -U dating dating > backup.sql"
+        echo "              Then reset: docker compose down -v && docker compose up"
+        echo "              Then restore: docker compose exec -T db psql -U dating dating < backup.sql"
+        echo "  - Option 2: Manually change the password in PostgreSQL to match POSTGRES_PASSWORD"
+        echo "  - Option 3: Update POSTGRES_PASSWORD to match the password used when the database was initialized"
+        echo ""
+        exit 1
+      fi
+      log_warn "Database migration attempt $i/$MAX_RETRIES failed, retrying in ${RETRY_DELAY}s..."
+      sleep "$RETRY_DELAY"
     fi
   done
 }
