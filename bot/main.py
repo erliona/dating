@@ -164,70 +164,84 @@ async def handle_create_profile(
         await message.answer(f"❌ Validation error: {error}")
         return
     
-    # Create or update user
-    user = await repository.create_or_update_user(
-        tg_id=message.from_user.id,
-        username=message.from_user.username,
-        first_name=message.from_user.first_name,
-        language_code=message.from_user.language_code,
-        is_premium=message.from_user.is_premium or False
-    )
-    
-    # Check if profile already exists
-    existing_profile = await repository.get_profile_by_user_id(user.id)
-    if existing_profile:
-        await message.answer("❌ У вас уже есть профиль!")
-        return
-    
-    # Process location data
-    location = process_location_data(
-        latitude=profile_data.get("latitude"),
-        longitude=profile_data.get("longitude"),
-        country=profile_data.get("country"),
-        city=profile_data.get("city")
-    )
-    
-    # Add location to profile data
-    profile_data.update(location)
-    
-    # Convert birth_date string to date object if needed
-    if "birth_date" in profile_data and isinstance(profile_data["birth_date"], str):
-        profile_data["birth_date"] = datetime.strptime(
-            profile_data["birth_date"], "%Y-%m-%d"
-        ).date()
-    
-    # Mark profile as complete only if photos are present
-    # Photos are uploaded separately, so check photo_count
-    photo_count = profile_data.get("photo_count", 0)
-    profile_data["is_complete"] = photo_count > 0
-    
-    # Create profile
-    profile = await repository.create_profile(user.id, profile_data)
-    await session.commit()
-    
-    logger.info(
-        "Profile created successfully",
-        extra={
-            "event_type": "profile_created",
-            "user_id": message.from_user.id,
-            "profile_id": profile.id
-        }
-    )
-    
-    # Note: Photos are uploaded via HTTP API (see bot/api.py upload_photo_handler)
-    # The photo_count reflects photos already uploaded to the server
-    photo_count = profile_data.get("photo_count", 0)
-    photo_status = f"📸 Фото: {photo_count}" if photo_count > 0 else "📸 Фото: не загружены"
-    
-    await message.answer(
-        "✅ Профиль создан!\n\n"
-        f"Имя: {profile.name}\n"
-        f"Возраст: {profile.birth_date}\n"
-        f"Пол: {profile.gender}\n"
-        f"Цель: {profile.goal}\n"
-        f"Город: {profile.city or 'не указан'}\n"
-        f"{photo_status}"
-    )
+    try:
+        # Create or update user
+        user = await repository.create_or_update_user(
+            tg_id=message.from_user.id,
+            username=message.from_user.username,
+            first_name=message.from_user.first_name,
+            language_code=message.from_user.language_code,
+            is_premium=message.from_user.is_premium or False
+        )
+        
+        # Check if profile already exists
+        existing_profile = await repository.get_profile_by_user_id(user.id)
+        if existing_profile:
+            await message.answer("❌ У вас уже есть профиль!")
+            return
+        
+        # Process location data
+        location = process_location_data(
+            latitude=profile_data.get("latitude"),
+            longitude=profile_data.get("longitude"),
+            country=profile_data.get("country"),
+            city=profile_data.get("city")
+        )
+        
+        # Add location to profile data
+        profile_data.update(location)
+        
+        # Convert birth_date string to date object if needed
+        if "birth_date" in profile_data and isinstance(profile_data["birth_date"], str):
+            profile_data["birth_date"] = datetime.strptime(
+                profile_data["birth_date"], "%Y-%m-%d"
+            ).date()
+        
+        # Mark profile as complete when all required fields are present
+        # Photos are uploaded separately via HTTP API and don't affect completion
+        profile_data["is_complete"] = True
+        
+        # Create profile
+        profile = await repository.create_profile(user.id, profile_data)
+        
+        # Commit the transaction (both user and profile creation)
+        await session.commit()
+        
+        logger.info(
+            "Profile created successfully",
+            extra={
+                "event_type": "profile_created",
+                "user_id": message.from_user.id,
+                "profile_id": profile.id
+            }
+        )
+        
+        # Note: Photos are uploaded via HTTP API (see bot/api.py upload_photo_handler)
+        # The photo_count reflects photos already uploaded to the server
+        photo_count = profile_data.get("photo_count", 0)
+        photo_status = f"📸 Фото: {photo_count}" if photo_count > 0 else "📸 Фото: не загружены"
+        
+        await message.answer(
+            "✅ Профиль создан!\n\n"
+            f"Имя: {profile.name}\n"
+            f"Возраст: {profile.birth_date}\n"
+            f"Пол: {profile.gender}\n"
+            f"Цель: {profile.goal}\n"
+            f"Город: {profile.city or 'не указан'}\n"
+            f"{photo_status}"
+        )
+    except Exception as e:
+        # Rollback transaction on any error
+        await session.rollback()
+        logger.error(
+            f"Failed to create profile: {e}",
+            exc_info=True,
+            extra={
+                "event_type": "profile_creation_failed",
+                "user_id": message.from_user.id
+            }
+        )
+        await message.answer("❌ Не удалось создать профиль. Попробуйте позже.")
 
 
 async def main() -> None:

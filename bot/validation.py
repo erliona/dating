@@ -34,18 +34,18 @@ def validate_name(name: str) -> tuple[bool, Optional[str]]:
         Tuple of (is_valid, error_message)
     """
     if not name:
-        return False, "Name is required"
+        return False, "Имя обязательно"
     
     if not isinstance(name, str):
-        return False, "Name must be a string"
+        return False, "Имя должно быть строкой"
     
     name = name.strip()
     
     if len(name) < 2:
-        return False, "Name must be at least 2 characters"
+        return False, "Имя должно содержать минимум 2 символа"
     
     if len(name) > 100:
-        return False, "Name must not exceed 100 characters"
+        return False, "Имя не может превышать 100 символов"
     
     return True, None
 
@@ -89,12 +89,12 @@ def validate_gender(gender: str) -> tuple[bool, Optional[str]]:
         Tuple of (is_valid, error_message)
     """
     if not gender:
-        return False, "Gender is required"
+        return False, "Пол обязателен"
     
     valid_genders = [g.value for g in Gender]
     
     if gender not in valid_genders:
-        return False, f"Gender must be one of: {', '.join(valid_genders)}"
+        return False, f"Пол должен быть одним из: {', '.join(valid_genders)}"
     
     return True, None
 
@@ -109,12 +109,12 @@ def validate_orientation(orientation: str) -> tuple[bool, Optional[str]]:
         Tuple of (is_valid, error_message)
     """
     if not orientation:
-        return False, "Orientation is required"
+        return False, "Ориентация обязательна"
     
     valid_orientations = [o.value for o in Orientation]
     
     if orientation not in valid_orientations:
-        return False, f"Orientation must be one of: {', '.join(valid_orientations)}"
+        return False, f"Ориентация должна быть одной из: {', '.join(valid_orientations)}"
     
     return True, None
 
@@ -129,12 +129,12 @@ def validate_goal(goal: str) -> tuple[bool, Optional[str]]:
         Tuple of (is_valid, error_message)
     """
     if not goal:
-        return False, "Goal is required"
+        return False, "Цель обязательна"
     
     valid_goals = [g.value for g in Goal]
     
     if goal not in valid_goals:
-        return False, f"Goal must be one of: {', '.join(valid_goals)}"
+        return False, f"Цель должна быть одной из: {', '.join(valid_goals)}"
     
     return True, None
 
