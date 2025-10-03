@@ -110,6 +110,13 @@ async function loadProfileForEdit() {
         });
         
         if (!response.ok) {
+            // Handle 404 - profile doesn't exist yet
+            if (response.status === 404) {
+                console.log('Profile not found, redirecting to profile creation');
+                hideAllScreens();
+                startProfileCreation();
+                return;
+            }
             throw new Error(`Failed to load profile: ${response.status}`);
         }
         
