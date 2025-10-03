@@ -275,6 +275,9 @@ class TestHandleWebappData:
             mock_user.id = 1
             mock_repo.create_or_update_user = AsyncMock(return_value=mock_user)
             
+            # Mock no existing profile
+            mock_repo.get_profile_by_user_id = AsyncMock(return_value=None)
+            
             # Mock profile creation
             mock_profile = MagicMock()
             mock_profile.id = 1
