@@ -155,7 +155,7 @@ def load_config() -> BotConfig:
         if postgres_password in ["dating", "password", "admin", "root", "postgres", "test"]:
             import logging
             logging.warning(
-                f"⚠️  POSTGRES_PASSWORD is set to a common/weak value: '{postgres_password}'. "
+                "⚠️  POSTGRES_PASSWORD is set to a common/weak value. "
                 "This is acceptable for local development but MUST be changed for production deployments."
             )
         
