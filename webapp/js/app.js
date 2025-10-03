@@ -426,7 +426,27 @@ function testThemeToggle() {
  */
 async function checkUserProfile() {
   // Check if user has completed profile creation
-  return localStorage.getItem('profile_created') === 'true';
+  const profileCreated = localStorage.getItem('profile_created') === 'true';
+  
+  // If no profile flag, definitely no profile
+  if (!profileCreated) {
+    return false;
+  }
+  
+  // Validate that the profile is for the current user
+  const storedUserId = localStorage.getItem('profile_user_id');
+  const currentUserId = tg?.initDataUnsafe?.user?.id;
+  
+  // If user IDs don't match, clear the old profile data
+  if (currentUserId && storedUserId && storedUserId !== String(currentUserId)) {
+    console.log('User ID mismatch, clearing old profile data');
+    localStorage.removeItem('profile_created');
+    localStorage.removeItem('profile_data');
+    localStorage.removeItem('profile_user_id');
+    return false;
+  }
+  
+  return true;
 }
 
 /**
@@ -1087,6 +1107,10 @@ async function handleProfileSubmit(form) {
       // Store full profile data (including photos) in localStorage
       localStorage.setItem('profile_created', 'true');
       localStorage.setItem('profile_data', JSON.stringify(profileData));
+      // Store user ID to validate profile ownership
+      if (tg?.initDataUnsafe?.user?.id) {
+        localStorage.setItem('profile_user_id', String(tg.initDataUnsafe.user.id));
+      }
       
       // Haptic feedback on successful submission
       triggerHaptic('notification', 'success');
@@ -1097,6 +1121,10 @@ async function handleProfileSubmit(form) {
       // Fallback: store only in localStorage (for testing without bot)
       localStorage.setItem('profile_created', 'true');
       localStorage.setItem('profile_data', JSON.stringify(profileData));
+      // Store user ID to validate profile ownership
+      if (tg?.initDataUnsafe?.user?.id) {
+        localStorage.setItem('profile_user_id', String(tg.initDataUnsafe.user.id));
+      }
       console.warn('Telegram WebApp not available, saving to localStorage only');
       
       // Haptic feedback on successful save
