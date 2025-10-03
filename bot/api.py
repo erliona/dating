@@ -406,8 +406,9 @@ async def upload_photo_handler(request: web.Request) -> web.Response:
         else:
             photo_url = f"/photos/{filename}"
         
-        # Get image dimensions (now returned from optimize_image)
-        # width, height are now obtained from optimize_image, no need to reopen image
+        # Get image dimensions
+        image = Image.open(BytesIO(optimized_data))
+        width, height = image.size
         
         # Save photo metadata to database
         async with session_maker() as session:
