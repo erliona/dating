@@ -451,6 +451,14 @@ class TestMainFunction:
             
             # Mock Bot and Dispatcher
             mock_bot_instance = MagicMock()
+            # Mock get_me() to return bot info
+            mock_bot_info = MagicMock()
+            mock_bot_info.username = "test_bot"
+            mock_bot_info.id = 12345
+            mock_bot_instance.get_me = AsyncMock(return_value=mock_bot_info)
+            # Mock session.close() for cleanup
+            mock_bot_instance.session = MagicMock()
+            mock_bot_instance.session.close = AsyncMock()
             mock_bot.return_value = mock_bot_instance
             mock_dp_instance = MagicMock()
             mock_dp_instance.workflow_data = {}
@@ -497,6 +505,14 @@ class TestMainFunction:
             
             # Mock Bot and Dispatcher
             mock_bot_instance = MagicMock()
+            # Mock get_me() to return bot info
+            mock_bot_info = MagicMock()
+            mock_bot_info.username = "test_bot"
+            mock_bot_info.id = 12345
+            mock_bot_instance.get_me = AsyncMock(return_value=mock_bot_info)
+            # Mock session.close() for cleanup
+            mock_bot_instance.session = MagicMock()
+            mock_bot_instance.session.close = AsyncMock()
             mock_bot.return_value = mock_bot_instance
             mock_dp_instance = MagicMock()
             mock_dp_instance.workflow_data = {}
@@ -528,6 +544,14 @@ class TestMainFunction:
             
             # Mock Bot and Dispatcher
             mock_bot_instance = MagicMock()
+            # Mock get_me() to return bot info
+            mock_bot_info = MagicMock()
+            mock_bot_info.username = "test_bot"
+            mock_bot_info.id = 12345
+            mock_bot_instance.get_me = AsyncMock(return_value=mock_bot_info)
+            # Mock session.close() for cleanup
+            mock_bot_instance.session = MagicMock()
+            mock_bot_instance.session.close = AsyncMock()
             mock_bot.return_value = mock_bot_instance
             mock_dp_instance = MagicMock()
             mock_dp_instance.workflow_data = {}

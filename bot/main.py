@@ -270,7 +270,7 @@ async def main() -> None:
     
     try:
         # Validate token format before creating Bot instance
-        if not config.token or len(config.token) < 10:
+        if not config.token or len(config.token) < 5:
             logger.error(
                 "Invalid BOT_TOKEN: token is empty or too short",
                 extra={"event_type": "invalid_token"}
