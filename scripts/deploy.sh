@@ -307,7 +307,7 @@ update_database_password_if_needed() {
   
   # Try to update the password (safe operation, idempotent)
   # This ensures the password in the database matches the .env file
-  if run_docker compose exec -T db psql -U postgres -d "$DB_USER" -c "ALTER USER $DB_USER WITH PASSWORD '$NEW_PASSWORD';" 2>/dev/null; then
+  if run_docker compose exec -T db env PGPASSWORD="$NEW_PASSWORD" psql -U "$DB_USER" -d "$DB_USER" -c "ALTER USER $DB_USER WITH PASSWORD '$NEW_PASSWORD';" 2>/dev/null; then
     echo "✓ Database password synchronized with configuration"
   else
     echo "⚠️  Could not verify/update database password (container may not be ready)"
