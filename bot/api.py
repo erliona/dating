@@ -28,6 +28,7 @@ from .media import (
     validate_photo_size,
 )
 from .repository import ProfileRepository
+from .validation import calculate_age
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,48 @@ WEBP_QUALITY = 80  # WebP compression quality (0-100)
 class AuthenticationError(Exception):
     """Raised when authentication fails."""
     pass
+
+
+def error_response(code: str, message: str, status: int = 400) -> web.Response:
+    """Create standardized error response.
+    
+    Args:
+        code: Error code (e.g., 'not_found', 'validation_error')
+        message: Human-readable error message
+        status: HTTP status code
+        
+    Returns:
+        JSON response with standardized error format
+    """
+    return web.json_response(
+        {"error": {"code": code, "message": message}},
+        status=status
+    )
+
+
+async def get_user_or_error(repository: ProfileRepository, user_id: int) -> tuple[Optional[object], Optional[web.Response]]:
+    """Get user by Telegram ID or return error response.
+    
+    Helper function to reduce code duplication in API handlers.
+    
+    Args:
+        repository: ProfileRepository instance
+        user_id: Telegram user ID
+        
+    Returns:
+        Tuple of (user, error_response). If user is found, error_response is None.
+        If user is not found, user is None and error_response contains the error.
+        
+    Example:
+        user, error = await get_user_or_error(repository, user_id)
+        if error:
+            return error
+        # Use user...
+    """
+    user = await repository.get_user_by_tg_id(user_id)
+    if not user:
+        return None, error_response("not_found", "User not found", 404)
+    return user, None
 
 
 def create_jwt_token(user_id: int, jwt_secret: str, expires_in: int = 3600) -> str:
@@ -95,9 +138,12 @@ def optimize_image(image_bytes: bytes, format: str = "JPEG") -> bytes:
     Returns:
         Optimized image bytes
     """
+    input_buffer = BytesIO(image_bytes)
+    output = BytesIO()
+    
     try:
         # Open image
-        image = Image.open(BytesIO(image_bytes))
+        image = Image.open(input_buffer)
         
         # Convert RGBA to RGB for JPEG
         if format == "JPEG" and image.mode in ("RGBA", "LA", "P"):
@@ -128,7 +174,6 @@ def optimize_image(image_bytes: bytes, format: str = "JPEG") -> bytes:
             )
         
         # Save optimized image
-        output = BytesIO()
         if format == "JPEG":
             image.save(output, format="JPEG", quality=JPEG_QUALITY, optimize=True)
         elif format == "WEBP":
@@ -155,6 +200,11 @@ def optimize_image(image_bytes: bytes, format: str = "JPEG") -> bytes:
         logger.error(f"Image optimization failed: {e}", exc_info=True)
         # Return original if optimization fails
         return image_bytes
+    
+    finally:
+        # Ensure BytesIO objects are properly closed
+        input_buffer.close()
+        output.close()
 
 
 def calculate_nsfw_score(image_bytes: bytes) -> float:
@@ -300,27 +350,21 @@ async def upload_photo_handler(request: web.Request) -> web.Response:
                 slot_index = int(slot_index_str.decode("utf-8"))
         
         if not photo_data:
-            return web.json_response(
-                {"error": "No photo data provided"},
-                status=400
-            )
+            return error_response("validation_error", "No photo data provided")
         
         if slot_index is None or slot_index < 0 or slot_index >= MAX_PHOTOS_PER_USER:
-            return web.json_response(
-                {"error": f"Invalid slot_index. Must be 0-{MAX_PHOTOS_PER_USER - 1}"},
-                status=400
-            )
+            return error_response("validation_error", f"Invalid slot_index. Must be 0-{MAX_PHOTOS_PER_USER - 1}")
         
         # Validate photo size
         is_valid, error = validate_photo_size(photo_data)
         if not is_valid:
-            return web.json_response({"error": error}, status=400)
+            return error_response("validation_error", error)
         
         # Detect and validate MIME type
         mime_type = detect_mime_type(photo_data)
         is_valid, error = validate_mime_type(mime_type)
         if not is_valid:
-            return web.json_response({"error": error}, status=400)
+            return error_response("validation_error", error)
         
         # Optimize image
         format_map = {
@@ -344,10 +388,7 @@ async def upload_photo_handler(request: web.Request) -> web.Response:
                     "threshold": config.nsfw_threshold
                 }
             )
-            return web.json_response(
-                {"error": "Photo contains inappropriate content"},
-                status=400
-            )
+            return error_response("validation_error", "Photo contains inappropriate content")
         
         # Save photo to storage
         photo_hash = hashlib.sha256(optimized_data).hexdigest()
@@ -391,15 +432,12 @@ async def upload_photo_handler(request: web.Request) -> web.Response:
         })
     
     except AuthenticationError as e:
-        return web.json_response({"error": str(e)}, status=401)
+        return error_response("invalid_init_data", str(e), 401)
     except PhotoValidationError as e:
-        return web.json_response({"error": str(e)}, status=400)
+        return error_response("validation_error", str(e))
     except Exception as e:
         logger.error(f"Photo upload failed: {e}", exc_info=True)
-        return web.json_response(
-            {"error": "Internal server error"},
-            status=500
-        )
+        return error_response("internal_error", "Internal server error", 500)
 
 
 async def generate_token_handler(request: web.Request) -> web.Response:
@@ -414,10 +452,7 @@ async def generate_token_handler(request: web.Request) -> web.Response:
         user_id = data.get("user_id")
         
         if not user_id:
-            return web.json_response(
-                {"error": "user_id required"},
-                status=400
-            )
+            return error_response("validation_error", "user_id required")
         
         token = create_jwt_token(user_id, config.jwt_secret)
         
@@ -428,10 +463,7 @@ async def generate_token_handler(request: web.Request) -> web.Response:
     
     except Exception as e:
         logger.error(f"Token generation failed: {e}", exc_info=True)
-        return web.json_response(
-            {"error": "Internal server error"},
-            status=500
-        )
+        return error_response("internal_error", "Internal server error", 500)
 
 
 async def check_profile_handler(request: web.Request) -> web.Response:
@@ -454,28 +486,19 @@ async def check_profile_handler(request: web.Request) -> web.Response:
         # Get user_id from query parameter
         user_id_str = request.query.get("user_id")
         if not user_id_str:
-            return web.json_response(
-                {"error": "user_id query parameter required"},
-                status=400
-            )
+            return error_response("validation_error", "user_id query parameter required")
         
         try:
             requested_user_id = int(user_id_str)
         except ValueError:
-            return web.json_response(
-                {"error": "user_id must be a valid integer"},
-                status=400
-            )
+            return error_response("validation_error", "user_id must be a valid integer")
         
         # Authenticate using init_data from Telegram WebApp
         # The init_data contains user information signed by Telegram
         init_data = request.query.get("init_data")
         
         if not init_data:
-            return web.json_response(
-                {"error": "init_data parameter required for authentication"},
-                status=401
-            )
+            return error_response("unauthorized", "init_data parameter required for authentication", 401)
         
         # Verify init_data signature and extract user_id
         # In production, you should verify the signature using bot token
@@ -485,10 +508,7 @@ async def check_profile_handler(request: web.Request) -> web.Response:
             user_param = params.get('user', [''])[0]
             if not user_param:
                 logger.warning("init_data missing user parameter")
-                return web.json_response(
-                    {"error": "Unauthorized: invalid init_data"},
-                    status=401
-                )
+                return error_response("unauthorized", "Unauthorized: invalid init_data", 401)
             
             import json
             user_data = json.loads(user_param)
@@ -496,24 +516,15 @@ async def check_profile_handler(request: web.Request) -> web.Response:
             
             if not authenticated_user_id:
                 logger.warning("init_data user missing id field")
-                return web.json_response(
-                    {"error": "Unauthorized: invalid init_data"},
-                    status=401
-                )
+                return error_response("unauthorized", "Unauthorized: invalid init_data", 401)
             
             # Verify that requested user_id matches authenticated user_id
             if authenticated_user_id != requested_user_id:
-                return web.json_response(
-                    {"error": "Unauthorized: can only check own profile"},
-                    status=403
-                )
+                return error_response("unauthorized", "Can only check own profile", 403)
         except (ValueError, json.JSONDecodeError, KeyError) as e:
             # If init_data parsing fails, reject the request
             logger.warning(f"Failed to parse init_data for authentication: {e}")
-            return web.json_response(
-                {"error": "Unauthorized: invalid init_data"},
-                status=401
-            )
+            return error_response("unauthorized", "Unauthorized: invalid init_data", 401)
         
         # Check database for profile
         async with session_maker() as session:
@@ -538,10 +549,7 @@ async def check_profile_handler(request: web.Request) -> web.Response:
     
     except Exception as e:
         logger.error(f"Profile check failed: {e}", exc_info=True)
-        return web.json_response(
-            {"error": "Internal server error"},
-            status=500
-        )
+        return error_response("internal_error", "Internal server error", 500)
 
 
 async def get_profile_handler(request: web.Request) -> web.Response:
@@ -566,28 +574,21 @@ async def get_profile_handler(request: web.Request) -> web.Response:
             repository = ProfileRepository(session)
             
             # Get user by Telegram ID
-            user = await repository.get_user_by_tg_id(user_id)
-            
-            if not user:
-                return web.json_response(
-                    {"error": "User not found"},
-                    status=404
-                )
+            user, error = await get_user_or_error(repository, user_id)
+            if error:
+                return error
             
             # Get profile
             profile = await repository.get_profile_by_user_id(user.id)
             
             if not profile:
-                return web.json_response(
-                    {"error": "Profile not found"},
-                    status=404
-                )
+                return error_response("not_found", "Profile not found", 404)
             
             # Get photos
             photos = await repository.get_user_photos(user.id)
             
             # Calculate age
-            age = (datetime.now().date() - profile.birth_date).days // 365
+            age = calculate_age(profile.birth_date)
             
             # Build response
             profile_data = {
@@ -620,16 +621,10 @@ async def get_profile_handler(request: web.Request) -> web.Response:
             })
     
     except AuthenticationError as e:
-        return web.json_response(
-            {"error": str(e)},
-            status=401
-        )
+        return error_response("invalid_init_data", str(e), 401)
     except Exception as e:
         logger.error(f"Get profile failed: {e}", exc_info=True)
-        return web.json_response(
-            {"error": "Internal server error"},
-            status=500
-        )
+        return error_response("internal_error", "Internal server error", 500)
 
 
 async def update_profile_handler(request: web.Request) -> web.Response:
@@ -663,22 +658,15 @@ async def update_profile_handler(request: web.Request) -> web.Response:
             repository = ProfileRepository(session)
             
             # Get user by Telegram ID
-            user = await repository.get_user_by_tg_id(user_id)
-            
-            if not user:
-                return web.json_response(
-                    {"error": "User not found"},
-                    status=404
-                )
+            user, error = await get_user_or_error(repository, user_id)
+            if error:
+                return error
             
             # Update profile
             profile = await repository.update_profile(user.id, data)
             
             if not profile:
-                return web.json_response(
-                    {"error": "Profile not found"},
-                    status=404
-                )
+                return error_response("not_found", "Profile not found", 404)
             
             # Commit changes
             await session.commit()
@@ -694,16 +682,10 @@ async def update_profile_handler(request: web.Request) -> web.Response:
             })
     
     except AuthenticationError as e:
-        return web.json_response(
-            {"error": str(e)},
-            status=401
-        )
+        return error_response("invalid_init_data", str(e), 401)
     except Exception as e:
         logger.error(f"Update profile failed: {e}", exc_info=True)
-        return web.json_response(
-            {"error": "Internal server error"},
-            status=500
-        )
+        return error_response("internal_error", "Internal server error", 500)
 
 
 async def discover_handler(request: web.Request) -> web.Response:
@@ -746,12 +728,9 @@ async def discover_handler(request: web.Request) -> web.Response:
             repository = ProfileRepository(session)
             
             # Get user
-            user = await repository.get_user_by_tg_id(user_id)
-            if not user:
-                return web.json_response(
-                    {"error": {"code": "not_found", "message": "User not found"}},
-                    status=404
-                )
+            user, error = await get_user_or_error(repository, user_id)
+            if error:
+                return error
             
             # Find candidates
             profiles, next_cursor = await repository.find_candidates(
@@ -779,7 +758,7 @@ async def discover_handler(request: web.Request) -> web.Response:
                     "id": profile.id,
                     "user_id": profile.user_id,
                     "name": profile.name,
-                    "age": (datetime.now().date() - profile.birth_date).days // 365,
+                    "age": calculate_age(profile.birth_date),
                     "gender": profile.gender,
                     "goal": profile.goal,
                     "bio": profile.bio,
@@ -852,12 +831,9 @@ async def like_handler(request: web.Request) -> web.Response:
             repository = ProfileRepository(session)
             
             # Get user
-            user = await repository.get_user_by_tg_id(user_id)
-            if not user:
-                return web.json_response(
-                    {"error": {"code": "not_found", "message": "User not found"}},
-                    status=404
-                )
+            user, error = await get_user_or_error(repository, user_id)
+            if error:
+                return error
             
             # Validate target user exists
             target_user = await repository.get_user_by_id(target_id)
@@ -929,12 +905,9 @@ async def pass_handler(request: web.Request) -> web.Response:
             repository = ProfileRepository(session)
             
             # Get user
-            user = await repository.get_user_by_tg_id(user_id)
-            if not user:
-                return web.json_response(
-                    {"error": {"code": "not_found", "message": "User not found"}},
-                    status=404
-                )
+            user, error = await get_user_or_error(repository, user_id)
+            if error:
+                return error
             
             # Validate target user exists
             target_user = await repository.get_user_by_id(target_id)
@@ -990,12 +963,9 @@ async def matches_handler(request: web.Request) -> web.Response:
             repository = ProfileRepository(session)
             
             # Get user
-            user = await repository.get_user_by_tg_id(user_id)
-            if not user:
-                return web.json_response(
-                    {"error": {"code": "not_found", "message": "User not found"}},
-                    status=404
-                )
+            user, error = await get_user_or_error(repository, user_id)
+            if error:
+                return error
             
             # Get matches
             matches_with_profiles, next_cursor = await repository.get_matches(
@@ -1015,7 +985,7 @@ async def matches_handler(request: web.Request) -> web.Response:
                         "id": profile.id,
                         "user_id": profile.user_id,
                         "name": profile.name,
-                        "age": (datetime.now().date() - profile.birth_date).days // 365,
+                        "age": calculate_age(profile.birth_date),
                         "bio": profile.bio,
                         "photos": [{"url": p.url} for p in photos[:1]]  # First photo only
                     }
@@ -1067,12 +1037,9 @@ async def add_favorite_handler(request: web.Request) -> web.Response:
             repository = ProfileRepository(session)
             
             # Get user
-            user = await repository.get_user_by_tg_id(user_id)
-            if not user:
-                return web.json_response(
-                    {"error": {"code": "not_found", "message": "User not found"}},
-                    status=404
-                )
+            user, error = await get_user_or_error(repository, user_id)
+            if error:
+                return error
             
             # Add to favorites
             favorite = await repository.add_favorite(user.id, target_id)
@@ -1116,12 +1083,9 @@ async def remove_favorite_handler(request: web.Request) -> web.Response:
             repository = ProfileRepository(session)
             
             # Get user
-            user = await repository.get_user_by_tg_id(user_id)
-            if not user:
-                return web.json_response(
-                    {"error": {"code": "not_found", "message": "User not found"}},
-                    status=404
-                )
+            user, error = await get_user_or_error(repository, user_id)
+            if error:
+                return error
             
             # Remove from favorites
             removed = await repository.remove_favorite(user.id, target_id)
@@ -1175,12 +1139,9 @@ async def get_favorites_handler(request: web.Request) -> web.Response:
             repository = ProfileRepository(session)
             
             # Get user
-            user = await repository.get_user_by_tg_id(user_id)
-            if not user:
-                return web.json_response(
-                    {"error": {"code": "not_found", "message": "User not found"}},
-                    status=404
-                )
+            user, error = await get_user_or_error(repository, user_id)
+            if error:
+                return error
             
             # Get favorites
             favorites_with_profiles, next_cursor = await repository.get_favorites(
@@ -1200,7 +1161,7 @@ async def get_favorites_handler(request: web.Request) -> web.Response:
                         "id": profile.id,
                         "user_id": profile.user_id,
                         "name": profile.name,
-                        "age": (datetime.now().date() - profile.birth_date).days // 365,
+                        "age": calculate_age(profile.birth_date),
                         "bio": profile.bio,
                         "photos": [{"url": p.url} for p in photos[:1]]  # First photo only
                     }

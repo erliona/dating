@@ -767,7 +767,8 @@ class TestCheckProfileHandler:
         assert response.status == 400
         data = json.loads(response.body)
         assert "error" in data
-        assert "user_id" in data["error"].lower()
+        assert data["error"]["code"] == "validation_error"
+        assert "user_id" in data["error"]["message"].lower()
     
     async def test_check_profile_invalid_user_id(self):
         """Test profile check with invalid user_id parameter."""
@@ -790,4 +791,5 @@ class TestCheckProfileHandler:
         assert response.status == 400
         data = json.loads(response.body)
         assert "error" in data
-        assert "integer" in data["error"].lower()
+        assert data["error"]["code"] == "validation_error"
+        assert "integer" in data["error"]["message"].lower()

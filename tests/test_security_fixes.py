@@ -34,7 +34,8 @@ class TestAuthenticationSecurity:
         
         assert response.status == 401
         data = json.loads(response.body)
-        assert "init_data parameter required" in data["error"]
+        assert data["error"]["code"] == "unauthorized"
+        assert "init_data parameter required" in data["error"]["message"]
     
     async def test_check_profile_rejects_invalid_init_data(self):
         """Test that check_profile_handler rejects invalid init_data."""
@@ -58,7 +59,8 @@ class TestAuthenticationSecurity:
         
         assert response.status == 401
         data = json.loads(response.body)
-        assert "invalid init_data" in data["error"]
+        assert data["error"]["code"] == "unauthorized"
+        assert "invalid init_data" in data["error"]["message"]
     
     async def test_check_profile_rejects_missing_user_in_init_data(self):
         """Test that check_profile_handler rejects init_data without user parameter."""
@@ -82,7 +84,8 @@ class TestAuthenticationSecurity:
         
         assert response.status == 401
         data = json.loads(response.body)
-        assert "invalid init_data" in data["error"]
+        assert data["error"]["code"] == "unauthorized"
+        assert "invalid init_data" in data["error"]["message"]
     
     async def test_check_profile_rejects_init_data_without_id(self):
         """Test that check_profile_handler rejects init_data where user object lacks id."""
@@ -107,7 +110,8 @@ class TestAuthenticationSecurity:
         
         assert response.status == 401
         data = json.loads(response.body)
-        assert "invalid init_data" in data["error"]
+        assert data["error"]["code"] == "unauthorized"
+        assert "invalid init_data" in data["error"]["message"]
     
     async def test_check_profile_rejects_mismatched_user_id(self):
         """Test that check_profile_handler rejects when authenticated user doesn't match requested user."""
@@ -133,7 +137,8 @@ class TestAuthenticationSecurity:
         
         assert response.status == 403
         data = json.loads(response.body)
-        assert "can only check own profile" in data["error"]
+        assert data["error"]["code"] == "unauthorized"
+        assert "can only check own profile" in data["error"]["message"].lower()
 
 
 @pytest.mark.asyncio
