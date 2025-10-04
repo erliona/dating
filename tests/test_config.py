@@ -142,6 +142,8 @@ class TestDatabaseURLValidation:
 
     def test_database_url_from_postgres_env_vars(self, monkeypatch):
         """Test database URL constructed from POSTGRES_* variables."""
+        monkeypatch.delenv("DATABASE_URL", raising=False)
+        monkeypatch.delenv("BOT_DATABASE_URL", raising=False)
         monkeypatch.setenv("BOT_TOKEN", "123456789:ABCdefGHIjklMNOpqrsTUVwxyz")
         monkeypatch.setenv("POSTGRES_USER", "testuser")
         monkeypatch.setenv("POSTGRES_PASSWORD", "testpass")
@@ -156,6 +158,8 @@ class TestDatabaseURLValidation:
 
     def test_database_url_special_chars_encoded(self, monkeypatch):
         """Test special characters in password are URL-encoded."""
+        monkeypatch.delenv("DATABASE_URL", raising=False)
+        monkeypatch.delenv("BOT_DATABASE_URL", raising=False)
         monkeypatch.setenv("BOT_TOKEN", "123456789:ABCdefGHIjklMNOpqrsTUVwxyz")
         monkeypatch.setenv("POSTGRES_USER", "user@domain")
         monkeypatch.setenv("POSTGRES_PASSWORD", "pass@word!")

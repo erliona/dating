@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 from dataclasses import dataclass
@@ -160,8 +161,6 @@ def load_config() -> BotConfig:
     if not jwt_secret:
         # For development, generate a warning
         # For production, this should be required
-        import logging
-
         logging.warning(
             "JWT_SECRET not set. For production, set JWT_SECRET environment variable. "
             "Using temporary secret for development (not suitable for production)."
