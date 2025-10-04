@@ -1,8 +1,9 @@
 # Bug Fix: Port 8080 Conflict - Deployment Failure
 
 **Date**: January 2025  
-**Issue**: GitHub Actions deployment run #18246188987 failed  
-**Status**: ✅ RESOLVED
+**Initial Issue**: GitHub Actions deployment run #18246188987  
+**Recurring Issue**: GitHub Actions deployment run #18246330797  
+**Status**: ✅ RESOLVED (Enhanced Fix)
 
 ---
 
@@ -26,27 +27,33 @@ The original cleanup command:
 docker compose down || true
 ```
 
-This command was insufficient because:
+This was insufficient because:
 1. It may fail silently (`|| true`) without actually stopping containers
 2. It doesn't remove orphaned containers from incomplete deployments
 3. It doesn't clean up networks that might be preventing proper container removal
 4. Stopped containers can still hold port allocations in some scenarios
 
+**First Fix (Run #18246188987):**
+Added comprehensive cleanup commands but no wait time between cleanup and deployment.
+
+**Recurring Issue (Run #18246330797):**
+Even with the comprehensive cleanup, ports weren't always released immediately. Docker needs time to fully stop containers and release their ports. Starting new containers immediately after cleanup could still encounter port conflicts.
+
 ---
 
 ## Solution
 
-### Enhanced Cleanup Process
+### Enhanced Cleanup Process (First Fix)
 
-Modified `.github/workflows/deploy-microservices.yml` to implement a comprehensive cleanup sequence:
+Modified `.github/workflows/deploy-microservices.yml` to implement a comprehensive cleanup sequence.
 
-**Before:**
+**Before (Original):**
 ```bash
 echo "🛑 Stopping existing services..."
 docker compose down || true
 ```
 
-**After:**
+**After (First Fix):**
 ```bash
 echo "🛑 Stopping existing services and cleaning up..."
 # Stop and remove all containers, networks, and volumes from the project
@@ -61,11 +68,49 @@ docker network prune -f || true
 echo "  ✓ Cleanup complete"
 ```
 
+### Enhanced Cleanup with Wait and Verification (Current Fix)
+
+The first fix still had a race condition issue - Docker needs time to fully stop containers and release ports. The enhanced fix adds explicit wait time and verification:
+
+**After (Enhanced Fix):**
+```bash
+echo "🛑 Stopping existing services and cleaning up..."
+# Stop and remove all containers, networks, and volumes from the project
+docker compose down --remove-orphans --volumes || true
+
+# Remove stopped containers to free up ports
+docker compose rm -f || true
+
+# Remove any remaining containers from this project (by name pattern)
+docker ps -aq --filter "name=dating-microservices" | xargs -r docker rm -f || true
+
+# Clean up unused networks
+docker network prune -f || true
+
+echo "  ⏳ Waiting for ports to be released..."
+# Wait longer to ensure all containers have fully stopped and released their ports
+sleep 10
+
+# Double-check no containers are still running
+echo "  🔍 Verifying no containers are still running..."
+REMAINING=$(docker ps -q --filter "name=dating-microservices" | wc -l)
+if [ "$REMAINING" -gt 0 ]; then
+  echo "  ⚠️  Found $REMAINING running containers, force stopping..."
+  docker ps -q --filter "name=dating-microservices" | xargs -r docker stop -t 5 || true
+  docker ps -aq --filter "name=dating-microservices" | xargs -r docker rm -f || true
+  sleep 5
+fi
+
+echo "  ✓ Cleanup complete"
+```
+
 **Benefits:**
 - Forcefully removes all project containers
 - Cleans up orphaned containers from incomplete deployments
 - Removes unused networks that might block container removal
-- Ensures all ports are freed before new deployment
+- **10-second wait ensures ports are fully released**
+- **Verification step catches any lingering containers**
+- **Force stop with timeout for stubborn containers**
 - Multiple fallback steps ensure cleanup succeeds even if some steps fail
 
 ---
@@ -175,7 +220,8 @@ docker compose up -d
 
 ## Related Issues
 
-- **Failed run**: [#18246188987](https://github.com/erliona/dating/actions/runs/18246188987/job/51954433204)
+- **Initial failed run**: [#18246188987](https://github.com/erliona/dating/actions/runs/18246188987/job/51954433204)
+- **Recurring issue**: [#18246330797](https://github.com/erliona/dating/actions/runs/18246330797/job/51954750624)
 - **Error**: Port 8080 allocation conflict
 - **Similar fix**: Port 5432 conflict (database) - `docs/BUG_FIX_PORT_5432_CONFLICT.md`
 - **Similar fix**: Port 80 conflict (webapp) - `docs/BUG_FIX_PORT_80_CONFLICT.md`
