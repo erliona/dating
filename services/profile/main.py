@@ -73,6 +73,11 @@ async def create_profile(request: web.Request) -> web.Response:
         return web.json_response({'error': 'Internal server error'}, status=500)
 
 
+async def health_check(request: web.Request) -> web.Response:
+    """Health check endpoint."""
+    return web.json_response({'status': 'healthy', 'service': 'profile'})
+
+
 def create_app(config: dict) -> web.Application:
     """Create and configure the profile service application."""
     app = web.Application()
@@ -94,6 +99,7 @@ def create_app(config: dict) -> web.Application:
     # Add routes
     app.router.add_get('/profiles/{user_id}', get_profile)
     app.router.add_post('/profiles', create_profile)
+    app.router.add_get('/health', health_check)
     
     return app
 

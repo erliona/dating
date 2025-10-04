@@ -138,6 +138,11 @@ async def refresh_token(request: web.Request) -> web.Response:
         )
 
 
+async def health_check(request: web.Request) -> web.Response:
+    """Health check endpoint."""
+    return web.json_response({'status': 'healthy', 'service': 'auth'})
+
+
 def create_app(config: dict) -> web.Application:
     """Create and configure the auth service application."""
     app = web.Application()
@@ -147,6 +152,7 @@ def create_app(config: dict) -> web.Application:
     app.router.add_post('/auth/validate', validate_telegram_init_data)
     app.router.add_get('/auth/verify', verify_token)
     app.router.add_post('/auth/refresh', refresh_token)
+    app.router.add_get('/health', health_check)
     
     return app
 
