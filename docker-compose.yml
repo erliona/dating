@@ -5,14 +5,18 @@
 
 services:
   # Database (shared in Phase 2, will be split in Phase 3)
+  # Note: External port exposure is disabled by default for production security.
+  # Microservices connect internally via Docker network - no external port needed.
+  # For local development with external tools: uncomment ports and set POSTGRES_EXTERNAL_PORT
   db:
     image: postgres:15-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-dating}
       POSTGRES_USER: ${POSTGRES_USER:-dating}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dating}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+    # Uncomment for local development if you need external database access:
+    # ports:
+    #   - "${POSTGRES_EXTERNAL_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
