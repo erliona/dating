@@ -1264,6 +1264,29 @@ async function handleProfileSubmit(form) {
         photo_count: profileData.photos.length
       };
       
+      // Add optional fields if provided
+      if (profileData.height_cm) {
+        profileMetadata.height_cm = profileData.height_cm;
+      }
+      if (profileData.education) {
+        profileMetadata.education = profileData.education;
+      }
+      if (profileData.has_children !== undefined) {
+        profileMetadata.has_children = profileData.has_children;
+      }
+      if (profileData.wants_children !== undefined) {
+        profileMetadata.wants_children = profileData.wants_children;
+      }
+      if (profileData.smoking !== undefined) {
+        profileMetadata.smoking = profileData.smoking;
+      }
+      if (profileData.drinking !== undefined) {
+        profileMetadata.drinking = profileData.drinking;
+      }
+      if (profileData.interests && profileData.interests.length > 0) {
+        profileMetadata.interests = profileData.interests;
+      }
+      
       const payload = {
         action: 'create_profile',
         profile: profileMetadata
