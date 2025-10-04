@@ -52,6 +52,9 @@ htmlcov/
 monitoring/data/
 monitoring/**/data/
 
+# Old/backup dashboard files
+monitoring/grafana/dashboards.old/
+
 # Temporary files
 *.tmp
 .tmp/
