@@ -85,6 +85,12 @@ async def route_chat(request: web.Request) -> web.Response:
     return await proxy_request(request, chat_url)
 
 
+async def route_admin(request: web.Request) -> web.Response:
+    """Route to admin service."""
+    admin_url = request.app["config"]["admin_service_url"]
+    return await proxy_request(request, admin_url)
+
+
 async def health_check(request: web.Request) -> web.Response:
     """Health check endpoint."""
     return web.json_response(
@@ -97,6 +103,7 @@ async def health_check(request: web.Request) -> web.Response:
                 "discovery": request.app["config"]["discovery_service_url"],
                 "media": request.app["config"]["media_service_url"],
                 "chat": request.app["config"]["chat_service_url"],
+                "admin": request.app["config"]["admin_service_url"],
             },
         }
     )
@@ -113,6 +120,8 @@ def create_app(config: dict) -> web.Application:
     app.router.add_route("*", "/discovery/{tail:.*}", route_discovery)
     app.router.add_route("*", "/media/{tail:.*}", route_media)
     app.router.add_route("*", "/chat/{tail:.*}", route_chat)
+    app.router.add_route("*", "/admin/{tail:.*}", route_admin)
+    app.router.add_route("*", "/admin-panel/{tail:.*}", route_admin)
     app.router.add_get("/health", health_check)
 
     return app
@@ -134,6 +143,7 @@ if __name__ == "__main__":
             "MEDIA_SERVICE_URL", "http://media-service:8084"
         ),
         "chat_service_url": os.getenv("CHAT_SERVICE_URL", "http://chat-service:8085"),
+        "admin_service_url": os.getenv("ADMIN_SERVICE_URL", "http://admin-service:8086"),
         "host": os.getenv("GATEWAY_HOST", "0.0.0.0"),
         "port": int(os.getenv("GATEWAY_PORT", 8080)),
     }
