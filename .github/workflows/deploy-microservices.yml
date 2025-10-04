@@ -17,7 +17,9 @@ on:
     paths:
       - 'services/**'
       - 'gateway/**'
-      - 'docker-compose.microservices.yml'
+      - 'core/**'
+      - 'adapters/**'
+      - 'docker-compose.yml'
       - '.github/workflows/deploy-microservices.yml'
 
 concurrency:
@@ -185,10 +187,10 @@ jobs:
           fi
 
           echo "🏗️  Building microservices..."
-          docker compose -f docker-compose.microservices.yml build
+          docker compose build
 
           echo "🚀 Deploying microservices..."
-          docker compose -f docker-compose.microservices.yml up -d
+          docker compose up -d
 
           echo "⏳ Waiting for services to be healthy..."
           sleep 15
@@ -196,11 +198,11 @@ jobs:
           echo "✅ Verifying deployment..."
           SERVICES="auth-service profile-service discovery-service media-service chat-service api-gateway"
           for service in $SERVICES; do
-            if docker compose -f docker-compose.microservices.yml ps $service | grep -q "Up"; then
+            if docker compose ps $service | grep -q "Up"; then
               echo "  ✓ $service is running"
             else
               echo "  ✗ $service failed to start"
-              docker compose -f docker-compose.microservices.yml logs --tail=50 $service
+              docker compose logs --tail=50 $service
             fi
           done
 
@@ -214,7 +216,7 @@ jobs:
           done
 
           echo "📊 Service status:"
-          docker compose -f docker-compose.microservices.yml ps
+          docker compose ps
           
           echo ""
           echo "✅ Deployment complete!"
