@@ -295,7 +295,7 @@ fi
 
 # Pull latest base images in parallel
 echo "📥 Pulling base images..."
-run_docker compose pull --parallel db webapp traefik 2>/dev/null || run_docker compose pull db webapp traefik || true
+run_docker compose pull --parallel db 2>/dev/null || run_docker compose pull db || true
 
 # Build and start services
 echo "🏗️  Building and starting services..."

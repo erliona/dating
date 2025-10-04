@@ -173,13 +173,17 @@ services:
     restart: unless-stopped
 
   # WebApp (static files)
+  # Note: This service is optional. Only enable if you want to serve static web files.
+  # If port 80 is already in use, you can disable this service or change the port.
   webapp:
     image: nginx:alpine
     volumes:
       - ./webapp:/usr/share/nginx/html:ro
     ports:
-      - "80:80"
+      - "${WEBAPP_PORT:-80}:80"
     restart: unless-stopped
+    profiles:
+      - webapp
 
 volumes:
   postgres_data:
