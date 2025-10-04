@@ -40,6 +40,8 @@
 
 ### 🏗️ Техническая инфраструктура
 - 🐳 **Docker** - полная контейнеризация
+- 🏗️ **Микросервисы** - независимые масштабируемые сервисы (Auth, Profile, Discovery, Media, Chat)
+- 🌐 **API Gateway** - единая точка входа с маршрутизацией запросов
 - 🔐 **HTTPS** - автоматические SSL сертификаты через Let's Encrypt/Traefik
 - 🚀 **CI/CD** - автоматическое тестирование и развертывание через GitHub Actions
 - 📈 **Мониторинг** - Prometheus + Grafana + Loki для метрик и логов
@@ -96,11 +98,32 @@ cd dating
 cp .env.example .env
 # Отредактируйте .env и укажите ваш BOT_TOKEN
 
-# 3. Запустите инфраструктуру
+# 3. Выберите режим развертывания:
+
+# Вариант A: Монолитное приложение (простое)
 docker compose -f docker-compose.dev.yml up -d
 
-# 4. Проверьте статус
-docker compose ps
+# Вариант B: Микросервисы (рекомендуется для production)
+./scripts/deploy-microservices.sh
+# или
+docker compose -f docker-compose.microservices.yml up -d
+```
+
+### Микросервисная архитектура
+
+Для production рекомендуется развертывание с микросервисами:
+
+```bash
+# Быстрый старт с микросервисами
+./scripts/deploy-microservices.sh
+
+# Проверьте статус всех сервисов
+docker compose -f docker-compose.microservices.yml ps
+
+# Проверьте health endpoints
+for port in 8080 8081 8082 8083 8084 8085; do
+  curl http://localhost:$port/health
+done
 ```
 
 ### Production развертывание
@@ -115,7 +138,12 @@ docker compose ps
 
 2. Push в main ветку запустит автоматический деплой
 
-См. подробности: 
+**Микросервисы документация:**
+- [🚀 Microservices Quick Start](MICROSERVICES_QUICK_START.md) - Быстрый старт
+- [📘 Microservices Deployment Guide](docs/MICROSERVICES_DEPLOYMENT.md) - Полное руководство
+- [📖 Microservices API Reference](docs/MICROSERVICES_API.md) - API документация
+
+**Общая документация:**
 - [📘 Deployment Guide](docs/DEPLOYMENT.md)
 - [🔄 Deployment Idempotency Guide](docs/DEPLOYMENT_IDEMPOTENCY.md) - Database, logs, Grafana
 - [⚠️ **Data Persistence & Backup Guide**](docs/DATA_PERSISTENCE.md) - **CRITICAL: Read before any database operations!**
