@@ -138,20 +138,49 @@
 
 ## 5. Архитектура
 
+### 5.0 Принципы архитектуры
+
+**Платформонезависимое ядро + Микросервисы + Адаптеры**
+
+1. **Core** (ядро) — вся бизнес-логика полностью независима от платформы
+2. **Microservices** — независимые сервисы для масштабируемости
+3. **Adapters** — платформенная интеграция (Telegram, mobile, web)
+4. **API Gateway** — единая точка входа для всех клиентов
+
 ### 5.1 Компоненты
 
-**Telegram Bot (webhook):** уведомления, платежные события, deep‑links.
+#### Core (Платформонезависимое ядро)
 
-**Mini App (SPA, React/TS):** UI/роутер/темы Telegram, bridge к WebApp API.
+**Core Models:** доменные модели (User, UserProfile, UserSettings, enums)
 
-**API Gateway:** JWT‑аутентификация, rate‑limits, трейсинг, идемпотентность.
+**Core Services:** бизнес-логика
+- **UserService** — управление пользователями
+- **ProfileService** — управление профилями
+- **MatchingService** — алгоритм матчинга и рекомендации
 
-**Сервисы:**
+**Core Interfaces:** контракты для адаптеров (IUserRepository, INotificationService, IStorageService)
 
-- **Auth** (валидация initData, сессии, JWT).
-- **Profile** (анкеты/медиа/настройки/приватность).
-- **Discovery/Match** (генерация кандидатов, лайки/суперлайки, матчи).
-- **Chat** (WS, хранение сообщений, индикаторы).
+#### Microservices (Микросервисы)
+
+- **Auth Service** (port 8081) — валидация initData, JWT токены, сессии
+- **Profile Service** (port 8082) — анкеты/медиа/настройки/приватность
+- **Discovery Service** (port 8083) — генерация кандидатов, лайки/суперлайки, матчи
+- **Chat Service** (port 8085) — WebSocket, хранение сообщений, индикаторы
+- **Media Service** (port 8084) — загрузка фото/видео, NSFW фильтрация, оптимизация
+
+#### Platform Adapters (Адаптеры платформ)
+
+**Telegram Adapter:**
+- TelegramUserRepository — работа с пользователями
+- TelegramProfileRepository — работа с профилями  
+- TelegramNotificationService — уведомления через Telegram
+- TelegramStorageService — хранение файлов
+
+**Telegram Bot (webhook):** уведомления, платежные события, deep‑links (использует Core через Adapter)
+
+**Mini App (SPA, React/TS):** UI/роутер/темы Telegram, bridge к WebApp API
+
+**API Gateway (port 8080):** маршрутизация к микросервисам, JWT‑аутентификация, rate‑limits, трейсинг
 - **Payments** (инвойсы XTR, статусы, возвраты).
 - **Moderation** (авто/ручная, очереди, санкции).
 - **Notifications** (бот‑шлюз, сегментация, ограничения частоты).
