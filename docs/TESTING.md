@@ -2,22 +2,23 @@
 
 Руководство по тестированию Dating Bot приложения.
 
-**Current Status**: 162 tests, 76% code coverage
+**Current Status**: 293 tests, 81% code coverage
 
 ## Test Coverage Summary
 
 | Module | Coverage | Description |
 |--------|----------|-------------|
 | bot/db.py | 100% | Database models |
-| bot/repository.py | 100% | Database repository operations |
+| bot/config.py | 99% | Configuration management |
+| bot/cache.py | 97% | In-memory caching layer |
 | bot/geo.py | 97% | Geolocation utilities |
-| bot/media.py | 93% | Photo validation and storage |
-| bot/security.py | 88% | Security and encryption |
-| bot/validation.py | 86% | Data validation |
-| bot/config.py | 72% | Configuration management |
-| bot/main.py | 70% | Bot handlers and main entry point |
-| bot/api.py | 36% | HTTP API endpoints |
-| **TOTAL** | **76%** | Overall test coverage |
+| bot/validation.py | 92% | Data validation |
+| bot/main.py | 90% | Bot handlers and main entry point |
+| bot/security.py | 86% | Security and encryption |
+| bot/media.py | 84% | Photo validation and storage |
+| bot/repository.py | 82% | Database repository operations |
+| bot/api.py | 62% | HTTP API endpoints |
+| **TOTAL** | **81%** | Overall test coverage |
 
 ---
 
@@ -88,35 +89,51 @@ pytest -n 4 -v
 ```
 tests/
 ├── __init__.py                  # Test suite marker
-├── test_api.py                  # API endpoints, JWT, image optimization (14 tests)
-├── test_config.py               # Configuration validation (3 tests)
-├── test_geo.py                  # Geolocation utilities (20 tests)
-├── test_main.py                 # Bot handlers, logging, WebApp data (14 tests)
-├── test_media.py                # Photo validation and storage (27 tests)
+├── test_api.py                  # API endpoints, JWT, image optimization (34 tests)
+├── test_api_fixes.py            # API bug fixes and edge cases (10 tests)
+├── test_cache.py                # Caching layer with TTL (11 tests)
+├── test_config.py               # Configuration validation (20 tests)
+├── test_discovery.py            # Discovery repository methods (14 tests)
+├── test_discovery_api.py        # Discovery API endpoints (13 tests)
+├── test_geo.py                  # Geolocation utilities (21 tests)
+├── test_main.py                 # Bot handlers, logging, WebApp data (19 tests)
+├── test_media.py                # Photo validation and storage (30 tests)
+├── test_orientation_filtering.py # Sexual orientation filtering (1 test)
+├── test_refactoring_fixes.py    # Refactoring and logic fixes (19 tests)
 ├── test_repository.py           # Database CRUD operations (14 tests)
-├── test_security.py             # Security and encryption (59 tests)
-└── test_validation.py           # Data validation functions (47 tests)
+├── test_security.py             # Security and encryption (23 tests)
+├── test_security_fixes.py       # Rate limiting and auth fixes (8 tests)
+├── test_utils.py                # Utility functions (0 tests)
+└── test_validation.py           # Data validation functions (56 tests)
 ```
 
-**Total**: 162 tests covering all core functionality
+**Total**: 293 tests covering all core functionality
 
 ### Test Categories
 
-#### Unit Tests (148 tests)
-- **Configuration**: Bot config loading, JWT secret generation
-- **Validation**: Profile data validation, age checks, field validation
-- **Geolocation**: Geohash encoding, coordinate validation, location processing
-- **Media**: Photo validation, MIME type detection, EXIF removal, storage
-- **Security**: Encryption, key derivation, password hashing, token generation
-- **Repository**: User/profile CRUD, photo management
-- **Bot Handlers**: Command handlers, WebApp data processing, logging
-- **API**: JWT authentication, image optimization, NSFW detection
+#### Unit Tests (256 tests)
+- **Configuration (20 tests)**: Bot config loading, JWT secret generation, environment validation
+- **Validation (56 tests)**: Profile data validation, age checks, field validation, edge cases
+- **Geolocation (21 tests)**: Geohash encoding, coordinate validation, location processing
+- **Media (30 tests)**: Photo validation, MIME type detection, EXIF removal, storage, optimization
+- **Security (31 tests)**: Encryption, key derivation, password hashing, token generation, rate limiting
+- **Repository (14 tests)**: User/profile CRUD, photo management, database operations
+- **Bot Handlers (19 tests)**: Command handlers, WebApp data processing, logging
+- **API (34 tests)**: JWT authentication, image optimization, NSFW detection, endpoint validation
+- **Cache (11 tests)**: TTL cache, statistics, cleanup
+- **Discovery Repository (14 tests)**: Candidate finding, interactions, matches, favorites
+- **Discovery API (13 tests)**: Like/pass handlers, match detection, filtering
+- **Refactoring & Fixes (27 tests)**: Bug fixes, security improvements, validation fixes
+- **Orientation Filtering (1 test)**: Sexual orientation preference matching
 
-#### Integration Tests (14 tests)
+#### Integration Tests (37 tests)
 - WebApp data flow (bot → database)
 - Profile creation and updates
-- Photo upload pipeline
-- Authentication flow
+- Photo upload pipeline with optimization
+- Authentication flow with JWT
+- Discovery and matching workflow
+- API endpoint integration
+- Cache integration with repository
 
 ### Fixtures (conftest.py)
 

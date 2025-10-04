@@ -10,13 +10,13 @@ This is a production-ready Telegram Mini App for dating, built with modern infra
 - ✅ CI/CD pipeline with GitHub Actions
 - ✅ Comprehensive monitoring (Prometheus, Grafana, Loki)
 - ✅ PostgreSQL with async SQLAlchemy
-- ✅ 254 tests with 82% code coverage
+- ✅ 293 tests with 81% code coverage
 
 **Current Implementation Status:**
 - **Epic A**: Mini App foundation & authentication ✅
 - **Epic B**: Profiles, onboarding, photos, geolocation ✅
-- **Epic C**: Discovery & matching (planned)
-- **Epic D-H**: Additional features (planned)
+- **Epic C**: Discovery & matching system ✅
+- **Epic D+**: Enhanced features (planned)
 
 ## 🚀 Quick Start
 
@@ -97,7 +97,7 @@ dating/
 │   ├── js/                 # JavaScript modules
 │   └── css/                # Stylesheets
 ├── migrations/             # Database migrations
-├── tests/                  # Test suite (254 tests)
+├── tests/                  # Test suite (293 tests)
 ├── monitoring/             # Monitoring configuration
 │   ├── grafana/           # 3 dashboards
 │   ├── prometheus/        # Metrics config
@@ -169,13 +169,18 @@ python -m pytest tests/test_validation.py -v
 
 ### Test Coverage
 
-Current coverage: **82%**
-- 254 tests passing
-- bot/validation.py: 92%
-- bot/main.py: 97%
-- bot/geo.py: 97%
-- bot/db.py: 100%
-- bot/cache.py: 100%
+Current coverage: **81%**
+- 293 tests passing
+- bot/db.py: 100% (database models)
+- bot/config.py: 99% (configuration)
+- bot/cache.py: 97% (caching layer)
+- bot/geo.py: 97% (geolocation)
+- bot/validation.py: 92% (input validation)
+- bot/main.py: 90% (bot handlers)
+- bot/security.py: 86% (authentication & encryption)
+- bot/media.py: 84% (photo handling)
+- bot/repository.py: 82% (database operations)
+- bot/api.py: 62% (HTTP API endpoints)
 
 ## 📊 Monitoring
 
