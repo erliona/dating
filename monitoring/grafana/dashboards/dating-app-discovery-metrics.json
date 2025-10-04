@@ -102,7 +102,7 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum(count_over_time({job=\"docker\", container_name=~\".*bot.*\"} | json | event_type=\"discover_action\" [$__interval]))",
+          "expr": "sum(count_over_time({job=\"docker\", container_name=\"dating-bot-1\"} | json | event_type=\"discover_action\" [$__interval]))",
           "queryType": "range",
           "refId": "A"
         }
@@ -162,7 +162,7 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum(count_over_time({job=\"docker\", container_name=~\".*bot.*\"} | json | event_type=\"like\" [24h]))",
+          "expr": "sum(count_over_time({job=\"docker\", container_name=\"dating-bot-1\"} | json | event_type=\"like\" [24h]))",
           "queryType": "instant",
           "refId": "A"
         }
@@ -222,7 +222,7 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum(count_over_time({job=\"docker\", container_name=~\".*bot.*\"} | json | event_type=\"pass\" [24h]))",
+          "expr": "sum(count_over_time({job=\"docker\", container_name=\"dating-bot-1\"} | json | event_type=\"pass\" [24h]))",
           "queryType": "instant",
           "refId": "A"
         }
@@ -286,7 +286,7 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum(count_over_time({job=\"docker\", container_name=~\".*bot.*\"} | json | event_type=\"match_created\" [24h]))",
+          "expr": "sum(count_over_time({job=\"docker\", container_name=\"dating-bot-1\"} | json | event_type=\"match_created\" [24h]))",
           "queryType": "instant",
           "refId": "A"
         }
@@ -374,7 +374,7 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum by (event_type) (count_over_time({job=\"docker\", container_name=~\".*bot.*\"} | json | event_type=~\"like|pass|match_created\" [$__interval]))",
+          "expr": "sum by (event_type) (count_over_time({job=\"docker\", container_name=\"dating-bot-1\"} | json | event_type=~\"like|pass|match_created\" [$__interval]))",
           "legendFormat": "{{event_type}}",
           "queryType": "range",
           "refId": "A"
@@ -412,7 +412,7 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "{job=\"docker\", container_name=~\".*bot.*\"} | json | event_type=~\"discover_action|like|pass|match_created|favorite_added|favorite_removed\"",
+          "expr": "{job=\"docker\", container_name=\"dating-bot-1\"} | json | event_type=~\"discover_action|like|pass|match_created|favorite_added|favorite_removed\"",
           "queryType": "range",
           "refId": "A"
         }
