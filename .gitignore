@@ -70,3 +70,4 @@ webapp/*_old.*
 
 # Exclude version number files
 =*
+coverage.xml
