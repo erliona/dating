@@ -177,7 +177,6 @@ services:
     image: nginx:alpine
     volumes:
       - ./webapp:/usr/share/nginx/html:ro
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
       - "80:80"
     restart: unless-stopped
