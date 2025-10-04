@@ -1,0 +1,187 @@
+# Microservices Docker Compose configuration
+#
+# This configuration deploys the dating application as microservices.
+# Each service can be scaled and deployed independently.
+
+version: '3.8'
+
+services:
+  # Database (shared in Phase 2, will be split in Phase 3)
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dating}
+      POSTGRES_USER: ${POSTGRES_USER:-dating}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dating}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dating}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Auth Service - JWT and session management
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth/Dockerfile
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      AUTH_SERVICE_HOST: 0.0.0.0
+      AUTH_SERVICE_PORT: 8081
+      BOT_TOKEN: ${BOT_TOKEN}
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Profile Service - User profiles and settings
+  profile-service:
+    build:
+      context: .
+      dockerfile: services/profile/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
+      PROFILE_SERVICE_HOST: 0.0.0.0
+      PROFILE_SERVICE_PORT: 8082
+    ports:
+      - "8082:8082"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Discovery Service - Matching and recommendations
+  discovery-service:
+    build:
+      context: .
+      dockerfile: services/discovery/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
+      DISCOVERY_SERVICE_HOST: 0.0.0.0
+      DISCOVERY_SERVICE_PORT: 8083
+    ports:
+      - "8083:8083"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Media Service - Photo upload and processing
+  media-service:
+    build:
+      context: .
+      dockerfile: services/media/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
+      MEDIA_SERVICE_HOST: 0.0.0.0
+      MEDIA_SERVICE_PORT: 8084
+      PHOTO_STORAGE_PATH: /app/photos
+      NSFW_THRESHOLD: ${NSFW_THRESHOLD:-0.7}
+    ports:
+      - "8084:8084"
+    volumes:
+      - media_storage:/app/photos
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Chat Service - Real-time messaging (WebSocket)
+  chat-service:
+    build:
+      context: .
+      dockerfile: services/chat/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
+      CHAT_SERVICE_HOST: 0.0.0.0
+      CHAT_SERVICE_PORT: 8085
+    ports:
+      - "8085:8085"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8085/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # API Gateway - Routes requests to microservices
+  api-gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    depends_on:
+      - auth-service
+      - profile-service
+      - discovery-service
+      - media-service
+      - chat-service
+    environment:
+      GATEWAY_HOST: 0.0.0.0
+      GATEWAY_PORT: 8080
+      AUTH_SERVICE_URL: http://auth-service:8081
+      PROFILE_SERVICE_URL: http://profile-service:8082
+      DISCOVERY_SERVICE_URL: http://discovery-service:8083
+      MEDIA_SERVICE_URL: http://media-service:8084
+      CHAT_SERVICE_URL: http://chat-service:8085
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Telegram Bot Adapter - Integrates with Telegram
+  telegram-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - api-gateway
+    environment:
+      BOT_TOKEN: ${BOT_TOKEN}
+      API_GATEWAY_URL: http://api-gateway:8080
+      WEBAPP_URL: ${WEBAPP_URL}
+    restart: unless-stopped
+
+  # WebApp (static files)
+  webapp:
+    image: nginx:alpine
+    volumes:
+      - ./webapp:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  media_storage:
