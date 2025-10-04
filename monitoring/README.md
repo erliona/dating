@@ -22,17 +22,21 @@ Comprehensive monitoring setup using Grafana, Prometheus, Loki, and Promtail for
 ### Deploy with Monitoring
 
 ```bash
-# Start main application with monitoring stack (recommended)
-docker compose --profile monitoring up -d
+# Start main application with monitoring stack (monitoring is now integrated by default)
+docker compose up -d
 
 # Wait for Loki to become ready (takes ~30 seconds for ingester to initialize)
 docker compose ps loki  # Check status shows "healthy"
 
-# Or for development with monitoring
-docker compose -f docker-compose.dev.yml --profile monitoring up -d
+# Check all services are running
+docker compose ps
 ```
 
-**Note**: Loki has a healthcheck that waits for the ingester to be ready (~30 seconds). Promtail and Grafana will wait for Loki to be healthy before starting, ensuring logs flow correctly from the start.
+**Note**: 
+- Monitoring stack is now integrated into the main `docker-compose.yml` and starts automatically
+- Loki has a healthcheck that waits for the ingester to be ready (~30 seconds)
+- Promtail and Grafana will wait for Loki to be healthy before starting
+- All services use structured JSON logging for better analysis
 
 ### Access Dashboards
 
@@ -40,13 +44,34 @@ docker compose -f docker-compose.dev.yml --profile monitoring up -d
   - Default credentials: `admin` / `admin` (change on first login)
   - Pre-configured dashboards available immediately
 - **Prometheus**: http://localhost:9090
-- **cAdvisor**: http://localhost:8081
+- **cAdvisor**: http://localhost:8090 (**Note**: Changed from 8081 to avoid conflict with auth-service)
+- **Loki API**: http://localhost:3100
+
+### Service Ports
+
+**Application Services:**
+- `5432` - PostgreSQL Database
+- `8080` - API Gateway
+- `8081` - Auth Service
+- `8082` - Profile Service
+- `8083` - Discovery Service
+- `8084` - Media Service
+- `8085` - Chat Service
+- `80` - WebApp (optional, use `--profile webapp`)
+
+**Monitoring Services:**
+- `3000` - Grafana UI
+- `9090` - Prometheus UI
+- `8090` - cAdvisor UI (changed from 8081)
+- `9100` - Node Exporter
+- `9187` - Postgres Exporter
+- `3100` - Loki API
 
 ### Stop Monitoring Stack
 
 ```bash
 # Stop all services including monitoring (keeps all data)
-docker compose --profile monitoring down
+docker compose down
 
 # ⚠️ DANGER: Remove ALL volumes including database! 
 # This command deletes EVERYTHING: app data, monitoring data, SSL certs
@@ -107,18 +132,79 @@ docker volume rm dating_prometheus_data dating_grafana_data dating_loki_data
 - Active users
 - Business KPIs
 
-## 🔍 Log Query Examples
+## 📝 Structured Logging
 
-All logs from the bot are structured JSON with the following fields:
-- `timestamp`: ISO 8601 timestamp
-- `level`: Log level (INFO, WARNING, ERROR, CRITICAL)
-- `logger`: Logger name (e.g., bot.main, bot.repository, bot.media)
+### All Services Use JSON Structured Logging
+
+**Every service now uses standardized JSON logging** for consistent analysis and debugging:
+
+**Services with JSON logging:**
+- ✅ `telegram-bot` - Telegram bot adapter
+- ✅ `auth-service` - Authentication and JWT management
+- ✅ `profile-service` - User profile management
+- ✅ `discovery-service` - Matching and recommendations
+- ✅ `media-service` - Photo/media handling
+- ✅ `chat-service` - Real-time messaging
+- ✅ `api-gateway` - API routing
+
+### JSON Log Structure
+
+All logs follow this standard structure:
+
+```json
+{
+  "timestamp": "2024-10-04T15:30:45.123456Z",
+  "level": "INFO",
+  "logger": "auth-service.main",
+  "message": "User authenticated successfully",
+  "module": "main",
+  "function": "validate_telegram_init_data",
+  "line": 42,
+  "service_name": "auth-service",
+  "event_type": "user_authenticated",
+  "user_id": 123456789
+}
+```
+
+**Standard fields:**
+- `timestamp`: ISO 8601 timestamp in UTC
+- `level`: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- `logger`: Logger name (e.g., auth-service.main, profile-service.repository)
 - `message`: Human-readable log message
 - `module`: Python module name
 - `function`: Function name where log was generated
 - `line`: Line number in source code
-- `event_type`: Optional event type for filtering (e.g., "profile_created", "photo_uploaded")
-- Custom fields depending on context (user_id, filename, safe_score, etc.)
+- `service_name`: Name of the microservice (auto-added)
+- `event_type`: Optional event type for filtering (e.g., "service_start", "user_authenticated")
+
+**Optional fields** (context-dependent):
+- `user_id`: User ID for user-related operations
+- `request_id`: Request tracing ID
+- `duration_ms`: Operation duration in milliseconds
+- `status_code`: HTTP status code
+- `method`: HTTP method
+- `path`: API endpoint path
+- Custom fields depending on context
+
+### Querying Logs by Service
+
+```logql
+# View all auth-service logs
+{container_name=~".*auth-service.*"} | json
+
+# View all microservice logs (exclude bot and monitoring)
+{container_name=~".*-service.*"} | json
+
+# View logs from specific service
+{container_name=~".*profile-service.*"} | json | service_name = "profile-service"
+
+# View all service startup events
+{container_name=~".*-service.*"} | json | event_type = "service_start"
+```
+
+## 🔍 Log Query Examples
+
+### Common LogQL Queries (for Loki)
 
 ### Common LogQL Queries (for Loki)
 

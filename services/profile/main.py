@@ -10,6 +10,7 @@ from sqlalchemy.orm import sessionmaker
 
 from core.services import ProfileService
 from adapters.telegram.repository import TelegramProfileRepository
+from core.utils.logging import configure_logging
 
 logger = logging.getLogger(__name__)
 
@@ -107,11 +108,16 @@ def create_app(config: dict) -> web.Application:
 if __name__ == '__main__':
     import os
     
+    # Configure structured logging
+    configure_logging('profile-service', os.getenv('LOG_LEVEL', 'INFO'))
+    
     config = {
         'database_url': os.getenv('DATABASE_URL', 'postgresql+asyncpg://dating:dating@localhost/dating'),
         'host': os.getenv('PROFILE_SERVICE_HOST', '0.0.0.0'),
         'port': int(os.getenv('PROFILE_SERVICE_PORT', 8082))
     }
+    
+    logger.info("Starting profile-service", extra={"event_type": "service_start", "port": config['port']})
     
     app = create_app(config)
     web.run_app(app, host=config['host'], port=config['port'])

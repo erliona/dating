@@ -99,11 +99,33 @@ python -m bot.main
 
 ### Run with Docker
 ```bash
-# Development
-docker compose -f docker-compose.dev.yml up
+# Development (includes monitoring)
+docker compose up
 
-# Production
+# Production with all services
 docker compose up -d
+
+# View logs
+docker compose logs -f telegram-bot
+docker compose logs -f auth-service
+
+# Check all services status
+docker compose ps
+```
+
+### Access Monitoring
+```bash
+# Grafana - Dashboards and logs
+open http://localhost:3000  # admin/admin
+
+# Prometheus - Metrics
+open http://localhost:9090
+
+# cAdvisor - Container metrics
+open http://localhost:8090
+
+# All services use JSON structured logging
+# View in Grafana → Explore → Loki datasource
 ```
 
 ---
@@ -111,10 +133,11 @@ docker compose up -d
 ## 🐛 Debugging
 
 ### Profile not saving?
-1. Check bot logs for errors
-2. Verify `BOT_DATABASE_URL` is set
-3. Check WebApp console for `tg.sendData()` call
-4. Verify database connection: `docker compose logs db`
+1. Check bot logs for errors: `docker compose logs telegram-bot`
+2. Use Grafana to view structured logs: http://localhost:3000
+3. Verify `BOT_DATABASE_URL` is set
+4. Check WebApp console for `tg.sendData()` call
+5. Verify database connection: `docker compose logs db`
 
 ### WebApp not opening?
 1. Check `WEBAPP_URL` is set correctly
@@ -128,6 +151,25 @@ Check `bot/validation.py` for requirements:
 - Gender: male/female/other
 - Orientation: male/female/any
 - Goal: friendship/dating/relationship/serious/casual/networking
+
+### Using Grafana for Debugging
+```bash
+# Access Grafana
+open http://localhost:3000  # Login: admin/admin
+
+# View all service logs
+# Navigate to: Explore → Loki datasource
+# Query: {container_name=~".*-service.*|.*bot.*"} | json
+
+# View errors only
+# Query: {container_name=~".*-service.*|.*bot.*"} | json | level = "ERROR"
+
+# View specific service
+# Query: {container_name=~".*auth-service.*"} | json
+
+# View user-specific logs
+# Query: {container_name=~".*bot.*"} | json | user_id = "123456789"
+```
 
 ---
 

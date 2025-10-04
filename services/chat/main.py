@@ -6,6 +6,8 @@ This microservice handles real-time messaging between matched users.
 import logging
 from aiohttp import web
 
+from core.utils.logging import configure_logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -131,12 +133,15 @@ def create_app(config: dict) -> web.Application:
 if __name__ == '__main__':
     import os
     
-    logging.basicConfig(level=logging.INFO)
+    # Configure structured logging
+    configure_logging('chat-service', os.getenv('LOG_LEVEL', 'INFO'))
     
     config = {
         'host': os.getenv('CHAT_SERVICE_HOST', '0.0.0.0'),
         'port': int(os.getenv('CHAT_SERVICE_PORT', 8085))
     }
+    
+    logger.info("Starting chat-service", extra={"event_type": "service_start", "port": config['port']})
     
     app = create_app(config)
     web.run_app(app, host=config['host'], port=config['port'])

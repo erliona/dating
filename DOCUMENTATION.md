@@ -1010,17 +1010,37 @@ run_docker compose --profile monitoring up -d --build
 ### Доступ к дашбордам
 
 ```bash
-# Grafana
-http://your-domain.com:3000
+# Grafana - Визуализация метрик и логов
+http://localhost:3000  (или your-domain.com:3000)
 # Логин: admin
 # Пароль: admin (смените при первом входе!)
 
-# Prometheus
-http://your-domain.com:9090
+# Prometheus - Метрики и запросы
+http://localhost:9090  (или your-domain.com:9090)
 
-# cAdvisor (метрики контейнеров)
-http://your-domain.com:8081
+# cAdvisor - Метрики контейнеров
+http://localhost:8090  (или your-domain.com:8090)
+# Порт изменен с 8081 на 8090 для избежания конфликта с auth-service
+
+# Loki - API для логов (используется Grafana)
+http://localhost:3100  (или your-domain.com:3100)
 ```
+
+**Порты служб**:
+- **5432** - PostgreSQL
+- **8080** - API Gateway
+- **8081** - Auth Service
+- **8082** - Profile Service
+- **8083** - Discovery Service
+- **8084** - Media Service
+- **8085** - Chat Service
+- **80** - WebApp (опционально, только с профилем `--profile webapp`)
+- **3000** - Grafana
+- **9090** - Prometheus
+- **8090** - cAdvisor
+- **9100** - Node Exporter
+- **9187** - Postgres Exporter
+- **3100** - Loki
 
 ### Структурированное логирование
 

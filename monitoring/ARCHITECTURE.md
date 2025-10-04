@@ -101,7 +101,7 @@
 - `3000` - Grafana UI
 - `9090` - Prometheus UI
 - `3100` - Loki API
-- `8081` - cAdvisor UI
+- `8090` - cAdvisor UI (changed from 8081 to avoid conflict with auth-service)
 - `9100` - Node Exporter metrics
 - `9187` - Postgres Exporter metrics
 
