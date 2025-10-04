@@ -2,8 +2,10 @@
 
 **Современное полнофункциональное приложение для знакомств**, реализованное как Telegram Mini App с микросервисной архитектурой.
 
-[![CI](https://github.com/erliona/dating/actions/workflows/ci.yml/badge.svg)](https://github.com/erliona/dating/actions/workflows/ci.yml)
-[![Deploy](https://github.com/erliona/dating/actions/workflows/deploy.yml/badge.svg)](https://github.com/erliona/dating/actions/workflows/deploy.yml)
+[![Tests](https://github.com/erliona/dating/actions/workflows/test.yml/badge.svg)](https://github.com/erliona/dating/actions/workflows/test.yml)
+[![Code Quality](https://github.com/erliona/dating/actions/workflows/lint.yml/badge.svg)](https://github.com/erliona/dating/actions/workflows/lint.yml)
+[![Docker Build](https://github.com/erliona/dating/actions/workflows/docker-build.yml/badge.svg)](https://github.com/erliona/dating/actions/workflows/docker-build.yml)
+[![Deploy](https://github.com/erliona/dating/actions/workflows/deploy-microservices.yml/badge.svg)](https://github.com/erliona/dating/actions/workflows/deploy-microservices.yml)
 
 ---
 
@@ -41,8 +43,8 @@ Dating - это современное приложение для знаком�
 - 🐳 **Docker** - полная контейнеризация, простое развертывание
 - 🔐 **Безопасность** - JWT токены, HTTPS, валидация данных
 - 📊 **Мониторинг** - Prometheus, Grafana, Loki
-- 🧪 **Тестирование** - 293 теста с покрытием 81%
-- 🚀 **CI/CD** - автоматические тесты и деплой
+- 🧪 **Тестирование** - 288+ тестов с высоким покрытием
+- 🚀 **CI/CD** - полный pipeline: тесты, линтинг, сборка, деплой и мониторинг
 
 ---
 
@@ -437,35 +439,61 @@ async def test_create_profile(profile_service):
 
 ## 🚢 Развертывание
 
+> 📚 **Полное руководство по CI/CD**: [docs/CI_CD_GUIDE.md](docs/CI_CD_GUIDE.md)
+
+### CI/CD Pipeline
+
+Проект имеет полностью автоматизированный CI/CD pipeline:
+
+#### Workflows
+
+1. **Tests** - Автоматическое тестирование на каждый push/PR
+2. **Code Quality** - Проверка форматирования, линтинг, безопасность
+3. **Docker Build** - Валидация сборки всех сервисов
+4. **PR Validation** - Комплексная проверка перед merge
+5. **Deploy** - Автоматический деплой на production
+6. **Health Check** - Периодический мониторинг работоспособности
+
 ### Production развертывание через GitHub Actions
 
 #### 1. Настройка GitHub Secrets
 
-Перейдите в Settings → Secrets → Actions и добавьте:
+Перейдите в **Settings → Secrets and variables → Actions** и добавьте:
+
+**Обязательные секреты:**
 
 | Secret | Описание | Пример |
 |--------|----------|--------|
 | `DEPLOY_HOST` | IP или hostname сервера | `123.45.67.89` |
-| `DEPLOY_USER` | SSH пользователь | `ubuntu` |
-| `DEPLOY_SSH_KEY` | Приватный SSH ключ | `-----BEGIN...` |
+| `DEPLOY_USER` | SSH пользователь с sudo | `ubuntu` |
+| `DEPLOY_SSH_KEY` | Приватный SSH ключ | `-----BEGIN RSA...` |
 | `BOT_TOKEN` | Telegram bot token | `123456789:ABC...` |
-| `JWT_SECRET` | Секрет для JWT | `random_secret_32+` |
-| `DOMAIN` | Ваш домен | `dating.example.com` |
-| `ACME_EMAIL` | Email для SSL | `admin@example.com` |
+| `JWT_SECRET` | Секрет для JWT (32+ символов) | `random_secret_32+` |
+
+**Опциональные для HTTPS:**
+
+| Secret | Описание | Пример |
+|--------|----------|--------|
+| `DOMAIN` | Ваш домен для HTTPS | `dating.example.com` |
+| `ACME_EMAIL` | Email для Let's Encrypt | `admin@example.com` |
 
 #### 2. Автоматический деплой
 
 ```bash
-# Push в main ветку автоматически запустит деплой
+# Push в main ветку автоматически запустит полный pipeline:
 git push origin main
 ```
 
-Workflow автоматически:
-- Запустит тесты
-- Соберет Docker образы
-- Подключится к серверу
-- Развернет приложение
-- Настроит HTTPS через Let's Encrypt
+**Pipeline выполнит:**
+1. ✅ Запуск всех тестов
+2. ✅ Валидацию Docker образов
+3. ✅ Сборку всех сервисов
+4. ✅ Деплой на сервер
+5. ✅ Проверку работоспособности (health checks)
+6. ✅ Верификацию всех сервисов
+
+**Или запустите вручную:**
+- Actions → Deploy to Production → Run workflow
 
 #### 3. Проверка деплоя
 

@@ -9,12 +9,7 @@ from typing import Any
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.filters import Command
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import (
-    KeyboardButton,
-    Message,
-    ReplyKeyboardMarkup,
-    WebAppInfo,
-)
+from aiogram.types import KeyboardButton, Message, ReplyKeyboardMarkup, WebAppInfo
 
 from bot.config import load_config
 from bot.security import ValidationError, validate_jwt_token
@@ -30,14 +25,13 @@ user_sessions: dict[int, dict[str, Any]] = {}
 async def start_handler(message: Message) -> None:
     """Send welcome message with WebApp button."""
     config = load_config()
-    
+
     if not config.webapp_url:
         await message.answer(
-            "⚠️ WebApp is not configured. "
-            "Please set WEBAPP_URL environment variable."
+            "⚠️ WebApp is not configured. " "Please set WEBAPP_URL environment variable."
         )
         return
-    
+
     # Create keyboard with WebApp button
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
@@ -50,7 +44,7 @@ async def start_handler(message: Message) -> None:
         ],
         resize_keyboard=True,
     )
-    
+
     await message.answer(
         "👋 Добро пожаловать в Dating Mini App!\n\n"
         "Нажмите кнопку ниже, чтобы открыть приложение и создать свою анкету.",
@@ -60,7 +54,7 @@ async def start_handler(message: Message) -> None:
 
 if __name__ == "__main__":
     import asyncio
-    
+
     async def main():
         logging.basicConfig(level=logging.INFO)
         config = load_config()
@@ -68,5 +62,5 @@ if __name__ == "__main__":
         dp = Dispatcher(storage=MemoryStorage())
         dp.include_router(router)
         await dp.start_polling(bot)
-    
+
     asyncio.run(main())

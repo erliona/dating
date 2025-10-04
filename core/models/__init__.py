@@ -1,11 +1,11 @@
 """Core domain models - platform independent."""
 
+from .enums import Education, Gender, Goal, Orientation
 from .user import User, UserProfile, UserSettings
-from .enums import Gender, Orientation, Goal, Education
 
 __all__ = [
     "User",
-    "UserProfile", 
+    "UserProfile",
     "UserSettings",
     "Gender",
     "Orientation",

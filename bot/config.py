@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 from dataclasses import dataclass
@@ -36,13 +37,15 @@ def load_config() -> BotConfig:
 
     token = os.getenv("BOT_TOKEN")
     if not token:
-        raise RuntimeError("BOT_TOKEN environment variable is required to start the bot")
-    
+        raise RuntimeError(
+            "BOT_TOKEN environment variable is required to start the bot"
+        )
+
     # Validate token format (basic check)
     token = token.strip()
     if not token:
         raise RuntimeError("BOT_TOKEN cannot be empty or whitespace")
-    
+
     # Check for common placeholder patterns
     placeholder_patterns = [
         "your-",
@@ -65,10 +68,10 @@ def load_config() -> BotConfig:
             "Valid tokens have the format: <numeric_id>:<alphanumeric_hash> "
             "(example: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz-1234567)"
         )
-    
+
     # Validate Telegram bot token format: <numeric_id>:<alphanumeric_hash>
     # Bot tokens are typically in the format: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz
-    if not re.match(r'^\d+:[A-Za-z0-9_-]+$', token):
+    if not re.match(r"^\d+:[A-Za-z0-9_-]+$", token):
         raise RuntimeError(
             "BOT_TOKEN has invalid format. "
             "Telegram bot tokens must match the format: <numeric_id>:<alphanumeric_hash> "
@@ -78,8 +81,10 @@ def load_config() -> BotConfig:
 
     webapp_url = os.getenv("WEBAPP_URL")
     if webapp_url and not webapp_url.strip():
-        raise RuntimeError("WEBAPP_URL cannot be empty if set; unset it or provide a valid URL")
-    
+        raise RuntimeError(
+            "WEBAPP_URL cannot be empty if set; unset it or provide a valid URL"
+        )
+
     # Validate WEBAPP_URL uses HTTPS for production security
     if webapp_url:
         webapp_url = webapp_url.strip()
@@ -92,25 +97,27 @@ def load_config() -> BotConfig:
                 "WEBAPP_URL must use HTTPS protocol for security. "
                 "Only localhost URLs are allowed to use HTTP for local development."
             )
-        
+
         # Normalize protocol to lowercase for consistency
         # Replace the protocol part (everything before ://) with lowercase version
         if "://" in webapp_url:
             protocol, rest = webapp_url.split("://", 1)
             webapp_url = protocol.lower() + "://" + rest
-    
+
     database_url_raw = os.getenv("BOT_DATABASE_URL") or os.getenv("DATABASE_URL")
-    
+
     # Fallback: construct database URL from POSTGRES_* environment variables
     # This is particularly useful in Docker Compose environments where these
     # variables are already set for the database container
     if not database_url_raw:
         postgres_user = os.getenv("POSTGRES_USER")
         postgres_password = os.getenv("POSTGRES_PASSWORD")
-        postgres_host = os.getenv("POSTGRES_HOST", "db")  # Default to 'db' for docker-compose
+        postgres_host = os.getenv(
+            "POSTGRES_HOST", "db"
+        )  # Default to 'db' for docker-compose
         postgres_port = os.getenv("POSTGRES_PORT", "5432")
         postgres_db = os.getenv("POSTGRES_DB")
-        
+
         if all([postgres_user, postgres_password, postgres_db]):
             # URL-encode the username and password to handle special characters
             encoded_user = quote_plus(postgres_user)
@@ -141,38 +148,40 @@ def load_config() -> BotConfig:
             "Only PostgreSQL databases are supported; "
             "set BOT_DATABASE_URL to a postgresql+asyncpg URL"
         )
-    
+
     # Validate database URL has required components
     if not database_url.host:
         raise RuntimeError("BOT_DATABASE_URL must include a database host")
-    
+
     if not database_url.database:
         raise RuntimeError("BOT_DATABASE_URL must include a database name")
-    
+
     # JWT secret for authentication (Epic A2)
     jwt_secret = os.getenv("JWT_SECRET")
     if not jwt_secret:
         # For development, generate a warning
         # For production, this should be required
-        import logging
         logging.warning(
             "JWT_SECRET not set. For production, set JWT_SECRET environment variable. "
             "Using temporary secret for development (not suitable for production)."
         )
         # Generate a temporary secret for development
         import secrets
+
         jwt_secret = secrets.token_urlsafe(32)
-    
+
     # Photo storage configuration
     photo_storage_path = os.getenv("PHOTO_STORAGE_PATH", "/app/photos")
     photo_cdn_url = os.getenv("PHOTO_CDN_URL")  # Optional CDN URL
-    
+
     # NSFW detection threshold (0.0-1.0, higher = stricter)
     nsfw_threshold_str = os.getenv("NSFW_THRESHOLD", "0.7")
     try:
         nsfw_threshold = float(nsfw_threshold_str)
         if not 0.0 <= nsfw_threshold <= 1.0:
-            logging.warning(f"Invalid NSFW_THRESHOLD {nsfw_threshold}, using default 0.7")
+            logging.warning(
+                f"Invalid NSFW_THRESHOLD {nsfw_threshold}, using default 0.7"
+            )
             nsfw_threshold = 0.7
     except ValueError:
         logging.warning(f"Invalid NSFW_THRESHOLD format, using default 0.7")
@@ -185,5 +194,5 @@ def load_config() -> BotConfig:
         jwt_secret=jwt_secret,
         photo_storage_path=photo_storage_path,
         photo_cdn_url=photo_cdn_url,
-        nsfw_threshold=nsfw_threshold
+        nsfw_threshold=nsfw_threshold,
     )

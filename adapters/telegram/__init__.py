@@ -4,8 +4,8 @@ This module implements platform-specific features for Telegram,
 including bot handlers, WebApp integration, and Telegram notifications.
 """
 
-from .repository import TelegramUserRepository, TelegramProfileRepository
 from .notification import TelegramNotificationService
+from .repository import TelegramProfileRepository, TelegramUserRepository
 from .storage import TelegramStorageService
 
 __all__ = [
