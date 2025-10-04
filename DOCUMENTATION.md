@@ -906,188 +906,1287 @@ pytest tests/ --lf
 pytest tests/ --pdb
 ```
 
-## 📊 Monitoring
+## 📊 Мониторинг и наблюдаемость
 
-### Grafana Dashboards
+### Обзор стека мониторинга
 
-**1. System Overview** - Infrastructure metrics
-- Container CPU and memory usage
-- PostgreSQL connections
-- Network traffic
-- All logs with JSON parsing
+Приложение использует полный стек observability:
 
-**2. Application Logs & Events** - Application monitoring
-- Bot lifecycle events
-- Error and warning counts
-- Log levels over time
-- Structured event logging
+```
+Приложение → Prometheus (метрики) → Grafana (визуализация)
+           → Loki (логи) → Grafana (поиск и анализ)
+           → cAdvisor (контейнеры) → Prometheus
+           → Node Exporter (система) → Prometheus
+           → Postgres Exporter (БД) → Prometheus
+```
 
-**3. Discovery & Matching** - User interaction metrics
-- Discovery actions
-- Likes, passes, matches
-- User actions distribution
+### Компоненты мониторинга
 
-### Accessing Dashboards
+#### 1. Prometheus
+**Назначение**: Сбор и хранение метрик
+
+**Метрики приложения**:
+- HTTP запросы (общее количество, время отклика)
+- Операции БД (запросы, соединения, latency)
+- Кеш (hits, misses, размер)
+- Ошибки и исключения
+
+**Системные метрики**:
+- CPU, память, диск
+- Сетевая активность
+- Метрики контейнеров Docker
+
+**Доступ**: http://localhost:9090
+
+#### 2. Grafana
+**Назначение**: Визуализация метрик и логов
+
+**Дашборды**:
+
+1. **System Overview** (Обзор системы)
+   - CPU и память всех контейнеров
+   - Нагрузка на PostgreSQL
+   - Сетевая активность
+   - Использование диска
+   - Статус сервисов
+
+2. **Application Logs & Events** (Логи приложения)
+   - События жизненного цикла бота
+   - Ошибки и предупреждения
+   - Структурированные логи с фильтрацией
+   - Временные графики по уровням логов
+
+3. **Discovery & Matching** (Метрики знакомств)
+   - Количество просмотров профилей
+   - Лайки, дизлайки, суперлайки
+   - Созданные матчи
+   - Активность пользователей
+   - Conversion rate (просмотры → лайки → матчи)
+
+**Доступ**: http://localhost:3000 (admin/admin)
+
+#### 3. Loki
+**Назначение**: Агрегация и хранение логов
+
+**Особенности**:
+- Централизованное хранение логов всех сервисов
+- Индексация по меткам (labels)
+- Интеграция с Grafana для поиска
+- Retention: 30 дней
+
+#### 4. Promtail
+**Назначение**: Сбор логов с контейнеров
+
+Автоматически собирает логи из:
+- Bot (приложение)
+- PostgreSQL
+- Traefik
+- Все другие контейнеры
+
+### Запуск мониторинга
+
+#### Локально
 
 ```bash
-# Start with monitoring
+# Запустить с мониторингом
 docker compose --profile monitoring up -d
 
-# Access Grafana
-open http://localhost:3000  # Default: admin/admin
+# Проверить статус
+docker compose ps
 
-# Check Prometheus
-open http://localhost:9090
+# Просмотреть логи мониторинга
+docker compose logs -f prometheus grafana loki
 ```
 
-### Structured Logging
+#### Production
 
-All logs are JSON formatted with:
-- Timestamp (ISO 8601)
-- Level (INFO, WARNING, ERROR)
-- Logger name
-- Message
-- Module, function, line number
-- Custom fields (user_id, event_type, etc.)
+Мониторинг автоматически включается в CI/CD при деплое:
 
-## 🚢 Deployment
+```yaml
+# .github/workflows/deploy.yml
+run_docker compose --profile monitoring up -d --build
+```
 
-### Production Deployment
-
-**Using GitHub Actions (Recommended):**
-
-1. Configure GitHub Secrets:
-   - `DEPLOY_HOST` - Server IP/hostname
-   - `DEPLOY_USER` - SSH user
-   - `DEPLOY_SSH_KEY` - Private SSH key
-   - `BOT_TOKEN` - Telegram bot token
-
-2. Push to main branch - automatic deployment!
-
-**Manual Deployment:**
+### Доступ к дашбордам
 
 ```bash
-# On server
+# Grafana
+http://your-domain.com:3000
+# Логин: admin
+# Пароль: admin (смените при первом входе!)
+
+# Prometheus
+http://your-domain.com:9090
+
+# cAdvisor (метрики контейнеров)
+http://your-domain.com:8081
+```
+
+### Структурированное логирование
+
+Все логи приложения в JSON формате для удобного анализа:
+
+```json
+{
+  "timestamp": "2024-01-15T10:30:45.123Z",
+  "level": "INFO",
+  "logger": "bot.main",
+  "message": "User created profile",
+  "module": "main",
+  "function": "handle_profile_creation",
+  "line": 145,
+  "user_id": 123456789,
+  "event_type": "profile_created"
+}
+```
+
+**Поля логов**:
+- `timestamp` - время в UTC (ISO 8601)
+- `level` - уровень (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+- `logger` - имя логгера
+- `message` - текст сообщения
+- `module`, `function`, `line` - место в коде
+- Кастомные поля: `user_id`, `event_type`, `error`, etc.
+
+### Поиск логов в Grafana
+
+1. Откройте Grafana → Explore
+2. Выберите источник данных: Loki
+3. Используйте LogQL для поиска:
+
+```logql
+# Все логи бота
+{container="bot"}
+
+# Только ошибки
+{container="bot"} |= "ERROR"
+
+# Логи конкретного пользователя
+{container="bot"} | json | user_id="123456789"
+
+# Ошибки за последний час
+{container="bot"} |= "ERROR" [1h]
+
+# Количество событий по типам
+sum by (event_type) (rate({container="bot"} | json [5m]))
+```
+
+### Алерты и уведомления
+
+#### Настройка алертов в Grafana
+
+1. Создайте notification channel (Email, Telegram, Slack)
+2. Настройте правила алертов для критических метрик:
+
+**Примеры алертов**:
+
+- **High Error Rate**
+  ```
+  rate(errors_total[5m]) > 10
+  ```
+  Уведомление, если более 10 ошибок в минуту
+
+- **Database Connections**
+  ```
+  pg_stat_database_numbackends > 80
+  ```
+  Уведомление, если более 80 активных соединений
+
+- **Low Disk Space**
+  ```
+  node_filesystem_avail_bytes / node_filesystem_size_bytes < 0.1
+  ```
+  Уведомление, если менее 10% свободного места
+
+- **Service Down**
+  ```
+  up{job="bot"} == 0
+  ```
+  Уведомление, если бот не отвечает
+
+### Метрики производительности
+
+#### Ключевые показатели (KPI)
+
+**Производительность**:
+- Response time API: p50, p95, p99
+- Database query time
+- Cache hit rate
+- Requests per second
+
+**Бизнес-метрики**:
+- Новые регистрации в день
+- Активные пользователи (DAU, MAU)
+- Созданные матчи
+- Conversion rate (просмотры → лайки → матчи)
+- Средние лайки на пользователя
+
+**Надежность**:
+- Uptime (%)
+- Error rate (%)
+- Failed requests
+- Database availability
+
+### Troubleshooting с помощью мониторинга
+
+#### Высокая нагрузка на CPU
+
+1. Проверить Grafana → System Overview → CPU usage
+2. Найти контейнер с высокой нагрузкой
+3. Проверить логи: `docker compose logs <container>`
+4. Увеличить ресурсы или оптимизировать код
+
+#### Медленные запросы к БД
+
+1. Grafana → System Overview → PostgreSQL metrics
+2. Prometheus → Query: `pg_stat_statements_mean_time_seconds`
+3. Найти медленные запросы в логах
+4. Добавить индексы или оптимизировать запросы
+
+#### Высокий error rate
+
+1. Grafana → Logs & Events → Filter by ERROR
+2. Найти паттерн ошибок
+3. Проверить стек-трейсы
+4. Исправить код и задеплоить
+
+## 🚢 Развертывание (Deployment)
+
+### Требования к серверу
+
+**Минимальные требования**:
+- Ubuntu 20.04+ или Debian 11+
+- 2 CPU cores
+- 4 GB RAM
+- 20 GB SSD
+- Docker 20.10+
+- Docker Compose 2.0+
+
+**Рекомендуемые**:
+- 4 CPU cores
+- 8 GB RAM
+- 50 GB SSD
+- Доменное имя с DNS
+- Открыты порты: 80 (HTTP), 443 (HTTPS)
+
+### Подготовка сервера
+
+#### 1. Установка Docker
+
+```bash
+# Обновить систему
+sudo apt update && sudo apt upgrade -y
+
+# Установить Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+
+# Добавить пользователя в группу docker
+sudo usermod -aG docker $USER
+
+# Установить Docker Compose
+sudo apt install docker-compose-plugin
+
+# Проверить установку
+docker --version
+docker compose version
+```
+
+#### 2. Настройка файрвола
+
+```bash
+# Установить UFW
+sudo apt install ufw
+
+# Разрешить SSH
+sudo ufw allow 22/tcp
+
+# Разрешить HTTP/HTTPS
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+# Включить файрвол
+sudo ufw enable
+```
+
+#### 3. Настройка DNS
+
+Добавьте A-запись для вашего домена:
+```
+A    @    YOUR_SERVER_IP
+A    www  YOUR_SERVER_IP
+```
+
+### Автоматическое развертывание (GitHub Actions)
+
+#### 1. Настройка GitHub Secrets
+
+Перейдите в Settings → Secrets and variables → Actions и добавьте:
+
+| Secret | Описание | Пример |
+|--------|----------|--------|
+| `DEPLOY_HOST` | IP или hostname сервера | `198.51.100.1` |
+| `DEPLOY_USER` | SSH пользователь | `ubuntu` |
+| `DEPLOY_SSH_KEY` | Приватный SSH ключ | `-----BEGIN OPENSSH...` |
+| `BOT_TOKEN` | Telegram bot token | `123456789:ABCdef...` |
+| `DOMAIN` | Доменное имя (опционально) | `dating.example.com` |
+
+#### 2. Деплой
+
+```bash
+# Просто запушьте в main ветку
+git push origin main
+
+# GitHub Actions автоматически:
+# 1. Запустит тесты
+# 2. Соберет Docker образ
+# 3. Подключится к серверу по SSH
+# 4. Скопирует файлы
+# 5. Запустит docker compose
+# 6. Применит миграции
+# 7. Проверит health check
+```
+
+Отслеживайте прогресс в GitHub → Actions
+
+### Ручное развертывание
+
+#### 1. Клонировать репозиторий на сервер
+
+```bash
+# Подключиться к серверу
+ssh user@your-server.com
+
+# Клонировать репозиторий
+git clone https://github.com/erliona/dating.git
+cd dating
+```
+
+#### 2. Настроить .env файл
+
+```bash
+# Создать из примера
+cp .env.example .env
+
+# Отредактировать
+nano .env
+```
+
+Укажите необходимые переменные:
+```bash
+BOT_TOKEN=your_bot_token_here
+DOMAIN=your-domain.com
+ACME_EMAIL=admin@your-domain.com
+POSTGRES_PASSWORD=your_secure_password
+JWT_SECRET=your_secret_key
+```
+
+#### 3. Запустить приложение
+
+```bash
+# Production с HTTPS и мониторингом
+docker compose --profile monitoring up -d --build
+
+# Проверить статус
+docker compose ps
+
+# Просмотреть логи
+docker compose logs -f bot
+```
+
+#### 4. Применить миграции БД
+
+```bash
+# Применить все миграции
+docker compose exec bot alembic upgrade head
+
+# Проверить статус
+docker compose exec bot alembic current
+```
+
+#### 5. Проверить работу
+
+```bash
+# Проверить health endpoint
+curl https://your-domain.com/health
+
+# Проверить бота в Telegram
+# Откройте бота и отправьте /start
+```
+
+### Обновление приложения
+
+#### С GitHub Actions
+
+Просто запушьте изменения в main ветку - деплой произойдет автоматически.
+
+#### Вручную
+
+```bash
+# На сервере
+cd /path/to/dating
+
+# Получить изменения
 git pull origin main
+
+# Пересобрать и перезапустить
+docker compose --profile monitoring up -d --build
+
+# Применить новые миграции
+docker compose exec bot alembic upgrade head
+
+# Проверить логи
+docker compose logs -f bot
+```
+
+### Откат к предыдущей версии
+
+```bash
+# Посмотреть историю коммитов
+git log --oneline
+
+# Откатиться к конкретному коммиту
+git checkout <commit-hash>
+
+# Пересобрать
 docker compose up -d --build
 
-# Check status
-docker compose ps
-
-# View logs
-docker compose logs -f
+# Откатить миграции (если нужно)
+docker compose exec bot alembic downgrade <revision>
 ```
 
-### Updating
+### Zero-downtime deployment
+
+Для обновления без простоя:
 
 ```bash
-# Pull latest changes
-git pull origin main
+# 1. Запустить новую версию на другом порту
+docker compose -f docker-compose.blue-green.yml up -d
 
-# Restart services
-docker compose restart bot webapp
+# 2. Проверить работоспособность
+curl http://localhost:8081/health
 
-# Apply migrations
-docker compose exec bot alembic upgrade head
+# 3. Переключить Traefik на новую версию
+# (обновить конфигурацию или labels)
+
+# 4. Остановить старую версию
+docker compose down
 ```
 
-## 🛡️ Security
+### SSL сертификаты
 
-### Best Practices
-- ✅ All secrets in environment variables
-- ✅ HTTPS everywhere via Traefik
-- ✅ JWT authentication for API
-- ✅ HMAC validation for Telegram data
-- ✅ SQL injection protection via ORM
-- ✅ No hardcoded credentials
-- ✅ Automated security scanning in CI
+Traefik автоматически получает SSL сертификаты от Let's Encrypt.
 
-### Reporting Security Issues
-
-Email security concerns to the repository owner. Do not create public issues for security vulnerabilities.
-
-## 🐛 Troubleshooting
-
-### Bot Not Responding
+#### Проверка сертификатов
 
 ```bash
-# Check logs
-docker compose logs -f bot
+# Посмотреть логи Traefik
+docker compose logs traefik | grep acme
 
-# Restart bot
-docker compose restart bot
-
-# Check bot status
-docker compose ps
+# Проверить сертификат
+openssl s_client -connect your-domain.com:443 -servername your-domain.com
 ```
 
-### Database Connection Issues
+#### Ручное обновление сертификатов
+
+Обычно не требуется, но если нужно:
 
 ```bash
-# Check database status
+# Удалить старый сертификат
+docker compose exec traefik rm /letsencrypt/acme.json
+
+# Перезапустить Traefik
+docker compose restart traefik
+
+# Новый сертификат будет получен автоматически
+```
+
+### Масштабирование
+
+#### Горизонтальное масштабирование бота
+
+```bash
+# Запустить несколько экземпляров бота
+docker compose up -d --scale bot=3
+
+# Использовать webhook вместо polling
+# для распределения нагрузки
+```
+
+#### Масштабирование БД
+
+```bash
+# Настроить PostgreSQL репликацию
+# 1. Master для записи
+# 2. Replicas для чтения
+
+# В коде использовать read replicas для select запросов
+```
+
+### Мониторинг развертывания
+
+#### Health checks
+
+```bash
+# Проверить все сервисы
+curl https://your-domain.com/health
+
+# Проверить конкретный контейнер
+docker compose ps bot
+docker compose logs bot | tail -20
+```
+
+#### Метрики после деплоя
+
+1. Откройте Grafana
+2. Проверьте дашборд "System Overview"
+3. Убедитесь, что:
+   - Все контейнеры запущены
+   - CPU/Memory в норме
+   - Нет ошибок в логах
+   - БД доступна
+
+### Troubleshooting
+
+#### Бот не запускается
+
+```bash
+# Проверить логи
+docker compose logs bot
+
+# Проверить переменные окружения
+docker compose config | grep BOT_TOKEN
+
+# Проверить подключение к БД
+docker compose exec bot python -c "from bot.db import engine; print('OK')"
+```
+
+#### HTTPS не работает
+
+```bash
+# Проверить DNS
+dig your-domain.com
+
+# Проверить порты
+sudo netstat -tlnp | grep -E '(80|443)'
+
+# Проверить логи Traefik
+docker compose logs traefik | grep -i error
+
+# Проверить файрвол
+sudo ufw status
+```
+
+#### База данных не доступна
+
+```bash
+# Проверить контейнер
 docker compose ps db
 
-# View database logs
+# Проверить логи
 docker compose logs db
 
-# Test connection
+# Проверить подключение
 docker compose exec db psql -U dating -d dating -c "SELECT 1;"
 ```
 
-### Grafana Not Loading
+## 🛡️ Безопасность
 
+### Реализованные меры безопасности
+
+#### 1. Аутентификация и авторизация
+
+**Telegram аутентификация**:
+- ✅ HMAC-SHA256 валидация `initData` от Telegram
+- ✅ Проверка времени инициализации (max 1 час)
+- ✅ Проверка подписи данных
+- ✅ Защита от replay атак
+
+**JWT токены**:
+- ✅ Серверные сессии с TTL 24 часа
+- ✅ Подписанные токены (HS256)
+- ✅ Автоматическое обновление
+- ✅ Отзыв токенов при необходимости
+
+**Rate Limiting**:
+- ✅ Ограничение запросов по IP
+- ✅ Ограничение по пользователю
+- ✅ Защита от DDoS
+- ✅ Настраиваемые лимиты
+
+#### 2. Защита данных
+
+**В транзите**:
+- ✅ HTTPS везде (Let's Encrypt)
+- ✅ TLS 1.2+ только
+- ✅ Strong ciphers
+- ✅ HSTS заголовки
+
+**В хранилище**:
+- ✅ Пароли БД в переменных окружения
+- ✅ JWT секреты не в коде
+- ✅ Фотографии с ограничениями доступа
+- ✅ Geohash для приватности локации (~5км точность)
+
+**В коде**:
+- ✅ SQL injection protection (SQLAlchemy ORM)
+- ✅ XSS protection (санитизация ввода)
+- ✅ CSRF protection для API
+- ✅ Input validation на клиенте и сервере
+
+#### 3. Приватность пользователей
+
+**Контроль данных**:
+- ✅ Настройки приватности (скрыть возраст/расстояние/онлайн)
+- ✅ Geohash вместо точных координат
+- ✅ Удаление аккаунта с данными
+- ✅ Экспорт данных (GDPR compliance готовность)
+
+**Минимизация данных**:
+- ✅ Хранятся только необходимые данные
+- ✅ Нет сбора лишней информации
+- ✅ Автоматическая очистка старых сессий
+- ✅ Логи без персональных данных
+
+#### 4. Безопасность инфраструктуры
+
+**Docker**:
+- ✅ Минимальные базовые образы
+- ✅ Non-root пользователи в контейнерах
+- ✅ Изолированные сети
+- ✅ Read-only файловые системы где возможно
+
+**База данных**:
+- ✅ Изолированная сеть
+- ✅ Сильные пароли
+- ✅ Регулярные бэкапы
+- ✅ Шифрование соединений
+
+**Секреты**:
+- ✅ GitHub Secrets для CI/CD
+- ✅ Переменные окружения (.env)
+- ✅ Не коммитятся в git
+- ✅ Ротация секретов
+
+#### 5. Мониторинг безопасности
+
+**Логирование**:
+- ✅ Все попытки аутентификации
+- ✅ Неудачные запросы API
+- ✅ Превышение rate limits
+- ✅ Ошибки валидации
+
+**Алерты**:
+- ✅ Высокий error rate
+- ✅ Подозрительная активность
+- ✅ Превышение лимитов
+- ✅ Падение сервисов
+
+**Аудит**:
+- ✅ История изменений профилей
+- ✅ Лог взаимодействий
+- ✅ Отслеживание блокировок
+- ✅ Security scanning в CI (pip-audit)
+
+### Рекомендации по безопасности
+
+#### Для разработчиков
+
+1. **Никогда не коммитьте секреты**
+   ```bash
+   # Проверьте перед коммитом
+   git diff --staged | grep -i "password\|secret\|token"
+   ```
+
+2. **Используйте сильные пароли**
+   ```bash
+   # Генерация безопасного пароля
+   openssl rand -base64 32
+   ```
+
+3. **Обновляйте зависимости**
+   ```bash
+   # Проверка уязвимостей
+   pip-audit
+   
+   # Обновление пакетов
+   pip install --upgrade -r requirements.txt
+   ```
+
+4. **Валидируйте все входные данные**
+   ```python
+   # Пример валидации
+   def validate_input(data: str) -> bool:
+       # Проверка на XSS
+       if re.search(r'<script|javascript:', data, re.I):
+           return False
+       return True
+   ```
+
+#### Для администраторов
+
+1. **Регулярно обновляйте систему**
+   ```bash
+   sudo apt update && sudo apt upgrade -y
+   docker compose pull
+   ```
+
+2. **Настройте файрвол**
+   ```bash
+   sudo ufw default deny incoming
+   sudo ufw allow 22/tcp  # SSH
+   sudo ufw allow 80/tcp  # HTTP
+   sudo ufw allow 443/tcp # HTTPS
+   sudo ufw enable
+   ```
+
+3. **Настройте автоматические бэкапы**
+   ```bash
+   # Cron задача для ежедневного бэкапа
+   0 3 * * * /path/to/backup-script.sh
+   ```
+
+4. **Мониторьте логи безопасности**
+   ```bash
+   # SSH попытки
+   sudo grep "Failed password" /var/log/auth.log
+   
+   # Необычная активность
+   docker compose logs bot | grep "WARNING\|ERROR"
+   ```
+
+### Соответствие стандартам
+
+#### GDPR Ready
+- ✅ Право на удаление данных
+- ✅ Право на экспорт данных
+- ✅ Прозрачность обработки данных
+- ✅ Минимизация данных
+- ⚠️ Требуется юридическая политика конфиденциальности
+
+#### 18+ Compliance
+- ✅ Валидация возраста при регистрации
+- ✅ Блокировка младше 18 лет
+- ✅ Проверка даты рождения
+
+#### Telegram Guidelines
+- ✅ Следование ToS Telegram
+- ✅ Корректное использование Bot API
+- ✅ Уважение privacy пользователей
+
+### Сообщение об уязвимостях
+
+Если вы обнаружили уязвимость:
+
+1. **НЕ создавайте публичный issue**
+2. **Отправьте email** владельцу репозитория
+3. **Опишите**:
+   - Тип уязвимости
+   - Шаги для воспроизведения
+   - Потенциальное влияние
+   - Предложения по исправлению
+
+Мы обязуемся:
+- Ответить в течение 48 часов
+- Исправить критические уязвимости в течение 7 дней
+- Упомянуть вас в credits (по желанию)
+
+## 🐛 Решение проблем (Troubleshooting)
+
+### Частые проблемы и решения
+
+#### 1. Бот не отвечает в Telegram
+
+**Симптомы**: Бот не реагирует на команды `/start`
+
+**Диагностика**:
 ```bash
-# Restart Grafana
-docker compose --profile monitoring restart grafana
+# Проверить статус контейнера
+docker compose ps bot
 
-# Check logs
-docker compose logs grafana
+# Посмотреть логи
+docker compose logs -f bot
 
-# Verify datasources
-curl -u admin:admin http://localhost:3000/api/datasources
+# Проверить webhook (если используется)
+curl https://api.telegram.org/bot${BOT_TOKEN}/getWebhookInfo
 ```
 
-## 📚 Additional Resources
+**Решения**:
+```bash
+# 1. Перезапустить бота
+docker compose restart bot
 
-### Documentation
-- [Full Documentation Index](docs/INDEX.md)
-- [Architecture Details](docs/ARCHITECTURE.md)
-- [Deployment Guide](docs/DEPLOYMENT.md)
-- [Testing Guide](docs/TESTING.md)
-- [API Documentation](docs/PHOTO_UPLOAD_API.md)
+# 2. Проверить BOT_TOKEN
+docker compose exec bot env | grep BOT_TOKEN
 
-### Development
-- [Contributing Guidelines](CONTRIBUTING.md)
-- [Changelog](CHANGELOG.md)
-- [Roadmap](ROADMAP.md)
-- [Project Status](PROJECT_STATUS.md)
+# 3. Пересобрать контейнер
+docker compose up -d --build bot
 
-### External Links
-- [GitHub Repository](https://github.com/erliona/dating)
-- [GitHub Issues](https://github.com/erliona/dating/issues)
-- [Telegram Bot API](https://core.telegram.org/bots/api)
-- [aiogram Documentation](https://docs.aiogram.dev/)
+# 4. Проверить подключение к интернету
+docker compose exec bot ping -c 3 api.telegram.org
+```
 
-## 🤝 Contributing
+#### 2. База данных не доступна
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
-- Code of conduct
-- Development setup
-- Pull request process
-- Coding standards
+**Симптомы**: Ошибки "connection refused" в логах
 
-## 📄 License
+**Диагностика**:
+```bash
+# Проверить статус PostgreSQL
+docker compose ps db
 
-This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
+# Проверить логи
+docker compose logs db | tail -50
 
-## 💬 Support
+# Проверить подключение изнутри контейнера
+docker compose exec bot python -c "
+from bot.config import load_config
+config = load_config()
+print(config.database_url)
+"
+```
 
-- **Documentation**: See [docs/](docs/)
-- **Bug Reports**: [GitHub Issues](https://github.com/erliona/dating/issues)
-- **Questions**: [GitHub Discussions](https://github.com/erliona/dating/discussions)
+**Решения**:
+```bash
+# 1. Перезапустить БД
+docker compose restart db
+
+# 2. Проверить пароль в .env
+cat .env | grep POSTGRES_PASSWORD
+
+# 3. Подключиться напрямую
+docker compose exec db psql -U dating -d dating -c "SELECT version();"
+
+# 4. Пересоздать volume (ВНИМАНИЕ: удалит данные!)
+docker compose down
+docker volume rm dating_postgres_data
+docker compose up -d
+```
+
+#### 3. Ошибки миграций БД
+
+**Симптомы**: "alembic.util.exc.CommandError" при старте
+
+**Диагностика**:
+```bash
+# Проверить текущую версию
+docker compose exec bot alembic current
+
+# Проверить историю
+docker compose exec bot alembic history
+```
+
+**Решения**:
+```bash
+# 1. Применить миграции
+docker compose exec bot alembic upgrade head
+
+# 2. Если не помогает - сбросить до начала и применить заново
+docker compose exec bot alembic downgrade base
+docker compose exec bot alembic upgrade head
+
+# 3. Проверить файлы миграций
+ls -la migrations/versions/
+```
+
+#### 4. Mini App не загружается
+
+**Симптомы**: Белый экран или ошибка загрузки
+
+**Диагностика**:
+```bash
+# Проверить веб-сервер
+curl http://localhost/
+
+# Проверить логи nginx
+docker compose logs webapp
+
+# Проверить файлы
+docker compose exec webapp ls -la /usr/share/nginx/html/
+```
+
+**Решения**:
+```bash
+# 1. Проверить WEBAPP_URL в .env
+cat .env | grep WEBAPP_URL
+
+# 2. Перезапустить веб-сервер
+docker compose restart webapp
+
+# 3. Открыть в браузере напрямую
+open http://localhost  # или ваш домен
+
+# 4. Проверить в консоли браузера на ошибки JavaScript
+```
+
+#### 5. SSL сертификаты не получаются
+
+**Симптомы**: HTTPS не работает, ошибки сертификата
+
+**Диагностика**:
+```bash
+# Проверить логи Traefik
+docker compose logs traefik | grep -i acme
+
+# Проверить DNS
+dig +short your-domain.com
+
+# Проверить доступность портов
+sudo netstat -tlnp | grep -E '(80|443)'
+```
+
+**Решения**:
+```bash
+# 1. Проверить DOMAIN и ACME_EMAIL в .env
+cat .env | grep -E "DOMAIN|ACME_EMAIL"
+
+# 2. Убедиться, что порты открыты
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+
+# 3. Удалить старый сертификат и попробовать снова
+docker compose down
+docker volume rm dating_traefik_certs
+docker compose up -d
+
+# 4. Проверить DNS A-record
+nslookup your-domain.com
+```
+
+#### 6. Высокая нагрузка CPU/Memory
+
+**Симптомы**: Медленная работа, зависания
+
+**Диагностика**:
+```bash
+# Проверить использование ресурсов
+docker stats
+
+# Конкретный контейнер
+docker stats dating_bot_1
+
+# Проверить в Grafana
+open http://localhost:3000
+```
+
+**Решения**:
+```bash
+# 1. Увеличить лимиты в docker-compose.yml
+services:
+  bot:
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+
+# 2. Перезапустить сервисы
+docker compose restart
+
+# 3. Очистить кеш (если используется)
+docker compose exec bot python -c "from bot.cache import cache; cache.clear()"
+
+# 4. Оптимизировать БД
+docker compose exec db psql -U dating dating -c "VACUUM ANALYZE;"
+```
+
+#### 7. Ошибки аутентификации
+
+**Симптомы**: "Unauthorized", "Invalid JWT"
+
+**Диагностика**:
+```bash
+# Проверить JWT_SECRET
+docker compose exec bot env | grep JWT_SECRET
+
+# Проверить логи бота
+docker compose logs bot | grep -i "auth\|jwt"
+```
+
+**Решения**:
+```bash
+# 1. Проверить, что JWT_SECRET задан в .env
+cat .env | grep JWT_SECRET
+
+# 2. Очистить сессии
+docker compose exec bot python -c "
+from bot.security import clear_expired_sessions
+clear_expired_sessions()
+"
+
+# 3. Перезапустить бота
+docker compose restart bot
+```
+
+#### 8. Фотографии не загружаются
+
+**Симптомы**: Ошибки при загрузке фото
+
+**Диагностика**:
+```bash
+# Проверить API
+curl -X POST http://localhost:8080/api/upload_photo \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -F "photo=@test.jpg"
+
+# Проверить логи
+docker compose logs bot | grep -i photo
+```
+
+**Решения**:
+```bash
+# 1. Проверить лимиты размера
+cat .env | grep MAX_PHOTO_SIZE
+
+# 2. Проверить права на volume
+docker compose exec bot ls -la /app/photos
+
+# 3. Проверить свободное место
+df -h
+docker system df
+```
+
+### Логи и отладка
+
+#### Просмотр логов
+
+```bash
+# Все сервисы
+docker compose logs -f
+
+# Конкретный сервис
+docker compose logs -f bot
+
+# Последние N строк
+docker compose logs --tail=100 bot
+
+# С временными метками
+docker compose logs -f --timestamps bot
+
+# Только ошибки
+docker compose logs bot | grep ERROR
+```
+
+#### Подключение к контейнеру
+
+```bash
+# Запустить shell в контейнере
+docker compose exec bot bash
+
+# Запустить Python REPL
+docker compose exec bot python
+
+# Выполнить команду
+docker compose exec bot python -c "print('Hello')"
+```
+
+#### Отладка в реальном времени
+
+```bash
+# Смотреть изменения в реальном времени
+watch -n 1 'docker compose ps'
+
+# Мониторинг ресурсов
+docker stats
+
+# Живые логи с фильтрацией
+docker compose logs -f bot | grep -i error
+```
+
+### Получение помощи
+
+Если проблема не решается:
+
+1. **Соберите информацию**:
+   ```bash
+   # Версии
+   docker --version
+   docker compose version
+   
+   # Статус
+   docker compose ps
+   
+   # Конфигурация
+   docker compose config
+   
+   # Логи (последние 100 строк)
+   docker compose logs --tail=100 > logs.txt
+   ```
+
+2. **Создайте issue** на GitHub с:
+   - Описанием проблемы
+   - Шагами для воспроизведения
+   - Логами
+   - Версиями ПО
+
+3. **Проверьте существующие issues**:
+   - https://github.com/erliona/dating/issues
+
+4. **Обратитесь в Discussions**:
+   - https://github.com/erliona/dating/discussions
+
+## 📚 Дополнительные ресурсы
+
+### Документация проекта
+
+- **[📖 Основная документация](README.md)** - обзор и быстрый старт
+- **[📊 Статус проекта](PROJECT_STATUS.md)** - реализованные и планируемые функции
+- **[📝 История изменений](CHANGELOG.md)** - changelog всех версий
+- **[🗺️ Roadmap](ROADMAP.md)** - план развития проекта
+- **[📋 Индекс документации](docs/INDEX.md)** - навигация по всем документам
+
+### Техническая документация
+
+- **[🏗️ Архитектура](docs/ARCHITECTURE.md)** - детали архитектуры системы
+- **[🚀 Развертывание](docs/DEPLOYMENT.md)** - подробное руководство по deployment
+- **[🧪 Тестирование](docs/TESTING.md)** - запуск и написание тестов
+- **[📡 API Reference](docs/PHOTO_UPLOAD_API.md)** - документация API
+- **[💾 Персистентность данных](docs/DATA_PERSISTENCE.md)** - управление данными и бэкапы
+
+### Для разработчиков
+
+- **[🤝 Contributing](CONTRIBUTING.md)** - как внести вклад в проект
+  - Настройка окружения
+  - Стиль кода
+  - Процесс PR
+  - Code of conduct
+
+- **[🔒 Security](SECURITY.md)** - политика безопасности
+  - Сообщение об уязвимостях
+  - Best practices
+
+### Внешние ресурсы
+
+#### Telegram
+- [Telegram Bot API](https://core.telegram.org/bots/api) - официальная документация API
+- [Telegram Mini Apps](https://core.telegram.org/bots/webapps) - руководство по Mini Apps
+- [@BotFather](https://t.me/BotFather) - создание и настройка ботов
+
+#### Фреймворки и библиотеки
+- [aiogram Documentation](https://docs.aiogram.dev/) - документация aiogram
+- [SQLAlchemy](https://docs.sqlalchemy.org/) - ORM документация
+- [FastAPI](https://fastapi.tiangolo.com/) - альтернатива для REST API
+- [Alembic](https://alembic.sqlalchemy.org/) - миграции БД
+
+#### Инфраструктура
+- [Docker Documentation](https://docs.docker.com/) - Docker и Compose
+- [Traefik](https://doc.traefik.io/traefik/) - reverse proxy
+- [Prometheus](https://prometheus.io/docs/) - мониторинг
+- [Grafana](https://grafana.com/docs/) - визуализация
+
+### Полезные ссылки
+
+- **[GitHub Repository](https://github.com/erliona/dating)** - исходный код
+- **[GitHub Issues](https://github.com/erliona/dating/issues)** - баг-репорты и фичи
+- **[GitHub Discussions](https://github.com/erliona/dating/discussions)** - вопросы и обсуждения
+- **[GitHub Actions](https://github.com/erliona/dating/actions)** - CI/CD статус
+
+## 🤝 Вклад в проект
+
+Мы приветствуем любые вклады в проект! 
+
+### Как помочь
+
+- 🐛 **Сообщить о баге** - создайте [issue](https://github.com/erliona/dating/issues)
+- 💡 **Предложить функцию** - откройте [discussion](https://github.com/erliona/dating/discussions)
+- 📝 **Улучшить документацию** - отправьте PR
+- 💻 **Написать код** - исправьте баг или реализуйте фичу
+- ⭐ **Поставить звезду** - если проект полезен
+
+### Процесс контрибуции
+
+1. Fork репозитория
+2. Создайте ветку (`git checkout -b feature/amazing-feature`)
+3. Внесите изменения
+4. Напишите/обновите тесты
+5. Убедитесь, что тесты проходят (`pytest`)
+6. Commit изменений (`git commit -m 'Add amazing feature'`)
+7. Push в ветку (`git push origin feature/amazing-feature`)
+8. Откройте Pull Request
+
+Подробнее: [CONTRIBUTING.md](CONTRIBUTING.md)
+
+### Правила
+
+- ✅ Следуйте существующему стилю кода
+- ✅ Пишите тесты для новой функциональности
+- ✅ Обновляйте документацию
+- ✅ Одна фича = один PR
+- ✅ Подробное описание в PR
+
+## 📄 Лицензия
+
+Этот проект распространяется под лицензией **MIT License**.
+
+Это означает, что вы можете:
+- ✅ Использовать в коммерческих целях
+- ✅ Модифицировать код
+- ✅ Распространять
+- ✅ Использовать в приватных проектах
+
+При условии:
+- 📝 Сохранения копирайта и лицензии
+- 📝 Указания авторства
+
+Подробнее см. [LICENSE](LICENSE)
+
+## 💬 Поддержка
+
+### Получить помощь
+
+- 📖 **Документация**: начните с [README.md](README.md) и этого файла
+- 🐛 **Баги**: [GitHub Issues](https://github.com/erliona/dating/issues)
+- 💬 **Вопросы**: [GitHub Discussions](https://github.com/erliona/dating/discussions)
+- 🔒 **Безопасность**: см. [SECURITY.md](SECURITY.md)
+
+### Канатлы связи
+
+- GitHub Issues - баг-репорты и фичи-реквесты
+- GitHub Discussions - общие вопросы и обсуждения
+- Email - для вопросов безопасности (см. SECURITY.md)
+
+### FAQ
+
+**Q: Можно ли использовать этот проект коммерчески?**
+A: Да, проект под MIT лицензией, можно использовать в любых целях.
+
+**Q: Как добавить новую функцию?**
+A: Создайте issue с описанием или discussion для обсуждения, затем PR.
+
+**Q: Есть ли демо?**
+A: Демо не предоставляется, но вы можете развернуть локально за 5 минут.
+
+**Q: Какие требования к серверу?**
+A: Минимум 2 CPU, 4GB RAM, 20GB диск. Рекомендуется 4 CPU, 8GB RAM.
+
+**Q: Поддерживается ли масштабирование?**
+A: Да, можно запустить несколько экземпляров бота и использовать репликацию БД.
 
 ---
 
-**Made with ❤️ for the community**
+## 🎉 Благодарности
 
-*If you find this project useful, please star it on GitHub!* ⭐
+Спасибо всем контрибьюторам и сообществу за поддержку проекта!
+
+### Используемые технологии
+
+- [Python](https://www.python.org/) - язык программирования
+- [aiogram](https://aiogram.dev/) - Telegram Bot framework
+- [SQLAlchemy](https://www.sqlalchemy.org/) - ORM
+- [PostgreSQL](https://www.postgresql.org/) - база данных
+- [Docker](https://www.docker.com/) - контейнеризация
+- [Traefik](https://traefik.io/) - reverse proxy
+- [Grafana](https://grafana.com/) - мониторинг
+- [Prometheus](https://prometheus.io/) - метрики
+
+---
+
+**Сделано с ❤️ для сообщества**
+
+*Если проект оказался полезным, поставьте ⭐ на GitHub!*
+
+---
+
+**Версия документации**: 2.0  
+**Последнее обновление**: Январь 2025  
+**Статус**: Production Ready
