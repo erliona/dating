@@ -1155,6 +1155,43 @@ async function handleProfileSubmit(form) {
     city: formData.get('city') || ''
   };
   
+  // Add optional fields if provided
+  const heightCm = formData.get('height_cm');
+  if (heightCm && heightCm.trim() !== '') {
+    profileData.height_cm = parseInt(heightCm);
+  }
+  
+  const education = formData.get('education');
+  if (education && education.trim() !== '') {
+    profileData.education = education;
+  }
+  
+  const hasChildren = formData.get('has_children');
+  if (hasChildren && hasChildren.trim() !== '') {
+    profileData.has_children = hasChildren === 'true';
+  }
+  
+  const wantsChildren = formData.get('wants_children');
+  if (wantsChildren && wantsChildren.trim() !== '') {
+    profileData.wants_children = wantsChildren === 'true';
+  }
+  
+  const smoking = formData.get('smoking');
+  if (smoking && smoking.trim() !== '') {
+    profileData.smoking = smoking === 'true';
+  }
+  
+  const drinking = formData.get('drinking');
+  if (drinking && drinking.trim() !== '') {
+    profileData.drinking = drinking === 'true';
+  }
+  
+  const interests = formData.get('interests');
+  if (interests && interests.trim() !== '') {
+    // Convert comma-separated string to array
+    profileData.interests = interests.split(',').map(i => i.trim()).filter(i => i);
+  }
+  
   // Validate city is provided
   if (!profileData.city || profileData.city.trim() === '') {
     showFormError('Укажите город');
