@@ -5,7 +5,7 @@ Epic C: Discovery, interactions, matches, and favorites.
 """
 
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Optional
 
 from sqlalchemy import and_, delete, func, or_, select
@@ -59,7 +59,7 @@ class ProfileRepository:
             user.first_name = first_name
             user.language_code = language_code
             user.is_premium = is_premium
-            user.updated_at = datetime.utcnow()
+            user.updated_at = datetime.now(timezone.utc)
 
             logger.info(
                 "User updated",
@@ -227,7 +227,7 @@ class ProfileRepository:
             if field in profile_data:
                 setattr(profile, field, profile_data[field])
 
-        profile.updated_at = datetime.utcnow()
+        profile.updated_at = datetime.now(timezone.utc)
 
         logger.info(
             "Profile updated",
@@ -524,7 +524,7 @@ class ProfileRepository:
         if interaction:
             # Update existing interaction
             interaction.interaction_type = interaction_type
-            interaction.updated_at = datetime.utcnow()
+            interaction.updated_at = datetime.now(timezone.utc)
             logger.info(
                 "Interaction updated",
                 extra={

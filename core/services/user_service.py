@@ -78,7 +78,7 @@ class UserService:
         if is_premium is not None:
             user.is_premium = is_premium
 
-        user.updated_at = datetime.utcnow()
+        user.updated_at = datetime.now(timezone.utc)
 
         return await self.user_repository.update_user(user)
 
