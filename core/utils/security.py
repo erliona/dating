@@ -168,7 +168,8 @@ def validate_telegram_webapp_init_data(
     for field in ['receiver', 'chat', 'chat_type', 'chat_instance']:
         if field in validated_data:
             try:
-                validated_data[field] = json.loads(unquote(validated_data[field]))
+                value = unquote(validated_data[field])
+                validated_data[field] = json.loads(value)
             except (json.JSONDecodeError, ValueError):
                 # Keep raw value if parsing fails
                 pass
