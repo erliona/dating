@@ -104,7 +104,7 @@ class TestConfigureLogging:
     def test_configure_logging_sets_json_formatter(self):
         """Test that logging is configured with JSON formatter."""
         with patch('sys.stdout'):
-            configure_logging()
+            configure_logging("test-service")
             
             root_logger = logging.getLogger()
             assert len(root_logger.handlers) > 0
@@ -114,7 +114,7 @@ class TestConfigureLogging:
     def test_configure_logging_reduces_noise(self):
         """Test that aiogram and aiohttp loggers are set to WARNING."""
         with patch('sys.stdout'):
-            configure_logging()
+            configure_logging("test-service")
             
             aiogram_logger = logging.getLogger("aiogram")
             aiohttp_logger = logging.getLogger("aiohttp")

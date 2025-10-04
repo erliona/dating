@@ -290,7 +290,6 @@ async def main() -> None:
         
         # Import API module
         from .api import run_api_server
-        import os
         
         # Get API server configuration
         api_host = os.getenv("API_HOST", "0.0.0.0")
