@@ -1,0 +1,255 @@
+name: Deploy Microservices
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+  push:
+    branches:
+      - main
+    paths:
+      - 'services/**'
+      - 'gateway/**'
+      - 'docker-compose.microservices.yml'
+      - '.github/workflows/deploy-microservices.yml'
+
+concurrency:
+  group: deploy-microservices-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-microservices:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check required secrets
+        id: secrets
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: |
+          set -euo pipefail
+
+          missing=()
+          for var in DEPLOY_HOST DEPLOY_USER DEPLOY_SSH_KEY BOT_TOKEN JWT_SECRET; do
+            if [ -z "${!var:-}" ]; then
+              missing+=("$var")
+            fi
+          done
+
+          if [ "${#missing[@]}" -ne 0 ]; then
+            printf '::warning::Skipping deploy because required secrets are missing: %s\n' "${missing[*]}"
+            echo "missing=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "missing=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Abort deployment (secrets missing)
+        if: steps.secrets.outputs.missing == 'true'
+        run: |
+          echo "❌ Deployment skipped because required secrets are not configured."
+          echo ""
+          echo "Required secrets for microservices deployment:"
+          echo "  - DEPLOY_HOST    : IP or hostname of your server"
+          echo "  - DEPLOY_USER    : SSH user with sudo permissions"
+          echo "  - DEPLOY_SSH_KEY : Private SSH key for authentication"
+          echo "  - BOT_TOKEN      : Telegram bot token from @BotFather"
+          echo "  - JWT_SECRET     : Secret key for JWT token signing"
+          echo ""
+          echo "Optional secrets for HTTPS:"
+          echo "  - DOMAIN         : Your domain name (e.g., example.com)"
+          echo "  - ACME_EMAIL     : Email for Let's Encrypt notifications"
+          echo ""
+          echo "Configure these in: Settings → Secrets and variables → Actions"
+          exit 1
+
+      - name: Set up SSH key
+        if: steps.secrets.outputs.missing != 'true'
+        shell: bash
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p ~/.ssh
+          key="$DEPLOY_SSH_KEY"
+
+          if [[ "$key" == *"-----BEGIN"* ]]; then
+            decoded="$key"
+          else
+            if ! decoded="$(printf '%s' "$key" | base64 --decode)"; then
+              echo "::error::DEPLOY_SSH_KEY must be a valid PEM block or a base64-encoded PEM" >&2
+              exit 1
+            fi
+          fi
+
+          if [[ "$decoded" != *"-----BEGIN"* ]]; then
+            echo "::error::DEPLOY_SSH_KEY does not look like a PEM-formatted key" >&2
+            exit 1
+          fi
+
+          cleaned="$(printf '%s' "$decoded" | tr -d '\r')"
+          if [[ "$cleaned" == *$'\n' ]]; then
+            printf '%s' "$cleaned" > ~/.ssh/id_deploy
+          else
+            printf '%s\n' "$cleaned" > ~/.ssh/id_deploy
+          fi
+
+          chmod 600 ~/.ssh/id_deploy
+          eval "$(ssh-agent -s)"
+          ssh-add ~/.ssh/id_deploy
+
+      - name: Add server to known hosts
+        if: steps.secrets.outputs.missing != 'true'
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+        run: |
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy to server
+        if: steps.secrets.outputs.missing != 'true'
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          DOMAIN: ${{ secrets.DOMAIN }}
+          ACME_EMAIL: ${{ secrets.ACME_EMAIL }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          echo "🚀 Deploying microservices to $DEPLOY_HOST..."
+
+          # Deploy directory on server
+          DEPLOY_DIR="/opt/dating-microservices"
+
+          # Create deployment script
+          cat > /tmp/deploy.sh << 'EOFSCRIPT'
+          #!/bin/bash
+          set -euo pipefail
+
+          DEPLOY_DIR="/opt/dating-microservices"
+          
+          echo "📦 Setting up deployment directory..."
+          sudo mkdir -p "$DEPLOY_DIR"
+          sudo chown -R $(whoami):$(whoami) "$DEPLOY_DIR"
+          cd "$DEPLOY_DIR"
+
+          echo "📥 Pulling latest code..."
+          if [ -d ".git" ]; then
+            git fetch origin
+            git reset --hard origin/main
+          else
+            git clone https://github.com/$GITHUB_REPOSITORY .
+          fi
+
+          echo "🔧 Configuring environment..."
+          cat > .env << EOF
+          BOT_TOKEN=${BOT_TOKEN}
+          JWT_SECRET=${JWT_SECRET}
+          POSTGRES_DB=dating
+          POSTGRES_USER=dating
+          POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-$(openssl rand -base64 24)}
+          DOMAIN=${DOMAIN:-localhost}
+          ACME_EMAIL=${ACME_EMAIL:-admin@example.com}
+          WEBAPP_URL=https://${DOMAIN:-localhost}
+          EOF
+
+          echo "🐳 Installing Docker if needed..."
+          if ! command -v docker &> /dev/null; then
+            curl -fsSL https://get.docker.com -o get-docker.sh
+            sudo sh get-docker.sh
+            sudo usermod -aG docker $(whoami)
+          fi
+
+          echo "🏗️  Building microservices..."
+          docker compose -f docker-compose.microservices.yml build
+
+          echo "🚀 Deploying microservices..."
+          docker compose -f docker-compose.microservices.yml up -d
+
+          echo "⏳ Waiting for services to be healthy..."
+          sleep 15
+
+          echo "✅ Verifying deployment..."
+          SERVICES="auth-service profile-service discovery-service media-service chat-service api-gateway"
+          for service in $SERVICES; do
+            if docker compose -f docker-compose.microservices.yml ps $service | grep -q "Up"; then
+              echo "  ✓ $service is running"
+            else
+              echo "  ✗ $service failed to start"
+              docker compose -f docker-compose.microservices.yml logs --tail=50 $service
+            fi
+          done
+
+          echo "🔍 Checking health endpoints..."
+          for port in 8080 8081 8082 8083 8084 8085; do
+            if curl -s -f http://localhost:$port/health > /dev/null; then
+              echo "  ✓ Port $port health check passed"
+            else
+              echo "  ✗ Port $port health check failed"
+            fi
+          done
+
+          echo "📊 Service status:"
+          docker compose -f docker-compose.microservices.yml ps
+          
+          echo ""
+          echo "✅ Deployment complete!"
+          echo ""
+          echo "Service URLs:"
+          echo "  API Gateway:   http://localhost:8080"
+          echo "  Auth Service:  http://localhost:8081"
+          echo "  Profile:       http://localhost:8082"
+          echo "  Discovery:     http://localhost:8083"
+          echo "  Media:         http://localhost:8084"
+          echo "  Chat:          http://localhost:8085"
+          EOFSCRIPT
+
+          chmod +x /tmp/deploy.sh
+
+          # Copy and execute deployment script on server
+          scp -i ~/.ssh/id_deploy /tmp/deploy.sh "${DEPLOY_USER}@${DEPLOY_HOST}:/tmp/deploy.sh"
+          
+          ssh -i ~/.ssh/id_deploy "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "GITHUB_REPOSITORY=$GITHUB_REPOSITORY \
+             BOT_TOKEN='$BOT_TOKEN' \
+             JWT_SECRET='$JWT_SECRET' \
+             DOMAIN='$DOMAIN' \
+             ACME_EMAIL='$ACME_EMAIL' \
+             POSTGRES_PASSWORD='$POSTGRES_PASSWORD' \
+             bash /tmp/deploy.sh"
+
+      - name: Deployment summary
+        if: steps.secrets.outputs.missing != 'true'
+        run: |
+          echo "✅ Microservices deployment completed successfully!"
+          echo ""
+          echo "Services deployed:"
+          echo "  • API Gateway (Port 8080)"
+          echo "  • Auth Service (Port 8081)"
+          echo "  • Profile Service (Port 8082)"
+          echo "  • Discovery Service (Port 8083)"
+          echo "  • Media Service (Port 8084)"
+          echo "  • Chat Service (Port 8085)"
+          echo ""
+          echo "Next steps:"
+          echo "  1. Test API endpoints"
+          echo "  2. Monitor service logs"
+          echo "  3. Set up monitoring and alerting"
