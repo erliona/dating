@@ -119,7 +119,13 @@ function applyTheme() {
     'link_color': '--tg-theme-link-color',
     'button_color': '--tg-theme-button-color',
     'button_text_color': '--tg-theme-button-text-color',
-    'secondary_bg_color': '--tg-theme-secondary-bg-color'
+    'secondary_bg_color': '--tg-theme-secondary-bg-color',
+    'header_bg_color': '--tg-theme-header-bg-color',
+    'accent_text_color': '--tg-theme-accent-text-color',
+    'section_bg_color': '--tg-theme-section-bg-color',
+    'section_header_text_color': '--tg-theme-section-header-text-color',
+    'subtitle_text_color': '--tg-theme-subtitle-text-color',
+    'destructive_text_color': '--tg-theme-destructive-text-color'
   };
   
   // Apply theme colors
@@ -148,6 +154,21 @@ function setupThemeListener() {
     console.log('Theme changed to:', tg.colorScheme);
     applyTheme();
     triggerHaptic('impact', 'light');
+  });
+  
+  // Listen for viewport changes (keyboard show/hide)
+  tg.onEvent('viewportChanged', () => {
+    console.log('Viewport changed:', {
+      height: tg.viewportHeight,
+      stableHeight: tg.viewportStableHeight,
+      isExpanded: tg.isExpanded
+    });
+    
+    // Update CSS custom property for dynamic height calculations
+    document.documentElement.style.setProperty(
+      '--tg-viewport-height', 
+      `${tg.viewportHeight}px`
+    );
   });
 }
 

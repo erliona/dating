@@ -1126,11 +1126,17 @@ docker compose up -d
 
 ### Подробная документация по компонентам
 
+- 🚀 **[Mini App Quick Start](docs/MINIAPP_QUICK_START.md)** - Быстрый старт для разработки Mini App
+  - 5-минутный старт
+  - Основные компоненты и API
+  - Примеры кода и snippets
+  - Отладка и troubleshooting
+
 - 📱 **[Mini App Architecture](docs/MINIAPP_ARCHITECTURE.md)** - Архитектура Frontend приложения
   - Интеграция с Telegram WebApp API
   - Использование нативных UI компонентов
   - Система навигации и управление состоянием
-  - Best practices и troubleshooting
+  - Best practices и performance
 
 - 📊 **[Monitoring Setup](docs/MONITORING_SETUP.md)** - Настройка мониторинга
   - Prometheus, Grafana, Loki
