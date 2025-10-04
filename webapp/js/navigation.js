@@ -50,6 +50,11 @@ function showDiscoveryFromNav() {
     setActiveTab('discovery');
     triggerHaptic('impact', 'light');
     
+    // Hide MainButton on discovery screen
+    if (tg && tg.MainButton) {
+        tg.MainButton.hide();
+    }
+    
     // Load cards if needed
     if (currentCards.length === 0) {
         loadDiscoveryCards();
@@ -67,6 +72,9 @@ function showProfileEdit() {
     setActiveTab('profile');
     triggerHaptic('impact', 'light');
     
+    // Configure MainButton for profile editing
+    setupProfileEditMainButton();
+    
     // Load current profile data
     loadProfileForEdit();
 }
@@ -81,6 +89,11 @@ function showSettings() {
     setActiveTab('settings');
     triggerHaptic('impact', 'light');
     
+    // Hide MainButton on settings screen
+    if (tg && tg.MainButton) {
+        tg.MainButton.hide();
+    }
+    
     // Load settings
     loadSettings();
 }
@@ -88,6 +101,20 @@ function showSettings() {
 // ============================================================================
 // Profile Edit Functions
 // ============================================================================
+
+/**
+ * Configure MainButton for profile editing
+ */
+function setupProfileEditMainButton() {
+  if (tg && tg.MainButton) {
+    tg.MainButton.offClick(handleMainButtonClick); // Remove other handlers
+    tg.MainButton.offClick(startProfileCreation);
+    tg.MainButton.setText('Сохранить изменения');
+    tg.MainButton.show();
+    tg.MainButton.enable();
+    tg.MainButton.onClick(saveProfileChanges);
+  }
+}
 
 /**
  * Load profile data for editing

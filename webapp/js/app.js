@@ -37,6 +37,12 @@ function initTelegramWebApp() {
   // Enable closing confirmation
   tg.enableClosingConfirmation();
   
+  // Set header color to match theme
+  tg.setHeaderColor('secondary_bg_color');
+  
+  // Set background color to match theme
+  tg.setBackgroundColor('bg_color');
+  
   // Get init data for authentication
   initData = tg.initData;
   
@@ -45,11 +51,16 @@ function initTelegramWebApp() {
     handleBackButton();
   });
   
+  // Set up MainButton (initially hidden)
+  tg.MainButton.hide();
+  
   console.log('Telegram WebApp initialized', {
     version: tg.version,
     platform: tg.platform,
     colorScheme: tg.colorScheme,
-    initDataUnsafe: tg.initDataUnsafe
+    initDataUnsafe: tg.initDataUnsafe,
+    headerColor: tg.headerColor,
+    backgroundColor: tg.backgroundColor
   });
   
   return true;
@@ -512,6 +523,16 @@ function showOnboarding() {
   // Set version text on all pages
   updateVersionText();
   
+  // Configure Telegram MainButton for onboarding
+  if (tg && tg.MainButton) {
+    tg.MainButton.offClick(handleMainButtonClick); // Remove previous handler
+    tg.MainButton.offClick(startProfileCreation); // Remove in case it's there
+    tg.MainButton.setText('Начать знакомства');
+    tg.MainButton.show();
+    tg.MainButton.enable();
+    tg.MainButton.onClick(startProfileCreation);
+  }
+  
   // Haptic feedback
   triggerHaptic('impact', 'light');
 }
@@ -526,7 +547,30 @@ function startProfileCreation() {
   // Set version text on all pages
   updateVersionText();
   
+  // Show Telegram MainButton for form submission
+  if (tg && tg.MainButton) {
+    tg.MainButton.offClick(startProfileCreation); // Remove previous handler
+    tg.MainButton.setText('Создать анкету');
+    tg.MainButton.show();
+    tg.MainButton.enable();
+    
+    // Set up click handler for MainButton
+    tg.MainButton.onClick(handleMainButtonClick);
+  }
+  
   triggerHaptic('notification', 'success');
+}
+
+/**
+ * Handle MainButton click
+ */
+function handleMainButtonClick() {
+  // Get the form element
+  const form = document.getElementById('profileForm');
+  if (form) {
+    // Trigger form submission
+    handleProfileSubmit(form);
+  }
 }
 
 /**
@@ -537,6 +581,11 @@ function showSuccessScreen() {
   document.getElementById('onboarding').classList.add('hidden');
   document.getElementById('profile-form').classList.add('hidden');
   document.getElementById('success-screen').classList.remove('hidden');
+  
+  // Hide MainButton on success screen
+  if (tg && tg.MainButton) {
+    tg.MainButton.hide();
+  }
   
   // Set version text on all pages
   updateVersionText();
