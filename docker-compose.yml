@@ -1,359 +1,187 @@
-# Production Docker Compose configuration with HTTPS support
+# Microservices Docker Compose configuration
 #
-# This configuration includes Traefik as a reverse proxy with automatic
-# Let's Encrypt SSL certificate generation.
-#
-# Requirements for HTTPS:
-# - Set DOMAIN to your public domain name
-# - Set ACME_EMAIL to receive certificate expiration notifications
-# - Set WEBAPP_URL to https://your-domain.com
-# - Ensure DNS points to your server IP
-# - Ensure ports 80 and 443 are open in firewall
-#
-# For local development without HTTPS, use docker-compose.dev.yml instead:
-#   docker compose -f docker-compose.dev.yml up
+# This configuration deploys the dating application as microservices.
+# Each service can be scaled and deployed independently.
+
+version: '3.8'
 
 services:
-  traefik:
-    image: traefik:v2.11
-    command:
-      - "--providers.docker=true"
-      - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.web.address=:80"
-      - "--entrypoints.websecure.address=:443"
-      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
-      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-admin@example.com}"
-      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
-      - "--certificatesresolvers.letsencrypt.acme.caserver=${ACME_CA_SERVER:-https://acme-v02.api.letsencrypt.org/directory}"
-      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
-      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
-      - "--metrics.prometheus=true"
-      - "--metrics.prometheus.entrypoint=web"
-    ports:
-      - "${HTTP_PORT:-80}:80"
-      - "${HTTPS_PORT:-443}:443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - traefik_certs:/letsencrypt
-    healthcheck:
-      test: ["CMD", "traefik", "healthcheck", "--ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-        reservations:
-          memory: 128M
-    restart: unless-stopped
-
+  # Database (shared in Phase 2, will be split in Phase 3)
   db:
     image: postgres:15-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-dating}
       POSTGRES_USER: ${POSTGRES_USER:-dating}
-      # IMPORTANT: Use only alphanumeric characters (A-Z, a-z, 0-9) for POSTGRES_PASSWORD
-      # Special characters in passwords require URL encoding in connection strings and may cause authentication issues
-      # If you change the password after initial deployment, you must reset the database volume:
-      #   docker compose down -v && docker compose up
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dating}
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dating} -d ${POSTGRES_DB:-dating}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dating}"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 256M
     restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
 
-  bot:
+  # Auth Service - JWT and session management
+  auth-service:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: services/auth/Dockerfile
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      AUTH_SERVICE_HOST: 0.0.0.0
+      AUTH_SERVICE_PORT: 8081
+      BOT_TOKEN: ${BOT_TOKEN}
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Profile Service - User profiles and settings
+  profile-service:
+    build:
+      context: .
+      dockerfile: services/profile/Dockerfile
     depends_on:
       db:
         condition: service_healthy
     environment:
-      BOT_TOKEN: ${BOT_TOKEN}
-      # Database URL is constructed from individual POSTGRES_* variables
-      # This works correctly only if POSTGRES_PASSWORD contains URL-safe characters
-      BOT_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
-      WEBAPP_URL: ${WEBAPP_URL:-https://localhost}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
+      PROFILE_SERVICE_HOST: 0.0.0.0
+      PROFILE_SERVICE_PORT: 8082
+    ports:
+      - "8082:8082"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Discovery Service - Matching and recommendations
+  discovery-service:
+    build:
+      context: .
+      dockerfile: services/discovery/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
+      DISCOVERY_SERVICE_HOST: 0.0.0.0
+      DISCOVERY_SERVICE_PORT: 8083
+    ports:
+      - "8083:8083"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Media Service - Photo upload and processing
+  media-service:
+    build:
+      context: .
+      dockerfile: services/media/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
+      MEDIA_SERVICE_HOST: 0.0.0.0
+      MEDIA_SERVICE_PORT: 8084
       PHOTO_STORAGE_PATH: /app/photos
-      PHOTO_CDN_URL: ${PHOTO_CDN_URL:-}  # Optional CDN URL
-      NSFW_THRESHOLD: ${NSFW_THRESHOLD:-0.7}  # NSFW detection threshold
-      API_HOST: 0.0.0.0
-      API_PORT: 8080
+      NSFW_THRESHOLD: ${NSFW_THRESHOLD:-0.7}
+    ports:
+      - "8084:8084"
     volumes:
-      - photo_storage:/app/photos
+      - media_storage:/app/photos
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Chat Service - Real-time messaging (WebSocket)
+  chat-service:
+    build:
+      context: .
+      dockerfile: services/chat/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
+      CHAT_SERVICE_HOST: 0.0.0.0
+      CHAT_SERVICE_PORT: 8085
+    ports:
+      - "8085:8085"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8085/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # API Gateway - Routes requests to microservices
+  api-gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    depends_on:
+      - auth-service
+      - profile-service
+      - discovery-service
+      - media-service
+      - chat-service
+    environment:
+      GATEWAY_HOST: 0.0.0.0
+      GATEWAY_PORT: 8080
+      AUTH_SERVICE_URL: http://auth-service:8081
+      PROFILE_SERVICE_URL: http://profile-service:8082
+      DISCOVERY_SERVICE_URL: http://discovery-service:8083
+      MEDIA_SERVICE_URL: http://media-service:8084
+      CHAT_SERVICE_URL: http://chat-service:8085
     ports:
       - "8080:8080"
     healthcheck:
-      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 256M
     restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
 
+  # Telegram Bot Adapter - Integrates with Telegram
+  telegram-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - api-gateway
+    environment:
+      BOT_TOKEN: ${BOT_TOKEN}
+      API_GATEWAY_URL: http://api-gateway:8080
+      WEBAPP_URL: ${WEBAPP_URL}
+    restart: unless-stopped
+
+  # WebApp (static files)
   webapp:
-    image: nginx:1.25-alpine
+    image: nginx:alpine
     volumes:
       - ./webapp:/usr/share/nginx/html:ro
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.webapp.rule=Host(`${DOMAIN:-localhost}`)"
-      - "traefik.http.routers.webapp.entrypoints=websecure"
-      - "traefik.http.routers.webapp.tls.certresolver=letsencrypt"
-      - "traefik.http.services.webapp.loadbalancer.server.port=80"
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-        reservations:
-          memory: 64M
-    restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # Monitoring stack - disabled by default, enable with profiles
-  # To enable monitoring: docker compose --profile monitoring up -d
-  
-  prometheus:
-    image: prom/prometheus:v2.48.0
-    profiles:
-      - monitoring
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
-      - '--storage.tsdb.retention.time=30d'
-      - '--web.enable-lifecycle'
-    volumes:
-      - ./monitoring/prometheus:/etc/prometheus
-      - prometheus_data:/prometheus
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
-      - "9090:9090"
+      - "80:80"
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 256M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  grafana:
-    image: grafana/grafana:10.2.2
-    profiles:
-      - monitoring
-    environment:
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
-      - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_SERVER_ROOT_URL=http://localhost:3000
-      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
-    volumes:
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
-      - grafana_data:/var/lib/grafana
-    ports:
-      - "3000:3000"
-    depends_on:
-      prometheus:
-        condition: service_started
-      loki:
-        condition: service_healthy
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 256M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  loki:
-    image: grafana/loki:2.9.3
-    profiles:
-      - monitoring
-    command: -config.file=/etc/loki/loki-config.yml
-    volumes:
-      - ./monitoring/loki:/etc/loki
-      - loki_data:/loki
-    ports:
-      - "3100:3100"
-    healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 256M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  promtail:
-    image: grafana/promtail:2.9.3
-    profiles:
-      - monitoring
-    command: -config.file=/etc/promtail/promtail-config.yml
-    volumes:
-      - ./monitoring/promtail:/etc/promtail
-      - /var/log:/var/log:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    depends_on:
-      loki:
-        condition: service_healthy
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-        reservations:
-          memory: 128M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.47.2
-    profiles:
-      - monitoring
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-      - /dev/disk/:/dev/disk:ro
-    ports:
-      - "8081:8080"
-    privileged: true
-    devices:
-      - /dev/kmsg
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-        reservations:
-          memory: 128M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  node-exporter:
-    image: prom/node-exporter:v1.7.0
-    profiles:
-      - monitoring
-    command:
-      - '--path.rootfs=/host'
-      - '--path.procfs=/host/proc'
-      - '--path.sysfs=/host/sys'
-      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
-    volumes:
-      - /proc:/host/proc:ro
-      - /sys:/host/sys:ro
-      - /:/rootfs:ro
-    ports:
-      - "9100:9100"
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-        reservations:
-          memory: 64M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:v0.15.0
-    profiles:
-      - monitoring
-    environment:
-      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}?sslmode=disable"
-    ports:
-      - "9187:9187"
-    depends_on:
-      - db
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-        reservations:
-          memory: 64M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
 
 volumes:
   postgres_data:
-  traefik_certs:
-  prometheus_data:
-  grafana_data:
-  loki_data:
-  photo_storage:
+  media_storage:
