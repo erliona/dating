@@ -1,7 +1,7 @@
 """User service - core business logic for user management."""
 
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from ..models import User
 from ..interfaces import IUserRepository
@@ -49,8 +49,8 @@ class UserService:
             language_code=language_code,
             is_premium=is_premium,
             is_banned=False,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
         )
         
         return await self.user_repository.create_user(user)
@@ -94,7 +94,7 @@ class UserService:
             return False
         
         user.is_banned = True
-        user.updated_at = datetime.utcnow()
+        user.updated_at = datetime.now(timezone.utc)
         
         await self.user_repository.update_user(user)
         return True
@@ -106,7 +106,7 @@ class UserService:
             return False
         
         user.is_banned = False
-        user.updated_at = datetime.utcnow()
+        user.updated_at = datetime.now(timezone.utc)
         
         await self.user_repository.update_user(user)
         return True

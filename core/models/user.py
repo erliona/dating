@@ -1,7 +1,7 @@
 """Core user domain models - platform independent."""
 
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Optional, List
 
 from .enums import Gender, Orientation, Goal, Education
@@ -20,8 +20,8 @@ class User:
     language_code: Optional[str] = None
     is_premium: bool = False
     is_banned: bool = False
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 @dataclass
@@ -59,8 +59,8 @@ class UserProfile:
     # Metadata
     is_verified: bool = False
     is_visible: bool = True
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     
     @property
     def age(self) -> int:
@@ -96,5 +96,5 @@ class UserSettings:
     # Content preferences
     nsfw_filter: bool = True
     
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))

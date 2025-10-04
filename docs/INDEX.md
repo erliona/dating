@@ -7,6 +7,7 @@ This directory contains comprehensive documentation for the Dating App project.
 ### Getting Started
 - **[Getting Started Guide](GETTING_STARTED.md)** - Quick start for developers
 - **[Architecture Overview](ARCHITECTURE.md)** - System architecture and design
+- **[Architecture Migration Guide](ARCHITECTURE_MIGRATION_GUIDE.md)** - Migration to microservices
 - **[Project Status](../PROJECT_STATUS.md)** - Current features and roadmap
 
 ### Development

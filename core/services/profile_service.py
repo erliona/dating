@@ -1,7 +1,7 @@
 """Profile service - core business logic for user profiles."""
 
 from typing import Optional, List
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 
 from ..models import UserProfile, UserSettings, Gender, Orientation, Goal, Education
 from ..interfaces import IProfileRepository
@@ -83,8 +83,8 @@ class ProfileService:
             photos=kwargs.get('photos', []),
             is_verified=False,
             is_visible=True,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc)
         )
         
         return await self.profile_repository.create_profile(profile)
@@ -127,7 +127,7 @@ class ProfileService:
             if field in updates:
                 setattr(profile, field, updates[field])
         
-        profile.updated_at = datetime.utcnow()
+        profile.updated_at = datetime.now(timezone.utc)
         
         return await self.profile_repository.update_profile(profile)
     
@@ -147,7 +147,7 @@ class ProfileService:
         
         if photo_url not in profile.photos:
             profile.photos.append(photo_url)
-            profile.updated_at = datetime.utcnow()
+            profile.updated_at = datetime.now(timezone.utc)
             return await self.profile_repository.update_profile(profile)
         
         return profile
@@ -160,7 +160,7 @@ class ProfileService:
         
         if photo_url in profile.photos:
             profile.photos.remove(photo_url)
-            profile.updated_at = datetime.utcnow()
+            profile.updated_at = datetime.now(timezone.utc)
             return await self.profile_repository.update_profile(profile)
         
         return profile
@@ -172,7 +172,7 @@ class ProfileService:
             return None
         
         profile.is_visible = is_visible
-        profile.updated_at = datetime.utcnow()
+        profile.updated_at = datetime.now(timezone.utc)
         
         return await self.profile_repository.update_profile(profile)
     
