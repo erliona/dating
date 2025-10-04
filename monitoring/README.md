@@ -25,9 +25,14 @@ Comprehensive monitoring setup using Grafana, Prometheus, Loki, and Promtail for
 # Start main application with monitoring stack (recommended)
 docker compose --profile monitoring up -d
 
+# Wait for Loki to become ready (takes ~30 seconds for ingester to initialize)
+docker compose ps loki  # Check status shows "healthy"
+
 # Or for development with monitoring
 docker compose -f docker-compose.dev.yml --profile monitoring up -d
 ```
+
+**Note**: Loki has a healthcheck that waits for the ingester to be ready (~30 seconds). Promtail and Grafana will wait for Loki to be healthy before starting, ensuring logs flow correctly from the start.
 
 ### Access Dashboards
 
@@ -343,6 +348,15 @@ Edit `loki/loki-config.yml` to:
 - Adjust storage settings
 - Configure limits
 
+**Key Configuration Sections**:
+- `ingester`: Controls log ingestion and storage
+  - `lifecycler`: Manages ingester lifecycle in the ring
+  - `wal.enabled: true`: Enables Write-Ahead Log for durability
+  - `chunk_idle_period`: Time before idle chunks are flushed (default: 5m)
+- `schema_config`: Defines storage schema (boltdb-shipper + filesystem)
+- `limits_config`: Rate limiting and rejection policies
+- `table_manager`: Data retention settings
+
 ### Grafana
 
 - **Datasources**: `grafana/provisioning/datasources/`
@@ -494,11 +508,33 @@ docker compose --profile monitoring up -d
    - Check Loki logs: `docker compose logs loki | tail -20`
    - Verify URL is correct: `http://loki:3100`
 
-5. **Test Loki directly**
+5. **Loki Ingester Not Ready**
+   
+   If Loki's `/ready` endpoint returns "Ingester not ready: waiting for 15s after being ready", this is normal behavior during startup. The ingester has a 15-30 second initialization period.
+   
+   ```bash
+   # Check Loki readiness
+   curl http://localhost:3100/ready
+   ```
+   
+   If it stays "not ready" for more than 1 minute:
+   - Check Loki logs for errors: `docker compose logs loki | tail -50`
+   - Verify Loki has proper healthcheck configured in `docker-compose.yml`
+   - Ensure `/loki` volume has write permissions
+   - Check WAL (Write-Ahead Log) directory: `docker compose exec loki ls -la /loki/wal`
+   
+   The ingester configuration in `loki-config.yml` includes:
+   - `lifecycler`: Manages ingester lifecycle
+   - `wal.enabled: true`: Ensures data durability
+   - `chunk_idle_period`: Controls when data is flushed
+   
+   Wait for the healthcheck to pass before querying logs.
+
+6. **Test Loki directly**
    
    Query Loki API to verify it's receiving logs:
    ```bash
-   # Check if Loki is ready
+   # Check if Loki is ready (should return "ready" after ~30 seconds)
    curl http://localhost:3100/ready
    
    # Query for logs
@@ -512,7 +548,7 @@ docker compose --profile monitoring up -d
    - `/ready` returns "ready"
    - Query returns `"status": "success"` and some log entries
 
-6. **Check Loki storage**
+7. **Check Loki storage**
    
    Verify Loki has write permissions and is storing logs:
    ```bash
@@ -525,7 +561,7 @@ docker compose --profile monitoring up -d
    
    If you see "POST /loki/api/v1/push" messages, Promtail is successfully sending logs to Loki.
 
-7. **Use correct LogQL queries**
+8. **Use correct LogQL queries**
    
    In Grafana Explore, try these queries:
    ```logql
