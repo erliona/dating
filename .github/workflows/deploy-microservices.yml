@@ -139,6 +139,17 @@ jobs:
           # Deploy directory on server
           DEPLOY_DIR="/opt/dating-microservices"
 
+          # Create tarball of repository (excluding .git and build artifacts)
+          echo "📦 Creating deployment archive..."
+          tar czf /tmp/deploy.tar.gz \
+            --exclude='.git' \
+            --exclude='__pycache__' \
+            --exclude='*.pyc' \
+            --exclude='.pytest_cache' \
+            --exclude='node_modules' \
+            --exclude='.env' \
+            -C "$GITHUB_WORKSPACE" .
+
           # Create deployment script
           cat > /tmp/deploy.sh << 'EOFSCRIPT'
           #!/bin/bash
@@ -149,15 +160,10 @@ jobs:
           echo "📦 Setting up deployment directory..."
           sudo mkdir -p "$DEPLOY_DIR"
           sudo chown -R $(whoami):$(whoami) "$DEPLOY_DIR"
+          
+          echo "📥 Extracting application files..."
           cd "$DEPLOY_DIR"
-
-          echo "📥 Pulling latest code..."
-          if [ -d ".git" ]; then
-            git fetch origin
-            git reset --hard origin/main
-          else
-            git clone https://github.com/$GITHUB_REPOSITORY .
-          fi
+          tar xzf /tmp/deploy.tar.gz
 
           echo "🔧 Configuring environment..."
           cat > .env << EOF
@@ -224,12 +230,14 @@ jobs:
 
           chmod +x /tmp/deploy.sh
 
-          # Copy and execute deployment script on server
+          # Copy deployment archive and script to server
+          echo "📤 Copying files to server..."
+          scp -i ~/.ssh/id_deploy /tmp/deploy.tar.gz "${DEPLOY_USER}@${DEPLOY_HOST}:/tmp/deploy.tar.gz"
           scp -i ~/.ssh/id_deploy /tmp/deploy.sh "${DEPLOY_USER}@${DEPLOY_HOST}:/tmp/deploy.sh"
           
+          echo "🚀 Executing deployment on server..."
           ssh -i ~/.ssh/id_deploy "${DEPLOY_USER}@${DEPLOY_HOST}" \
-            "GITHUB_REPOSITORY=$GITHUB_REPOSITORY \
-             BOT_TOKEN='$BOT_TOKEN' \
+            "BOT_TOKEN='$BOT_TOKEN' \
              JWT_SECRET='$JWT_SECRET' \
              DOMAIN='$DOMAIN' \
              ACME_EMAIL='$ACME_EMAIL' \
