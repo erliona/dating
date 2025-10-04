@@ -10,12 +10,11 @@ from aiogram import Dispatcher
 from aiogram.types import Message, User, WebAppData, WebAppInfo
 
 from bot.main import (
-    JsonFormatter,
-    configure_logging,
     handle_create_profile,
     handle_webapp_data,
     start_handler,
 )
+from core.utils.logging import JsonFormatter, configure_logging
 
 
 class TestJsonFormatter:

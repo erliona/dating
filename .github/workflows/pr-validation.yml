@@ -1,0 +1,120 @@
+name: PR Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: dating_test
+          POSTGRES_USER: dating
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+          pip install flake8 black isort
+
+      - name: Check code formatting
+        run: |
+          echo "## Code Quality Checks" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if black --check --diff . 2>&1 | tee /tmp/black.log; then
+            echo "✅ Code formatting (black): Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Code formatting (black): Issues found" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            tail -20 /tmp/black.log >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Check imports
+        run: |
+          if isort --check-only --diff . 2>&1 | tee /tmp/isort.log; then
+            echo "✅ Import sorting (isort): Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Import sorting (isort): Issues found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Lint code
+        run: |
+          # Critical errors only
+          if flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics 2>&1 | tee /tmp/flake8.log; then
+            echo "✅ Linting (flake8): No critical errors" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Linting (flake8): Critical errors found" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+            cat /tmp/flake8.log >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Run tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://dating:test_password@localhost:5432/dating_test
+          BOT_TOKEN: test:token
+          JWT_SECRET: test-secret-key-for-testing-32chars
+        run: |
+          python -m pytest tests/ -v --tb=short --cov=. --cov-report=term
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All tests passed" >> $GITHUB_STEP_SUMMARY
+
+      - name: Validate Docker configuration
+        run: |
+          docker compose config > /dev/null
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Docker Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "✅ docker-compose.yml is valid" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check for security vulnerabilities
+        run: |
+          pip install pip-audit
+          if pip-audit 2>&1 | tee /tmp/audit.log; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "## Security Check" >> $GITHUB_STEP_SUMMARY
+            echo "✅ No known vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "## Security Check" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ Vulnerabilities detected (review logs)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: PR Validation Summary
+        if: always()
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**PR validation completed**" >> $GITHUB_STEP_SUMMARY
+          echo "Review the checks above before merging." >> $GITHUB_STEP_SUMMARY
