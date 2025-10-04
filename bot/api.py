@@ -28,6 +28,7 @@ from .media import (
     validate_photo_size,
 )
 from .repository import ProfileRepository
+from .security import RateLimiter
 from .validation import calculate_age
 
 logger = logging.getLogger(__name__)
@@ -40,6 +41,11 @@ WEBP_QUALITY = 80  # WebP compression quality (0-100)
 
 class AuthenticationError(Exception):
     """Raised when authentication fails."""
+    pass
+
+
+class RateLimitError(Exception):
+    """Raised when rate limit is exceeded."""
     pass
 
 
@@ -285,30 +291,92 @@ def calculate_nsfw_score(image_bytes: bytes, classifier=None) -> float:
         return 1.0
 
 
-async def authenticate_request(request: web.Request, jwt_secret: str) -> int:
+async def authenticate_request(request: web.Request, jwt_secret: str, check_rate_limit: bool = True) -> int:
     """Authenticate request and extract user ID.
     
     Args:
         request: aiohttp request
         jwt_secret: JWT secret key
+        check_rate_limit: Whether to check rate limit (default: True)
         
     Returns:
         User ID
         
     Raises:
         AuthenticationError: If authentication fails
+        RateLimitError: If rate limit exceeded
     """
     auth_header = request.headers.get("Authorization")
     if not auth_header:
+        logger.warning(
+            "Authentication failed: Missing Authorization header",
+            extra={
+                "event_type": "auth_failed",
+                "reason": "missing_header",
+                "ip": request.remote,
+                "path": request.path
+            }
+        )
         raise AuthenticationError("Missing Authorization header")
     
+    # Ensure proper Bearer token format
     if not auth_header.startswith("Bearer "):
+        logger.warning(
+            "Authentication failed: Invalid Authorization header format",
+            extra={
+                "event_type": "auth_failed",
+                "reason": "invalid_format",
+                "ip": request.remote,
+                "path": request.path
+            }
+        )
         raise AuthenticationError("Invalid Authorization header format")
     
-    token = auth_header[7:]  # Remove "Bearer " prefix
-    payload = verify_jwt_token(token, jwt_secret)
+    # Validate token is not empty after "Bearer "
+    token = auth_header[7:].strip()  # Remove "Bearer " prefix and strip whitespace
+    if not token:
+        logger.warning(
+            "Authentication failed: Empty token",
+            extra={
+                "event_type": "auth_failed",
+                "reason": "empty_token",
+                "ip": request.remote,
+                "path": request.path
+            }
+        )
+        raise AuthenticationError("Empty token in Authorization header")
     
-    return payload["user_id"]
+    try:
+        payload = verify_jwt_token(token, jwt_secret)
+        user_id = payload["user_id"]
+    except AuthenticationError as e:
+        logger.warning(
+            f"Authentication failed: {e}",
+            extra={
+                "event_type": "auth_failed",
+                "reason": "invalid_token",
+                "ip": request.remote,
+                "path": request.path
+            }
+        )
+        raise
+    
+    # Check rate limit if enabled
+    if check_rate_limit:
+        rate_limiter = request.app.get("rate_limiter")
+        if rate_limiter and not rate_limiter.is_allowed(user_id):
+            logger.warning(
+                f"Rate limit exceeded for user {user_id}",
+                extra={
+                    "event_type": "rate_limit_exceeded",
+                    "user_id": user_id,
+                    "ip": request.remote,
+                    "path": request.path
+                }
+            )
+            raise RateLimitError(f"Rate limit exceeded for user {user_id}")
+    
+    return user_id
 
 
 async def upload_photo_handler(request: web.Request) -> web.Response:
@@ -487,11 +555,31 @@ async def upload_photo_handler(request: web.Request) -> web.Response:
     
     except AuthenticationError as e:
         return error_response("invalid_init_data", str(e), 401)
+    except RateLimitError as e:
+        return error_response("rate_limit_exceeded", "Too many requests. Please try again later.", 429)
     except PhotoValidationError as e:
         return error_response("validation_error", str(e))
     except Exception as e:
         logger.error(f"Photo upload failed: {e}", exc_info=True)
         return error_response("internal_error", "Internal server error", 500)
+
+
+def add_rate_limit_handler(handler_func):
+    """Decorator to add rate limit error handling to API handlers.
+    
+    This decorator wraps handlers to catch RateLimitError and return
+    a standardized 429 response.
+    """
+    async def wrapper(request: web.Request) -> web.Response:
+        try:
+            return await handler_func(request)
+        except RateLimitError as e:
+            logger.warning(
+                f"Rate limit exceeded: {e}",
+                extra={"event_type": "rate_limit_error", "endpoint": request.path}
+            )
+            return error_response("rate_limit_exceeded", "Too many requests. Please try again later.", 429)
+    return wrapper
 
 
 async def generate_token_handler(request: web.Request) -> web.Response:
@@ -1273,6 +1361,18 @@ def create_app(config: BotConfig, session_maker: async_sessionmaker) -> web.Appl
     # Store config and session maker
     app["config"] = config
     app["session_maker"] = session_maker
+    
+    # Initialize rate limiter
+    rate_limiter = RateLimiter(max_requests=20, window_seconds=60)
+    app["rate_limiter"] = rate_limiter
+    logger.info(
+        "Rate limiter initialized",
+        extra={
+            "event_type": "rate_limiter_init",
+            "max_requests": 20,
+            "window_seconds": 60
+        }
+    )
     
     # Initialize NSFW classifier (if available)
     try:

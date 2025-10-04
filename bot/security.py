@@ -349,3 +349,111 @@ def refresh_session(
     )
     
     return validated_data, jwt_token
+
+
+class RateLimiter:
+    """Simple in-memory rate limiter with TTL-based cleanup.
+    
+    Tracks request counts per user within a time window.
+    For production, replace with Redis-based implementation.
+    """
+    
+    def __init__(self, max_requests: int = 20, window_seconds: int = 60):
+        """Initialize rate limiter.
+        
+        Args:
+            max_requests: Maximum requests allowed per window
+            window_seconds: Time window in seconds
+        """
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        # Storage: {user_id: [(timestamp, count), ...]}
+        self._storage: dict[int, list[tuple[float, int]]] = {}
+        self._last_cleanup = time.time()
+    
+    def _cleanup_expired(self) -> None:
+        """Remove expired entries to prevent memory leaks."""
+        now = time.time()
+        # Only cleanup every 60 seconds
+        if now - self._last_cleanup < 60:
+            return
+        
+        cutoff_time = now - self.window_seconds
+        for user_id in list(self._storage.keys()):
+            # Remove expired entries for this user
+            self._storage[user_id] = [
+                (ts, count) for ts, count in self._storage[user_id]
+                if ts > cutoff_time
+            ]
+            # Remove user entry if empty
+            if not self._storage[user_id]:
+                del self._storage[user_id]
+        
+        self._last_cleanup = now
+        logger.debug(f"Rate limiter cleanup completed, active users: {len(self._storage)}")
+    
+    def is_allowed(self, user_id: int) -> bool:
+        """Check if request is allowed for user.
+        
+        Args:
+            user_id: User identifier
+            
+        Returns:
+            True if request is allowed, False if rate limit exceeded
+        """
+        self._cleanup_expired()
+        
+        now = time.time()
+        cutoff_time = now - self.window_seconds
+        
+        # Get user's request history
+        if user_id not in self._storage:
+            self._storage[user_id] = []
+        
+        # Filter to only include requests within window
+        valid_requests = [
+            (ts, count) for ts, count in self._storage[user_id]
+            if ts > cutoff_time
+        ]
+        
+        # Count total requests in window
+        total_requests = sum(count for _, count in valid_requests)
+        
+        if total_requests >= self.max_requests:
+            logger.warning(
+                f"Rate limit exceeded for user {user_id}",
+                extra={
+                    "event_type": "rate_limit_exceeded",
+                    "user_id": user_id,
+                    "requests": total_requests,
+                    "limit": self.max_requests
+                }
+            )
+            return False
+        
+        # Add this request
+        self._storage[user_id] = valid_requests + [(now, 1)]
+        return True
+    
+    def get_remaining_requests(self, user_id: int) -> int:
+        """Get remaining requests for user in current window.
+        
+        Args:
+            user_id: User identifier
+            
+        Returns:
+            Number of remaining requests
+        """
+        now = time.time()
+        cutoff_time = now - self.window_seconds
+        
+        if user_id not in self._storage:
+            return self.max_requests
+        
+        valid_requests = [
+            (ts, count) for ts, count in self._storage[user_id]
+            if ts > cutoff_time
+        ]
+        
+        total_requests = sum(count for _, count in valid_requests)
+        return max(0, self.max_requests - total_requests)
