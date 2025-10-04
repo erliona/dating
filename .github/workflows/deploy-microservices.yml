@@ -186,6 +186,9 @@ jobs:
             sudo usermod -aG docker $(whoami)
           fi
 
+          echo "🛑 Stopping existing services..."
+          docker compose down || true
+
           echo "🏗️  Building microservices..."
           docker compose build
 
@@ -196,7 +199,7 @@ jobs:
           sleep 15
 
           echo "✅ Verifying deployment..."
-          SERVICES="auth-service profile-service discovery-service media-service chat-service api-gateway"
+          SERVICES="auth-service profile-service discovery-service media-service chat-service api-gateway telegram-bot"
           for service in $SERVICES; do
             if docker compose ps $service | grep -q "Up"; then
               echo "  ✓ $service is running"
