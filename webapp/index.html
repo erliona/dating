@@ -131,6 +131,64 @@
                 </div>
                 
                 <div class="form-group">
+                    <label>Рост (см)</label>
+                    <input type="number" name="height_cm" min="100" max="250" placeholder="170">
+                </div>
+                
+                <div class="form-group">
+                    <label>Образование</label>
+                    <select name="education">
+                        <option value="">Не указано</option>
+                        <option value="high_school">Среднее</option>
+                        <option value="bachelor">Бакалавриат</option>
+                        <option value="master">Магистратура</option>
+                        <option value="phd">PhD</option>
+                        <option value="other">Другое</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Есть дети</label>
+                    <select name="has_children">
+                        <option value="">Не указано</option>
+                        <option value="true">Да</option>
+                        <option value="false">Нет</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Хочу детей</label>
+                    <select name="wants_children">
+                        <option value="">Не указано</option>
+                        <option value="true">Да</option>
+                        <option value="false">Нет</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Курение</label>
+                    <select name="smoking">
+                        <option value="">Не указано</option>
+                        <option value="true">Да</option>
+                        <option value="false">Нет</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Алкоголь</label>
+                    <select name="drinking">
+                        <option value="">Не указано</option>
+                        <option value="true">Да</option>
+                        <option value="false">Нет</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Интересы (через запятую)</label>
+                    <input type="text" name="interests" maxlength="200" placeholder="музыка, путешествия, спорт">
+                </div>
+                
+                <div class="form-group">
                     <label>Местоположение *</label>
                     <button type="button" class="button button-secondary" id="detectLocationBtn" onclick="detectUserLocation()">
                         📍 Определить автоматически
@@ -368,6 +426,61 @@
                 <div class="info-item">
                     <label>Город</label>
                     <input type="text" id="editCity" class="edit-input" placeholder="Москва">
+                </div>
+            </div>
+            
+            <div class="profile-info-section">
+                <h3>Дополнительная информация</h3>
+                <div class="info-item">
+                    <label>Рост (см)</label>
+                    <input type="number" id="editHeight" class="edit-input" min="100" max="250" placeholder="170">
+                </div>
+                <div class="info-item">
+                    <label>Образование</label>
+                    <select id="editEducation" class="edit-input">
+                        <option value="">Не указано</option>
+                        <option value="high_school">Среднее</option>
+                        <option value="bachelor">Бакалавриат</option>
+                        <option value="master">Магистратура</option>
+                        <option value="phd">PhD</option>
+                        <option value="other">Другое</option>
+                    </select>
+                </div>
+                <div class="info-item">
+                    <label>Есть дети</label>
+                    <select id="editHasChildren" class="edit-input">
+                        <option value="">Не указано</option>
+                        <option value="true">Да</option>
+                        <option value="false">Нет</option>
+                    </select>
+                </div>
+                <div class="info-item">
+                    <label>Хочу детей</label>
+                    <select id="editWantsChildren" class="edit-input">
+                        <option value="">Не указано</option>
+                        <option value="true">Да</option>
+                        <option value="false">Нет</option>
+                    </select>
+                </div>
+                <div class="info-item">
+                    <label>Курение</label>
+                    <select id="editSmoking" class="edit-input">
+                        <option value="">Не указано</option>
+                        <option value="true">Да</option>
+                        <option value="false">Нет</option>
+                    </select>
+                </div>
+                <div class="info-item">
+                    <label>Алкоголь</label>
+                    <select id="editDrinking" class="edit-input">
+                        <option value="">Не указано</option>
+                        <option value="true">Да</option>
+                        <option value="false">Нет</option>
+                    </select>
+                </div>
+                <div class="info-item">
+                    <label>Интересы (через запятую)</label>
+                    <input type="text" id="editInterests" class="edit-input" placeholder="музыка, путешествия, спорт">
                 </div>
             </div>
             

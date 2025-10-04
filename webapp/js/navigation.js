@@ -173,10 +173,46 @@ async function loadProfileForEdit() {
                     const data = await retryResponse.json();
                     const profile = data.profile;
                     
-                    // Populate form fields
+                    // Populate basic form fields
                     document.getElementById('editName').value = profile.name || '';
                     document.getElementById('editBio').value = profile.bio || '';
                     document.getElementById('editCity').value = profile.city || '';
+                    
+                    // Populate optional fields
+                    document.getElementById('editHeight').value = profile.height_cm || '';
+                    document.getElementById('editEducation').value = profile.education || '';
+                    
+                    // Handle boolean fields
+                    if (profile.has_children !== null && profile.has_children !== undefined) {
+                        document.getElementById('editHasChildren').value = String(profile.has_children);
+                    } else {
+                        document.getElementById('editHasChildren').value = '';
+                    }
+                    
+                    if (profile.wants_children !== null && profile.wants_children !== undefined) {
+                        document.getElementById('editWantsChildren').value = String(profile.wants_children);
+                    } else {
+                        document.getElementById('editWantsChildren').value = '';
+                    }
+                    
+                    if (profile.smoking !== null && profile.smoking !== undefined) {
+                        document.getElementById('editSmoking').value = String(profile.smoking);
+                    } else {
+                        document.getElementById('editSmoking').value = '';
+                    }
+                    
+                    if (profile.drinking !== null && profile.drinking !== undefined) {
+                        document.getElementById('editDrinking').value = String(profile.drinking);
+                    } else {
+                        document.getElementById('editDrinking').value = '';
+                    }
+                    
+                    // Handle interests array
+                    if (profile.interests && Array.isArray(profile.interests)) {
+                        document.getElementById('editInterests').value = profile.interests.join(', ');
+                    } else {
+                        document.getElementById('editInterests').value = '';
+                    }
                     
                     // Load photos if available
                     if (profile.photos && profile.photos.length > 0) {
@@ -205,10 +241,46 @@ async function loadProfileForEdit() {
         const data = await response.json();
         const profile = data.profile;
         
-        // Populate form fields
+        // Populate basic form fields
         document.getElementById('editName').value = profile.name || '';
         document.getElementById('editBio').value = profile.bio || '';
         document.getElementById('editCity').value = profile.city || '';
+        
+        // Populate optional fields
+        document.getElementById('editHeight').value = profile.height_cm || '';
+        document.getElementById('editEducation').value = profile.education || '';
+        
+        // Handle boolean fields
+        if (profile.has_children !== null && profile.has_children !== undefined) {
+            document.getElementById('editHasChildren').value = String(profile.has_children);
+        } else {
+            document.getElementById('editHasChildren').value = '';
+        }
+        
+        if (profile.wants_children !== null && profile.wants_children !== undefined) {
+            document.getElementById('editWantsChildren').value = String(profile.wants_children);
+        } else {
+            document.getElementById('editWantsChildren').value = '';
+        }
+        
+        if (profile.smoking !== null && profile.smoking !== undefined) {
+            document.getElementById('editSmoking').value = String(profile.smoking);
+        } else {
+            document.getElementById('editSmoking').value = '';
+        }
+        
+        if (profile.drinking !== null && profile.drinking !== undefined) {
+            document.getElementById('editDrinking').value = String(profile.drinking);
+        } else {
+            document.getElementById('editDrinking').value = '';
+        }
+        
+        // Handle interests array
+        if (profile.interests && Array.isArray(profile.interests)) {
+            document.getElementById('editInterests').value = profile.interests.join(', ');
+        } else {
+            document.getElementById('editInterests').value = '';
+        }
         
         // Load photos if available
         if (profile.photos && profile.photos.length > 0) {
@@ -257,12 +329,64 @@ async function saveProfileChanges() {
             authToken = await getAuthToken();
         }
         
-        // Prepare update data
+        // Prepare update data with basic fields
         const updateData = {
             name: name.trim(),
             bio: bio ? bio.trim() : null,
             city: city ? city.trim() : null
         };
+        
+        // Add optional fields
+        const heightCm = document.getElementById('editHeight').value;
+        if (heightCm && heightCm.trim() !== '') {
+            updateData.height_cm = parseInt(heightCm);
+        } else {
+            updateData.height_cm = null;
+        }
+        
+        const education = document.getElementById('editEducation').value;
+        if (education && education.trim() !== '') {
+            updateData.education = education;
+        } else {
+            updateData.education = null;
+        }
+        
+        // Handle boolean fields
+        const hasChildren = document.getElementById('editHasChildren').value;
+        if (hasChildren && hasChildren.trim() !== '') {
+            updateData.has_children = hasChildren === 'true';
+        } else {
+            updateData.has_children = null;
+        }
+        
+        const wantsChildren = document.getElementById('editWantsChildren').value;
+        if (wantsChildren && wantsChildren.trim() !== '') {
+            updateData.wants_children = wantsChildren === 'true';
+        } else {
+            updateData.wants_children = null;
+        }
+        
+        const smoking = document.getElementById('editSmoking').value;
+        if (smoking && smoking.trim() !== '') {
+            updateData.smoking = smoking === 'true';
+        } else {
+            updateData.smoking = null;
+        }
+        
+        const drinking = document.getElementById('editDrinking').value;
+        if (drinking && drinking.trim() !== '') {
+            updateData.drinking = drinking === 'true';
+        } else {
+            updateData.drinking = null;
+        }
+        
+        // Handle interests array
+        const interests = document.getElementById('editInterests').value;
+        if (interests && interests.trim() !== '') {
+            updateData.interests = interests.split(',').map(i => i.trim()).filter(i => i);
+        } else {
+            updateData.interests = null;
+        }
         
         // Send to API
         const response = await fetch(`${API_BASE_URL}/api/profile`, {
