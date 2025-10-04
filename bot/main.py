@@ -1,8 +1,10 @@
 """Minimal bot entry point - infrastructure only."""
 
 import asyncio
+import json
 import logging
 import os
+from datetime import datetime
 
 from aiogram import Bot, Dispatcher, Router
 from aiogram.filters import Command
