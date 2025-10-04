@@ -1,282 +1,490 @@
-# Dating Mini App (WebApp)
+# 💕 Dating Mini App - Frontend
 
-Modern Telegram Mini Application for the Dating Bot, following industry best practices and standards.
+Telegram Mini Application для приложения знакомств. Современный, адаптивный интерфейс, следующий best practices индустрии dating apps.
 
-## 🎯 Overview
+## 🎯 Обзор
 
-This is a completely rebuilt mini-app designed with modern web standards and dating app industry best practices (inspired by Tinder, Bumble, etc.).
+Frontend часть приложения знакомств, работающая внутри Telegram как Mini App. Дизайн вдохновлен Tinder, Bumble и другими популярными dating приложениями.
 
-### Key Features
+### ✨ Реализованные функции
 
-- ✅ **Card-based swipe interface** - Industry standard for dating apps
-- ✅ **Profile creation & editing** - Simple, intuitive form
-- ✅ **Discover mode** - Swipe through potential matches
-- ✅ **Matches list** - View all your mutual likes
-- ✅ **Offline support** - Queue interactions when offline
-- ✅ **Haptic feedback** - Enhanced mobile experience
-- ✅ **Theme support** - Follows Telegram light/dark theme
-- ✅ **Responsive design** - Works on all screen sizes
+- ✅ **Onboarding** - экран приветствия с информацией о приложении
+- ✅ **Создание профиля** - полная форма с валидацией всех полей
+- ✅ **Загрузка фото** - до 3 фотографий с предпросмотром
+- ✅ **Discovery** - карточный интерфейс для просмотра профилей
+- ✅ **Лайки/Дизлайки** - свайп или кнопки для действий
+- ✅ **Matches** - список взаимных симпатий
+- ✅ **Favorites** - избранные профили
+- ✅ **Настройки профиля** - редактирование анкеты и настроек приватности
+- ✅ **Адаптация к теме** - автоматически следует light/dark теме Telegram
+- ✅ **Haptic feedback** - вибрация при действиях
+- ✅ **Офлайн поддержка** - очередь действий при отсутствии сети
 - ✅ **Accessibility** - ARIA labels, keyboard navigation
 
-## 🏗️ Architecture
+## 🏗️ Архитектура
 
-### Design Principles
+### Принципы дизайна
 
-1. **Separation of Concerns**: Clean separation between UI, business logic, and data layer
-2. **Mobile-First**: Optimized for mobile devices
-3. **Progressive Enhancement**: Works even without JavaScript (basic functionality)
-4. **Performance**: Minimal bundle size, no external dependencies
-5. **Accessibility**: WCAG 2.1 AA compliant
+1. **Mobile-First** - оптимизация под мобильные устройства
+2. **Separation of Concerns** - разделение UI, логики и данных
+3. **Performance** - минимальный размер, нет внешних зависимостей
+4. **Vanilla JS** - чистый JavaScript без фреймворков
+5. **Accessibility** - WCAG 2.1 AA compliant
 
-### File Structure
+### Структура файлов
 
 ```
 webapp/
-├── index.html          # Main HTML structure (clean, semantic)
+├── index.html              # Главный HTML файл с разметкой всех экранов
 ├── css/
-│   └── style.css      # Modern CSS with CSS variables for theming
+│   └── style.css          # Стили с CSS переменными для тем
 └── js/
-    └── app.js         # Modular JavaScript with clear separation
+    ├── app.js             # Главная логика приложения
+    ├── discovery.js       # Функции discovery экрана
+    └── navigation.js      # Навигация между экранами
 ```
 
-### Code Architecture
+### Организация кода
 
-**app.js** is organized into logical modules:
+**app.js** содержит модули:
 
-- **Telegram WebApp Integration**: Initialization, theme handling
-- **State Management**: Centralized app state
-- **API Service Layer**: All backend communication
-- **UI Controller**: Display logic separation
-- **Event Handlers**: User interaction handling
-- **Validation**: Client-side form validation
+- **Telegram WebApp Integration** - инициализация SDK, темы, haptic feedback
+- **State Management** - централизованное состояние приложения
+- **API Service** - все запросы к backend
+- **UI Controller** - отображение экранов и данных
+- **Event Handlers** - обработка действий пользователя
+- **Validation** - валидация форм на клиенте
+- **Deep Links** - обработка startapp параметров
 
-## 🎨 UI/UX Design
+**discovery.js** - специфичная логика для Discovery экрана:
 
-### Screens
+- Загрузка профилей
+- Свайп механика
+- Лайки/Дизлайки
+- Добавление в избранное
 
-1. **Loading**: Initial load state
-2. **Profile Form**: Create/edit user profile
-3. **Discover**: Card-based swipe interface
-4. **Matches**: List of mutual likes
-5. **Error**: Error state with retry option
+**navigation.js** - навигация:
 
-### Navigation
+- Переключение между экранами
+- История навигации
+- Кнопка "Назад" Telegram
 
-Bottom navigation bar with 3 tabs:
-- 👤 Profile
-- 🔍 Discover (default)
-- 💕 Matches
+## 🎨 UI/UX Дизайн
 
-### Interactions
+### Экраны приложения
 
-**Card Swiping**:
-- Swipe right → Like (with haptic feedback)
-- Swipe left → Dislike (with haptic feedback)
-- Tap ❤️ button → Like
-- Tap 👎 button → Dislike
+1. **Onboarding** - приветствие и знакомство с приложением
+2. **Profile Creation** - создание профиля с фото и информацией
+3. **Success** - подтверждение создания профиля
+4. **Discovery** - карточный интерфейс для просмотра профилей
+5. **Filters** - настройка фильтров поиска
+6. **Matches** - список взаимных симпатий
+7. **Favorites** - сохраненные профили
+8. **Profile Edit** - редактирование своего профиля
+9. **Settings** - настройки приватности и профиля
 
-## 📡 Data Flow
+### Навигация
 
-### Profile Creation
+**Bottom Navigation Bar** с 4 вкладками:
+- 🔍 **Discovery** - поиск партнеров (по умолчанию)
+- 💕 **Matches** - мои матчи
+- 🌟 **Favorites** - избранное
+- ⚙️ **Settings** - настройки
+
+**Telegram BackButton**:
+- Автоматически показывается на всех экранах кроме Discovery
+- Возвращает на предыдущий экран
+
+### Взаимодействия
+
+**Карточки профилей в Discovery**:
+- ❤️ **Лайк** - выразить симпатию (haptic feedback)
+- ✖️ **Дизлайк** - пропустить профиль (haptic feedback)
+- 🌟 **В избранное** - сохранить для просмотра позже
+- 👆 **Тап на фото** - пролистывание фотографий
+
+**Создание профиля**:
+- Поля автоматически валидируются при вводе
+- Кнопка "Создать профиль" активна только при валидных данных
+- Загрузка фото с предпросмотром и возможностью удаления
+
+**Редактирование**:
+- Все поля профиля можно изменить
+- Настройки приватности с toggle switches
+- Сохранение изменений с подтверждением
+
+## 📡 Поток данных
+
+### Создание профиля
 
 ```
-User fills form → Client validation → sendData to Bot → Bot processes → DB save
+Пользователь заполняет форму
+  ↓ Валидация на клиенте
+  ↓ tg.sendData() → отправка боту
+  ↓ Bot обрабатывает (main.py)
+  ↓ Валидация на сервере
+  ↓ Сохранение в БД (PostgreSQL)
+  ↓ Подтверждение пользователю
 ```
 
-### Interactions (Like/Dislike)
+### Discovery и взаимодействия
 
 ```
-User swipes → Queue locally → Include in next profile update → Bot processes → DB save
+Пользователь открывает Discovery
+  ↓ HTTP GET /api/discover (с JWT токеном)
+  ↓ Backend возвращает профили с фильтрацией
+  ↓ Отображение карточек
+  ↓ Пользователь делает действие (like/pass)
+  ↓ HTTP POST /api/like или /api/pass
+  ↓ Backend сохраняет interaction
+  ↓ Проверка взаимности → создание match
+  ↓ Возврат результата в Mini App
 ```
 
-**Why queue?** Telegram's `sendData()` closes the WebApp. Queuing allows users to swipe multiple profiles before the app closes.
+### Редактирование профиля
 
-### Data Persistence
+```
+Пользователь изменяет данные
+  ↓ Валидация на клиенте
+  ↓ HTTP PUT /api/profile (с JWT токеном)
+  ↓ Backend обновляет профиль в БД
+  ↓ Возврат обновленных данных
+```
 
-- **Profile data**: Sent to bot via `tg.sendData()`
-- **Interactions queue**: Stored in localStorage, sent with profile updates
-- **Theme preference**: Follows Telegram app theme automatically
+### Персистентность данных
 
-## 🔧 Integration with Backend
+- **JWT токен** - хранится в памяти (не в localStorage)
+- **Профиль** - загружается с сервера при запуске
+- **Тема** - автоматически от Telegram (light/dark)
+- **Состояние** - в памяти (не персистентное)
 
-### Payload Format
+## 🔧 Интеграция с Backend
 
-**Profile Creation**:
+### API Endpoints
+
+Все запросы к `http://localhost:8080` (или WEBAPP_URL)
+
+#### Аутентификация
+
+**POST /api/generate-token**
+- Параметры: `init_data` (из Telegram)
+- Возвращает: `{"token": "jwt_token_here"}`
+
+#### Профили
+
+**GET /api/check-profile**
+- Headers: `Authorization: Bearer <token>`
+- Возвращает: профиль или 404
+
+**POST /api/profile**
+- Headers: `Authorization: Bearer <token>`
+- Body: данные профиля (JSON)
+- Создает новый профиль
+
+**PUT /api/profile**
+- Headers: `Authorization: Bearer <token>`
+- Body: обновленные данные
+- Обновляет профиль
+
+#### Discovery
+
+**GET /api/discover**
+- Headers: `Authorization: Bearer <token>`
+- Query: `limit=10` (опционально)
+- Возвращает: массив профилей
+
+**POST /api/like**
+- Headers: `Authorization: Bearer <token>`
+- Body: `{"target_id": 123}`
+- Возвращает: `{"match": true/false}`
+
+**POST /api/pass**
+- Headers: `Authorization: Bearer <token>`
+- Body: `{"target_id": 123}`
+
+#### Матчи и Избранное
+
+**GET /api/matches**
+- Headers: `Authorization: Bearer <token>`
+- Возвращает: массив матчей
+
+**GET /api/favorites**
+- Headers: `Authorization: Bearer <token>`
+- Возвращает: массив избранных
+
+**POST /api/favorites**
+- Headers: `Authorization: Bearer <token>`
+- Body: `{"target_id": 123}`
+
+**DELETE /api/favorites/{target_id}**
+- Headers: `Authorization: Bearer <token>`
+- Удаляет из избранного
+
+### Формат данных
+
+**Profile Object**:
 ```json
 {
-  "action": "create_profile",
-  "name": "John",
-  "age": 25,
+  "user_id": 123456789,
+  "name": "Иван",
+  "birth_date": "1995-03-15",
   "gender": "male",
-  "preference": "female",
-  "bio": "Hello world",
-  "location": "Moscow",
-  "interests": ["Music", "Travel"],
-  "goal": "serious",
-  "photo_url": "https://example.com/photo.jpg",
-  "queued_interactions": [
-    {
-      "target_user_id": 123,
-      "action": "like",
-      "timestamp": 1234567890
-    }
+  "orientation": "heterosexual",
+  "looking_for": "female",
+  "goals": "Serious relationships",
+  "bio": "Люблю путешествия и музыку",
+  "city": "Москва",
+  "country": "Россия",
+  "latitude": 55.7558,
+  "longitude": 37.6173,
+  "hide_age": false,
+  "hide_distance": false,
+  "hide_online": false,
+  "photos": [
+    {"file_id": "AgACAgIAAxk...", "position": 0}
   ]
 }
 ```
 
-**Profile Deletion**:
+### Обработка ошибок
+
+Все API endpoints возвращают ошибки в формате:
 ```json
 {
-  "action": "delete"
+  "error": "error_code",
+  "message": "Human readable message"
 }
 ```
 
-### Bot Handler
+Коды ошибок:
+- `unauthorized` - нет или неверный токен
+- `validation_error` - невалидные данные
+- `not_found` - профиль не найден
+- `rate_limit` - превышен лимит запросов
+- `server_error` - внутренняя ошибка сервера
 
-The bot's `webapp_handler` function (in `bot/main.py`) processes these payloads:
-- Validates required fields
-- Sanitizes user input
-- Creates/updates profile in database
-- Processes queued interactions
-- Sends confirmation message to user
+## 🧪 Тестирование
 
-## 🧪 Testing
+### Backend интеграция
 
-### Backend Integration Tests
+Backend API протестирован в `tests/test_api.py`:
+- ✅ Аутентификация (JWT, HMAC validation)
+- ✅ Создание и обновление профиля
+- ✅ Discovery endpoint с фильтрацией
+- ✅ Лайки, дизлайки, матчинг
+- ✅ Избранное
+- ✅ Обработка ошибок
 
-All backend integration is tested in `tests/test_webapp_handler.py`:
-- ✅ Profile creation with valid data
-- ✅ Missing/invalid data handling
-- ✅ Profile deletion
-- ✅ Queued interactions processing
-- ✅ Error handling
-
-Run tests:
+Запуск тестов:
 ```bash
-pytest tests/test_webapp_handler.py -v
+pytest tests/test_api.py -v
 ```
 
-### Manual Testing Checklist
+### Manual Testing (в Telegram)
 
-- [ ] Profile form validation
-- [ ] Profile submission reaches bot
-- [ ] Data appears in database
-- [ ] Card swiping works smoothly
-- [ ] Haptic feedback on interactions
-- [ ] Theme switches with Telegram theme
-- [ ] Works on mobile devices
-- [ ] Works on desktop browsers
-- [ ] Offline queue functionality
-- [ ] Error states display correctly
+**Чеклист**:
 
-## 🚀 Deployment
+**Базовый функционал**:
+- [ ] Бот отвечает на `/start`
+- [ ] Mini App открывается из бота
+- [ ] Onboarding экран отображается
+- [ ] Все поля формы профиля работают
+- [ ] Валидация работает корректно
+- [ ] Фото загружаются и отображаются
+- [ ] Профиль сохраняется в БД
+- [ ] Подтверждение от бота приходит
 
-The webapp is served by nginx in the Docker stack. No build step required - it's pure HTML/CSS/JS.
+**Discovery**:
+- [ ] Профили загружаются
+- [ ] Карточки отображаются правильно
+- [ ] Лайк работает (кнопка и свайп)
+- [ ] Дизлайк работает
+- [ ] Добавление в избранное работает
+- [ ] Haptic feedback срабатывает
+- [ ] Пустое состояние отображается корректно
+
+**Matches и Favorites**:
+- [ ] Список матчей отображается
+- [ ] Список избранного отображается
+- [ ] Удаление из избранного работает
+
+**Settings**:
+- [ ] Редактирование профиля работает
+- [ ] Настройки приватности сохраняются
+- [ ] Изменения применяются
+
+**UX**:
+- [ ] Навигация между экранами плавная
+- [ ] BackButton Telegram работает
+- [ ] Тема переключается с Telegram
+- [ ] Работает на мобильных устройствах
+- [ ] Работает на десктопе
+
+## 🚀 Развертывание
+
+WebApp обслуживается nginx в Docker стеке. Сборка не требуется - чистые HTML/CSS/JS.
 
 ### Development
 
 ```bash
-# Start development environment
+# Запустить dev окружение
 docker compose -f docker-compose.dev.yml up -d
 
-# WebApp available at: http://localhost:8080
+# WebApp доступен на: http://localhost
+# API доступен на: http://localhost:8080
 ```
 
 ### Production
 
 ```bash
-# Start production environment
-docker compose up -d
+# Запустить production
+docker compose --profile monitoring up -d
 
-# WebApp available at: https://your-domain.com
+# WebApp: https://your-domain.com
+# API: https://your-domain.com:8080 (через Traefik)
 ```
 
-## 🎓 Best Practices Implemented
+### Обновление WebApp
 
-### Industry Standards
+```bash
+# Изменения в webapp/ автоматически подхватываются
+# Просто обновите файлы и перезагрузите страницу
 
-1. **Card-Based UI**: Standard for dating apps (Tinder, Bumble, Hinge)
-2. **Swipe Gestures**: Touch-optimized for mobile
-3. **Minimal Profile Form**: Only essential fields
-4. **Visual Hierarchy**: Clear, scannable content
-5. **Instant Feedback**: Haptic and visual feedback
+# Для production с кешированием:
+docker compose restart webapp
+```
+
+## 🎓 Best Practices
+
+### Dating App Industry Standards
+
+1. **Карточный интерфейс** - стандарт индустрии (Tinder, Bumble)
+2. **Свайп жесты** - интуитивно для мобильных
+3. **Минималистичная форма** - только важные поля
+4. **Визуальная иерархия** - фокус на фотографиях
+5. **Мгновенная обратная связь** - haptic + visual feedback
 
 ### Web Standards
 
-1. **Semantic HTML**: Proper HTML5 elements
-2. **CSS Variables**: Easy theming
-3. **No Build Tools**: Pure web technologies
-4. **Progressive Enhancement**: Works without JS
-5. **Accessibility**: ARIA labels, focus states
-6. **Mobile-First**: Responsive design
-7. **Performance**: Lazy loading, minimal JS
+1. **Semantic HTML5** - правильные элементы
+2. **CSS Variables** - легкая кастомизация тем
+3. **Vanilla JavaScript** - без зависимостей
+4. **Progressive Enhancement** - базовая работа без JS
+5. **WCAG 2.1 AA** - доступность
+6. **Mobile-First** - приоритет мобильных устройств
+7. **Performance** - оптимизация загрузки
 
-### Telegram Mini App Standards
+### Telegram Mini App
 
-1. **WebApp SDK Integration**: Proper initialization
-2. **Theme Compatibility**: Follows system theme
-3. **Safe Area Handling**: viewport-fit=cover
-4. **Haptic Feedback**: Native-like experience
-5. **Closing Confirmation**: Prevents accidental exits
+1. **WebApp SDK** - правильная инициализация
+2. **Theme Compatibility** - адаптация к теме
+3. **Safe Area** - viewport-fit=cover для iOS
+4. **Haptic Feedback** - нативные ощущения
+5. **BackButton** - навигация через Telegram
+6. **MainButton** - использование для CTA
 
-## 📝 Migration from Old WebApp
+## 🔮 Планируемые улучшения
 
-### What Changed
+### Приоритет 1: Коммуникации
+- ⏳ **WebSocket чат** - real-time сообщения между матчами
+- ⏳ **Typing indicators** - индикатор печати
+- ⏳ **Read receipts** - статус прочтения
+- ⏳ **Push уведомления** - через Telegram бота
 
-**Removed**:
-- ❌ Complex onboarding flow (4 steps)
-- ❌ Multiple navigation pages
-- ❌ Test profiles section
-- ❌ Settings page (simplified)
-- ❌ 2700+ lines of code
+### Приоритет 2: Расширенные функции
+- ⏳ **Фильтры** - возраст, расстояние, цели
+- ⏳ **Суперлайки** - особая симпатия (лимитированные)
+- ⏳ **Undo** - отмена последнего действия
+- ⏳ **Profile Preview** - предпросмотр своего профиля глазами других
+- ⏳ **Video profiles** - 15-секундное видео в профиле
 
-**Added**:
-- ✅ Card-based swipe interface
-- ✅ Cleaner, more maintainable code (< 600 lines)
-- ✅ Better mobile experience
-- ✅ Modern architecture
-- ✅ Improved performance
+### Приоритет 3: UX улучшения
+- ⏳ **Свайп анимации** - более плавные transitions
+- ⏳ **Loading states** - skeleton screens
+- ⏳ **Error boundaries** - graceful error handling
+- ⏳ **PWA support** - установка как standalone app
+- ⏳ **Offline mode** - полная работа без сети с синхронизацией
 
-**Kept**:
-- ✅ All essential functionality
-- ✅ Profile creation/editing
-- ✅ Backend integration
-- ✅ Offline queuing
-- ✅ Theme support
+### Приоритет 4: Performance
+- ⏳ **Image lazy loading** - загрузка по требованию
+- ⏳ **Virtual scrolling** - для больших списков
+- ⏳ **Service Worker** - кеширование статики
+- ⏳ **Code splitting** - разделение JS по экранам
 
-### Breaking Changes
+## 📊 Метрики производительности
 
-**None!** The payload format remains compatible with the existing bot handler.
+### Текущие показатели
 
-## 🔮 Future Enhancements
+- **Bundle size**: ~50KB (HTML + CSS + JS)
+- **First Paint**: < 500ms
+- **Time to Interactive**: < 1s
+- **Lighthouse Score**: 95+ (mobile)
 
-Potential improvements (not in scope of current implementation):
+### Цели
 
-1. **Photo Upload**: Direct photo upload (not just URLs)
-2. **Filters**: Age range, distance filters
-3. **Super Like**: Special interaction type
-4. **Undo**: Undo last swipe
-5. **Profile Preview**: Preview your own profile
-6. **Animations**: Enhanced card animations
-7. **PWA**: Install as standalone app
+- Bundle size: < 100KB (с новыми фичами)
+- First Paint: < 300ms
+- TTI: < 800ms
+- Lighthouse: 98+ (mobile и desktop)
 
-## 📚 References
+## 📚 Ресурсы и ссылки
 
-- [Telegram Mini Apps Documentation](https://core.telegram.org/bots/webapps)
+### Telegram
+- [Mini Apps Documentation](https://core.telegram.org/bots/webapps)
 - [WebApp SDK Reference](https://core.telegram.org/bots/webapps#initializing-mini-apps)
+- [WebApp Examples](https://github.com/telegram-mini-apps)
+
+### Dating App UX
+- [Tinder UX Teardown](https://uxdesign.cc/tinder-ux-design-teardown-part-1-of-2-user-onboarding-68a05aa3478c)
+- [Mobile Dating App Best Practices](https://www.toptal.com/designers/mobile/mobile-dating-app-design)
+- [Card UI Patterns](https://ui-patterns.com/patterns/cards)
+
+### Web Standards
 - [Mobile UX Best Practices](https://developers.google.com/web/fundamentals/design-and-ux/principles)
-- [Dating App UX Patterns](https://uxdesign.cc/tinder-ux-design-teardown-part-1-of-2-user-onboarding-68a05aa3478c)
+- [Progressive Web Apps](https://web.dev/progressive-web-apps/)
+- [WCAG 2.1 Guidelines](https://www.w3.org/WAI/WCAG21/quickref/)
 
-## 🤝 Contributing
+## 🤝 Контрибьюция
 
-When making changes to the webapp:
+### Как помочь с WebApp
 
-1. Keep code modular and well-commented
-2. Follow the existing architecture
-3. Test on mobile devices
-4. Maintain backward compatibility with bot handler
-5. Update this README with significant changes
+1. **Bug fixes**
+   - Тестируйте на разных устройствах
+   - Сообщайте о багах с описанием
+   - Присылайте PR с фиксом
 
-## 📄 License
+2. **Новые функции**
+   - Обсудите сначала в issue
+   - Следуйте архитектуре кода
+   - Добавьте комментарии
+   - Протестируйте на мобильных
 
-Part of the Dating Bot project. See main repository LICENSE.
+3. **Улучшение UX**
+   - Предлагайте улучшения интерфейса
+   - Делитесь feedback от пользователей
+   - Создавайте mockups/prototypes
+
+4. **Документация**
+   - Исправляйте опечатки
+   - Добавляйте примеры кода
+   - Улучшайте README
+
+### Guidelines
+
+- ✅ Следуйте существующему стилю кода
+- ✅ Комментируйте сложные участки
+- ✅ Тестируйте на iOS и Android
+- ✅ Проверяйте accessibility
+- ✅ Обновляйте README при изменениях
+
+## 📞 Поддержка
+
+- 📖 **Документация**: [../DOCUMENTATION.md](../DOCUMENTATION.md)
+- 🐛 **Баги**: [GitHub Issues](https://github.com/erliona/dating/issues)
+- 💬 **Вопросы**: [GitHub Discussions](https://github.com/erliona/dating/discussions)
+
+---
+
+**Часть проекта Dating Telegram Mini App**
+
+Лицензия: MIT | См. [LICENSE](../LICENSE)
