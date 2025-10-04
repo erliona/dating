@@ -119,47 +119,47 @@ All logs from the bot are structured JSON with the following fields:
 
 #### View all bot logs
 ```logql
-{container_name=~".*bot.*"}
+{container_name="dating-bot-1"}
 ```
 
 #### View only errors and critical logs
 ```logql
-{container_name=~".*bot.*"} | json | level =~ "ERROR|CRITICAL"
+{container_name="dating-bot-1"} | json | level =~ "ERROR|CRITICAL"
 ```
 
 #### View specific event types
 ```logql
-{container_name=~".*bot.*"} | json | event_type = "profile_created"
+{container_name="dating-bot-1"} | json | event_type = "profile_created"
 ```
 
 #### View logs for specific user
 ```logql
-{container_name=~".*bot.*"} | json | user_id = "12345"
+{container_name="dating-bot-1"} | json | user_id = "12345"
 ```
 
 #### View all photo-related events
 ```logql
-{container_name=~".*bot.*"} | json | event_type =~ "photo_.*"
+{container_name="dating-bot-1"} | json | event_type =~ "photo_.*"
 ```
 
 #### View NSFW rejection events
 ```logql
-{container_name=~".*bot.*"} | json | event_type = "photo_rejected_nsfw"
+{container_name="dating-bot-1"} | json | event_type = "photo_rejected_nsfw"
 ```
 
 #### View database operations
 ```logql
-{container_name=~".*bot.*"} | json | logger =~ ".*repository.*|.*db.*"
+{container_name="dating-bot-1"} | json | logger =~ ".*repository.*|.*db.*"
 ```
 
 #### View API requests and responses
 ```logql
-{container_name=~".*bot.*"} | json | event_type =~ ".*request.*|.*response.*"
+{container_name="dating-bot-1"} | json | event_type =~ ".*request.*|.*response.*"
 ```
 
 #### Count logs by level over time
 ```logql
-sum by (level) (count_over_time({container_name=~".*bot.*"} | json [1m]))
+sum by (level) (count_over_time({container_name="dating-bot-1"} | json [1m]))
 ```
 
 ## 🐛 Debugging Workflows
@@ -171,17 +171,17 @@ sum by (level) (count_over_time({container_name=~".*bot.*"} | json [1m]))
    - Go to **Explore** in Grafana
    - Query:
      ```logql
-     {container_name=~".*bot.*"} | json | user_id = "<USER_ID>"
+     {container_name="dating-bot-1"} | json | user_id = "<USER_ID>"
      ```
 
 2. **Check for errors specific to user**:
    ```logql
-   {container_name=~".*bot.*"} | json | user_id = "<USER_ID>" | level = "ERROR"
+   {container_name="dating-bot-1"} | json | user_id = "<USER_ID>" | level = "ERROR"
    ```
 
 3. **Track user's profile creation flow**:
    ```logql
-   {container_name=~".*bot.*"} | json | user_id = "<USER_ID>" | event_type =~ "profile_.*"
+   {container_name="dating-bot-1"} | json | user_id = "<USER_ID>" | event_type =~ "profile_.*"
    ```
 
 ### Investigating Performance Issues
@@ -197,34 +197,34 @@ sum by (level) (count_over_time({container_name=~".*bot.*"} | json [1m]))
 
 1. **Use Debug Dashboard "User Actions" panel** or query:
    ```logql
-   {container_name=~".*bot.*"} | json | event_type =~ "photo_.*"
+   {container_name="dating-bot-1"} | json | event_type =~ "photo_.*"
    ```
 
 2. **Check for NSFW rejections**:
    ```logql
-   {container_name=~".*bot.*"} | json | event_type = "photo_rejected_nsfw"
+   {container_name="dating-bot-1"} | json | event_type = "photo_rejected_nsfw"
    ```
 
 3. **Look for EXIF removal operations**:
    ```logql
-   {container_name=~".*bot.*"} | json | event_type = "exif_removal_success"
+   {container_name="dating-bot-1"} | json | event_type = "exif_removal_success"
    ```
 
 4. **Check for upload errors**:
    ```logql
-   {container_name=~".*bot.*"} | json | level = "ERROR" | message =~ ".*photo.*|.*upload.*"
+   {container_name="dating-bot-1"} | json | level = "ERROR" | message =~ ".*photo.*|.*upload.*"
    ```
 
 ### Tracking Match Algorithm Performance
 
 **View all match-related events**:
 ```logql
-{container_name=~".*bot.*"} | json | event_type =~ "match_.*"
+{container_name="dating-bot-1"} | json | event_type =~ "match_.*"
 ```
 
 **Count matches created per time window**:
 ```logql
-sum(count_over_time({container_name=~".*bot.*"} | json | event_type = "match_created" [5m]))
+sum(count_over_time({container_name="dating-bot-1"} | json | event_type = "match_created" [5m]))
 ```
 
 ### Debugging API Endpoints
@@ -235,7 +235,7 @@ sum(count_over_time({container_name=~".*bot.*"} | json | event_type = "match_cre
 
 2. **Find slow requests** (in Explore):
    ```logql
-   {container_name=~".*bot.*"} | json | event_type = "request" | duration > 1000
+   {container_name="dating-bot-1"} | json | event_type = "request" | duration > 1000
    ```
 
 ## 📊 Available Metrics (Prometheus)
@@ -532,18 +532,15 @@ docker compose --profile monitoring up -d
    # All Docker container logs
    {job="docker"}
    
-   # Bot service logs specifically
-   {container_name=~".*bot.*"}
-   
-   # Specific container by name
+   # Bot service logs (recommended: use exact container name)
    {container_name="dating-bot-1"}
    
    # Filter by log content
    {job="docker"} |= "ERROR"
-   {container_name=~".*bot.*"} |= "profile"
+   {container_name="dating-bot-1"} |= "profile"
    
    # Webapp logs
-   {container_name=~".*webapp.*"}
+   {container_name="dating-webapp-1"}
    
    # All logs from dating project
    {job="docker"} | json
