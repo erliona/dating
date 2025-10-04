@@ -5,6 +5,7 @@ from enum import Enum
 
 class Gender(str, Enum):
     """Gender enum."""
+
     MALE = "male"
     FEMALE = "female"
     OTHER = "other"
@@ -12,6 +13,7 @@ class Gender(str, Enum):
 
 class Orientation(str, Enum):
     """Orientation enum."""
+
     MALE = "male"
     FEMALE = "female"
     ANY = "any"
@@ -19,6 +21,7 @@ class Orientation(str, Enum):
 
 class Goal(str, Enum):
     """Relationship goal enum."""
+
     FRIENDSHIP = "friendship"
     DATING = "dating"
     RELATIONSHIP = "relationship"
@@ -29,6 +32,7 @@ class Goal(str, Enum):
 
 class Education(str, Enum):
     """Education level enum."""
+
     HIGH_SCHOOL = "high_school"
     BACHELOR = "bachelor"
     MASTER = "master"

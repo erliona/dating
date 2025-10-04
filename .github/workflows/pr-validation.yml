@@ -61,7 +61,7 @@ jobs:
 
       - name: Check imports
         run: |
-          if isort --check-only --diff . 2>&1 | tee /tmp/isort.log; then
+          if isort --profile black --check-only --diff . 2>&1 | tee /tmp/isort.log; then
             echo "✅ Import sorting (isort): Passed" >> $GITHUB_STEP_SUMMARY
           else
             echo "⚠️ Import sorting (isort): Issues found" >> $GITHUB_STEP_SUMMARY
