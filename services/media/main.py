@@ -8,6 +8,8 @@ import os
 from pathlib import Path
 from aiohttp import web
 
+from core.utils.logging import configure_logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -127,13 +129,16 @@ def create_app(config: dict) -> web.Application:
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
+    # Configure structured logging
+    configure_logging('media-service', os.getenv('LOG_LEVEL', 'INFO'))
     
     config = {
         'storage_path': os.getenv('PHOTO_STORAGE_PATH', '/app/photos'),
         'host': os.getenv('MEDIA_SERVICE_HOST', '0.0.0.0'),
         'port': int(os.getenv('MEDIA_SERVICE_PORT', 8084))
     }
+    
+    logger.info("Starting media-service", extra={"event_type": "service_start", "port": config['port']})
     
     app = create_app(config)
     web.run_app(app, host=config['host'], port=config['port'])

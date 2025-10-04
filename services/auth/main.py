@@ -14,6 +14,7 @@ from core.utils.security import (
     ValidationError,
     RateLimiter
 )
+from core.utils.logging import configure_logging
 
 logger = logging.getLogger(__name__)
 
@@ -172,11 +173,16 @@ def create_app(config: dict) -> web.Application:
 if __name__ == '__main__':
     import os
     
+    # Configure structured logging
+    configure_logging('auth-service', os.getenv('LOG_LEVEL', 'INFO'))
+    
     config = {
         'jwt_secret': os.getenv('JWT_SECRET', 'your-secret-key'),
         'host': os.getenv('AUTH_SERVICE_HOST', '0.0.0.0'),
         'port': int(os.getenv('AUTH_SERVICE_PORT', 8081))
     }
+    
+    logger.info("Starting auth-service", extra={"event_type": "service_start", "port": config['port']})
     
     app = create_app(config)
     web.run_app(app, host=config['host'], port=config['port'])

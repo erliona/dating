@@ -24,7 +24,7 @@ scrape_configs:
   # cAdvisor - Container metrics
   - job_name: 'cadvisor'
     static_configs:
-      - targets: ['cadvisor:8080']
+      - targets: ['cadvisor:8080']  # Internal container port
 
   # Node Exporter - System metrics
   - job_name: 'node-exporter'

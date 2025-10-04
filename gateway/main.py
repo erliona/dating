@@ -7,6 +7,8 @@ import logging
 import os
 from aiohttp import web, ClientSession
 
+from core.utils.logging import configure_logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -107,7 +109,8 @@ def create_app(config: dict) -> web.Application:
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
+    # Configure structured logging
+    configure_logging('api-gateway', os.getenv('LOG_LEVEL', 'INFO'))
     
     config = {
         'auth_service_url': os.getenv('AUTH_SERVICE_URL', 'http://auth-service:8081'),
@@ -118,6 +121,8 @@ if __name__ == '__main__':
         'host': os.getenv('GATEWAY_HOST', '0.0.0.0'),
         'port': int(os.getenv('GATEWAY_PORT', 8080))
     }
+    
+    logger.info("Starting api-gateway", extra={"event_type": "service_start", "port": config['port']})
     
     app = create_app(config)
     web.run_app(app, host=config['host'], port=config['port'])
