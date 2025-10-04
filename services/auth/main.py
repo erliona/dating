@@ -7,7 +7,13 @@ independent of any specific platform.
 import logging
 from aiohttp import web
 
-from bot.security import validate_init_data, create_jwt_token, verify_jwt_token, RateLimiter
+from core.utils.security import (
+    validate_telegram_webapp_init_data,
+    generate_jwt_token,
+    validate_jwt_token,
+    ValidationError,
+    RateLimiter
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,23 +39,25 @@ async def validate_telegram_init_data(request: web.Request) -> web.Response:
             )
         
         # Validate initData
-        user_data = validate_init_data(init_data, bot_token)
-        if not user_data:
-            return web.json_response(
-                {'error': 'Invalid init_data'},
-                status=401
-            )
+        user_data = validate_telegram_webapp_init_data(init_data, bot_token)
         
         # Generate JWT token
-        user_id = user_data.get('id')
+        user_id = user_data.get('user', {}).get('id')
         jwt_secret = request.app['config'].get('jwt_secret')
-        token = create_jwt_token(user_id, jwt_secret)
+        token = generate_jwt_token(user_id, jwt_secret)
         
         return web.json_response({
             'token': token,
             'user_id': user_id,
-            'username': user_data.get('username')
+            'username': user_data.get('user', {}).get('username')
         })
+    
+    except ValidationError as e:
+        logger.warning(f"Validation failed: {e}")
+        return web.json_response(
+            {'error': str(e)},
+            status=401
+        )
         
     except Exception as e:
         logger.error(f"Error validating init_data: {e}")
@@ -76,17 +84,19 @@ async def verify_token(request: web.Request) -> web.Response:
         token = auth_header.split(' ')[1]
         jwt_secret = request.app['config'].get('jwt_secret')
         
-        payload = verify_jwt_token(token, jwt_secret)
-        if not payload:
-            return web.json_response(
-                {'error': 'Invalid or expired token'},
-                status=401
-            )
+        payload = validate_jwt_token(token, jwt_secret)
         
         return web.json_response({
             'valid': True,
             'user_id': payload.get('user_id')
         })
+    
+    except ValidationError as e:
+        logger.warning(f"Token validation failed: {e}")
+        return web.json_response(
+            {'error': str(e)},
+            status=401
+        )
         
     except Exception as e:
         logger.error(f"Error verifying token: {e}")
@@ -114,21 +124,23 @@ async def refresh_token(request: web.Request) -> web.Response:
         jwt_secret = request.app['config'].get('jwt_secret')
         
         # Verify old token
-        payload = verify_jwt_token(old_token, jwt_secret)
-        if not payload:
-            return web.json_response(
-                {'error': 'Invalid or expired token'},
-                status=401
-            )
+        payload = validate_jwt_token(old_token, jwt_secret)
         
         # Generate new token
         user_id = payload.get('user_id')
-        new_token = create_jwt_token(user_id, jwt_secret)
+        new_token = generate_jwt_token(user_id, jwt_secret)
         
         return web.json_response({
             'token': new_token,
             'user_id': user_id
         })
+    
+    except ValidationError as e:
+        logger.warning(f"Token refresh failed: {e}")
+        return web.json_response(
+            {'error': str(e)},
+            status=401
+        )
         
     except Exception as e:
         logger.error(f"Error refreshing token: {e}")
