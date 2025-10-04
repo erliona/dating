@@ -282,6 +282,31 @@ jobs:
             sleep 5
           fi
           
+          # Wait for critical ports to be released
+          echo "  🔍 Checking if critical ports are available..."
+          PORTS_TO_CHECK="8080 8081 8082 8083 8084 8085"
+          MAX_WAIT=30
+          
+          for port in $PORTS_TO_CHECK; do
+            WAIT_TIME=0
+            while ss -tuln | grep -q ":$port "; do
+              if [ $WAIT_TIME -ge $MAX_WAIT ]; then
+                echo "    ⚠️  Port $port still in use after ${MAX_WAIT}s"
+                echo "    Attempting to identify process..."
+                ss -tulnp | grep ":$port " || true
+                break
+              fi
+              if [ $WAIT_TIME -eq 0 ]; then
+                echo "    ⏳ Port $port in use, waiting for release..."
+              fi
+              sleep 2
+              WAIT_TIME=$((WAIT_TIME + 2))
+            done
+            if [ $WAIT_TIME -lt $MAX_WAIT ]; then
+              echo "    ✓ Port $port is available"
+            fi
+          done
+          
           echo "  ✓ Cleanup complete"
 
           echo "🏗️  Building microservices..."
