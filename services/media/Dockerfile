@@ -14,6 +14,9 @@ COPY services/media/ services/media/
 # Create photo storage directory
 RUN mkdir -p /app/photos
 
+# Set PYTHONPATH to find modules
+ENV PYTHONPATH=/app
+
 # Expose port
 EXPOSE 8084
 

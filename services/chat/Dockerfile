@@ -11,6 +11,9 @@ COPY core/ core/
 COPY adapters/ adapters/
 COPY services/chat/ services/chat/
 
+# Set PYTHONPATH to find modules
+ENV PYTHONPATH=/app
+
 # Expose port
 EXPOSE 8085
 
