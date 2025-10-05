@@ -25,6 +25,7 @@ RUN apt-get update \
         libpq5 \
         netcat-traditional \
         libgomp1 \
+        ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy virtual environment from builder
