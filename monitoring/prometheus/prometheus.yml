@@ -36,8 +36,8 @@ scrape_configs:
     static_configs:
       - targets: ['postgres-exporter:9187']
 
-  # Traefik metrics (if enabled in traefik config)
+  # Traefik metrics
   - job_name: 'traefik'
     static_configs:
-      - targets: ['traefik:80']
+      - targets: ['traefik:8080']
     metrics_path: '/metrics'

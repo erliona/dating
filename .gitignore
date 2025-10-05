@@ -52,6 +52,11 @@ htmlcov/
 monitoring/data/
 monitoring/**/data/
 
+# Traefik certificates (should not be committed)
+traefik/letsencrypt/
+letsencrypt/
+acme.json
+
 # Old/backup dashboard files
 monitoring/grafana/dashboards.old/
 
