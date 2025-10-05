@@ -68,7 +68,7 @@ docker compose up -d
 
 ---
 
-## Monitoring Stack (3000-3100, 8090, 9090-9187)
+## Monitoring Stack (3000-3100, 8090-8091, 9090-9187)
 
 These services collect, store, and visualize metrics and logs.
 
@@ -77,6 +77,7 @@ These services collect, store, and visualize metrics and logs.
 | 3000 | Grafana | 3000 | Visualization and dashboards | Web UI: http://localhost:3000<br/>Login: admin/admin |
 | 3100 | Loki | 3100 | Log aggregation and storage | API: http://localhost:3100 |
 | 8090 | cAdvisor | 8080 | Container metrics collection | Web UI: http://localhost:8090 |
+| 8091 | Traefik Dashboard | 8080 | Reverse proxy dashboard and metrics | Web UI: http://localhost:8091/dashboard/ |
 | 9090 | Prometheus | 9090 | Metrics collection and storage | Web UI: http://localhost:9090 |
 | 9100 | Node Exporter | 9100 | System/host metrics | Metrics: http://localhost:9100/metrics |
 | 9187 | Postgres Exporter | 9187 | Database metrics | Metrics: http://localhost:9187/metrics |
@@ -88,6 +89,7 @@ These services collect, store, and visualize metrics and logs.
 - `GRAFANA_ADMIN_PASSWORD=admin` - Grafana admin password
 - `LOKI_PORT=3100` - Loki log aggregation port
 - `CADVISOR_PORT=8090` - cAdvisor container metrics port
+- `TRAEFIK_DASHBOARD_PORT=8091` - Traefik dashboard port
 - `PROMETHEUS_PORT=9090` - Prometheus metrics port
 - `NODE_EXPORTER_PORT=9100` - Node Exporter system metrics port
 - `POSTGRES_EXPORTER_PORT=9187` - Postgres Exporter database metrics port
@@ -151,7 +153,8 @@ These services don't expose ports to the host:
 | 80-80 | Web serving | WebApp (optional) |
 | 3000-3999 | Monitoring UIs | Grafana (3000), Loki (3100) |
 | 5432 | Database | PostgreSQL (internal only) |
-| 8080-8089 | Application | API Gateway, Auth, Profile, Discovery, Media, Chat, cAdvisor |
+| 8080-8086 | Application | API Gateway, Auth, Profile, Discovery, Media, Chat, Admin |
+| 8090-8091 | Monitoring | cAdvisor, Traefik Dashboard |
 | 9090-9199 | Metrics exporters | Prometheus, Node Exporter, Postgres Exporter |
 
 ---
