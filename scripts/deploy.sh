@@ -179,11 +179,11 @@ EOF
 else
   cat >> "$TMP_DIR/.env.deploy" <<EOF
 
-# HTTPS Configuration (Development)
+# Local Development Configuration
 DOMAIN=localhost
-WEBAPP_URL=https://localhost
+WEBAPP_URL=http://localhost
 EOF
-  echo "⚠️  No DOMAIN specified - using localhost (HTTPS certificates won't be issued)"
+  echo "⚠️  No DOMAIN specified - using localhost with HTTP (no HTTPS certificates)"
 fi
 
 # Create an archive of the project
