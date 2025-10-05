@@ -527,7 +527,7 @@ limits_config:
 ## Related Documentation
 
 - **Port Mapping**: `docs/PORT_MAPPING.md`
-- **Deployment Guide**: `docs/MICROSERVICES_DEPLOYMENT.md`
+- **CI/CD Guide**: `docs/CI_CD_GUIDE.md`
 - **Troubleshooting**: `docs/DEPLOYMENT_TROUBLESHOOTING.md`
 
 ---

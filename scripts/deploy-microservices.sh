@@ -60,7 +60,7 @@ echo ""
 
 # Build services
 echo "3. Building microservices..."
-docker compose -f docker-compose.microservices.yml build
+docker compose build
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✓ All services built successfully${NC}"
@@ -72,7 +72,7 @@ echo ""
 
 # Start services
 echo "4. Starting microservices..."
-docker compose -f docker-compose.microservices.yml up -d
+docker compose up -d
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✓ All services started${NC}"
@@ -86,11 +86,11 @@ echo ""
 echo "5. Waiting for services to be healthy..."
 sleep 10
 
-SERVICES=("db" "auth-service" "profile-service" "discovery-service" "media-service" "chat-service" "api-gateway")
+SERVICES=("db" "auth-service" "profile-service" "discovery-service" "media-service" "chat-service" "api-gateway" "telegram-bot")
 ALL_HEALTHY=true
 
 for service in "${SERVICES[@]}"; do
-    STATUS=$(docker compose -f docker-compose.microservices.yml ps --format json | jq -r "select(.Service == \"$service\") | .Health" 2>/dev/null || echo "unknown")
+    STATUS=$(docker compose ps --format json | jq -r "select(.Service == \"$service\") | .Health" 2>/dev/null || echo "unknown")
     
     if [ "$STATUS" == "healthy" ] || [ "$STATUS" == "unknown" ]; then
         echo -e "  ${GREEN}✓${NC} $service"
@@ -104,7 +104,7 @@ echo ""
 
 if [ "$ALL_HEALTHY" = false ]; then
     echo -e "${YELLOW}⚠ Some services are not healthy yet. Check logs:${NC}"
-    echo "  docker compose -f docker-compose.microservices.yml logs"
+    echo "  docker compose logs"
 fi
 
 # Display service URLs
@@ -129,8 +129,8 @@ echo "  curl http://localhost:8084/health"
 echo "  curl http://localhost:8085/health"
 echo ""
 echo "To view logs:"
-echo "  docker compose -f docker-compose.microservices.yml logs -f"
+echo "  docker compose logs -f"
 echo ""
 echo "To stop services:"
-echo "  docker compose -f docker-compose.microservices.yml down"
+echo "  docker compose down"
 echo ""

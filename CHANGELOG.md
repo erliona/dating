@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Epic C: Discovery & Matching system (fully implemented)
   - Cache layer (97% coverage, 11 tests)
   - Rate limiting and security features
+- **Old Stack References** - Updated references from old deployment model
+  - Fixed `dating-bot-1` container reference in `verify-idempotency.sh` to use current `telegram-bot` service
 
 ### Changed
 - Updated `README.md` with Epic C features and correct test counts
@@ -23,10 +25,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated `DOCUMENTATION.md` with correct test statistics
 - Updated `docs/TESTING.md` with complete test breakdown (17 test files)
 - Updated `ISSUE_COMPLETION_SUMMARY.md` with accurate metrics
+- **Codebase Cleanup** - Organized historical documentation
+  - Created `docs/archive/` directory with README
+  - Moved 16 completed summary and bug fix documents to archive
 
 ### Removed
 - Removed deprecated `docker-compose.monitoring.yml` file (monitoring now fully integrated via profiles)
 - Removed unused PostgreSQL service from CI workflow (no tests currently exist)
+- **Cleaned up root directory** - Moved outdated documentation files:
+  - All port conflict fix documentation (5432, 8080) → `docs/archive/`
+  - All deployment fix summaries → `docs/archive/`
+  - Feature completion summaries (Admin Panel, Integration, MiniApp, Monitoring) → `docs/archive/`
 
 ### Previous Changes
 - Moved completed summary files to archive:

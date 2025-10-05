@@ -449,13 +449,11 @@ docker volume inspect <volume-name>
 
 ## Related Documentation
 
-- **Port 80 Conflict Fix**: `docs/BUG_FIX_PORT_80_CONFLICT.md`
-- **Port 5432 Conflict Fix**: `docs/BUG_FIX_PORT_5432_CONFLICT.md`
-- **Deployment Guide**: `docs/MICROSERVICES_DEPLOYMENT.md`
-- **Quick Start**: `MICROSERVICES_QUICK_START.md`
-- **Fix Summaries**: 
-  - `DEPLOYMENT_FIX_SUMMARY.md`
-  - `DEPLOYMENT_FIX_SUMMARY_PORT_5432.md`
+- **Historical Port Conflict Fixes**: `docs/archive/` (archived bug fixes and deployment summaries)
+- **Port Mapping**: `docs/PORT_MAPPING.md`
+- **CI/CD Guide**: `docs/CI_CD_GUIDE.md`
+- **Monitoring Setup**: `docs/MONITORING_SETUP.md`
+- **Admin Panel Guide**: `docs/ADMIN_PANEL_GUIDE.md`
 
 ---
 
