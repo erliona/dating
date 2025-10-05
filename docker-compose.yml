@@ -74,8 +74,8 @@ services:
       AUTH_SERVICE_HOST: 0.0.0.0
       AUTH_SERVICE_PORT: ${AUTH_SERVICE_PORT:-8081}
       BOT_TOKEN: ${BOT_TOKEN}
-    expose:
-      - "${AUTH_SERVICE_PORT:-8081}"
+    ports:
+      - "${AUTH_SERVICE_PORT:-8081}:${AUTH_SERVICE_PORT:-8081}"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8081/health').read()"]
       interval: 30s
@@ -95,8 +95,8 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
       PROFILE_SERVICE_HOST: 0.0.0.0
       PROFILE_SERVICE_PORT: ${PROFILE_SERVICE_PORT:-8082}
-    expose:
-      - "${PROFILE_SERVICE_PORT:-8082}"
+    ports:
+      - "${PROFILE_SERVICE_PORT:-8082}:${PROFILE_SERVICE_PORT:-8082}"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8082/health').read()"]
       interval: 30s
@@ -116,8 +116,8 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
       DISCOVERY_SERVICE_HOST: 0.0.0.0
       DISCOVERY_SERVICE_PORT: ${DISCOVERY_SERVICE_PORT:-8083}
-    expose:
-      - "${DISCOVERY_SERVICE_PORT:-8083}"
+    ports:
+      - "${DISCOVERY_SERVICE_PORT:-8083}:${DISCOVERY_SERVICE_PORT:-8083}"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8083/health').read()"]
       interval: 30s
@@ -139,8 +139,8 @@ services:
       MEDIA_SERVICE_PORT: ${MEDIA_SERVICE_PORT:-8084}
       PHOTO_STORAGE_PATH: /app/photos
       NSFW_THRESHOLD: ${NSFW_THRESHOLD:-0.7}
-    expose:
-      - "${MEDIA_SERVICE_PORT:-8084}"
+    ports:
+      - "${MEDIA_SERVICE_PORT:-8084}:${MEDIA_SERVICE_PORT:-8084}"
     volumes:
       - media_storage:/app/photos
     healthcheck:
@@ -162,8 +162,8 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
       CHAT_SERVICE_HOST: 0.0.0.0
       CHAT_SERVICE_PORT: ${CHAT_SERVICE_PORT:-8085}
-    expose:
-      - "${CHAT_SERVICE_PORT:-8085}"
+    ports:
+      - "${CHAT_SERVICE_PORT:-8085}:${CHAT_SERVICE_PORT:-8085}"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8085/health').read()"]
       interval: 30s
@@ -184,8 +184,8 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       ADMIN_SERVICE_HOST: 0.0.0.0
       ADMIN_SERVICE_PORT: ${ADMIN_SERVICE_PORT:-8086}
-    expose:
-      - "${ADMIN_SERVICE_PORT:-8086}"
+    ports:
+      - "${ADMIN_SERVICE_PORT:-8086}:${ADMIN_SERVICE_PORT:-8086}"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8086/health').read()"]
       interval: 30s
