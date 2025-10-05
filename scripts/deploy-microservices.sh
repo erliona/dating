@@ -19,6 +19,9 @@ echo "1. Checking environment variables..."
 REQUIRED_VARS=("BOT_TOKEN" "JWT_SECRET" "POSTGRES_PASSWORD")
 MISSING_VARS=()
 
+echo "Note: POSTGRES_PASSWORD must be set to a static value."
+echo "Do not use auto-generated passwords to avoid breaking database connections."
+
 for var in "${REQUIRED_VARS[@]}"; do
     if [ -z "${!var:-}" ]; then
         MISSING_VARS+=("$var")
