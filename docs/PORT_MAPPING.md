@@ -8,7 +8,7 @@ All ports are carefully allocated to avoid conflicts. This document serves as th
 
 ---
 
-## Application Services (8080-8085)
+## Application Services (8080-8086)
 
 These are the main microservices that power the dating application.
 
@@ -20,14 +20,38 @@ These are the main microservices that power the dating application.
 | 8083 | Discovery Service | 8083 | Matching algorithms and recommendations | `/health` |
 | 8084 | Media Service | 8084 | Photo upload and processing | `/health` |
 | 8085 | Chat Service | 8085 | Real-time messaging via WebSocket | `/health` |
+| 8086 | Admin Service | 8086 | Admin panel for system management | `/health` |
 
-**Environment Variables:**
-- `GATEWAY_PORT=8080`
-- `AUTH_SERVICE_PORT=8081`
-- `PROFILE_SERVICE_PORT=8082`
-- `DISCOVERY_SERVICE_PORT=8083`
-- `MEDIA_SERVICE_PORT=8084`
-- `CHAT_SERVICE_PORT=8085`
+**All service ports are fully configurable via environment variables:**
+- `GATEWAY_PORT=8080` - API Gateway port
+- `AUTH_SERVICE_PORT=8081` - Auth Service port
+- `PROFILE_SERVICE_PORT=8082` - Profile Service port
+- `DISCOVERY_SERVICE_PORT=8083` - Discovery Service port
+- `MEDIA_SERVICE_PORT=8084` - Media Service port
+- `CHAT_SERVICE_PORT=8085` - Chat Service port
+- `ADMIN_SERVICE_PORT=8086` - Admin Service port
+
+**Service URLs (for gateway routing):**
+- `AUTH_SERVICE_URL=http://auth-service:8081`
+- `PROFILE_SERVICE_URL=http://profile-service:8082`
+- `DISCOVERY_SERVICE_URL=http://discovery-service:8083`
+- `MEDIA_SERVICE_URL=http://media-service:8084`
+- `CHAT_SERVICE_URL=http://chat-service:8085`
+- `ADMIN_SERVICE_URL=http://admin-service:8086`
+
+**Example: Custom port configuration**
+```bash
+# Set custom ports for specific services
+GATEWAY_PORT=9080 AUTH_SERVICE_PORT=9081 docker compose up -d
+
+# Or set all ports via .env file
+cat > .env << EOF
+GATEWAY_PORT=9080
+AUTH_SERVICE_PORT=9081
+PROFILE_SERVICE_PORT=9082
+EOF
+docker compose up -d
+```
 
 ---
 
@@ -45,6 +69,15 @@ These services collect, store, and visualize metrics and logs.
 | 9187 | Postgres Exporter | 9187 | Database metrics | Metrics: http://localhost:9187/metrics |
 
 **Note:** cAdvisor exposes port 8080 internally but maps to 8090 externally to avoid conflict with api-gateway.
+
+**All monitoring service ports are configurable via environment variables:**
+- `GRAFANA_PORT=3000` - Grafana dashboard port
+- `GRAFANA_ADMIN_PASSWORD=admin` - Grafana admin password
+- `LOKI_PORT=3100` - Loki log aggregation port
+- `CADVISOR_PORT=8090` - cAdvisor container metrics port
+- `PROMETHEUS_PORT=9090` - Prometheus metrics port
+- `NODE_EXPORTER_PORT=9100` - Node Exporter system metrics port
+- `POSTGRES_EXPORTER_PORT=9187` - Postgres Exporter database metrics port
 
 ---
 
@@ -114,7 +147,7 @@ These services don't expose ports to the host:
 
 The deployment workflow (`.github/workflows/deploy-microservices.yml`) includes port availability checks before deployment:
 
-**Checked Ports:** 8080, 8081, 8082, 8083, 8084, 8085
+**Checked Ports:** 8080, 8081, 8082, 8083, 8084, 8085, 8086
 
 **Logic:**
 1. Stop all containers
@@ -124,7 +157,7 @@ The deployment workflow (`.github/workflows/deploy-microservices.yml`) includes 
 
 **Script excerpt:**
 ```bash
-PORTS_TO_CHECK="8080 8081 8082 8083 8084 8085"
+PORTS_TO_CHECK="8080 8081 8082 8083 8084 8085 8086"
 MAX_WAIT=30
 
 for port in $PORTS_TO_CHECK; do
@@ -153,6 +186,7 @@ Services communicate using service names on the internal Docker network:
 | API Gateway | Discovery Service | http://discovery-service:8083 |
 | API Gateway | Media Service | http://media-service:8084 |
 | API Gateway | Chat Service | http://chat-service:8085 |
+| API Gateway | Admin Service | http://admin-service:8086 |
 | Telegram Bot | API Gateway | http://api-gateway:8080 |
 | All Services | Database | postgresql://db:5432 |
 | Promtail | Loki | http://loki:3100 |
@@ -161,6 +195,8 @@ Services communicate using service names on the internal Docker network:
 | Prometheus | Postgres Exporter | http://postgres-exporter:9187 |
 | Grafana | Prometheus | http://prometheus:9090 |
 | Grafana | Loki | http://loki:3100 |
+
+**Note:** These URLs use default port values. If you customize ports via environment variables, update the service URLs accordingly (e.g., `AUTH_SERVICE_URL=http://auth-service:9081`).
 
 ---
 

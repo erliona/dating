@@ -302,7 +302,35 @@ docker compose logs -f
 | `ACME_EMAIL` | Email для Let's Encrypt | `admin@example.com` |
 | `NSFW_THRESHOLD` | Порог NSFW детектора | `0.7` |
 
-Полный список переменных см. в `.env.example`.
+#### Порты сервисов
+
+Все порты сервисов полностью настраиваемые для гибкости развертывания в разных средах:
+
+| Переменная | Описание | По умолчанию |
+|------------|----------|--------------|
+| `GATEWAY_PORT` | API Gateway | `8080` |
+| `AUTH_SERVICE_PORT` | Auth Service | `8081` |
+| `PROFILE_SERVICE_PORT` | Profile Service | `8082` |
+| `DISCOVERY_SERVICE_PORT` | Discovery Service | `8083` |
+| `MEDIA_SERVICE_PORT` | Media Service | `8084` |
+| `CHAT_SERVICE_PORT` | Chat Service | `8085` |
+| `ADMIN_SERVICE_PORT` | Admin Service | `8086` |
+| `PROMETHEUS_PORT` | Prometheus | `9090` |
+| `GRAFANA_PORT` | Grafana | `3000` |
+| `LOKI_PORT` | Loki | `3100` |
+
+**Пример использования:**
+```bash
+# Запустить с пользовательскими портами
+GATEWAY_PORT=9080 AUTH_SERVICE_PORT=9081 docker compose up -d
+
+# Или задать в .env файле
+echo "GATEWAY_PORT=9080" >> .env
+echo "AUTH_SERVICE_PORT=9081" >> .env
+docker compose up -d
+```
+
+Полный список переменных см. в `.env.example` и `docs/PORT_MAPPING.md`.
 
 ### Настройка бота в BotFather
 
