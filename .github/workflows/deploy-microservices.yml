@@ -369,7 +369,7 @@ jobs:
           sleep 15
 
           echo "✅ Verifying deployment..."
-          SERVICES="auth-service profile-service discovery-service media-service chat-service api-gateway telegram-bot"
+          SERVICES="auth-service profile-service discovery-service media-service chat-service admin-service api-gateway telegram-bot"
           for service in $SERVICES; do
             if docker compose ps $service | grep -q "Up"; then
               echo "  ✓ $service is running"
@@ -380,7 +380,7 @@ jobs:
           done
 
           echo "🔍 Checking health endpoints (diagnostic)..."
-          for port in 8080 8081 8082 8083 8084 8085; do
+          for port in 8080 8081 8082 8083 8084 8085 8086; do
             if curl -s -f http://localhost:$port/health > /dev/null 2>&1; then
               echo "  ✓ Port $port health check passed"
             else
@@ -401,6 +401,7 @@ jobs:
           echo "  Discovery:     http://localhost:8083"
           echo "  Media:         http://localhost:8084"
           echo "  Chat:          http://localhost:8085"
+          echo "  Admin:         http://localhost:8086"
           EOFSCRIPT
 
           chmod +x /tmp/deploy.sh
@@ -439,7 +440,7 @@ jobs:
             
             echo ""
             echo "Checking health endpoints (diagnostic)..."
-            for port in 8080 8081 8082 8083 8084 8085; do
+            for port in 8080 8081 8082 8083 8084 8085 8086; do
               if curl -sf http://localhost:$port/health > /dev/null 2>&1; then
                 echo "✅ Port $port health check passed"
               else
@@ -449,7 +450,7 @@ jobs:
             
             echo ""
             echo "Checking if all required services are running (diagnostic)..."
-            REQUIRED_SERVICES="auth-service profile-service discovery-service media-service chat-service api-gateway telegram-bot db"
+            REQUIRED_SERVICES="auth-service profile-service discovery-service media-service chat-service admin-service api-gateway telegram-bot db"
             
             for service in $REQUIRED_SERVICES; do
               if docker compose ps $service | grep -q "Up"; then
@@ -472,6 +473,7 @@ jobs:
           echo "- ✅ Discovery Service (Port 8083)" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Media Service (Port 8084)" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Chat Service (Port 8085)" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Admin Service (Port 8086)" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Telegram Bot" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Next steps:" >> $GITHUB_STEP_SUMMARY
