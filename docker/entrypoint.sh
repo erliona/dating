@@ -21,16 +21,19 @@ log_error() {
 
 # Function to check database connectivity with timeout
 check_database_connection() {
-  if [ -z "${BOT_DATABASE_URL:-}" ]; then
-    log_warn "BOT_DATABASE_URL is not set"
+  # Check for BOT_DATABASE_URL or DATABASE_URL (same fallback logic as bot/config.py)
+  DB_URL="${BOT_DATABASE_URL:-${DATABASE_URL:-}}"
+  
+  if [ -z "$DB_URL" ]; then
+    log_warn "Neither BOT_DATABASE_URL nor DATABASE_URL is set"
     return 1
   fi
   
   # Parse the database URL
-  DB_USER=$(echo "$BOT_DATABASE_URL" | sed -n 's|^.*://\([^:]*\):.*@.*$|\1|p')
-  DB_HOST=$(echo "$BOT_DATABASE_URL" | sed -n 's|^.*@\([^:]*\):.*$|\1|p')
-  DB_PORT=$(echo "$BOT_DATABASE_URL" | sed -n 's|^.*:\([0-9]*\)/.*$|\1|p')
-  DB_NAME=$(echo "$BOT_DATABASE_URL" | sed -n 's|^.*/\([^/]*\)$|\1|p')
+  DB_USER=$(echo "$DB_URL" | sed -n 's|^.*://\([^:]*\):.*@.*$|\1|p')
+  DB_HOST=$(echo "$DB_URL" | sed -n 's|^.*@\([^:]*\):.*$|\1|p')
+  DB_PORT=$(echo "$DB_URL" | sed -n 's|^.*:\([0-9]*\)/.*$|\1|p')
+  DB_NAME=$(echo "$DB_URL" | sed -n 's|^.*/\([^/]*\)$|\1|p')
   
   if [ -n "$DB_USER" ] && [ -n "$DB_HOST" ] && [ -n "$DB_PORT" ] && [ -n "$DB_NAME" ]; then
     echo "🔍 Testing database connection to ${DB_HOST}:${DB_PORT}..."
@@ -49,7 +52,7 @@ check_database_connection() {
       log_warn "netcat not available, skipping connectivity check"
     fi
   else
-    log_warn "Could not parse database connection details from BOT_DATABASE_URL"
+    log_warn "Could not parse database connection details from database URL"
   fi
   
   return 0

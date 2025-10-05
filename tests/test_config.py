@@ -140,6 +140,36 @@ class TestWebAppURLValidation:
 class TestDatabaseURLValidation:
     """Test DATABASE_URL validation."""
 
+    def test_bot_database_url_priority(self, monkeypatch):
+        """Test BOT_DATABASE_URL takes priority over DATABASE_URL."""
+        monkeypatch.setenv("BOT_TOKEN", "123456789:ABCdefGHIjklMNOpqrsTUVwxyz")
+        monkeypatch.setenv(
+            "BOT_DATABASE_URL",
+            "postgresql+asyncpg://user1:pass1@host1:5432/db1",
+        )
+        monkeypatch.setenv(
+            "DATABASE_URL",
+            "postgresql+asyncpg://user2:pass2@host2:5432/db2",
+        )
+        config = load_config()
+        assert "user1" in config.database_url
+        assert "host1" in config.database_url
+        assert "db1" in config.database_url
+
+    def test_database_url_fallback(self, monkeypatch):
+        """Test DATABASE_URL is used when BOT_DATABASE_URL is not set."""
+        monkeypatch.setenv("BOT_TOKEN", "123456789:ABCdefGHIjklMNOpqrsTUVwxyz")
+        monkeypatch.delenv("BOT_DATABASE_URL", raising=False)
+        monkeypatch.setenv(
+            "DATABASE_URL",
+            "postgresql+asyncpg://testuser:testpass@dbhost:5433/testdb",
+        )
+        config = load_config()
+        assert "testuser" in config.database_url
+        assert "testdb" in config.database_url
+        assert "dbhost" in config.database_url
+        assert "5433" in config.database_url
+
     def test_database_url_from_postgres_env_vars(self, monkeypatch):
         """Test database URL constructed from POSTGRES_* variables."""
         monkeypatch.delenv("DATABASE_URL", raising=False)
