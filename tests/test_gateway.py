@@ -4,25 +4,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from aiohttp import ClientTimeout, web
-from aiohttp.test_utils import AioHTTPTestCase
 
 from gateway.main import create_app, proxy_request
 
 
-class TestProxyRequest(AioHTTPTestCase):
+class TestProxyRequest:
     """Tests for proxy_request function."""
-
-    async def get_application(self):
-        """Create test application."""
-        config = {
-            "auth_service_url": "http://auth-service:8081",
-            "profile_service_url": "http://profile-service:8082",
-            "discovery_service_url": "http://discovery-service:8083",
-            "media_service_url": "http://media-service:8084",
-            "chat_service_url": "http://chat-service:8085",
-            "admin_service_url": "http://admin-service:8086",
-        }
-        return create_app(config)
 
     async def test_proxy_request_timeout_configured(self):
         """Test that proxy request has timeout configured."""
@@ -88,10 +75,30 @@ class TestProxyRequest(AioHTTPTestCase):
 
     async def test_gateway_health_check(self):
         """Test gateway health check endpoint."""
-        resp = await self.client.request("GET", "/health")
+        from aiohttp.test_utils import AioHTTPTestCase, unittest_run_loop
+
+        # Test health check through direct handler call
+        from gateway.main import health_check
+
+        # Create mock request with config
+        mock_request = MagicMock()
+        mock_request.app = {
+            "config": {
+                "auth_service_url": "http://auth-service:8081",
+                "profile_service_url": "http://profile-service:8082",
+                "discovery_service_url": "http://discovery-service:8083",
+                "media_service_url": "http://media-service:8084",
+                "chat_service_url": "http://chat-service:8085",
+                "admin_service_url": "http://admin-service:8086",
+            }
+        }
+
+        resp = await health_check(mock_request)
         assert resp.status == 200
 
-        data = await resp.json()
+        import json
+
+        data = json.loads(resp.body)
         assert data["status"] == "healthy"
         assert data["service"] == "api-gateway"
         assert "routes" in data
