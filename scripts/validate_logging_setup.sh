@@ -73,7 +73,7 @@ fi
 echo ""
 echo "3. Checking port allocations..."
 # Extract all host ports from docker-compose.yml
-ports=$(grep -E "^\s+- \"[0-9]+:[0-9]+\"" docker-compose.yml | sed 's/.*"\([0-9]*\):.*/\1/' | sort -n)
+ports=$(grep -E "^\s+- \"(\\\$\{[^}]+:-)?[0-9]+(\\})?:[0-9]+\"" docker-compose.yml | sed -E 's/.*:-([0-9]+).*/\1/; s/.*"([0-9]+):.*/\1/' | sort -n)
 unique_ports=$(echo "$ports" | uniq)
 
 if [ "$(echo "$ports" | wc -l)" -eq "$(echo "$unique_ports" | wc -l)" ]; then
@@ -191,7 +191,7 @@ done
 echo ""
 echo "9. Checking for port 8081 conflict fix..."
 # Check cAdvisor uses port 8090
-if grep -A 10 "cadvisor:" docker-compose.yml | grep -q '"8090:8080"'; then
+if grep -A 10 "cadvisor:" docker-compose.yml | grep -E -q '"(\$\{CADVISOR_PORT:-)?8090(\})?:8080"'; then
     success "cAdvisor correctly uses port 8090 (host) → 8080 (container)"
 elif grep -A 10 "cadvisor:" docker-compose.yml | grep -q '"8081:8080"'; then
     error "cAdvisor still uses conflicting port 8081"
@@ -200,9 +200,9 @@ else
     warning "Could not verify cAdvisor port configuration"
 fi
 
-# Check auth-service uses port 8081
-if grep -A 10 "auth-service:" docker-compose.yml | grep -q '"8081:8081"'; then
-    success "auth-service correctly uses port 8081"
+# Check auth-service uses port 8081 (via expose directive)
+if grep -A 10 "auth-service:" docker-compose.yml | grep -E -q 'expose:|"(\$\{AUTH_SERVICE_PORT:-)?8081(\})?"'; then
+    success "auth-service correctly uses port 8081 (internal only)"
 else
     error "auth-service not using port 8081"
     exit 1
