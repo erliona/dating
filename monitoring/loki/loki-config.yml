@@ -26,7 +26,6 @@ ingester:
     final_sleep: 0s
   chunk_idle_period: 5m
   chunk_retain_period: 30s
-  max_transfer_retries: 0
   wal:
     enabled: true
     dir: /loki/wal
@@ -52,7 +51,6 @@ ruler:
   alertmanager_url: http://localhost:9093
 
 limits_config:
-  enforce_metric_name: false
   reject_old_samples: true
   reject_old_samples_max_age: 168h
   ingestion_rate_mb: 10
@@ -66,3 +64,4 @@ compactor:
   retention_enabled: true
   retention_delete_delay: 2h
   retention_delete_worker_count: 150
+  delete_request_store: filesystem
