@@ -4,6 +4,44 @@
 # Each service can be scaled and deployed independently.
 
 services:
+  # Traefik - Reverse proxy and SSL/TLS termination
+  traefik:
+    image: traefik:v2.11
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-admin@example.com}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      # Uncomment the following line to use Let's Encrypt staging server for testing
+      # - "--certificatesresolvers.letsencrypt.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+      # Enable Prometheus metrics
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.addEntryPointsLabels=true"
+      - "--metrics.prometheus.addServicesLabels=true"
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "8090:8080"  # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_certificates:/letsencrypt
+    restart: unless-stopped
+    networks:
+      - default
+      - monitoring
+    labels:
+      - "traefik.enable=true"
+      # Dashboard
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN:-localhost}`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.entrypoints=web"
+
   # Database (shared in Phase 2, will be split in Phase 3)
   # Note: External port exposure is disabled by default for production security.
   # Microservices connect internally via Docker network - no external port needed.
@@ -167,6 +205,7 @@ services:
       - media-service
       - chat-service
       - admin-service
+      - traefik
     environment:
       GATEWAY_HOST: 0.0.0.0
       GATEWAY_PORT: ${GATEWAY_PORT:-8080}
@@ -184,6 +223,19 @@ services:
       timeout: 10s
       retries: 3
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      # HTTP router
+      - "traefik.http.routers.api-gateway.rule=Host(`${DOMAIN:-localhost}`) || Host(`api.${DOMAIN:-localhost}`)"
+      - "traefik.http.routers.api-gateway.entrypoints=web"
+      - "traefik.http.services.api-gateway.loadbalancer.server.port=${GATEWAY_PORT:-8080}"
+      # HTTPS router
+      - "traefik.http.routers.api-gateway-secure.rule=Host(`${DOMAIN:-localhost}`) || Host(`api.${DOMAIN:-localhost}`)"
+      - "traefik.http.routers.api-gateway-secure.entrypoints=websecure"
+      - "traefik.http.routers.api-gateway-secure.tls.certresolver=letsencrypt"
+      # HTTP to HTTPS redirect
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.routers.api-gateway.middlewares=redirect-to-https"
 
   # Telegram Bot Adapter - Integrates with Telegram
   telegram-bot:
@@ -215,13 +267,27 @@ services:
   # If port 80 is already in use, you can disable this service or change the port.
   webapp:
     image: nginx:alpine
+    depends_on:
+      - traefik
     volumes:
       - ./webapp:/usr/share/nginx/html:ro
-    ports:
-      - "${WEBAPP_PORT:-80}:80"
+    expose:
+      - "80"
     restart: unless-stopped
     profiles:
       - webapp
+    labels:
+      - "traefik.enable=true"
+      # HTTP router
+      - "traefik.http.routers.webapp.rule=Host(`app.${DOMAIN:-localhost}`)"
+      - "traefik.http.routers.webapp.entrypoints=web"
+      - "traefik.http.services.webapp.loadbalancer.server.port=80"
+      # HTTPS router
+      - "traefik.http.routers.webapp-secure.rule=Host(`app.${DOMAIN:-localhost}`)"
+      - "traefik.http.routers.webapp-secure.entrypoints=websecure"
+      - "traefik.http.routers.webapp-secure.tls.certresolver=letsencrypt"
+      # HTTP to HTTPS redirect
+      - "traefik.http.routers.webapp.middlewares=redirect-to-https"
 
   # ==================== MONITORING STACK ====================
   
@@ -350,6 +416,7 @@ networks:
 volumes:
   postgres_data:
   media_storage:
+  traefik_certificates:
   prometheus_data:
   grafana_data:
   loki_data:
