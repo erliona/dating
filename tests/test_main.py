@@ -186,8 +186,8 @@ class TestHandleWebappData:
         message.answer.assert_called_once()
         assert "Invalid data format" in message.answer.call_args[0][0]
 
-    async def test_handle_webapp_data_no_database(self):
-        """Test handler when database is not configured."""
+    async def test_handle_webapp_data_no_api_client(self):
+        """Test handler when API client is not configured."""
         message = MagicMock(spec=Message)
         message.web_app_data = MagicMock(spec=WebAppData)
         message.web_app_data.data = json.dumps({"action": "create_profile"})
@@ -200,7 +200,7 @@ class TestHandleWebappData:
         await handle_webapp_data(message, dispatcher)
 
         message.answer.assert_called_once()
-        assert "Database not configured" in message.answer.call_args[0][0]
+        assert "API Gateway not configured" in message.answer.call_args[0][0]
 
     async def test_handle_webapp_data_unknown_action(self):
         """Test handler with unknown action."""
@@ -210,14 +210,10 @@ class TestHandleWebappData:
         message.answer = AsyncMock()
         message.from_user = MagicMock(id=12345)
 
-        session_maker = MagicMock()
-        session_mock = MagicMock()
-        session_mock.__aenter__ = AsyncMock(return_value=session_mock)
-        session_mock.__aexit__ = AsyncMock()
-        session_maker.return_value = session_mock
+        api_client = MagicMock()
 
         dispatcher = MagicMock(spec=Dispatcher)
-        dispatcher.workflow_data = {"session_maker": session_maker}
+        dispatcher.workflow_data = {"api_client": api_client}
 
         await handle_webapp_data(message, dispatcher)
 
@@ -225,7 +221,7 @@ class TestHandleWebappData:
         assert "Unknown action" in message.answer.call_args[0][0]
 
     async def test_handle_webapp_data_create_profile_success(self):
-        """Test successful profile creation via WebApp data."""
+        """Test successful profile creation via WebApp data using API Gateway."""
         message = MagicMock(spec=Message)
         message.web_app_data = MagicMock(spec=WebAppData)
         profile_data = {
@@ -248,45 +244,27 @@ class TestHandleWebappData:
             is_premium=False,
         )
 
-        # Mock session and repository
-        session_mock = MagicMock()
-        session_mock.__aenter__ = AsyncMock(return_value=session_mock)
-        session_mock.__aexit__ = AsyncMock()
-        session_mock.commit = AsyncMock()
-
-        session_maker = MagicMock()
-        session_maker.return_value = session_mock
+        # Mock API client
+        api_client = MagicMock()
+        api_client.create_profile = AsyncMock(
+            return_value={
+                "user_id": 1,
+                "name": "John Doe",
+                "gender": "male",
+                "goal": "relationship",
+                "city": "Moscow",
+                "created": True,
+            }
+        )
 
         dispatcher = MagicMock(spec=Dispatcher)
-        dispatcher.workflow_data = {"session_maker": session_maker}
+        dispatcher.workflow_data = {"api_client": api_client}
 
-        # Mock repository
-        with patch("bot.main.ProfileRepository") as mock_repo_class:
-            mock_repo = MagicMock()
-            mock_repo_class.return_value = mock_repo
+        await handle_webapp_data(message, dispatcher)
 
-            # Mock user creation
-            mock_user = MagicMock()
-            mock_user.id = 1
-            mock_repo.create_or_update_user = AsyncMock(return_value=mock_user)
-
-            # Mock no existing profile
-            mock_repo.get_profile_by_user_id = AsyncMock(return_value=None)
-
-            # Mock profile creation
-            mock_profile = MagicMock()
-            mock_profile.id = 1
-            mock_profile.name = "John Doe"
-            mock_profile.birth_date = datetime.strptime("1990-01-01", "%Y-%m-%d").date()
-            mock_profile.gender = "male"
-            mock_profile.goal = "relationship"
-            mock_profile.city = "Moscow"
-            mock_repo.create_profile = AsyncMock(return_value=mock_profile)
-
-            await handle_webapp_data(message, dispatcher)
-
-            message.answer.assert_called_once()
-            assert "Профиль создан" in message.answer.call_args[0][0]
+        message.answer.assert_called_once()
+        assert "Профиль создан" in message.answer.call_args[0][0]
+        api_client.create_profile.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -309,17 +287,16 @@ class TestHandleCreateProfile:
             }
         }
 
-        repository = MagicMock()
-        session = MagicMock()
+        api_client = MagicMock()
         logger = logging.getLogger(__name__)
 
-        await handle_create_profile(message, data, repository, session, logger)
+        await handle_create_profile(message, data, api_client, logger)
 
         message.answer.assert_called_once()
         assert "Validation error" in message.answer.call_args[0][0]
 
     async def test_handle_create_profile_duplicate(self):
-        """Test profile creation when profile already exists."""
+        """Test profile creation when profile already exists (via API Gateway)."""
         message = MagicMock(spec=Message)
         message.answer = AsyncMock()
         message.from_user = MagicMock(
@@ -341,30 +318,22 @@ class TestHandleCreateProfile:
             }
         }
 
-        # Mock repository
-        repository = MagicMock()
-        mock_user = MagicMock()
-        mock_user.id = 1
-        repository.create_or_update_user = AsyncMock(return_value=mock_user)
+        # Mock API client to raise conflict error
+        api_client = MagicMock()
+        api_client.create_profile = AsyncMock(
+            side_effect=Exception("API request failed with status 409")
+        )
 
-        # Mock existing profile
-        existing_profile = MagicMock()
-        existing_profile.id = 1
-        repository.get_profile_by_user_id = AsyncMock(return_value=existing_profile)
-
-        session = MagicMock()
         logger = logging.getLogger(__name__)
 
-        await handle_create_profile(message, data, repository, session, logger)
+        await handle_create_profile(message, data, api_client, logger)
 
-        # Should show error message about existing profile
+        # Should show error message
         message.answer.assert_called_once()
-        assert "уже есть профиль" in message.answer.call_args[0][0]
-        # Should not create profile or commit
-        repository.create_profile.assert_not_called()
+        assert "Не удалось создать профиль" in message.answer.call_args[0][0]
 
     async def test_handle_create_profile_success(self):
-        """Test successful profile creation."""
+        """Test successful profile creation via API Gateway."""
         message = MagicMock(spec=Message)
         message.answer = AsyncMock()
         message.from_user = MagicMock(
@@ -386,33 +355,26 @@ class TestHandleCreateProfile:
             }
         }
 
-        # Mock repository
-        repository = MagicMock()
-        mock_user = MagicMock()
-        mock_user.id = 1
-        repository.create_or_update_user = AsyncMock(return_value=mock_user)
+        # Mock API client
+        api_client = MagicMock()
+        api_client.create_profile = AsyncMock(
+            return_value={
+                "user_id": 1,
+                "name": "John Doe",
+                "gender": "male",
+                "goal": "relationship",
+                "city": "Moscow",
+                "created": True,
+            }
+        )
 
-        # No existing profile
-        repository.get_profile_by_user_id = AsyncMock(return_value=None)
-
-        mock_profile = MagicMock()
-        mock_profile.id = 1
-        mock_profile.name = "John Doe"
-        mock_profile.birth_date = datetime.strptime("1990-01-01", "%Y-%m-%d").date()
-        mock_profile.gender = "male"
-        mock_profile.goal = "relationship"
-        mock_profile.city = "Moscow"
-        repository.create_profile = AsyncMock(return_value=mock_profile)
-
-        session = MagicMock()
-        session.commit = AsyncMock()
         logger = logging.getLogger(__name__)
 
-        await handle_create_profile(message, data, repository, session, logger)
+        await handle_create_profile(message, data, api_client, logger)
 
         message.answer.assert_called_once()
         assert "Профиль создан" in message.answer.call_args[0][0]
-        session.commit.assert_called_once()
+        api_client.create_profile.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -429,22 +391,19 @@ class TestMainFunction:
 
                 await main()
 
-    async def test_main_bot_creation_with_database(self):
-        """Test main() creates bot with database configuration."""
+    async def test_main_bot_creation_with_api_gateway(self):
+        """Test main() creates bot with API Gateway configuration (thin client)."""
         with patch("bot.main.load_config") as mock_load, patch(
             "bot.main.Bot"
         ) as mock_bot, patch("bot.main.Dispatcher") as mock_dispatcher, patch(
-            "bot.main.create_async_engine"
-        ) as mock_engine, patch(
-            "bot.main.sessionmaker"
-        ) as mock_sessionmaker, patch(
-            "bot.api.run_api_server"
-        ) as mock_api_server:
+            "bot.main.APIGatewayClient"
+        ) as mock_api_client:
 
-            # Mock config with database
+            # Mock config with API Gateway URL
             mock_config = MagicMock()
             mock_config.token = "123:abc"
-            mock_config.database_url = "postgresql://localhost/db"
+            mock_config.api_gateway_url = "http://api-gateway:8080"
+            mock_config.database_url = None  # No direct database access
             mock_config.webapp_url = "https://example.com"
             mock_load.return_value = mock_config
 
@@ -465,17 +424,9 @@ class TestMainFunction:
             mock_dp_instance.start_polling = AsyncMock(return_value=None)
             mock_dispatcher.return_value = mock_dp_instance
 
-            # Mock database setup
-            mock_engine_instance = MagicMock()
-            mock_engine.return_value = mock_engine_instance
-            mock_session_maker = MagicMock()
-            mock_sessionmaker.return_value = mock_session_maker
-
-            # Mock API server to be called and return awaitable
-            async def noop_api_server(*args, **kwargs):
-                return None
-
-            mock_api_server.side_effect = noop_api_server
+            # Mock API client
+            mock_client_instance = MagicMock()
+            mock_api_client.return_value = mock_client_instance
 
             from bot.main import main
 
@@ -484,22 +435,22 @@ class TestMainFunction:
             # Verify bot was created
             mock_bot.assert_called_once_with(token="123:abc")
 
-            # Verify database engine was created
-            mock_engine.assert_called_once()
-            assert "postgresql://localhost/db" in str(mock_engine.call_args)
+            # Verify API client was created with correct URL
+            mock_api_client.assert_called_once_with("http://api-gateway:8080")
 
-            # Verify session maker was stored in dispatcher
-            assert "session_maker" in mock_dp_instance.workflow_data
+            # Verify API client was stored in dispatcher
+            assert "api_client" in mock_dp_instance.workflow_data
 
-    async def test_main_without_database(self):
-        """Test main() handles missing database configuration."""
+    async def test_main_without_api_gateway(self):
+        """Test main() handles missing API Gateway configuration."""
         with patch("bot.main.load_config") as mock_load, patch(
             "bot.main.Bot"
         ) as mock_bot, patch("bot.main.Dispatcher") as mock_dispatcher:
 
-            # Mock config without database
+            # Mock config without API Gateway
             mock_config = MagicMock()
             mock_config.token = "123:abc"
+            mock_config.api_gateway_url = None
             mock_config.database_url = None
             mock_config.webapp_url = "https://example.com"
             mock_load.return_value = mock_config
@@ -528,10 +479,10 @@ class TestMainFunction:
             # Verify bot was created
             mock_bot.assert_called_once_with(token="123:abc")
 
-            # Verify no session maker in dispatcher
+            # Verify no API client in dispatcher
             assert (
-                "session_maker" not in mock_dp_instance.workflow_data
-                or mock_dp_instance.workflow_data.get("session_maker") is None
+                "api_client" not in mock_dp_instance.workflow_data
+                or mock_dp_instance.workflow_data.get("api_client") is None
             )
 
     async def test_main_bot_execution_error(self):
@@ -543,6 +494,7 @@ class TestMainFunction:
             # Mock config
             mock_config = MagicMock()
             mock_config.token = "123:abc"
+            mock_config.api_gateway_url = None
             mock_config.database_url = None
             mock_load.return_value = mock_config
 
