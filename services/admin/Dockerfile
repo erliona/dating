@@ -11,6 +11,9 @@ COPY bot/ bot/
 COPY core/ core/
 COPY services/admin/ services/admin/
 
+# Set PYTHONPATH to find modules
+ENV PYTHONPATH=/app
+
 # Expose port
 EXPOSE 8086
 

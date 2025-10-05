@@ -10,6 +10,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY core/ core/
 COPY gateway/ gateway/
 
+# Set PYTHONPATH to find modules
+ENV PYTHONPATH=/app
+
 # Expose port
 EXPOSE 8080
 

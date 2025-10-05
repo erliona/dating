@@ -12,6 +12,9 @@ COPY core/ core/
 COPY adapters/ adapters/
 COPY services/auth/ services/auth/
 
+# Set PYTHONPATH to find modules
+ENV PYTHONPATH=/app
+
 # Expose port
 EXPOSE 8081
 
