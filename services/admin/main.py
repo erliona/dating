@@ -152,7 +152,7 @@ async def get_stats_handler(request: web.Request) -> web.Response:
 
             # Banned users
             banned_users_result = await session.execute(
-                select(func.count(User.id)).where(User.is_banned == True)
+                select(func.count(User.id)).where(User.is_banned)
             )
             banned_users = banned_users_result.scalar()
 
