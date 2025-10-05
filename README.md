@@ -538,6 +538,7 @@ async def test_create_profile(profile_service):
 | `DEPLOY_SSH_KEY` | Приватный SSH ключ | `-----BEGIN RSA...` |
 | `BOT_TOKEN` | Telegram bot token | `123456789:ABC...` |
 | `JWT_SECRET` | Секрет для JWT (32+ символов) | `random_secret_32+` |
+| `POSTGRES_PASSWORD` | Статический пароль БД | `SecurePassword123` |
 
 **Опциональные для HTTPS:**
 
