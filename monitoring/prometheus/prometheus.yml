@@ -1,9 +1,12 @@
+# Prometheus configuration - Enhanced for better monitoring
+
 global:
   scrape_interval: 15s
+  scrape_timeout: 10s
   evaluation_interval: 15s
   external_labels:
     cluster: 'dating-app'
-    environment: 'production'
+    environment: '${ENVIRONMENT:-production}'
 
 # Alertmanager configuration (optional)
 # alerting:
@@ -20,24 +23,81 @@ scrape_configs:
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+          component: 'monitoring'
+    metrics_path: '/metrics'
+    honor_labels: true
+
+  # Loki metrics
+  - job_name: 'loki'
+    static_configs:
+      - targets: ['loki:3100']
+        labels:
+          service: 'loki'
+          component: 'monitoring'
+    metrics_path: '/metrics'
 
   # cAdvisor - Container metrics
   - job_name: 'cadvisor'
     static_configs:
       - targets: ['cadvisor:8080']  # Internal container port
+        labels:
+          service: 'cadvisor'
+          component: 'monitoring'
+    metrics_path: '/metrics'
+    # Relabel to add meaningful labels
+    metric_relabel_configs:
+      - source_labels: [name]
+        target_label: container_name
+      - source_labels: [image]
+        target_label: container_image
 
   # Node Exporter - System metrics
   - job_name: 'node-exporter'
     static_configs:
       - targets: ['node-exporter:9100']
+        labels:
+          service: 'node-exporter'
+          component: 'monitoring'
+          instance: 'dating-host'
+    metrics_path: '/metrics'
 
   # PostgreSQL metrics
   - job_name: 'postgres'
     static_configs:
       - targets: ['postgres-exporter:9187']
+        labels:
+          service: 'postgres'
+          component: 'database'
+          database: 'dating'
+    metrics_path: '/metrics'
 
   # Traefik metrics
   - job_name: 'traefik'
     static_configs:
       - targets: ['traefik:8080']
+        labels:
+          service: 'traefik'
+          component: 'proxy'
     metrics_path: '/metrics'
+    
+  # Application services metrics (if they expose /metrics endpoints)
+  - job_name: 'application-services'
+    static_configs:
+      - targets:
+          - 'api-gateway:8080'
+          - 'auth-service:8081'
+          - 'profile-service:8082'
+          - 'discovery-service:8083'
+          - 'media-service:8084'
+          - 'chat-service:8085'
+        labels:
+          component: 'application'
+    metrics_path: '/metrics'
+    # Relabel to extract service name from target
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: '([^:]+):.*'
+        target_label: service
+        replacement: '$1'

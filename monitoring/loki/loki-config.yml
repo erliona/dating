@@ -1,9 +1,14 @@
+# Loki configuration - Modern v3.x compatible schema
+# This configuration uses the updated structure without deprecated fields
+
 auth_enabled: false
 
 server:
   http_listen_port: 3100
   grpc_listen_port: 9096
+  log_level: info
 
+# Common configuration for all components
 common:
   instance_addr: 127.0.0.1
   path_prefix: /loki
@@ -16,6 +21,7 @@ common:
     kvstore:
       store: inmemory
 
+# Ingester configuration - manages log ingestion
 ingester:
   lifecycler:
     address: 127.0.0.1
@@ -24,11 +30,20 @@ ingester:
         store: inmemory
       replication_factor: 1
     final_sleep: 0s
-  chunk_idle_period: 5m
-  chunk_retain_period: 30s
+  # WAL (Write-Ahead Log) for data durability
   wal:
     enabled: true
     dir: /loki/wal
+    flush_on_shutdown: true
+  # Chunk settings
+  chunk_idle_period: 5m
+  chunk_retain_period: 30s
+  chunk_block_size: 262144
+  chunk_encoding: snappy
+
+# Query configuration
+querier:
+  max_concurrent: 4
 
 query_range:
   results_cache:
@@ -37,9 +52,10 @@ query_range:
         enabled: true
         max_size_mb: 100
 
+# Schema configuration - using modern TSDB format
 schema_config:
   configs:
-    - from: 2020-10-24
+    - from: 2024-01-01
       store: tsdb
       object_store: filesystem
       schema: v13
@@ -47,17 +63,41 @@ schema_config:
         prefix: index_
         period: 24h
 
-ruler:
-  alertmanager_url: http://localhost:9093
+# Storage configuration
+storage_config:
+  tsdb_shipper:
+    active_index_directory: /loki/tsdb-index
+    cache_location: /loki/tsdb-cache
+  filesystem:
+    directory: /loki/chunks
 
+# Limits configuration
 limits_config:
-  reject_old_samples: true
-  reject_old_samples_max_age: 168h
+  # Ingestion limits
   ingestion_rate_mb: 10
   ingestion_burst_size_mb: 20
+  per_stream_rate_limit: 5MB
+  per_stream_rate_limit_burst: 10MB
+  
+  # Query limits
+  max_query_length: 721h  # 30 days + 1 hour
+  max_query_parallelism: 16
+  max_entries_limit_per_query: 5000
+  max_streams_per_user: 0  # No limit
+  max_global_streams_per_user: 0  # No limit
+  
+  # Retention
   retention_period: 720h  # 30 days
+  
+  # Sample limits
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h  # 7 days
+  creation_grace_period: 10m
+  
+  # Split queries
+  split_queries_by_interval: 15m
 
-# Retention (using compactor for tsdb)
+# Compactor for retention enforcement
 compactor:
   working_directory: /loki/compactor
   compaction_interval: 10m
@@ -65,3 +105,25 @@ compactor:
   retention_delete_delay: 2h
   retention_delete_worker_count: 150
   delete_request_store: filesystem
+
+# Table manager (for index management)
+table_manager:
+  retention_deletes_enabled: true
+  retention_period: 720h  # 30 days
+
+# Ruler configuration (for alerts)
+ruler:
+  storage:
+    type: local
+    local:
+      directory: /loki/rules
+  rule_path: /loki/rules-temp
+  alertmanager_url: http://alertmanager:9093
+  ring:
+    kvstore:
+      store: inmemory
+  enable_api: true
+
+# Analytics configuration
+analytics:
+  reporting_enabled: false
