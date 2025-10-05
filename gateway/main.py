@@ -6,7 +6,7 @@ This service routes requests to appropriate microservices.
 import logging
 import os
 
-from aiohttp import ClientSession, web
+from aiohttp import ClientSession, ClientTimeout, web
 
 from core.utils.logging import configure_logging
 
@@ -15,8 +15,11 @@ logger = logging.getLogger(__name__)
 
 async def proxy_request(request: web.Request, target_url: str) -> web.Response:
     """Proxy request to target microservice."""
+    # Configure timeout: 30s total, 10s connect
+    timeout = ClientTimeout(total=30, connect=10)
+
     try:
-        async with ClientSession() as session:
+        async with ClientSession(timeout=timeout) as session:
             # Build target URL
             path = request.path
             query_string = request.query_string
@@ -51,7 +54,7 @@ async def proxy_request(request: web.Request, target_url: str) -> web.Response:
                     },
                 )
     except Exception as e:
-        logger.error(f"Error proxying request to {target_url}: {e}")
+        logger.error(f"Error proxying request to {target_url}: {e}", exc_info=True)
         return web.json_response({"error": "Service unavailable"}, status=503)
 
 
@@ -143,7 +146,9 @@ if __name__ == "__main__":
             "MEDIA_SERVICE_URL", "http://media-service:8084"
         ),
         "chat_service_url": os.getenv("CHAT_SERVICE_URL", "http://chat-service:8085"),
-        "admin_service_url": os.getenv("ADMIN_SERVICE_URL", "http://admin-service:8086"),
+        "admin_service_url": os.getenv(
+            "ADMIN_SERVICE_URL", "http://admin-service:8086"
+        ),
         "host": os.getenv("GATEWAY_HOST", "0.0.0.0"),
         "port": int(os.getenv("GATEWAY_PORT", 8080)),
     }
