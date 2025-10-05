@@ -44,7 +44,9 @@ echo "Test 2: Log Rotation Configuration"
 echo "-----------------------------------"
 
 echo "Checking log driver configuration..."
-LOG_CONFIG=$(docker inspect dating-bot-1 2>/dev/null | grep -A5 '"LogConfig"' || echo "")
+# Try to get container name dynamically, fallback to the current service name
+CONTAINER_NAME=$(docker compose ps -q telegram-bot 2>/dev/null | xargs docker inspect --format='{{.Name}}' 2>/dev/null | sed 's/^\/\|\/$//' || echo "telegram-bot")
+LOG_CONFIG=$(docker inspect "$CONTAINER_NAME" 2>/dev/null | grep -A5 '"LogConfig"' || echo "")
 if echo "$LOG_CONFIG" | grep -q '"Type": "json-file"'; then
     echo -e "${GREEN}✓ JSON file logging configured${NC}"
     

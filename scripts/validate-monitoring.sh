@@ -40,7 +40,7 @@ print_section() {
 # Check if monitoring services are defined
 print_section "1. Checking Docker Compose Configuration"
 
-if docker compose -f docker-compose.yml -f docker-compose.monitoring.yml config > /dev/null 2>&1; then
+if docker compose config > /dev/null 2>&1; then
   print_success "Docker Compose configuration is valid"
 else
   print_error "Docker Compose configuration has errors"
@@ -72,7 +72,7 @@ done
 
 if [ "$ALL_RUNNING" = false ]; then
   print_warning "Some monitoring services are not running"
-  print_info "Start them with: docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d"
+  print_info "Start them with: docker compose --profile monitoring up -d"
   exit 1
 fi
 
