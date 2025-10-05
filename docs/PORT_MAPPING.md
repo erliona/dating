@@ -289,17 +289,9 @@ When adding new services to the project:
 
 ## Related Documentation
 
-- **Deployment Guide:** `docs/MICROSERVICES_DEPLOYMENT.md`
 - **Troubleshooting:** `docs/DEPLOYMENT_TROUBLESHOOTING.md`
-- **Port Conflict Fixes:**
-  - `docs/BUG_FIX_PORT_80_CONFLICT.md`
-  - `docs/BUG_FIX_PORT_5432_CONFLICT.md`
-  - `docs/BUG_FIX_PORT_8080_CONFLICT.md`
-  - `docs/BUG_FIX_PORT_8080_RACE_CONDITION.md`
-- **Fix Summaries:**
-  - `DEPLOYMENT_FIX_SUMMARY_PORT_5432.md`
-  - `DEPLOYMENT_FIX_SUMMARY_PORT_8080.md`
-  - `DEPLOYMENT_FIX_SUMMARY_PORT_8080_RACE.md`
+- **CI/CD Guide:** `docs/CI_CD_GUIDE.md`
+- **Historical Port Conflict Fixes:** `docs/archive/` (port 80, 5432, 8080 conflicts and race conditions)
 
 ---
 
