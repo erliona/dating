@@ -17,7 +17,7 @@ async def proxy_request(request: web.Request, target_url: str) -> web.Response:
     """Proxy request to target microservice."""
     # Configure timeout: 30s total, 10s connect
     timeout = ClientTimeout(total=30, connect=10)
-    
+
     try:
         async with ClientSession(timeout=timeout) as session:
             # Build target URL
@@ -146,7 +146,9 @@ if __name__ == "__main__":
             "MEDIA_SERVICE_URL", "http://media-service:8084"
         ),
         "chat_service_url": os.getenv("CHAT_SERVICE_URL", "http://chat-service:8085"),
-        "admin_service_url": os.getenv("ADMIN_SERVICE_URL", "http://admin-service:8086"),
+        "admin_service_url": os.getenv(
+            "ADMIN_SERVICE_URL", "http://admin-service:8086"
+        ),
         "host": os.getenv("GATEWAY_HOST", "0.0.0.0"),
         "port": int(os.getenv("GATEWAY_PORT", 8080)),
     }
