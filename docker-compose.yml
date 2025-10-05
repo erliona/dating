@@ -34,12 +34,12 @@ services:
     environment:
       JWT_SECRET: ${JWT_SECRET}
       AUTH_SERVICE_HOST: 0.0.0.0
-      AUTH_SERVICE_PORT: 8081
+      AUTH_SERVICE_PORT: ${AUTH_SERVICE_PORT:-8081}
       BOT_TOKEN: ${BOT_TOKEN}
     ports:
-      - "8081:8081"
+      - "${AUTH_SERVICE_PORT:-8081}:${AUTH_SERVICE_PORT:-8081}"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:$${AUTH_SERVICE_PORT:-8081}/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -56,11 +56,11 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
       PROFILE_SERVICE_HOST: 0.0.0.0
-      PROFILE_SERVICE_PORT: 8082
+      PROFILE_SERVICE_PORT: ${PROFILE_SERVICE_PORT:-8082}
     ports:
-      - "8082:8082"
+      - "${PROFILE_SERVICE_PORT:-8082}:${PROFILE_SERVICE_PORT:-8082}"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:$${PROFILE_SERVICE_PORT:-8082}/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -77,11 +77,11 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
       DISCOVERY_SERVICE_HOST: 0.0.0.0
-      DISCOVERY_SERVICE_PORT: 8083
+      DISCOVERY_SERVICE_PORT: ${DISCOVERY_SERVICE_PORT:-8083}
     ports:
-      - "8083:8083"
+      - "${DISCOVERY_SERVICE_PORT:-8083}:${DISCOVERY_SERVICE_PORT:-8083}"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8083/health"]
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:$${DISCOVERY_SERVICE_PORT:-8083}/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -98,15 +98,15 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
       MEDIA_SERVICE_HOST: 0.0.0.0
-      MEDIA_SERVICE_PORT: 8084
+      MEDIA_SERVICE_PORT: ${MEDIA_SERVICE_PORT:-8084}
       PHOTO_STORAGE_PATH: /app/photos
       NSFW_THRESHOLD: ${NSFW_THRESHOLD:-0.7}
     ports:
-      - "8084:8084"
+      - "${MEDIA_SERVICE_PORT:-8084}:${MEDIA_SERVICE_PORT:-8084}"
     volumes:
       - media_storage:/app/photos
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8084/health"]
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:$${MEDIA_SERVICE_PORT:-8084}/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -123,11 +123,11 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
       CHAT_SERVICE_HOST: 0.0.0.0
-      CHAT_SERVICE_PORT: 8085
+      CHAT_SERVICE_PORT: ${CHAT_SERVICE_PORT:-8085}
     ports:
-      - "8085:8085"
+      - "${CHAT_SERVICE_PORT:-8085}:${CHAT_SERVICE_PORT:-8085}"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8085/health"]
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:$${CHAT_SERVICE_PORT:-8085}/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -145,11 +145,11 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
       JWT_SECRET: ${JWT_SECRET}
       ADMIN_SERVICE_HOST: 0.0.0.0
-      ADMIN_SERVICE_PORT: 8086
+      ADMIN_SERVICE_PORT: ${ADMIN_SERVICE_PORT:-8086}
     ports:
-      - "8086:8086"
+      - "${ADMIN_SERVICE_PORT:-8086}:${ADMIN_SERVICE_PORT:-8086}"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:$${ADMIN_SERVICE_PORT:-8086}/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -169,17 +169,17 @@ services:
       - admin-service
     environment:
       GATEWAY_HOST: 0.0.0.0
-      GATEWAY_PORT: 8080
-      AUTH_SERVICE_URL: http://auth-service:8081
-      PROFILE_SERVICE_URL: http://profile-service:8082
-      DISCOVERY_SERVICE_URL: http://discovery-service:8083
-      MEDIA_SERVICE_URL: http://media-service:8084
-      CHAT_SERVICE_URL: http://chat-service:8085
-      ADMIN_SERVICE_URL: http://admin-service:8086
+      GATEWAY_PORT: ${GATEWAY_PORT:-8080}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:8081}
+      PROFILE_SERVICE_URL: ${PROFILE_SERVICE_URL:-http://profile-service:8082}
+      DISCOVERY_SERVICE_URL: ${DISCOVERY_SERVICE_URL:-http://discovery-service:8083}
+      MEDIA_SERVICE_URL: ${MEDIA_SERVICE_URL:-http://media-service:8084}
+      CHAT_SERVICE_URL: ${CHAT_SERVICE_URL:-http://chat-service:8085}
+      ADMIN_SERVICE_URL: ${ADMIN_SERVICE_URL:-http://admin-service:8086}
     ports:
-      - "8080:8080"
+      - "${GATEWAY_PORT:-8080}:${GATEWAY_PORT:-8080}"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:$${GATEWAY_PORT:-8080}/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -227,7 +227,7 @@ services:
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
     ports:
-      - "9090:9090"
+      - "${PROMETHEUS_PORT:-9090}:9090"
     restart: unless-stopped
     networks:
       - monitoring
@@ -240,12 +240,12 @@ services:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_SERVER_ROOT_URL=http://localhost:${GRAFANA_PORT:-3000}
       - GF_INSTALL_PLUGINS=
     ports:
-      - "3000:3000"
+      - "${GRAFANA_PORT:-3000}:3000"
     depends_on:
       - prometheus
       - loki
@@ -261,7 +261,7 @@ services:
       - loki_data:/loki
     command: -config.file=/etc/loki/loki-config.yml
     ports:
-      - "3100:3100"
+      - "${LOKI_PORT:-3100}:3100"
     restart: unless-stopped
     networks:
       - monitoring
@@ -291,7 +291,7 @@ services:
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
     ports:
-      - "8090:8080"  # Changed from 8081 to avoid conflict with auth-service
+      - "${CADVISOR_PORT:-8090}:8080"  # Changed from 8081 to avoid conflict with auth-service
     privileged: true
     devices:
       - /dev/kmsg
@@ -312,7 +312,7 @@ services:
       - /sys:/host/sys:ro
       - /:/rootfs:ro
     ports:
-      - "9100:9100"
+      - "${NODE_EXPORTER_PORT:-9100}:9100"
     restart: unless-stopped
     networks:
       - monitoring
@@ -323,7 +323,7 @@ services:
     environment:
       DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}?sslmode=disable"
     ports:
-      - "9187:9187"
+      - "${POSTGRES_EXPORTER_PORT:-9187}:9187"
     depends_on:
       - db
     restart: unless-stopped
