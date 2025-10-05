@@ -33,15 +33,12 @@
 
 ### Доступ к панели
 
-После запуска приложения админ панель доступна по адресу:
-```
-http://localhost:8086/admin-panel/index.html
-```
-
-Или через API Gateway:
+После запуска приложения админ панель доступна **только через API Gateway**:
 ```
 http://localhost:8080/admin-panel/index.html
 ```
+
+**Примечание:** Admin service не имеет прямого внешнего доступа (используется `expose` вместо `ports` в docker-compose.yml). Все запросы должны проходить через API Gateway для обеспечения безопасности.
 
 ### Учетные данные по умолчанию
 
@@ -78,8 +75,8 @@ admin-service:
     JWT_SECRET: ${JWT_SECRET}
     ADMIN_SERVICE_HOST: 0.0.0.0
     ADMIN_SERVICE_PORT: 8086
-  ports:
-    - "8086:8086"
+  expose:
+    - "8086"  # Internal network only - external access via API Gateway
 ```
 
 ## 📡 API Endpoints
@@ -204,9 +201,14 @@ logger.info("Admin login", extra={
 
 ### Метрики
 
-Health check endpoint:
+Health check endpoint (через API Gateway):
 ```bash
-curl http://localhost:8086/health
+curl http://localhost:8080/admin/health
+```
+
+Или внутри Docker сети:
+```bash
+docker exec <container-name> curl http://admin-service:8086/health
 ```
 
 ## 📚 Дополнительная документация
