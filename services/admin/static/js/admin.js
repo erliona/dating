@@ -450,22 +450,34 @@ function renderPagination(data, containerId, loadFunction) {
     let html = '';
     
     if (data.page > 1) {
-        html += `<button onclick="${loadFunction.name}(${data.page - 1})">Предыдущая</button>`;
+        html += `<button type="button" data-page="${data.page - 1}">Предыдущая</button>`;
     }
     
     for (let i = 1; i <= data.pages; i++) {
         if (i === 1 || i === data.pages || (i >= data.page - 2 && i <= data.page + 2)) {
-            html += `<button class="${i === data.page ? 'active' : ''}" onclick="${loadFunction.name}(${i})">${i}</button>`;
+            html += `<button type="button" class="${i === data.page ? 'active' : ''}" data-page="${i}">${i}</button>`;
         } else if (i === data.page - 3 || i === data.page + 3) {
             html += '<span>...</span>';
         }
     }
     
     if (data.page < data.pages) {
-        html += `<button onclick="${loadFunction.name}(${data.page + 1})">Следующая</button>`;
+        html += `<button type="button" data-page="${data.page + 1}">Следующая</button>`;
     }
     
     container.innerHTML = html;
+
+    // Remove any previous event listener to avoid duplicates
+    container.onclick = null;
+    // Add event delegation for pagination buttons
+    container.addEventListener('click', function (e) {
+        if (e.target && e.target.tagName === 'BUTTON' && e.target.hasAttribute('data-page')) {
+            const page = parseInt(e.target.getAttribute('data-page'), 10);
+            if (!isNaN(page)) {
+                loadFunction(page);
+            }
+        }
+    });
 }
 
 // Helper functions
