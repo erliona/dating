@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Deployment Port Allocation Errors** - Fixed persistent port 8080 race condition
+  - Enhanced cleanup procedure with 8 comprehensive steps
+  - Added docker network pruning to force release of port bindings
+  - Increased wait time from 15s to 25s for docker-proxy processes
+  - Added explicit port killing logic using `ss` and `kill -9`
+  - Implemented retry logic (3 attempts) for `docker compose up`
+  - Fixed deployment failures in runs #13-17
+  - Documented in `docs/archive/BUG_FIX_DEPLOYMENT_PORT_8080_RACE.md`
 - **Documentation Accuracy** - Corrected test counts and coverage percentages
   - Updated test count from 162-254 (claimed) to 293 (actual)
   - Updated coverage from 76-82% (claimed) to 81% (actual)
