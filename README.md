@@ -819,6 +819,7 @@ docker compose up -d
 http://localhost:3000    # Grafana (admin/admin)
 http://localhost:9090    # Prometheus
 http://localhost:8090    # cAdvisor
+http://localhost:8091    # Traefik Dashboard
 http://localhost:3100    # Loki
 ```
 
@@ -1363,8 +1364,8 @@ docker compose up -d
   - Логирование и трейсинг
 
 - 🔌 **[Port Mapping](docs/PORT_MAPPING.md)** - Карта портов всех сервисов
-  - Микросервисы (8080-8085)
-  - Мониторинг (3000, 9090, 8090)
+  - Микросервисы (8080-8086)
+  - Мониторинг (3000, 8090-8091, 9090-9187)
   - База данных (5432)
 
 - 🚀 **[CI/CD Guide](docs/CI_CD_GUIDE.md)** - Continuous Integration и Deployment
