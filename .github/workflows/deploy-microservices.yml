@@ -282,11 +282,15 @@ jobs:
           echo "  🧹 Cleaning up any stray containers..."
           docker ps -aq --filter "name=dating-microservices" | xargs -r docker rm -f || true
           
-          # Step 5: Wait for system to stabilize
-          echo "  ⏳ Waiting for system to stabilize (15 seconds)..."
-          sleep 15
+          # Step 5: Prune docker networks to force release of port bindings
+          echo "  🌐 Pruning unused Docker networks..."
+          docker network prune -f || true
           
-          # Step 6: Verify no containers are running
+          # Step 6: Wait for docker-proxy processes to release ports
+          echo "  ⏳ Waiting for docker-proxy to release ports (25 seconds)..."
+          sleep 25
+          
+          # Step 7: Verify no containers are running
           echo "  🔍 Verifying cleanup..."
           REMAINING=$(docker ps -q --filter "name=dating-microservices" | wc -l)
           if [ "$REMAINING" -gt 0 ]; then
@@ -297,14 +301,34 @@ jobs:
             sleep 10
           fi
           
-          # Step 7: Verify critical ports are available (diagnostic only)
-          echo "  🔍 Checking if critical ports are available..."
+          # Step 8: Kill any processes still holding critical ports
+          echo "  🔍 Checking and killing processes on critical ports..."
           PORTS_TO_CHECK="8080 8081 8082 8083 8084 8085 8086"
           
           for port in $PORTS_TO_CHECK; do
+            # Check if port is in use
             if ss -tuln | grep -q ":$port "; then
-              echo "    ⚠️  Port $port is in use, but will attempt deployment anyway"
-              ss -tulnp | grep ":$port " || true
+              echo "    ⚠️  Port $port is still in use, attempting to free it..."
+              
+              # Find and kill processes using this port
+              PIDS=$(ss -tulnp | grep ":$port " | grep -oP 'pid=\K[0-9]+' || true)
+              
+              if [ -n "$PIDS" ]; then
+                for pid in $PIDS; do
+                  echo "      🔫 Killing process $pid on port $port..."
+                  sudo kill -9 $pid 2>/dev/null || true
+                done
+                # Wait a moment for the port to be released
+                sleep 2
+              fi
+              
+              # Double-check if port is now free
+              if ss -tuln | grep -q ":$port "; then
+                echo "      ⚠️  Port $port is STILL in use after kill attempt"
+                ss -tulnp | grep ":$port " || true
+              else
+                echo "      ✅ Port $port is now available"
+              fi
             else
               echo "    ✅ Port $port is available"
             fi
@@ -316,7 +340,30 @@ jobs:
           docker compose build
 
           echo "🚀 Deploying microservices..."
-          docker compose up -d
+          # Retry logic for docker compose up in case of transient port allocation issues
+          MAX_RETRIES=3
+          RETRY_COUNT=0
+          
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            if docker compose up -d; then
+              echo "  ✅ Services started successfully"
+              break
+            else
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+              if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+                echo "  ⚠️  Deployment failed (attempt $RETRY_COUNT/$MAX_RETRIES), retrying in 10 seconds..."
+                sleep 10
+                
+                # Additional cleanup before retry
+                docker compose down --remove-orphans || true
+                docker network prune -f || true
+                sleep 5
+              else
+                echo "  ❌ Deployment failed after $MAX_RETRIES attempts"
+                exit 1
+              fi
+            fi
+          done
 
           echo "⏳ Waiting for services to be healthy..."
           sleep 15
