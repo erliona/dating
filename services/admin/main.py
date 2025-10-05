@@ -126,7 +126,7 @@ async def get_stats_handler(request: web.Request) -> web.Response:
 
             # Complete profiles
             complete_profiles_result = await session.execute(
-                select(func.count(Profile.id)).where(Profile.is_complete == True)
+                select(func.count(Profile.id)).where(Profile.is_complete)
             )
             complete_profiles = complete_profiles_result.scalar()
 
