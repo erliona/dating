@@ -86,7 +86,7 @@ echo ""
 echo "5. Waiting for services to be healthy..."
 sleep 10
 
-SERVICES=("db" "auth-service" "profile-service" "discovery-service" "media-service" "chat-service" "api-gateway" "telegram-bot")
+SERVICES=("db" "auth-service" "profile-service" "discovery-service" "media-service" "chat-service" "admin-service" "api-gateway" "telegram-bot")
 ALL_HEALTHY=true
 
 for service in "${SERVICES[@]}"; do
@@ -119,6 +119,7 @@ echo "  Profile:       http://localhost:8082"
 echo "  Discovery:     http://localhost:8083"
 echo "  Media:         http://localhost:8084"
 echo "  Chat:          http://localhost:8085"
+echo "  Admin:         http://localhost:8086"
 echo ""
 echo "Health checks:"
 echo "  curl http://localhost:8080/health"
@@ -127,6 +128,7 @@ echo "  curl http://localhost:8082/health"
 echo "  curl http://localhost:8083/health"
 echo "  curl http://localhost:8084/health"
 echo "  curl http://localhost:8085/health"
+echo "  curl http://localhost:8086/health"
 echo ""
 echo "To view logs:"
 echo "  docker compose logs -f"
