@@ -75,8 +75,6 @@ class TestProxyRequest:
 
     async def test_gateway_health_check(self):
         """Test gateway health check endpoint."""
-        from aiohttp.test_utils import AioHTTPTestCase, unittest_run_loop
-
         # Test health check through direct handler call
         from gateway.main import health_check
 
