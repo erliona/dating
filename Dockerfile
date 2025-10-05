@@ -39,17 +39,18 @@ COPY migrations ./migrations
 COPY webapp ./webapp
 COPY alembic.ini .
 COPY docker/entrypoint.sh ./docker/
+COPY docker/healthcheck_bot.py ./docker/
 
-# Make entrypoint executable
-RUN chmod +x docker/entrypoint.sh
+# Make entrypoint and healthcheck executable
+RUN chmod +x docker/entrypoint.sh docker/healthcheck_bot.py
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PATH="/opt/venv/bin:$PATH"
 
-# Add health check
+# Add health check using Telegram Bot API getMe
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD python -c "import sys; sys.exit(0)"
+    CMD python ./docker/healthcheck_bot.py
 
 ENTRYPOINT ["./docker/entrypoint.sh"]
