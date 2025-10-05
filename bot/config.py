@@ -181,7 +181,7 @@ def load_config() -> BotConfig:
             )
             nsfw_threshold = 0.7
     except ValueError:
-        logging.warning(f"Invalid NSFW_THRESHOLD format, using default 0.7")
+        logging.warning("Invalid NSFW_THRESHOLD format, using default 0.7")
         nsfw_threshold = 0.7
 
     return BotConfig(

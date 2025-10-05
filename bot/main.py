@@ -4,7 +4,6 @@ import asyncio
 import json
 import logging
 import os
-from datetime import datetime
 
 from aiogram import Bot, Dispatcher, Router
 from aiogram.filters import Command
@@ -288,15 +287,14 @@ async def main() -> None:
         # Bot now uses thin client architecture through API Gateway
         # The bot/api.py server is kept for backward compatibility with WebApp
         # but should eventually also use API Gateway client
-        
+
         # For now, we can optionally run the API server if database_url is provided
         # This allows gradual migration
         api_server_task = None
         if config.database_url:
-            from sqlalchemy.ext.asyncio import create_async_engine
+            from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
             from sqlalchemy.orm import sessionmaker
-            from sqlalchemy.ext.asyncio import AsyncSession
-            
+
             from .api import run_api_server
 
             # Initialize database for bot/api.py backward compatibility
@@ -304,11 +302,11 @@ async def main() -> None:
             async_session_maker = sessionmaker(
                 engine, class_=AsyncSession, expire_on_commit=False
             )
-            
+
             # Get API server configuration
             api_host = os.getenv("API_HOST", "0.0.0.0")
             api_port = int(os.getenv("API_PORT", "8080"))
-            
+
             api_server_task = run_api_server(config, async_session_maker, api_host, api_port)
             logger.info(
                 "Starting bot API server for backward compatibility",
