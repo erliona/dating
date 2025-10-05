@@ -291,6 +291,23 @@ jobs:
             sleep 10
           fi
           
+          # Step 7.5: Kill any lingering docker-proxy processes from this project
+          echo "  🔪 Killing any lingering docker-proxy processes..."
+          # Find all docker-proxy processes related to our ports and kill them
+          for port in 8080 8081 8082 8083 8084 8085 8086; do
+            PROXY_PIDS=$(ps aux | grep "docker-proxy" | grep ":$port" | grep -v grep | awk '{print $2}' || echo "")
+            if [ -n "$PROXY_PIDS" ]; then
+              echo "    Found docker-proxy processes for port $port: $PROXY_PIDS"
+              for PID in $PROXY_PIDS; do
+                echo "    Killing docker-proxy process $PID..."
+                sudo kill -9 $PID 2>/dev/null || true
+              done
+            fi
+          done
+          # Give Docker time to clean up after killing proxies
+          echo "  ⏳ Waiting for Docker to clean up after killing proxies (10 seconds)..."
+          sleep 10
+          
           # Step 8: Verify critical ports are available
           echo "  🔍 Checking if critical ports are available..."
           PORTS_TO_CHECK="8080 8081 8082 8083 8084 8085 8086"
@@ -301,14 +318,17 @@ jobs:
             while ss -tuln | grep -q ":$port "; do
               if [ $WAIT_TIME -ge $MAX_WAIT ]; then
                 echo "    ❌ Port $port still in use after ${MAX_WAIT}s"
-                echo "    Attempting to identify and kill process..."
+                echo "    Attempting to identify and kill ALL processes using port..."
                 ss -tulnp | grep ":$port " || true
-                # Try to kill the process using the port (last resort)
-                PID=$(ss -tulnp | grep ":$port " | grep -oP 'pid=\K[0-9]+' | head -1 || echo "")
-                if [ -n "$PID" ]; then
-                  echo "    Killing process $PID using port $port..."
-                  sudo kill -9 $PID 2>/dev/null || true
-                  sleep 3
+                # Try to kill ALL processes using the port (last resort)
+                # This gets all PIDs for both IPv4 and IPv6
+                PIDS=$(ss -tulnp | grep ":$port " | grep -oP 'pid=\K[0-9]+' | sort -u || echo "")
+                if [ -n "$PIDS" ]; then
+                  for PID in $PIDS; do
+                    echo "    Killing process $PID using port $port..."
+                    sudo kill -9 $PID 2>/dev/null || true
+                  done
+                  sleep 5  # Wait longer after killing processes
                 fi
                 break
               fi
@@ -335,8 +355,19 @@ jobs:
           done
           
           if [ -n "$BLOCKED_PORTS" ]; then
-            echo "  ⚠️  Warning: The following ports are still in use:$BLOCKED_PORTS"
-            echo "  Attempting to continue anyway..."
+            echo "  ❌ CRITICAL: The following ports are still in use after all cleanup attempts:$BLOCKED_PORTS"
+            echo "  Showing processes using these ports:"
+            ss -tulnp | grep -E ":(8080|8081|8082|8083|8084|8085|8086) " || true
+            echo ""
+            echo "  This indicates a serious issue with port cleanup."
+            echo "  Deployment cannot proceed with blocked ports."
+            echo ""
+            echo "  Please investigate the following:"
+            echo "    1. Are there other services using these ports?"
+            echo "    2. Are there manual Docker containers running?"
+            echo "    3. Is there a Docker daemon issue?"
+            echo ""
+            exit 1
           else
             echo "  ✅ All critical ports are free"
           fi
