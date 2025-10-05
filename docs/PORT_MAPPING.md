@@ -12,26 +12,34 @@ All ports are carefully allocated to avoid conflicts. This document serves as th
 
 These are the main microservices that power the dating application.
 
-| Port | Service | Internal Port | Description | Health Check |
-|------|---------|---------------|-------------|--------------|
-| 8080 | API Gateway | 8080 | Main entry point, routes requests to microservices | `/health` |
-| 8081 | Auth Service | 8081 | JWT authentication and session management | `/health` |
-| 8082 | Profile Service | 8082 | User profile management | `/health` |
-| 8083 | Discovery Service | 8083 | Matching algorithms and recommendations | `/health` |
-| 8084 | Media Service | 8084 | Photo upload and processing | `/health` |
-| 8085 | Chat Service | 8085 | Real-time messaging via WebSocket | `/health` |
-| 8086 | Admin Service | 8086 | Admin panel for system management | `/health` |
+**Security Note:** Only the API Gateway is exposed externally. All other microservices are accessible only within the Docker internal network for enhanced security.
 
-**All service ports are fully configurable via environment variables:**
-- `GATEWAY_PORT=8080` - API Gateway port
-- `AUTH_SERVICE_PORT=8081` - Auth Service port
-- `PROFILE_SERVICE_PORT=8082` - Profile Service port
-- `DISCOVERY_SERVICE_PORT=8083` - Discovery Service port
-- `MEDIA_SERVICE_PORT=8084` - Media Service port
-- `CHAT_SERVICE_PORT=8085` - Chat Service port
-- `ADMIN_SERVICE_PORT=8086` - Admin Service port
+| Port | Service | Internal Port | Description | External Access | Health Check |
+|------|---------|---------------|-------------|-----------------|--------------|
+| 8080 | API Gateway | 8080 | Main entry point, routes requests to microservices | ✅ Exposed | `/health` |
+| 8081 | Auth Service | 8081 | JWT authentication and session management | 🔒 Internal only | `/health` |
+| 8082 | Profile Service | 8082 | User profile management | 🔒 Internal only | `/health` |
+| 8083 | Discovery Service | 8083 | Matching algorithms and recommendations | 🔒 Internal only | `/health` |
+| 8084 | Media Service | 8084 | Photo upload and processing | 🔒 Internal only | `/health` |
+| 8085 | Chat Service | 8085 | Real-time messaging via WebSocket | 🔒 Internal only | `/health` |
+| 8086 | Admin Service | 8086 | Admin panel for system management | 🔒 Internal only | `/health` |
 
-**Service URLs (for gateway routing):**
+**Network Architecture:**
+- **API Gateway (8080)**: The only service with external port exposure via `ports` mapping
+- **Microservices (8081-8086)**: Use `expose` directive for internal Docker network access only
+- All microservices communicate through Docker's internal network
+- External requests must go through the API Gateway
+
+**All service ports are configurable via environment variables:**
+- `GATEWAY_PORT=8080` - API Gateway port (externally exposed)
+- `AUTH_SERVICE_PORT=8081` - Auth Service port (internal only)
+- `PROFILE_SERVICE_PORT=8082` - Profile Service port (internal only)
+- `DISCOVERY_SERVICE_PORT=8083` - Discovery Service port (internal only)
+- `MEDIA_SERVICE_PORT=8084` - Media Service port (internal only)
+- `CHAT_SERVICE_PORT=8085` - Chat Service port (internal only)
+- `ADMIN_SERVICE_PORT=8086` - Admin Service port (internal only)
+
+**Service URLs (for gateway routing - internal network):**
 - `AUTH_SERVICE_URL=http://auth-service:8081`
 - `PROFILE_SERVICE_URL=http://profile-service:8082`
 - `DISCOVERY_SERVICE_URL=http://discovery-service:8083`
@@ -41,17 +49,22 @@ These are the main microservices that power the dating application.
 
 **Example: Custom port configuration**
 ```bash
-# Set custom ports for specific services
-GATEWAY_PORT=9080 AUTH_SERVICE_PORT=9081 docker compose up -d
+# Change the API Gateway external port (only externally exposed service)
+GATEWAY_PORT=9080 docker compose up -d
+
+# Change internal service ports (still internal-only, just different ports within Docker network)
+AUTH_SERVICE_PORT=9081 PROFILE_SERVICE_PORT=9082 docker compose up -d
 
 # Or set all ports via .env file
 cat > .env << EOF
-GATEWAY_PORT=9080
-AUTH_SERVICE_PORT=9081
-PROFILE_SERVICE_PORT=9082
+GATEWAY_PORT=9080          # External port
+AUTH_SERVICE_PORT=9081     # Internal only
+PROFILE_SERVICE_PORT=9082  # Internal only
 EOF
 docker compose up -d
 ```
+
+**Note:** Changing service port environment variables only affects their internal Docker network ports. Only the API Gateway port is exposed externally to the host.
 
 ---
 
