@@ -198,6 +198,16 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
       API_GATEWAY_URL: http://api-gateway:8080
       WEBAPP_URL: ${WEBAPP_URL}
+      API_HOST: 0.0.0.0
+      API_PORT: 8080
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     restart: unless-stopped
 
   # WebApp (static files)
