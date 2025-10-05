@@ -408,9 +408,9 @@ async def list_photos_handler(request: web.Request) -> web.Response:
             query = select(Photo).order_by(Photo.created_at.desc())
 
             if verified_only:
-                query = query.where(Photo.is_verified == True)
+                query = query.where(Photo.is_verified)
             elif unverified_only:
-                query = query.where(Photo.is_verified == False)
+                query = query.where(~Photo.is_verified)
 
             # Count total
             count_query = select(func.count()).select_from(query.subquery())
