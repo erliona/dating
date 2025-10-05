@@ -114,3 +114,43 @@ class TestGatewayRouting:
         # Check that routes are registered
         routes = [str(route.resource) for route in app.router.routes()]
         assert any("/health" in route for route in routes)
+
+
+class TestErrorScenarios:
+    """Tests for various error scenarios that could cause URLError."""
+
+    async def test_timeout_error(self):
+        """Test that timeout errors are handled gracefully."""
+        from aiohttp import ServerTimeoutError
+        
+        with patch("gateway.main.ClientSession") as mock_session:
+            # Simulate a timeout error
+            mock_session.return_value.__aenter__.side_effect = ServerTimeoutError("Timeout")
+            
+            mock_request = MagicMock()
+            mock_request.path = "/test"
+            mock_request.query_string = ""
+            mock_request.method = "GET"
+            mock_request.headers = {}
+            mock_request.read = AsyncMock(return_value=b"")
+            
+            response = await proxy_request(mock_request, "http://backend:8000")
+            
+            assert response.status == 503
+
+    async def test_connection_refused_error(self):
+        """Test that connection refused errors are handled gracefully."""
+        with patch("gateway.main.ClientSession") as mock_session:
+            # Simulate a connection refused error
+            mock_session.return_value.__aenter__.side_effect = ConnectionRefusedError("Connection refused")
+            
+            mock_request = MagicMock()
+            mock_request.path = "/test"
+            mock_request.query_string = ""
+            mock_request.method = "GET"
+            mock_request.headers = {}
+            mock_request.read = AsyncMock(return_value=b"")
+            
+            response = await proxy_request(mock_request, "http://backend:8000")
+            
+            assert response.status == 503
