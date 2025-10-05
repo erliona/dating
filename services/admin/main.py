@@ -136,7 +136,7 @@ async def get_stats_handler(request: web.Request) -> web.Response:
 
             # Verified photos
             verified_photos_result = await session.execute(
-                select(func.count(Photo.id)).where(Photo.is_verified == True)
+                select(func.count(Photo.id)).where(Photo.is_verified)
             )
             verified_photos = verified_photos_result.scalar()
 
