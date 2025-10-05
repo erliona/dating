@@ -293,7 +293,7 @@ services:
   
   # Prometheus - Metrics collection and storage
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.51.0
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml
@@ -304,15 +304,21 @@ services:
       - '--storage.tsdb.retention.time=30d'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"
     restart: unless-stopped
     networks:
       - monitoring
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Grafana - Visualization and dashboards
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:10.4.0
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
@@ -322,42 +328,62 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_SERVER_ROOT_URL=http://localhost:${GRAFANA_PORT:-3000}
       - GF_INSTALL_PLUGINS=
+      - GF_LOG_LEVEL=info
+      - GF_FEATURE_TOGGLES_ENABLE=publicDashboards
     ports:
       - "${GRAFANA_PORT:-3000}:3000"
     depends_on:
-      - prometheus
-      - loki
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - monitoring
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Loki - Log aggregation
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki:3.0.0
     volumes:
       - ./monitoring/loki/loki-config.yml:/etc/loki/loki-config.yml
       - loki_data:/loki
-    command: -config.file=/etc/loki/loki-config.yml
+    command: -config.file=/etc/loki/loki-config.yml -config.expand-env=true
     ports:
       - "${LOKI_PORT:-3100}:3100"
     restart: unless-stopped
     networks:
       - monitoring
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Promtail - Log shipper
   promtail:
-    image: grafana/promtail:latest
+    image: grafana/promtail:3.0.0
     volumes:
       - ./monitoring/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - /var/log:/var/log:ro
-    command: -config.file=/etc/promtail/promtail-config.yml
+    command: -config.file=/etc/promtail/promtail-config.yml -config.expand-env=true
     depends_on:
-      - loki
+      loki:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - monitoring
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9080/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # cAdvisor - Container metrics
   cadvisor:
