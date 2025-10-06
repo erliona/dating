@@ -1,5 +1,9 @@
 """Shared test utilities."""
 
+import pytest
+
+pytestmark = pytest.mark.unit
+
 import hashlib
 import hmac
 import json

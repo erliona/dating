@@ -4,6 +4,9 @@ import os
 
 import pytest
 
+pytestmark = pytest.mark.unit
+
+
 from bot.config import load_config
 
 

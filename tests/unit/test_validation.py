@@ -4,6 +4,9 @@ from datetime import date, timedelta
 
 import pytest
 
+pytestmark = pytest.mark.unit
+
+
 from bot.validation import (
     ValidationError,
     calculate_age,
