@@ -15,7 +15,47 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run unit tests
+        env:
+          BOT_TOKEN: "123456789:ABCdefGHIjklMNOpqrsTUVwxyz-test-token"
+          JWT_SECRET: test-secret-key-for-testing-32chars
+          API_GATEWAY_URL: http://localhost:8080
+        run: |
+          python -m pytest tests/unit/ -v --tb=short -m unit --cov=bot --cov=core --cov-report=xml --cov-report=term
+
+      - name: Upload unit test coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          file: ./coverage.xml
+          flags: unit
+          name: unit-tests
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  integration-tests:
+    name: Integration Tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -71,7 +111,7 @@ jobs:
           alembic upgrade head
           echo "Migrations applied successfully"
 
-      - name: Run tests
+      - name: Run integration tests
         env:
           DATABASE_URL: postgresql+asyncpg://dating:test_password@localhost:5432/dating_test
           BOT_DATABASE_URL: postgresql+asyncpg://dating:test_password@localhost:5432/dating_test
@@ -79,15 +119,93 @@ jobs:
           JWT_SECRET: test-secret-key-for-testing-32chars
           API_GATEWAY_URL: http://localhost:8080
         run: |
-          python -m pytest tests/ -v --tb=short --cov=. --cov-report=xml --cov-report=term
+          python -m pytest tests/integration/ -v --tb=short -m integration --cov=bot --cov=core --cov-report=xml --cov-report=term
 
-      - name: Upload coverage reports
+      - name: Upload integration test coverage
         uses: codecov/codecov-action@v4
         if: always()
         with:
           file: ./coverage.xml
-          flags: unittests
-          name: codecov-umbrella
+          flags: integration
+          name: integration-tests
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'e2e')
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: dating_test
+          POSTGRES_USER: dating
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Wait for PostgreSQL
+        run: |
+          echo "Waiting for PostgreSQL to be ready..."
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5432 -U dating > /dev/null 2>&1; then
+              echo "PostgreSQL is ready!"
+              break
+            fi
+            echo "Attempt $i/30 - waiting 2s..."
+            sleep 2
+          done
+          pg_isready -h localhost -p 5432 -U dating || (echo "PostgreSQL failed to become ready" && exit 1)
+
+      - name: Apply database migrations
+        env:
+          BOT_DATABASE_URL: postgresql+asyncpg://dating:test_password@localhost:5432/dating_test
+        run: |
+          echo "Applying database migrations..."
+          alembic upgrade head
+          echo "Migrations applied successfully"
+
+      - name: Run E2E tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://dating:test_password@localhost:5432/dating_test
+          BOT_DATABASE_URL: postgresql+asyncpg://dating:test_password@localhost:5432/dating_test
+          BOT_TOKEN: "123456789:ABCdefGHIjklMNOpqrsTUVwxyz-test-token"
+          JWT_SECRET: test-secret-key-for-testing-32chars
+          API_GATEWAY_URL: http://localhost:8080
+        run: |
+          python -m pytest tests/e2e/ -v --tb=short -m e2e --cov=bot --cov=core --cov-report=xml --cov-report=term
+
+      - name: Upload E2E test coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          file: ./coverage.xml
+          flags: e2e
+          name: e2e-tests
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
 
@@ -96,4 +214,4 @@ jobs:
         run: |
           echo "## Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Tests completed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All test suites completed" >> $GITHUB_STEP_SUMMARY
