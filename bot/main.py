@@ -316,6 +316,8 @@ async def handle_update_profile(
     if not update_data:
         update_data = {k: v for k, v in data.items() if k != "action"}
 
+    # Ensure telegram_id is present in the update data for the API
+    update_data["telegram_id"] = message.from_user.id
     try:
         # Update profile via API Gateway
         result = await api_client.update_profile(message.from_user.id, update_data)
