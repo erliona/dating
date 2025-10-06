@@ -15,7 +15,7 @@ COPY services/notification/ services/notification/
 ENV PYTHONPATH=/app
 
 # Expose port
-EXPOSE 8084
+EXPOSE 8087
 
 # Run the service
 CMD ["python", "-m", "services.notification.main"]
