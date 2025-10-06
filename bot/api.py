@@ -28,6 +28,7 @@ from .media import (
     validate_photo_size,
 )
 from .security import RateLimiter
+from .validation import calculate_age
 
 logger = logging.getLogger(__name__)
 
