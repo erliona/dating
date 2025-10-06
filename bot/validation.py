@@ -234,120 +234,30 @@ def validate_education(education: Optional[str]) -> tuple[bool, Optional[str]]:
 
 
 def validate_location(
-    location_country_latitude: Optional[dict | str | float],
-    city_longitude: Optional[str | float] = None,
-    city: Optional[str] = None,
+    country: Optional[str], city: Optional[str]
 ) -> tuple[bool, Optional[str]]:
     """Validate location data.
 
-    Can be called with multiple signatures:
-    1. Dict format: validate_location({"latitude": 55.7, "longitude": 37.6, "city": "Moscow"})
-    2. Country/city format: validate_location("Russia", "Moscow")
-    3. Coordinates format: validate_location(55.7, 37.6, "Moscow")
-
     Args:
-        location_country_latitude: Dict with location data, country name, or latitude
-        city_longitude: City name or longitude coordinate
-        city: City name (only when using coordinates format)
-
-    Returns:
-        Tuple of (is_valid, error_message)
-    """
-    # Handle dict format (new API)
-    if isinstance(location_country_latitude, dict):
-        latitude = location_country_latitude.get("latitude")
-        longitude = location_country_latitude.get("longitude")
-        city = location_country_latitude.get("city")
-
-        if latitude is not None:
-            if not isinstance(latitude, (int, float)):
-                return False, "Latitude must be a number"
-
-            if latitude < -90 or latitude > 90:
-                return False, "Latitude must be between -90 and 90"
-
-        if longitude is not None:
-            if not isinstance(longitude, (int, float)):
-                return False, "Longitude must be a number"
-
-            if longitude < -180 or longitude > 180:
-                return False, "Longitude must be between -180 and 180"
-
-        if city is not None:
-            if not isinstance(city, str):
-                return False, "City must be a string"
-
-            if len(city) > 100:
-                return False, "City name must not exceed 100 characters"
-
-    # Handle coordinates format (latitude, longitude, city)
-    elif isinstance(location_country_latitude, (int, float)) and isinstance(
-        city_longitude, (int, float)
-    ):
-        latitude = location_country_latitude
-        longitude = city_longitude
-
-        if not isinstance(latitude, (int, float)):
-            return False, "Latitude must be a number"
-
-        if latitude < -90 or latitude > 90:
-            return False, "Latitude must be between -90 and 90"
-
-        if not isinstance(longitude, (int, float)):
-            return False, "Longitude must be a number"
-
-        if longitude < -180 or longitude > 180:
-            return False, "Longitude must be between -180 and 180"
-
-        if city is not None:
-            if not isinstance(city, str):
-                return False, "City must be a string"
-
-            if len(city) > 100:
-                return False, "City name must not exceed 100 characters"
-
-    # Handle country/city format (old API)
-    else:
-        country = location_country_latitude
-        city = city_longitude
-
-        if country is not None:
-            if not isinstance(country, str):
-                return False, "Country must be a string"
-
-            if len(country) > 100:
-                return False, "Country name must not exceed 100 characters"
-
-        if city is not None:
-            if not isinstance(city, str):
-                return False, "City must be a string"
-
-            if len(city) > 100:
-                return False, "City name must not exceed 100 characters"
-
-    return True, None
-
-
-def validate_city(city: str) -> tuple[bool, Optional[str]]:
-    """Validate city name.
-
-    Args:
+        country: Country name
         city: City name
 
     Returns:
         Tuple of (is_valid, error_message)
     """
-    if not city:
-        return False, "City is required"
+    if country is not None:
+        if not isinstance(country, str):
+            return False, "Country must be a string"
 
-    if not isinstance(city, str):
-        return False, "City must be a string"
+        if len(country) > 100:
+            return False, "Country name must not exceed 100 characters"
 
-    if len(city) < 2:
-        return False, "City name must be at least 2 characters"
+    if city is not None:
+        if not isinstance(city, str):
+            return False, "City must be a string"
 
-    if len(city) > 100:
-        return False, "City name must not exceed 100 characters"
+        if len(city) > 100:
+            return False, "City name must not exceed 100 characters"
 
     return True, None
 
@@ -430,10 +340,9 @@ def validate_profile_data(data: dict[str, Any]) -> tuple[bool, Optional[str]]:
             return False, error
 
     # Validate location
-    latitude = data.get("latitude")
-    longitude = data.get("longitude")
+    country = data.get("country")
     city = data.get("city")
-    is_valid, error = validate_location(latitude, longitude, city)
+    is_valid, error = validate_location(country, city)
     if not is_valid:
         return False, error
 
