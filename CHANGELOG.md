@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Legacy Documentation Cleanup** - Archived completed refactoring and summary documentation
+  - Moved 13 legacy summary files to `docs/archive/`
+  - Updated archive README with comprehensive categorization
+  - Root directory now contains only active project documentation
+
 ### Fixed
 - **Deployment Port Allocation Errors** - Fixed persistent port 8080 race condition
   - Enhanced cleanup procedure with 8 comprehensive steps
