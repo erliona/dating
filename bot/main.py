@@ -285,19 +285,41 @@ async def main() -> None:
         )
 
         # Bot now uses thin client architecture through API Gateway
-        # The bot/api.py server is kept for backward compatibility with WebApp
-        # but should eventually also use API Gateway client
-
-        # For now, we can optionally run the API server if database_url is provided
-        # This allows gradual migration
+        # The bot/api.py server now also uses API Gateway instead of direct DB access
+        
+        # Start API server for WebApp if API client is available
         api_server_task = None
-        if config.database_url:
+        if api_client:
+            from .api import run_api_server
+
+            # Get API server configuration
+            api_host = os.getenv("API_HOST", "0.0.0.0")
+            api_port = int(os.getenv("API_PORT", "8080"))
+
+            # Use API Gateway client for WebApp endpoints
+            api_server_task = run_api_server(
+                config,
+                api_client=api_client,
+                host=api_host,
+                port=api_port,
+            )
+            logger.info(
+                "Starting bot API server (thin client mode)",
+                extra={"event_type": "api_server_start", "mode": "thin_client"},
+            )
+        elif config.database_url:
+            # Legacy mode: direct database access (deprecated)
             from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
             from sqlalchemy.orm import sessionmaker
 
             from .api import run_api_server
 
-            # Initialize database for bot/api.py backward compatibility
+            logger.warning(
+                "Bot API server using legacy direct database access - consider removing DATABASE_URL",
+                extra={"event_type": "api_server_legacy_mode"},
+            )
+
+            # Initialize database for bot/api.py legacy mode
             engine = create_async_engine(config.database_url, echo=False)
             async_session_maker = sessionmaker(
                 engine, class_=AsyncSession, expire_on_commit=False
@@ -307,10 +329,15 @@ async def main() -> None:
             api_host = os.getenv("API_HOST", "0.0.0.0")
             api_port = int(os.getenv("API_PORT", "8080"))
 
-            api_server_task = run_api_server(config, async_session_maker, api_host, api_port)
+            api_server_task = run_api_server(
+                config,
+                session_maker=async_session_maker,
+                host=api_host,
+                port=api_port,
+            )
             logger.info(
-                "Starting bot API server for backward compatibility",
-                extra={"event_type": "api_server_start"},
+                "Starting bot API server (legacy mode)",
+                extra={"event_type": "api_server_start", "mode": "legacy"},
             )
 
         # Run bot polling (and optionally API server)

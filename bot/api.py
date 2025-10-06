@@ -742,11 +742,36 @@ async def get_profile_handler(request: web.Request) -> web.Response:
     - location data
     """
     config: BotConfig = request.app["config"]
-    session_maker: async_sessionmaker = request.app["session_maker"]
+    api_client = request.app.get("api_client")
+    session_maker = request.app.get("session_maker")
 
     try:
         # Authenticate
         user_id = await authenticate_request(request, config.jwt_secret)
+
+        # Use API Gateway client if available (thin client mode)
+        if api_client:
+            try:
+                from .api_client import APIGatewayError
+
+                # Get profile from API Gateway
+                result = await api_client.get_profile(user_id)
+                
+                if not result:
+                    return error_response("not_found", "Profile not found", 404)
+                
+                # Return the profile data from API Gateway
+                return web.json_response({"profile": result})
+                
+            except APIGatewayError as e:
+                if e.status_code == 404:
+                    return error_response("not_found", "Profile not found", 404)
+                logger.error(f"API Gateway error: {e}", exc_info=True)
+                return error_response("gateway_error", str(e), e.status_code)
+        
+        # Legacy mode: direct database access
+        if not session_maker:
+            return error_response("server_error", "Server not configured properly", 500)
 
         async with session_maker() as session:
             repository = ProfileRepository(session)
@@ -1425,21 +1450,31 @@ async def health_check_handler(request: web.Request) -> web.Response:
     return web.json_response({"status": "ok"})
 
 
-def create_app(config: BotConfig, session_maker: async_sessionmaker) -> web.Application:
+def create_app(config: BotConfig, api_client=None, session_maker: async_sessionmaker = None) -> web.Application:
     """Create aiohttp application.
 
     Args:
         config: Bot configuration
-        session_maker: SQLAlchemy session maker
+        api_client: Optional APIGatewayClient for thin client mode
+        session_maker: Optional SQLAlchemy session maker (legacy mode)
 
     Returns:
         aiohttp Application
     """
     app = web.Application()
 
-    # Store config and session maker
+    # Store config and dependencies
     app["config"] = config
+    app["api_client"] = api_client
     app["session_maker"] = session_maker
+    
+    # Log mode
+    if api_client:
+        logger.info("Bot API server running in thin client mode (using API Gateway)")
+    elif session_maker:
+        logger.info("Bot API server running in legacy mode (direct database access)")
+    else:
+        raise ValueError("Either api_client or session_maker must be provided")
 
     # Initialize rate limiter
     rate_limiter = RateLimiter(max_requests=20, window_seconds=60)
@@ -1520,7 +1555,8 @@ def create_app(config: BotConfig, session_maker: async_sessionmaker) -> web.Appl
 
 async def run_api_server(
     config: BotConfig,
-    session_maker: async_sessionmaker,
+    api_client=None,
+    session_maker: async_sessionmaker = None,
     host: str = "0.0.0.0",
     port: int = 8080,
 ):
@@ -1528,11 +1564,12 @@ async def run_api_server(
 
     Args:
         config: Bot configuration
-        session_maker: SQLAlchemy session maker
+        api_client: Optional APIGatewayClient for thin client mode
+        session_maker: Optional SQLAlchemy session maker (legacy mode)
         host: Server host
         port: Server port
     """
-    app = create_app(config, session_maker)
+    app = create_app(config, api_client, session_maker)
     runner = web.AppRunner(app)
     await runner.setup()
 
