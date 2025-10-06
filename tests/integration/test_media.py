@@ -4,6 +4,8 @@ import base64
 
 import pytest
 
+pytestmark = pytest.mark.integration
+
 from bot.media import (
     PhotoValidationError,
     decode_base64_photo,

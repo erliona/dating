@@ -10,6 +10,8 @@ import pytest
 from aiogram import Dispatcher
 from aiogram.types import Message, User, WebAppData, WebAppInfo
 
+pytestmark = pytest.mark.e2e
+
 from bot.main import (
     start_handler,
     toggle_notifications,

@@ -10,6 +10,8 @@ import jwt
 import pytest
 from PIL import Image
 
+pytestmark = pytest.mark.integration
+
 from bot.api import (
     AuthenticationError,
     calculate_nsfw_score,

@@ -7,6 +7,8 @@ import pytest
 from aiohttp import web
 from sqlalchemy.ext.asyncio import AsyncSession
 
+pytestmark = pytest.mark.e2e
+
 from services.admin.main import (
     create_app,
     hash_password,

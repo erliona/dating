@@ -18,6 +18,8 @@ from urllib.parse import urlencode
 import jwt
 import pytest
 
+pytestmark = pytest.mark.integration
+
 from bot.security import (
     JWT_ALGORITHM,
     JWT_TTL_HOURS,

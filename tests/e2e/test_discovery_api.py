@@ -6,6 +6,8 @@ import pytest
 from aiohttp import web
 from aiohttp.test_utils import AioHTTPTestCase
 
+pytestmark = pytest.mark.e2e
+
 from bot.api import (
     add_favorite_handler,
     discover_handler,

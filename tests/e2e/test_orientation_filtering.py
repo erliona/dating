@@ -8,6 +8,8 @@ from datetime import date
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+
+pytestmark = pytest.mark.e2e
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from bot.db import Profile, User

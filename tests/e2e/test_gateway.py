@@ -5,6 +5,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from aiohttp import ClientTimeout, web
 
+pytestmark = pytest.mark.e2e
+
 from gateway.main import create_app, proxy_request
 
 
