@@ -50,11 +50,34 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
 
+      - name: Wait for PostgreSQL
+        run: |
+          echo "Waiting for PostgreSQL to be ready..."
+          for i in {1..30}; do
+            if pg_isready -h localhost -p 5432 -U dating > /dev/null 2>&1; then
+              echo "PostgreSQL is ready!"
+              break
+            fi
+            echo "Attempt $i/30 - waiting 2s..."
+            sleep 2
+          done
+          pg_isready -h localhost -p 5432 -U dating || (echo "PostgreSQL failed to become ready" && exit 1)
+
+      - name: Apply database migrations
+        env:
+          BOT_DATABASE_URL: postgresql+asyncpg://dating:test_password@localhost:5432/dating_test
+        run: |
+          echo "Applying database migrations..."
+          alembic upgrade head
+          echo "Migrations applied successfully"
+
       - name: Run tests
         env:
           DATABASE_URL: postgresql+asyncpg://dating:test_password@localhost:5432/dating_test
-          BOT_TOKEN: test:token
+          BOT_DATABASE_URL: postgresql+asyncpg://dating:test_password@localhost:5432/dating_test
+          BOT_TOKEN: "123456789:ABCdefGHIjklMNOpqrsTUVwxyz-test-token"
           JWT_SECRET: test-secret-key-for-testing-32chars
+          API_GATEWAY_URL: http://localhost:8080
         run: |
           python -m pytest tests/ -v --tb=short --cov=. --cov-report=xml --cov-report=term
 
