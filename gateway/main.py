@@ -13,15 +13,21 @@ from core.utils.logging import configure_logging
 logger = logging.getLogger(__name__)
 
 
-async def proxy_request(request: web.Request, target_url: str) -> web.Response:
-    """Proxy request to target microservice."""
+async def proxy_request(request: web.Request, target_url: str, path_override: str = None) -> web.Response:
+    """Proxy request to target microservice.
+    
+    Args:
+        request: Original request
+        target_url: Base URL of target service
+        path_override: Optional path to use instead of request.path
+    """
     # Configure timeout: 30s total, 10s connect
     timeout = ClientTimeout(total=30, connect=10)
 
     try:
         async with ClientSession(timeout=timeout) as session:
             # Build target URL
-            path = request.path
+            path = path_override if path_override else request.path
             query_string = request.query_string
             full_url = f"{target_url}{path}"
             if query_string:
@@ -94,6 +100,51 @@ async def route_admin(request: web.Request) -> web.Response:
     return await proxy_request(request, admin_url)
 
 
+async def route_api_auth(request: web.Request) -> web.Response:
+    """Route /api/auth/* to auth service, stripping /api prefix."""
+    auth_url = request.app["config"]["auth_service_url"]
+    # Strip /api prefix from path
+    new_path = request.path.replace("/api/auth", "/auth", 1)
+    return await proxy_request(request, auth_url, path_override=new_path)
+
+
+async def route_api_profile(request: web.Request) -> web.Response:
+    """Route /api/profile/* to profile service, mapping to /profiles/*."""
+    profile_url = request.app["config"]["profile_service_url"]
+    # Map /api/profile to /profiles
+    new_path = request.path.replace("/api/profile", "/profiles", 1)
+    return await proxy_request(request, profile_url, path_override=new_path)
+
+
+async def route_api_discovery(request: web.Request) -> web.Response:
+    """Route /api/discover, /api/like, /api/pass, /api/matches, /api/favorites to discovery service."""
+    discovery_url = request.app["config"]["discovery_service_url"]
+    # Map /api/* to /discovery/*
+    path = request.path
+    if path.startswith("/api/discover"):
+        new_path = path.replace("/api/discover", "/discovery/discover", 1)
+    elif path.startswith("/api/like"):
+        new_path = path.replace("/api/like", "/discovery/like", 1)
+    elif path.startswith("/api/pass"):
+        new_path = path.replace("/api/pass", "/discovery/pass", 1)
+    elif path.startswith("/api/matches"):
+        new_path = path.replace("/api/matches", "/discovery/matches", 1)
+    elif path.startswith("/api/favorites"):
+        new_path = path.replace("/api/favorites", "/discovery/favorites", 1)
+    else:
+        new_path = path.replace("/api/", "/discovery/", 1)
+    
+    return await proxy_request(request, discovery_url, path_override=new_path)
+
+
+async def route_api_media(request: web.Request) -> web.Response:
+    """Route /api/photos/* to media service, mapping to /media/*."""
+    media_url = request.app["config"]["media_service_url"]
+    # Map /api/photos to /media
+    new_path = request.path.replace("/api/photos", "/media", 1)
+    return await proxy_request(request, media_url, path_override=new_path)
+
+
 async def health_check(request: web.Request) -> web.Response:
     """Health check endpoint."""
     return web.json_response(
@@ -117,7 +168,7 @@ def create_app(config: dict) -> web.Application:
     app = web.Application()
     app["config"] = config
 
-    # Add routing rules
+    # Add routing rules for direct service access (internal/microservice-to-microservice)
     app.router.add_route("*", "/auth/{tail:.*}", route_auth)
     app.router.add_route("*", "/profiles/{tail:.*}", route_profile)
     app.router.add_route("*", "/discovery/{tail:.*}", route_discovery)
@@ -125,6 +176,33 @@ def create_app(config: dict) -> web.Application:
     app.router.add_route("*", "/chat/{tail:.*}", route_chat)
     app.router.add_route("*", "/admin/{tail:.*}", route_admin)
     app.router.add_route("*", "/admin-panel/{tail:.*}", route_admin)
+    
+    # Add unified /api/* routes for frontend/WebApp (public API)
+    # These provide a consistent API prefix for all public endpoints
+    # Routes are ordered from most specific to least specific
+    
+    # Auth endpoints
+    app.router.add_route("*", "/api/auth/token", route_api_auth)
+    app.router.add_route("*", "/api/auth/{tail:.*}", route_api_auth)
+    
+    # Profile endpoints
+    app.router.add_route("*", "/api/profile/check", route_api_profile)
+    app.router.add_route("*", "/api/profile/{tail:.*}", route_api_profile)
+    app.router.add_route("*", "/api/profile", route_api_profile)
+    
+    # Discovery endpoints (like, pass, matches, favorites, discover)
+    app.router.add_route("*", "/api/discover", route_api_discovery)
+    app.router.add_route("*", "/api/like", route_api_discovery)
+    app.router.add_route("*", "/api/pass", route_api_discovery)
+    app.router.add_route("*", "/api/matches", route_api_discovery)
+    app.router.add_route("*", "/api/favorites/{tail:.*}", route_api_discovery)
+    app.router.add_route("*", "/api/favorites", route_api_discovery)
+    
+    # Media/photos endpoints
+    app.router.add_route("*", "/api/photos/upload", route_api_media)
+    app.router.add_route("*", "/api/photos/{tail:.*}", route_api_media)
+    
+    # Health check
     app.router.add_get("/health", health_check)
 
     return app
