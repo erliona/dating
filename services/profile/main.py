@@ -92,10 +92,23 @@ async def create_profile(request: web.Request) -> web.Response:
 
             # Parse birth_date
             birth_date_str = data.get("birth_date")
-            if isinstance(birth_date_str, str):
-                birth_date = date.fromisoformat(birth_date_str)
+            birth_date = None
+            if birth_date_str is not None:
+                if isinstance(birth_date_str, str):
+                    try:
+                        birth_date = date.fromisoformat(birth_date_str)
+                    except ValueError:
+                        return web.json_response(
+                            {"error": "Invalid birth_date format. Expected ISO format (YYYY-MM-DD)."},
+                            status=400
+                        )
+                else:
+                    birth_date = birth_date_str
             else:
-                birth_date = birth_date_str
+                return web.json_response(
+                    {"error": "birth_date is required."},
+                    status=400
+                )
 
             # Prepare profile data
             profile_data = {
