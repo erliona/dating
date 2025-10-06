@@ -4,11 +4,22 @@ This directory contains the comprehensive test suite for the Dating Bot applicat
 
 ## 📊 Overview
 
-**Total Tests**: 360+  
-**Pass Rate**: 338 passed, 27 xfailed (API mismatches documented), 1 xpassed  
+**Total Tests**: 365 tests in 20 files  
+**Pass Rate**: 337 passed, 19 skipped, 1 xfailed, 8 xpassed  
 **Organization**: Unit, Integration, and End-to-End tests  
 **Test Markers**: `unit`, `integration`, `e2e`  
-**Coverage Goal**: >75% code coverage
+**Coverage Goal**: >75% code coverage  
+**Run Time**: ~11 seconds for full suite
+
+### Recent Refactoring (2024)
+
+The test suite has been refactored to align with the thin client architecture:
+- ✅ Removed duplicate test files (`tests/core/`)
+- ✅ Merged issue-specific tests into main test suites
+- ✅ Updated all tests to use `api_client` instead of `session_maker`
+- ✅ Marked obsolete tests using old `ProfileRepository` architecture
+- ✅ Fixed hanging tests in bot main function
+- ✅ Renamed `test_thin_client_architecture.py` to `test_api_handlers.py` for clarity
 
 ## 📁 Test Structure
 
@@ -94,21 +105,24 @@ Integration tests verify that different components work together correctly.
 
 End-to-end tests simulate complete user workflows and scenarios.
 
-- **`test_user_flows.py`** - Complete user journeys
-  - New user onboarding
-  - Profile creation/editing
-  - Photo upload with NSFW check
-  - Discovery and matching
-  - Chat initialization
-  - Location updates
-  - Error handling flows
+- **`test_api_handlers.py`** - API handlers with Gateway client (thin client architecture)
+  - Profile operations through Gateway
+  - Discovery operations through Gateway
+  - Matching and favorites through Gateway
+  - Error handling with Gateway
+  - API client integration
 
-- **`test_main.py`** - Bot handlers and commands
-  - /start command
-  - WebApp data handling
-  - Location processing
-  - Message handling
-  - Logging configuration
+- **`test_user_flows.py`** - Complete user journeys
+  - Discovery and matching flows
+  - Chat initialization
+  - Match handling
+  - (Note: Some tests skipped due to architectural changes to thin client model)
+
+- **`test_main.py`** - Bot notification handlers and logging
+  - Notification sending (match, like, message)
+  - JSON logging configuration
+  - Bot initialization tests
+  - (Note: Main function tests skipped - need graceful shutdown support)
 
 - **`test_discovery.py`** - Discovery system
   - Candidate fetching
@@ -117,14 +131,17 @@ End-to-end tests simulate complete user workflows and scenarios.
   - Match creation
 
 - **`test_discovery_api.py`** - Discovery API endpoints
-  - Candidate API
+  - Authentication requirements
+  - Input validation
   - Interaction API
-  - Match API
+  - Favorites API
 
-- **`test_gateway.py`** - API Gateway routing
-  - Request forwarding
+- **`test_gateway.py`** - API Gateway routing and CORS
+  - Request proxying
   - Service routing
   - Error handling
+  - CORS configuration
+  - Health checks
 
 - **`test_admin.py`** - Admin panel functionality
   - User management

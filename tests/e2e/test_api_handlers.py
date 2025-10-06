@@ -1,7 +1,8 @@
-"""End-to-end tests for thin client architecture.
+"""End-to-end tests for API handlers using API Gateway client.
 
-These tests verify that the bot operates correctly in thin client mode,
-using only the API Gateway client without any direct database access.
+These tests verify that bot API handlers correctly interact with the API Gateway client,
+following the thin client architecture pattern without direct database access.
+Tests cover profile, discovery, matching, and favorites operations.
 """
 
 import json
