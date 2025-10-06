@@ -28,7 +28,7 @@ async def proxy_request(request: web.Request, target_url: str, path_override: st
     try:
         async with ClientSession(timeout=timeout) as session:
             # Build target URL
-            path = path_override if path_override else request.path
+            path = path_override or request.path
             query_string = request.query_string
             full_url = f"{target_url}{path}"
             if query_string:
