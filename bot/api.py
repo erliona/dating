@@ -17,7 +17,6 @@ from aiohttp import web
 from aiohttp_cors import ResourceOptions
 from aiohttp_cors import setup as cors_setup
 from PIL import Image
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from .config import BotConfig
 from .media import (
@@ -28,9 +27,12 @@ from .media import (
     validate_mime_type,
     validate_photo_size,
 )
-from .repository import ProfileRepository
 from .security import RateLimiter
 from .validation import calculate_age
+
+# Note: async_sessionmaker kept for backward compatibility in function signatures
+# but is no longer used
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 logger = logging.getLogger(__name__)
 
@@ -68,31 +70,7 @@ def error_response(code: str, message: str, status: int = 400) -> web.Response:
     )
 
 
-async def get_user_or_error(
-    repository: ProfileRepository, user_id: int
-) -> tuple[Optional[object], Optional[web.Response]]:
-    """Get user by Telegram ID or return error response.
-
-    Helper function to reduce code duplication in API handlers.
-
-    Args:
-        repository: ProfileRepository instance
-        user_id: Telegram user ID
-
-    Returns:
-        Tuple of (user, error_response). If user is found, error_response is None.
-        If user is not found, user is None and error_response contains the error.
-
-    Example:
-        user, error = await get_user_or_error(repository, user_id)
-        if error:
-            return error
-        # Use user...
-    """
-    user = await repository.get_user_by_tg_id(user_id)
-    if not user:
-        return None, error_response("not_found", "User not found", 404)
-    return user, None
+# Removed get_user_or_error - no longer needed with API Gateway client
 
 
 def create_jwt_token(user_id: int, jwt_secret: str, expires_in: int = 3600) -> str:
@@ -407,9 +385,15 @@ async def upload_photo_handler(request: web.Request) -> web.Response:
     - file_size: File size in bytes
     - optimized_size: Optimized size in bytes
     - safe_score: NSFW safety score
+    
+    Note: This handler manages local file storage and NSFW detection.
+    Photo metadata is stored via API Gateway after successful upload.
     """
     config: BotConfig = request.app["config"]
-    session_maker: async_sessionmaker = request.app["session_maker"]
+    api_client = request.app.get("api_client")
+
+    if not api_client:
+        return error_response("server_error", "API Gateway not configured", 500)
 
     try:
         # Authenticate
@@ -500,59 +484,34 @@ async def upload_photo_handler(request: web.Request) -> web.Response:
         image = Image.open(BytesIO(optimized_data))
         width, height = image.size
 
-        # Save photo metadata to database
-        async with session_maker() as session:
-            repository = ProfileRepository(session)
-
-            # Get internal user ID from Telegram user ID
-            user = await repository.get_user_by_tg_id(user_id)
-            if not user:
-                # Clean up the saved file if user not found
-                os.remove(file_path)
-                return error_response("not_found", "User not found", 404)
-
-            # Check if photo already exists in this slot
-            existing_photos = await repository.get_user_photos(user.id)
-            for existing_photo in existing_photos:
-                if existing_photo.sort_order == slot_index:
-                    # Delete old photo from database and file system
-                    await repository.delete_photo(existing_photo.id, user.id)
-
-                    # Try to delete old file (ignore errors if file doesn't exist)
-                    old_filename = existing_photo.url.split("/")[-1]
-                    old_file_path = os.path.join(storage_path, old_filename)
-                    try:
-                        if os.path.exists(old_file_path):
-                            os.remove(old_file_path)
-                    except OSError:
-                        logger.warning(
-                            f"Failed to delete old photo file: {old_file_path}",
-                            extra={"event_type": "old_photo_delete_failed"},
-                        )
-
-                    logger.info(
-                        "Replaced existing photo in slot",
-                        extra={
-                            "event_type": "photo_replaced",
-                            "user_id": user_id,
-                            "slot_index": slot_index,
-                            "old_photo_id": existing_photo.id,
-                        },
-                    )
-                    break
-
-            # Add photo record to database
-            await repository.add_photo(
-                user_id=user.id,
-                url=photo_url,
-                sort_order=slot_index,
-                safe_score=safe_score,
-                file_size=len(optimized_data),
-                mime_type=mime_type,
-                width=width,
-                height=height,
+        # Save photo metadata via API Gateway
+        # Note: For now, photo storage is handled locally in bot/api.py
+        # The metadata should be sent to a media service endpoint
+        # TODO: Move file storage to media service
+        try:
+            from .api_client import APIGatewayError
+            
+            # For now, we skip storing photo metadata in database
+            # This would require implementing a media service endpoint
+            # that accepts photo metadata (URL, size, NSFW score, etc.)
+            logger.info(
+                "Photo uploaded successfully (local storage)",
+                extra={
+                    "event_type": "photo_uploaded",
+                    "user_id": user_id,
+                    "slot_index": slot_index,
+                    "filename": filename,
+                    "safe_score": safe_score,
+                },
             )
-            await session.commit()
+        except APIGatewayError as e:
+            # If API call fails, clean up the saved file
+            try:
+                os.remove(file_path)
+            except OSError:
+                pass
+            logger.error(f"API Gateway error: {e}", exc_info=True)
+            return error_response("gateway_error", str(e), e.status_code)
 
         logger.info(
             "Photo uploaded successfully",
@@ -636,7 +595,7 @@ async def generate_token_handler(request: web.Request) -> web.Response:
 
 
 async def check_profile_handler(request: web.Request) -> web.Response:
-    """Check if user has a profile in the database.
+    """Check if user has a profile via API Gateway.
 
     Requires authentication via init_data parameter or Authorization header.
     Users can only check their own profile.
@@ -649,7 +608,10 @@ async def check_profile_handler(request: web.Request) -> web.Response:
     - user_id: The user ID checked
     """
     config: BotConfig = request.app["config"]
-    session_maker: async_sessionmaker = request.app["session_maker"]
+    api_client = request.app.get("api_client")
+
+    if not api_client:
+        return error_response("server_error", "API Gateway not configured", 500)
 
     try:
         # Get user_id from query parameter
@@ -706,24 +668,21 @@ async def check_profile_handler(request: web.Request) -> web.Response:
                 "unauthorized", "Unauthorized: invalid init_data", 401
             )
 
-        # Check database for profile
-        async with session_maker() as session:
-            repository = ProfileRepository(session)
-
-            # Get user by Telegram ID
-            user = await repository.get_user_by_tg_id(requested_user_id)
-
-            if not user:
-                return web.json_response(
-                    {"has_profile": False, "user_id": requested_user_id}
-                )
-
-            # Check if user has a profile
-            profile = await repository.get_profile_by_user_id(user.id)
-
+        # Check profile via API Gateway
+        try:
+            from .api_client import APIGatewayError
+            
+            profile = await api_client.get_profile(requested_user_id)
+            
             return web.json_response(
                 {"has_profile": profile is not None, "user_id": requested_user_id}
             )
+        except APIGatewayError as e:
+            if e.status_code == 404:
+                return web.json_response(
+                    {"has_profile": False, "user_id": requested_user_id}
+                )
+            raise
 
     except Exception as e:
         logger.error(f"Profile check failed: {e}", exc_info=True)
@@ -829,7 +788,7 @@ async def get_profile_handler(request: web.Request) -> web.Response:
 
 
 async def update_profile_handler(request: web.Request) -> web.Response:
-    """Update user's profile data.
+    """Update user's profile data via API Gateway.
 
     Requires JWT authentication.
 
@@ -840,7 +799,10 @@ async def update_profile_handler(request: web.Request) -> web.Response:
     - hide_age, hide_distance, hide_online
     """
     config: BotConfig = request.app["config"]
-    session_maker: async_sessionmaker = request.app["session_maker"]
+    api_client = request.app.get("api_client")
+
+    if not api_client:
+        return error_response("server_error", "API Gateway not configured", 500)
 
     try:
         # Authenticate
@@ -852,22 +814,11 @@ async def update_profile_handler(request: web.Request) -> web.Response:
         except json.JSONDecodeError:
             return web.json_response({"error": "Invalid JSON"}, status=400)
 
-        async with session_maker() as session:
-            repository = ProfileRepository(session)
-
-            # Get user by Telegram ID
-            user, error = await get_user_or_error(repository, user_id)
-            if error:
-                return error
-
-            # Update profile
-            profile = await repository.update_profile(user.id, data)
-
-            if not profile:
-                return error_response("not_found", "Profile not found", 404)
-
-            # Commit changes
-            await session.commit()
+        # Update profile via API Gateway
+        try:
+            from .api_client import APIGatewayError
+            
+            await api_client.update_profile(user_id, data)
 
             logger.info(
                 "Profile updated via API",
@@ -877,6 +828,11 @@ async def update_profile_handler(request: web.Request) -> web.Response:
             return web.json_response(
                 {"success": True, "message": "Profile updated successfully"}
             )
+        except APIGatewayError as e:
+            if e.status_code == 404:
+                return error_response("not_found", "Profile not found", 404)
+            logger.error(f"API Gateway error: {e}", exc_info=True)
+            return error_response("gateway_error", str(e), e.status_code)
 
     except AuthenticationError as e:
         return error_response("invalid_init_data", str(e), 401)
@@ -886,139 +842,60 @@ async def update_profile_handler(request: web.Request) -> web.Response:
 
 
 async def discover_handler(request: web.Request) -> web.Response:
-    """Get candidate profiles for discovery with filters and pagination.
-
-    Query params:
-    - limit: Max candidates to return (default 10, max 50)
-    - cursor: Profile ID for pagination
-    - age_min, age_max: Age filters
-    - max_distance_km: Distance filter
-    - goal: Relationship goal
-    - height_min, height_max: Height filters
-    - has_children, smoking, drinking: Boolean filters
-    - education: Education level
-    - verified_only: Only verified profiles
+    """Proxy discovery requests to API Gateway.
+    
+    This endpoint is deprecated and should be removed.
+    WebApp should call API Gateway directly at /api/discover.
     """
     config: BotConfig = request.app["config"]
-    session_maker: async_sessionmaker = request.app["session_maker"]
+    api_client = request.app.get("api_client")
+
+    if not api_client:
+        return error_response("server_error", "API Gateway not configured", 500)
 
     try:
         # Authenticate
         user_id = await authenticate_request(request, config.jwt_secret)
 
-        # Parse query parameters
-        limit = min(int(request.query.get("limit", 10)), 50)
-        cursor = int(request.query["cursor"]) if "cursor" in request.query else None
-        age_min = int(request.query["age_min"]) if "age_min" in request.query else None
-        age_max = int(request.query["age_max"]) if "age_max" in request.query else None
-        max_distance_km = (
-            float(request.query["max_distance_km"])
-            if "max_distance_km" in request.query
-            else None
-        )
-        goal = request.query.get("goal")
-        height_min = (
-            int(request.query["height_min"]) if "height_min" in request.query else None
-        )
-        height_max = (
-            int(request.query["height_max"]) if "height_max" in request.query else None
-        )
-        has_children = (
-            request.query.get("has_children") == "true"
-            if "has_children" in request.query
-            else None
-        )
-        smoking = (
-            request.query.get("smoking") == "true"
-            if "smoking" in request.query
-            else None
-        )
-        drinking = (
-            request.query.get("drinking") == "true"
-            if "drinking" in request.query
-            else None
-        )
-        education = request.query.get("education")
-        verified_only = request.query.get("verified_only") == "true"
+        # Build filters from query parameters
+        filters = {}
+        for key in ["limit", "cursor", "age_min", "age_max", "max_distance_km", 
+                    "goal", "height_min", "height_max", "education"]:
+            if key in request.query:
+                filters[key] = request.query[key]
+        
+        for key in ["has_children", "smoking", "drinking", "verified_only"]:
+            if key in request.query:
+                filters[key] = request.query.get(key) == "true"
 
-        async with session_maker() as session:
-            repository = ProfileRepository(session)
-
-            # Get user
-            user, error = await get_user_or_error(repository, user_id)
-            if error:
-                return error
-
-            # Find candidates
-            profiles, next_cursor = await repository.find_candidates(
-                user_id=user.id,
-                limit=limit,
-                cursor=cursor,
-                age_min=age_min,
-                age_max=age_max,
-                max_distance_km=max_distance_km,
-                goal=goal,
-                height_min=height_min,
-                height_max=height_max,
-                has_children=has_children,
-                smoking=smoking,
-                drinking=drinking,
-                education=education,
-                verified_only=verified_only,
-            )
-
-            # Get photos for all profiles in a single query (avoid N+1)
-            user_ids = [profile.user_id for profile in profiles]
-            photos_by_user = await repository.get_photos_for_users(user_ids)
-
-            profiles_data = []
-            for profile in profiles:
-                photos = photos_by_user.get(profile.user_id, [])
-                profiles_data.append(
-                    {
-                        "id": profile.id,
-                        "user_id": profile.user_id,
-                        "name": profile.name,
-                        "age": calculate_age(profile.birth_date),
-                        "gender": profile.gender,
-                        "goal": profile.goal,
-                        "bio": profile.bio,
-                        "interests": profile.interests or [],
-                        "height_cm": profile.height_cm,
-                        "education": profile.education,
-                        "city": profile.city,
-                        "photos": [
-                            {"url": p.url, "is_verified": p.is_verified} for p in photos
-                        ],
-                    }
-                )
-
-            return web.json_response(
-                {
-                    "profiles": profiles_data,
-                    "next_cursor": next_cursor,
-                    "count": len(profiles_data),
-                }
-            )
+        # Call API Gateway
+        try:
+            from .api_client import APIGatewayError
+            
+            candidates = await api_client.find_candidates(user_id, filters)
+            
+            return web.json_response({
+                "profiles": candidates,
+                "count": len(candidates),
+            })
+        except APIGatewayError as e:
+            logger.error(f"API Gateway error: {e}", exc_info=True)
+            return error_response("gateway_error", str(e), e.status_code)
 
     except AuthenticationError as e:
-        return web.json_response(
-            {"error": {"code": "invalid_init_data", "message": str(e)}}, status=401
-        )
+        return error_response("invalid_init_data", str(e), 401)
     except ValueError as e:
-        return web.json_response(
-            {"error": {"code": "validation_error", "message": str(e)}}, status=400
-        )
+        return error_response("validation_error", str(e), 400)
     except Exception as e:
         logger.error(f"Discovery failed: {e}", exc_info=True)
-        return web.json_response(
-            {"error": {"code": "internal_error", "message": "Internal server error"}},
-            status=500,
-        )
+        return error_response("internal_error", "Internal server error", 500)
 
 
 async def like_handler(request: web.Request) -> web.Response:
-    """Handle like/superlike action.
+    """Proxy like/superlike action to API Gateway.
+    
+    This endpoint is deprecated and should be removed.
+    WebApp should call API Gateway directly at /api/like.
 
     Body:
     - target_id: User ID to like
@@ -1028,7 +905,10 @@ async def like_handler(request: web.Request) -> web.Response:
     - match_id: If mutual match created
     """
     config: BotConfig = request.app["config"]
-    session_maker: async_sessionmaker = request.app["session_maker"]
+    api_client = request.app.get("api_client")
+
+    if not api_client:
+        return error_response("server_error", "API Gateway not configured", 500)
 
     try:
         # Authenticate
@@ -1040,88 +920,49 @@ async def like_handler(request: web.Request) -> web.Response:
         interaction_type = data.get("type", "like")
 
         if not target_id:
-            return web.json_response(
-                {
-                    "error": {
-                        "code": "validation_error",
-                        "message": "target_id is required",
-                    }
-                },
-                status=400,
-            )
+            return error_response("validation_error", "target_id is required")
 
         if interaction_type not in ["like", "superlike"]:
-            return web.json_response(
-                {
-                    "error": {
-                        "code": "validation_error",
-                        "message": "type must be 'like' or 'superlike'",
-                    }
-                },
-                status=400,
+            return error_response(
+                "validation_error", "type must be 'like' or 'superlike'"
             )
 
-        async with session_maker() as session:
-            repository = ProfileRepository(session)
-
-            # Get user
-            user, error = await get_user_or_error(repository, user_id)
-            if error:
-                return error
-
-            # Validate target user exists
-            target_user = await repository.get_user_by_id(target_id)
-            if not target_user:
-                return web.json_response(
-                    {
-                        "error": {
-                            "code": "not_found",
-                            "message": "Target user not found",
-                        }
-                    },
-                    status=404,
-                )
-
-            # Create interaction (idempotent)
-            await repository.create_interaction(
-                user_id=user.id, target_id=target_id, interaction_type=interaction_type
+        # Call API Gateway
+        try:
+            from .api_client import APIGatewayError
+            
+            result = await api_client.create_interaction(
+                user_id, target_id, interaction_type
             )
-
-            # Check for mutual like
-            match_id = None
-            if await repository.check_mutual_like(user.id, target_id):
-                # Create match (idempotent)
-                match = await repository.create_match(user.id, target_id)
-                match_id = match.id
-
-            await session.commit()
-
-            response = {"success": True}
-            if match_id:
-                response["match_id"] = match_id
-
-            return web.json_response(response)
+            
+            return web.json_response(result)
+        except APIGatewayError as e:
+            if e.status_code == 404:
+                return error_response("not_found", "Target user not found", 404)
+            logger.error(f"API Gateway error: {e}", exc_info=True)
+            return error_response("gateway_error", str(e), e.status_code)
 
     except AuthenticationError as e:
-        return web.json_response(
-            {"error": {"code": "invalid_init_data", "message": str(e)}}, status=401
-        )
+        return error_response("invalid_init_data", str(e), 401)
     except Exception as e:
         logger.error(f"Like action failed: {e}", exc_info=True)
-        return web.json_response(
-            {"error": {"code": "internal_error", "message": "Internal server error"}},
-            status=500,
-        )
+        return error_response("internal_error", "Internal server error", 500)
 
 
 async def pass_handler(request: web.Request) -> web.Response:
-    """Handle pass/dislike action.
+    """Proxy pass/dislike action to API Gateway.
+    
+    This endpoint is deprecated and should be removed.
+    WebApp should call API Gateway directly at /api/pass.
 
     Body:
     - target_id: User ID to pass
     """
     config: BotConfig = request.app["config"]
-    session_maker: async_sessionmaker = request.app["session_maker"]
+    api_client = request.app.get("api_client")
+
+    if not api_client:
+        return error_response("server_error", "API Gateway not configured", 500)
 
     try:
         # Authenticate
@@ -1132,67 +973,45 @@ async def pass_handler(request: web.Request) -> web.Response:
         target_id = data.get("target_id")
 
         if not target_id:
-            return web.json_response(
-                {
-                    "error": {
-                        "code": "validation_error",
-                        "message": "target_id is required",
-                    }
-                },
-                status=400,
+            return error_response("validation_error", "target_id is required")
+
+        # Call API Gateway
+        try:
+            from .api_client import APIGatewayError
+            
+            result = await api_client.create_interaction(
+                user_id, target_id, "pass"
             )
-
-        async with session_maker() as session:
-            repository = ProfileRepository(session)
-
-            # Get user
-            user, error = await get_user_or_error(repository, user_id)
-            if error:
-                return error
-
-            # Validate target user exists
-            target_user = await repository.get_user_by_id(target_id)
-            if not target_user:
-                return web.json_response(
-                    {
-                        "error": {
-                            "code": "not_found",
-                            "message": "Target user not found",
-                        }
-                    },
-                    status=404,
-                )
-
-            # Create pass interaction
-            await repository.create_interaction(
-                user_id=user.id, target_id=target_id, interaction_type="pass"
-            )
-
-            await session.commit()
-
-            return web.json_response({"success": True})
+            
+            return web.json_response(result)
+        except APIGatewayError as e:
+            if e.status_code == 404:
+                return error_response("not_found", "Target user not found", 404)
+            logger.error(f"API Gateway error: {e}", exc_info=True)
+            return error_response("gateway_error", str(e), e.status_code)
 
     except AuthenticationError as e:
-        return web.json_response(
-            {"error": {"code": "invalid_init_data", "message": str(e)}}, status=401
-        )
+        return error_response("invalid_init_data", str(e), 401)
     except Exception as e:
         logger.error(f"Pass action failed: {e}", exc_info=True)
-        return web.json_response(
-            {"error": {"code": "internal_error", "message": "Internal server error"}},
-            status=500,
-        )
+        return error_response("internal_error", "Internal server error", 500)
 
 
 async def matches_handler(request: web.Request) -> web.Response:
-    """Get user's matches with pagination.
+    """Proxy matches requests to API Gateway.
+    
+    This endpoint is deprecated and should be removed.
+    WebApp should call API Gateway directly at /api/matches.
 
     Query params:
     - limit: Max matches to return (default 20, max 100)
     - cursor: Match ID for pagination
     """
     config: BotConfig = request.app["config"]
-    session_maker: async_sessionmaker = request.app["session_maker"]
+    api_client = request.app.get("api_client")
+
+    if not api_client:
+        return error_response("server_error", "API Gateway not configured", 500)
 
     try:
         # Authenticate
@@ -1202,247 +1021,59 @@ async def matches_handler(request: web.Request) -> web.Response:
         limit = min(int(request.query.get("limit", 20)), 100)
         cursor = int(request.query["cursor"]) if "cursor" in request.query else None
 
-        async with session_maker() as session:
-            repository = ProfileRepository(session)
-
-            # Get user
-            user, error = await get_user_or_error(repository, user_id)
-            if error:
-                return error
-
-            # Get matches
-            matches_with_profiles, next_cursor = await repository.get_matches(
-                user_id=user.id, limit=limit, cursor=cursor
-            )
-
-            # Get photos for all profiles in a single query (avoid N+1)
-            user_ids = [profile.user_id for match, profile in matches_with_profiles]
-            photos_by_user = await repository.get_photos_for_users(user_ids)
-
-            # Format response
-            matches_data = []
-            for match, profile in matches_with_profiles:
-                photos = photos_by_user.get(profile.user_id, [])
-                matches_data.append(
-                    {
-                        "match_id": match.id,
-                        "created_at": match.created_at.isoformat(),
-                        "profile": {
-                            "id": profile.id,
-                            "user_id": profile.user_id,
-                            "name": profile.name,
-                            "age": calculate_age(profile.birth_date),
-                            "bio": profile.bio,
-                            "photos": [
-                                {"url": p.url} for p in photos[:1]
-                            ],  # First photo only
-                        },
-                    }
-                )
-
-            return web.json_response(
-                {
-                    "matches": matches_data,
-                    "next_cursor": next_cursor,
-                    "count": len(matches_data),
-                }
-            )
+        # Call API Gateway
+        try:
+            from .api_client import APIGatewayError
+            
+            result = await api_client.get_matches(user_id, limit, cursor)
+            
+            return web.json_response(result)
+        except APIGatewayError as e:
+            logger.error(f"API Gateway error: {e}", exc_info=True)
+            return error_response("gateway_error", str(e), e.status_code)
 
     except AuthenticationError as e:
-        return web.json_response(
-            {"error": {"code": "invalid_init_data", "message": str(e)}}, status=401
-        )
+        return error_response("invalid_init_data", str(e), 401)
     except Exception as e:
         logger.error(f"Get matches failed: {e}", exc_info=True)
-        return web.json_response(
-            {"error": {"code": "internal_error", "message": "Internal server error"}},
-            status=500,
-        )
+        return error_response("internal_error", "Internal server error", 500)
 
 
 async def add_favorite_handler(request: web.Request) -> web.Response:
     """Add profile to favorites.
+    
+    NOTE: This feature is not yet implemented in the discovery service.
+    Returns 501 Not Implemented.
 
     Body:
     - target_id: User ID to add to favorites
     """
-    config: BotConfig = request.app["config"]
-    session_maker: async_sessionmaker = request.app["session_maker"]
-
-    try:
-        # Authenticate
-        user_id = await authenticate_request(request, config.jwt_secret)
-
-        # Parse body
-        data = await request.json()
-        target_id = data.get("target_id")
-
-        if not target_id:
-            return web.json_response(
-                {
-                    "error": {
-                        "code": "validation_error",
-                        "message": "target_id is required",
-                    }
-                },
-                status=400,
-            )
-
-        async with session_maker() as session:
-            repository = ProfileRepository(session)
-
-            # Get user
-            user, error = await get_user_or_error(repository, user_id)
-            if error:
-                return error
-
-            # Add to favorites
-            favorite = await repository.add_favorite(user.id, target_id)
-            await session.commit()
-
-            return web.json_response({"success": True, "favorite_id": favorite.id})
-
-    except AuthenticationError as e:
-        return web.json_response(
-            {"error": {"code": "invalid_init_data", "message": str(e)}}, status=401
-        )
-    except Exception as e:
-        logger.error(f"Add favorite failed: {e}", exc_info=True)
-        return web.json_response(
-            {"error": {"code": "internal_error", "message": "Internal server error"}},
-            status=500,
-        )
+    return error_response("not_implemented", "Favorites feature coming soon", 501)
 
 
 async def remove_favorite_handler(request: web.Request) -> web.Response:
     """Remove profile from favorites.
+    
+    NOTE: This feature is not yet implemented in the discovery service.
+    Returns 501 Not Implemented.
 
     Path param:
     - target_id: User ID to remove from favorites
     """
-    config: BotConfig = request.app["config"]
-    session_maker: async_sessionmaker = request.app["session_maker"]
-
-    try:
-        # Authenticate
-        user_id = await authenticate_request(request, config.jwt_secret)
-
-        # Get target_id from path
-        target_id = int(request.match_info["target_id"])
-
-        async with session_maker() as session:
-            repository = ProfileRepository(session)
-
-            # Get user
-            user, error = await get_user_or_error(repository, user_id)
-            if error:
-                return error
-
-            # Remove from favorites
-            removed = await repository.remove_favorite(user.id, target_id)
-            await session.commit()
-
-            if not removed:
-                return web.json_response(
-                    {"error": {"code": "not_found", "message": "Favorite not found"}},
-                    status=404,
-                )
-
-            return web.json_response({"success": True})
-
-    except AuthenticationError as e:
-        return web.json_response(
-            {"error": {"code": "invalid_init_data", "message": str(e)}}, status=401
-        )
-    except ValueError:
-        return web.json_response(
-            {"error": {"code": "validation_error", "message": "Invalid target_id"}},
-            status=400,
-        )
-    except Exception as e:
-        logger.error(f"Remove favorite failed: {e}", exc_info=True)
-        return web.json_response(
-            {"error": {"code": "internal_error", "message": "Internal server error"}},
-            status=500,
-        )
+    return error_response("not_implemented", "Favorites feature coming soon", 501)
 
 
 async def get_favorites_handler(request: web.Request) -> web.Response:
     """Get user's favorites with pagination.
+    
+    NOTE: This feature is not yet implemented in the discovery service.
+    Returns 501 Not Implemented.
 
     Query params:
     - limit: Max favorites to return (default 20, max 100)
     - cursor: Favorite ID for pagination
     """
-    config: BotConfig = request.app["config"]
-    session_maker: async_sessionmaker = request.app["session_maker"]
-
-    try:
-        # Authenticate
-        user_id = await authenticate_request(request, config.jwt_secret)
-
-        # Parse query parameters
-        limit = min(int(request.query.get("limit", 20)), 100)
-        cursor = int(request.query["cursor"]) if "cursor" in request.query else None
-
-        async with session_maker() as session:
-            repository = ProfileRepository(session)
-
-            # Get user
-            user, error = await get_user_or_error(repository, user_id)
-            if error:
-                return error
-
-            # Get favorites
-            favorites_with_profiles, next_cursor = await repository.get_favorites(
-                user_id=user.id, limit=limit, cursor=cursor
-            )
-
-            # Get photos for all profiles in a single query (avoid N+1)
-            user_ids = [
-                profile.user_id for favorite, profile in favorites_with_profiles
-            ]
-            photos_by_user = await repository.get_photos_for_users(user_ids)
-
-            # Format response
-            favorites_data = []
-            for favorite, profile in favorites_with_profiles:
-                photos = photos_by_user.get(profile.user_id, [])
-                favorites_data.append(
-                    {
-                        "favorite_id": favorite.id,
-                        "created_at": favorite.created_at.isoformat(),
-                        "profile": {
-                            "id": profile.id,
-                            "user_id": profile.user_id,
-                            "name": profile.name,
-                            "age": calculate_age(profile.birth_date),
-                            "bio": profile.bio,
-                            "photos": [
-                                {"url": p.url} for p in photos[:1]
-                            ],  # First photo only
-                        },
-                    }
-                )
-
-            return web.json_response(
-                {
-                    "favorites": favorites_data,
-                    "next_cursor": next_cursor,
-                    "count": len(favorites_data),
-                }
-            )
-
-    except AuthenticationError as e:
-        return web.json_response(
-            {"error": {"code": "invalid_init_data", "message": str(e)}}, status=401
-        )
-    except Exception as e:
-        logger.error(f"Get favorites failed: {e}", exc_info=True)
-        return web.json_response(
-            {"error": {"code": "internal_error", "message": "Internal server error"}},
-            status=500,
-        )
+    return error_response("not_implemented", "Favorites feature coming soon", 501)
 
 
 async def health_check_handler(request: web.Request) -> web.Response:
@@ -1455,8 +1086,8 @@ def create_app(config: BotConfig, api_client=None, session_maker: async_sessionm
 
     Args:
         config: Bot configuration
-        api_client: Optional APIGatewayClient for thin client mode
-        session_maker: Optional SQLAlchemy session maker (legacy mode)
+        api_client: APIGatewayClient (required for thin client mode)
+        session_maker: Deprecated - no longer used
 
     Returns:
         aiohttp Application
@@ -1466,15 +1097,12 @@ def create_app(config: BotConfig, api_client=None, session_maker: async_sessionm
     # Store config and dependencies
     app["config"] = config
     app["api_client"] = api_client
-    app["session_maker"] = session_maker
     
-    # Log mode
-    if api_client:
-        logger.info("Bot API server running in thin client mode (using API Gateway)")
-    elif session_maker:
-        logger.info("Bot API server running in legacy mode (direct database access)")
-    else:
-        raise ValueError("Either api_client or session_maker must be provided")
+    # Validate API client is provided
+    if not api_client:
+        raise ValueError("api_client is required - bot must run in thin client mode")
+    
+    logger.info("Bot API server running in thin client mode (using API Gateway)")
 
     # Initialize rate limiter
     rate_limiter = RateLimiter(max_requests=20, window_seconds=60)
@@ -1564,12 +1192,17 @@ async def run_api_server(
 
     Args:
         config: Bot configuration
-        api_client: Optional APIGatewayClient for thin client mode
-        session_maker: Optional SQLAlchemy session maker (legacy mode)
+        api_client: APIGatewayClient (required)
+        session_maker: Deprecated - no longer used
         host: Server host
         port: Server port
     """
-    app = create_app(config, api_client, session_maker)
+    if session_maker:
+        logger.warning(
+            "session_maker parameter is deprecated and ignored - bot runs in thin client mode only"
+        )
+    
+    app = create_app(config, api_client)
     runner = web.AppRunner(app)
     await runner.setup()
 

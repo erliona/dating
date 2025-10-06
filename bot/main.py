@@ -426,7 +426,7 @@ async def main() -> None:
         # Bot now uses thin client architecture through API Gateway
         # The bot/api.py server now also uses API Gateway instead of direct DB access
 
-        # Start API server for WebApp if API client is available
+        # Start API server for WebApp (thin client mode only)
         api_server_task = None
         if api_client:
             from .api import run_api_server
@@ -446,37 +446,10 @@ async def main() -> None:
                 "Starting bot API server (thin client mode)",
                 extra={"event_type": "api_server_start", "mode": "thin_client"},
             )
-        elif config.database_url:
-            # Legacy mode: direct database access (deprecated)
-            from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-            from sqlalchemy.orm import sessionmaker
-
-            from .api import run_api_server
-
+        else:
             logger.warning(
-                "Bot API server using legacy direct database access - consider removing DATABASE_URL",
-                extra={"event_type": "api_server_legacy_mode"},
-            )
-
-            # Initialize database for bot/api.py legacy mode
-            engine = create_async_engine(config.database_url, echo=False)
-            async_session_maker = sessionmaker(
-                engine, class_=AsyncSession, expire_on_commit=False
-            )
-
-            # Get API server configuration
-            api_host = os.getenv("API_HOST", "0.0.0.0")
-            api_port = int(os.getenv("API_PORT", "8080"))
-
-            api_server_task = run_api_server(
-                config,
-                session_maker=async_session_maker,
-                host=api_host,
-                port=api_port,
-            )
-            logger.info(
-                "Starting bot API server (legacy mode)",
-                extra={"event_type": "api_server_start", "mode": "legacy"},
+                "Bot API server not started - API Gateway URL not configured",
+                extra={"event_type": "api_server_not_started"},
             )
 
         # Run bot polling (and optionally API server)
