@@ -250,6 +250,17 @@ class APIGatewayClient:
             idempotency_key=idempotency_key,
         )
 
+    async def check_profile(self, user_id: int) -> Dict[str, Any]:
+        """Check if user has a profile.
+
+        Args:
+            user_id: Telegram user ID
+
+        Returns:
+            Dict with has_profile boolean
+        """
+        return await self._request("GET", f"/api/profile/check", params={"user_id": user_id})
+
     async def get_profile(self, user_id: int) -> Optional[Dict[str, Any]]:
         """Get user profile by ID.
 
@@ -452,3 +463,55 @@ class APIGatewayClient:
             f"/profiles/{telegram_id}/location",
             json_data=location_data,
         )
+
+    # Favorites endpoints
+    async def add_favorite(self, user_id: int, target_id: int) -> Dict[str, Any]:
+        """Add a profile to favorites.
+
+        Args:
+            user_id: User ID adding the favorite
+            target_id: Target user ID to add to favorites
+
+        Returns:
+            Favorite creation result
+        """
+        return await self._request(
+            "POST",
+            "/api/favorites",
+            json_data={"user_id": user_id, "target_id": target_id},
+        )
+
+    async def remove_favorite(self, user_id: int, target_id: int) -> Dict[str, Any]:
+        """Remove a profile from favorites.
+
+        Args:
+            user_id: User ID removing the favorite
+            target_id: Target user ID to remove from favorites
+
+        Returns:
+            Removal result
+        """
+        return await self._request(
+            "DELETE",
+            f"/api/favorites/{target_id}",
+            params={"user_id": user_id},
+        )
+
+    async def get_favorites(
+        self, user_id: int, limit: int = 20, cursor: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """Get user's favorites.
+
+        Args:
+            user_id: User ID
+            limit: Max favorites to return
+            cursor: Pagination cursor
+
+        Returns:
+            List of favorites with pagination info
+        """
+        params = {"user_id": user_id, "limit": limit}
+        if cursor:
+            params["cursor"] = cursor
+
+        return await self._request("GET", "/api/favorites", params=params)

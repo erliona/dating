@@ -649,7 +649,8 @@ async def check_profile_handler(request: web.Request) -> web.Response:
     - user_id: The user ID checked
     """
     config: BotConfig = request.app["config"]
-    session_maker: async_sessionmaker = request.app["session_maker"]
+    api_client = request.app.get("api_client")
+    session_maker = request.app.get("session_maker")
 
     try:
         # Get user_id from query parameter
@@ -705,6 +706,27 @@ async def check_profile_handler(request: web.Request) -> web.Response:
             return error_response(
                 "unauthorized", "Unauthorized: invalid init_data", 401
             )
+
+        # Use API Gateway client if available (thin client mode)
+        if api_client:
+            try:
+                from .api_client import APIGatewayError
+
+                # Check profile via API Gateway
+                result = await api_client.check_profile(requested_user_id)
+                
+                return web.json_response(result)
+                
+            except APIGatewayError as e:
+                logger.error(f"API Gateway error: {e}", exc_info=True)
+                return web.json_response(
+                    {"error": {"code": "gateway_error", "message": str(e)}},
+                    status=e.status_code,
+                )
+        
+        # Legacy mode: direct database access
+        if not session_maker:
+            return error_response("server_error", "Server not configured properly", 500)
 
         # Check database for profile
         async with session_maker() as session:
@@ -840,7 +862,8 @@ async def update_profile_handler(request: web.Request) -> web.Response:
     - hide_age, hide_distance, hide_online
     """
     config: BotConfig = request.app["config"]
-    session_maker: async_sessionmaker = request.app["session_maker"]
+    api_client = request.app.get("api_client")
+    session_maker = request.app.get("session_maker")
 
     try:
         # Authenticate
@@ -851,6 +874,33 @@ async def update_profile_handler(request: web.Request) -> web.Response:
             data = await request.json()
         except json.JSONDecodeError:
             return web.json_response({"error": "Invalid JSON"}, status=400)
+
+        # Use API Gateway client if available (thin client mode)
+        if api_client:
+            try:
+                from .api_client import APIGatewayError
+
+                # Update profile via API Gateway
+                result = await api_client.update_profile(user_id, data)
+                
+                logger.info(
+                    "Profile updated via API",
+                    extra={"event_type": "profile_updated_api", "user_id": user_id},
+                )
+
+                return web.json_response(
+                    {"success": True, "message": "Profile updated successfully"}
+                )
+                
+            except APIGatewayError as e:
+                if e.status_code == 404:
+                    return error_response("not_found", "Profile not found", 404)
+                logger.error(f"API Gateway error: {e}", exc_info=True)
+                return error_response("gateway_error", str(e), e.status_code)
+        
+        # Legacy mode: direct database access
+        if not session_maker:
+            return error_response("server_error", "Server not configured properly", 500)
 
         async with session_maker() as session:
             repository = ProfileRepository(session)
@@ -900,7 +950,8 @@ async def discover_handler(request: web.Request) -> web.Response:
     - verified_only: Only verified profiles
     """
     config: BotConfig = request.app["config"]
-    session_maker: async_sessionmaker = request.app["session_maker"]
+    api_client = request.app.get("api_client")
+    session_maker = request.app.get("session_maker")
 
     try:
         # Authenticate
@@ -940,6 +991,54 @@ async def discover_handler(request: web.Request) -> web.Response:
         )
         education = request.query.get("education")
         verified_only = request.query.get("verified_only") == "true"
+
+        # Use API Gateway client if available (thin client mode)
+        if api_client:
+            try:
+                from .api_client import APIGatewayError
+
+                # Build filters dict
+                filters = {"limit": limit}
+                if cursor:
+                    filters["cursor"] = cursor
+                if age_min is not None:
+                    filters["age_min"] = age_min
+                if age_max is not None:
+                    filters["age_max"] = age_max
+                if max_distance_km is not None:
+                    filters["max_distance_km"] = max_distance_km
+                if goal:
+                    filters["goal"] = goal
+                if height_min is not None:
+                    filters["height_min"] = height_min
+                if height_max is not None:
+                    filters["height_max"] = height_max
+                if has_children is not None:
+                    filters["has_children"] = has_children
+                if smoking is not None:
+                    filters["smoking"] = smoking
+                if drinking is not None:
+                    filters["drinking"] = drinking
+                if education:
+                    filters["education"] = education
+                if verified_only:
+                    filters["verified_only"] = verified_only
+
+                # Get candidates from API Gateway
+                result = await api_client.find_candidates(user_id, filters)
+                
+                return web.json_response(result)
+                
+            except APIGatewayError as e:
+                logger.error(f"API Gateway error: {e}", exc_info=True)
+                return web.json_response(
+                    {"error": {"code": "gateway_error", "message": str(e)}},
+                    status=e.status_code,
+                )
+        
+        # Legacy mode: direct database access
+        if not session_maker:
+            return error_response("server_error", "Server not configured properly", 500)
 
         async with session_maker() as session:
             repository = ProfileRepository(session)
@@ -1028,7 +1127,8 @@ async def like_handler(request: web.Request) -> web.Response:
     - match_id: If mutual match created
     """
     config: BotConfig = request.app["config"]
-    session_maker: async_sessionmaker = request.app["session_maker"]
+    api_client = request.app.get("api_client")
+    session_maker = request.app.get("session_maker")
 
     try:
         # Authenticate
@@ -1060,6 +1160,39 @@ async def like_handler(request: web.Request) -> web.Response:
                 },
                 status=400,
             )
+
+        # Use API Gateway client if available (thin client mode)
+        if api_client:
+            try:
+                from .api_client import APIGatewayError
+
+                # Create interaction via API Gateway
+                result = await api_client.create_interaction(
+                    user_id, target_id, interaction_type
+                )
+                
+                return web.json_response(result)
+                
+            except APIGatewayError as e:
+                if e.status_code == 404:
+                    return web.json_response(
+                        {
+                            "error": {
+                                "code": "not_found",
+                                "message": "Target user not found",
+                            }
+                        },
+                        status=404,
+                    )
+                logger.error(f"API Gateway error: {e}", exc_info=True)
+                return web.json_response(
+                    {"error": {"code": "gateway_error", "message": str(e)}},
+                    status=e.status_code,
+                )
+        
+        # Legacy mode: direct database access
+        if not session_maker:
+            return error_response("server_error", "Server not configured properly", 500)
 
         async with session_maker() as session:
             repository = ProfileRepository(session)
@@ -1121,7 +1254,8 @@ async def pass_handler(request: web.Request) -> web.Response:
     - target_id: User ID to pass
     """
     config: BotConfig = request.app["config"]
-    session_maker: async_sessionmaker = request.app["session_maker"]
+    api_client = request.app.get("api_client")
+    session_maker = request.app.get("session_maker")
 
     try:
         # Authenticate
@@ -1141,6 +1275,37 @@ async def pass_handler(request: web.Request) -> web.Response:
                 },
                 status=400,
             )
+
+        # Use API Gateway client if available (thin client mode)
+        if api_client:
+            try:
+                from .api_client import APIGatewayError
+
+                # Create pass interaction via API Gateway
+                result = await api_client.create_interaction(user_id, target_id, "pass")
+                
+                return web.json_response(result)
+                
+            except APIGatewayError as e:
+                if e.status_code == 404:
+                    return web.json_response(
+                        {
+                            "error": {
+                                "code": "not_found",
+                                "message": "Target user not found",
+                            }
+                        },
+                        status=404,
+                    )
+                logger.error(f"API Gateway error: {e}", exc_info=True)
+                return web.json_response(
+                    {"error": {"code": "gateway_error", "message": str(e)}},
+                    status=e.status_code,
+                )
+        
+        # Legacy mode: direct database access
+        if not session_maker:
+            return error_response("server_error", "Server not configured properly", 500)
 
         async with session_maker() as session:
             repository = ProfileRepository(session)
@@ -1192,7 +1357,8 @@ async def matches_handler(request: web.Request) -> web.Response:
     - cursor: Match ID for pagination
     """
     config: BotConfig = request.app["config"]
-    session_maker: async_sessionmaker = request.app["session_maker"]
+    api_client = request.app.get("api_client")
+    session_maker = request.app.get("session_maker")
 
     try:
         # Authenticate
@@ -1201,6 +1367,27 @@ async def matches_handler(request: web.Request) -> web.Response:
         # Parse query parameters
         limit = min(int(request.query.get("limit", 20)), 100)
         cursor = int(request.query["cursor"]) if "cursor" in request.query else None
+
+        # Use API Gateway client if available (thin client mode)
+        if api_client:
+            try:
+                from .api_client import APIGatewayError
+
+                # Get matches via API Gateway
+                result = await api_client.get_matches(user_id, limit, cursor)
+                
+                return web.json_response(result)
+                
+            except APIGatewayError as e:
+                logger.error(f"API Gateway error: {e}", exc_info=True)
+                return web.json_response(
+                    {"error": {"code": "gateway_error", "message": str(e)}},
+                    status=e.status_code,
+                )
+        
+        # Legacy mode: direct database access
+        if not session_maker:
+            return error_response("server_error", "Server not configured properly", 500)
 
         async with session_maker() as session:
             repository = ProfileRepository(session)
@@ -1267,7 +1454,8 @@ async def add_favorite_handler(request: web.Request) -> web.Response:
     - target_id: User ID to add to favorites
     """
     config: BotConfig = request.app["config"]
-    session_maker: async_sessionmaker = request.app["session_maker"]
+    api_client = request.app.get("api_client")
+    session_maker = request.app.get("session_maker")
 
     try:
         # Authenticate
@@ -1287,6 +1475,27 @@ async def add_favorite_handler(request: web.Request) -> web.Response:
                 },
                 status=400,
             )
+
+        # Use API Gateway client if available (thin client mode)
+        if api_client:
+            try:
+                from .api_client import APIGatewayError
+
+                # Add to favorites via API Gateway
+                result = await api_client.add_favorite(user_id, target_id)
+                
+                return web.json_response(result)
+                
+            except APIGatewayError as e:
+                logger.error(f"API Gateway error: {e}", exc_info=True)
+                return web.json_response(
+                    {"error": {"code": "gateway_error", "message": str(e)}},
+                    status=e.status_code,
+                )
+        
+        # Legacy mode: direct database access
+        if not session_maker:
+            return error_response("server_error", "Server not configured properly", 500)
 
         async with session_maker() as session:
             repository = ProfileRepository(session)
@@ -1321,7 +1530,8 @@ async def remove_favorite_handler(request: web.Request) -> web.Response:
     - target_id: User ID to remove from favorites
     """
     config: BotConfig = request.app["config"]
-    session_maker: async_sessionmaker = request.app["session_maker"]
+    api_client = request.app.get("api_client")
+    session_maker = request.app.get("session_maker")
 
     try:
         # Authenticate
@@ -1329,6 +1539,32 @@ async def remove_favorite_handler(request: web.Request) -> web.Response:
 
         # Get target_id from path
         target_id = int(request.match_info["target_id"])
+
+        # Use API Gateway client if available (thin client mode)
+        if api_client:
+            try:
+                from .api_client import APIGatewayError
+
+                # Remove from favorites via API Gateway
+                result = await api_client.remove_favorite(user_id, target_id)
+                
+                return web.json_response(result)
+                
+            except APIGatewayError as e:
+                if e.status_code == 404:
+                    return web.json_response(
+                        {"error": {"code": "not_found", "message": "Favorite not found"}},
+                        status=404,
+                    )
+                logger.error(f"API Gateway error: {e}", exc_info=True)
+                return web.json_response(
+                    {"error": {"code": "gateway_error", "message": str(e)}},
+                    status=e.status_code,
+                )
+        
+        # Legacy mode: direct database access
+        if not session_maker:
+            return error_response("server_error", "Server not configured properly", 500)
 
         async with session_maker() as session:
             repository = ProfileRepository(session)
@@ -1375,7 +1611,8 @@ async def get_favorites_handler(request: web.Request) -> web.Response:
     - cursor: Favorite ID for pagination
     """
     config: BotConfig = request.app["config"]
-    session_maker: async_sessionmaker = request.app["session_maker"]
+    api_client = request.app.get("api_client")
+    session_maker = request.app.get("session_maker")
 
     try:
         # Authenticate
@@ -1384,6 +1621,27 @@ async def get_favorites_handler(request: web.Request) -> web.Response:
         # Parse query parameters
         limit = min(int(request.query.get("limit", 20)), 100)
         cursor = int(request.query["cursor"]) if "cursor" in request.query else None
+
+        # Use API Gateway client if available (thin client mode)
+        if api_client:
+            try:
+                from .api_client import APIGatewayError
+
+                # Get favorites via API Gateway
+                result = await api_client.get_favorites(user_id, limit, cursor)
+                
+                return web.json_response(result)
+                
+            except APIGatewayError as e:
+                logger.error(f"API Gateway error: {e}", exc_info=True)
+                return web.json_response(
+                    {"error": {"code": "gateway_error", "message": str(e)}},
+                    status=e.status_code,
+                )
+        
+        # Legacy mode: direct database access
+        if not session_maker:
+            return error_response("server_error", "Server not configured properly", 500)
 
         async with session_maker() as session:
             repository = ProfileRepository(session)
