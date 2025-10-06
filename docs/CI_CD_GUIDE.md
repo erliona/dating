@@ -24,6 +24,8 @@ The CI/CD pipeline is built using GitHub Actions and includes:
 - Set up Python 3.12
 - Install dependencies
 - Run PostgreSQL test database
+- **Wait for PostgreSQL to be ready** (explicit health check)
+- **Apply database migrations** (alembic upgrade head)
 - Execute pytest with coverage
 - Upload coverage reports to Codecov
 
@@ -31,9 +33,13 @@ The CI/CD pipeline is built using GitHub Actions and includes:
 ```yaml
 env:
   DATABASE_URL: postgresql+asyncpg://dating:test_password@localhost:5432/dating_test
+  BOT_DATABASE_URL: postgresql+asyncpg://dating:test_password@localhost:5432/dating_test
   BOT_TOKEN: test:token
   JWT_SECRET: test-secret-key-for-testing-32chars
+  API_GATEWAY_URL: http://localhost:8080
 ```
+
+**Important:** The workflow now includes explicit database readiness checks and applies migrations before running tests to prevent tests from hanging on database connection issues.
 
 ### 2. Code Quality Workflow (`lint.yml`)
 
@@ -277,6 +283,8 @@ docker compose up -d
 1. **Run tests locally**: `pytest tests/ -v`
 2. **Check database connection** in test environment
 3. **Verify dependencies** are up to date: `pip install -r requirements-dev.txt`
+4. **Ensure database is ready**: The test workflow now explicitly waits for PostgreSQL and applies migrations
+5. **Check migrations**: If tests hang, migrations may not have been applied: `alembic upgrade head`
 
 ### Health Checks Failing
 
