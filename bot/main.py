@@ -82,9 +82,13 @@ async def handle_webapp_data(message: Message, dispatcher: Dispatcher = None) ->
         api_client = None
         if dispatcher:
             api_client = dispatcher.workflow_data.get("api_client")
-        
-        if not api_client:
-            # Fallback for testing or if dispatcher not available
+            if not api_client:
+                # If dispatcher is provided but no api_client, it's a configuration error
+                logger.error("API client not configured")
+                await message.answer("❌ API Gateway not configured")
+                return
+        else:
+            # No dispatcher provided - fallback for testing
             try:
                 config = load_config()
                 api_client = APIGatewayClient(config.api_gateway_url)
