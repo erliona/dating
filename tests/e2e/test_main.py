@@ -16,8 +16,6 @@ from bot.main import (
     send_like_notification,
     send_match_notification,
     send_message_notification,
-    start_handler,
-    toggle_notifications,
 )
 from core.utils.logging import JsonFormatter, configure_logging
 
@@ -129,58 +127,7 @@ class TestConfigureLogging:
             assert aiohttp_logger.level == logging.WARNING
 
 
-@pytest.mark.asyncio
-class TestStartHandler:
-    """Test /start command handler."""
-
-    async def test_start_handler_with_webapp_url(self):
-        """Test /start handler when webapp URL is configured."""
-        message = MagicMock(spec=Message)
-        message.answer = AsyncMock()
-
-        with patch("bot.main.load_config") as mock_config:
-            mock_config.return_value = MagicMock(webapp_url="https://example.com")
-
-            await start_handler(message)
-
-            message.answer.assert_called_once()
-            call_args = message.answer.call_args
-            assert "Добро пожаловать" in call_args[0][0]
-            assert "reply_markup" in call_args[1]
-
-    async def test_start_handler_without_webapp_url(self):
-        """Test /start handler when webapp URL is not configured."""
-        message = MagicMock(spec=Message)
-        message.answer = AsyncMock()
-
-        with patch("bot.main.load_config") as mock_config:
-            mock_config.return_value = MagicMock(webapp_url=None)
-
-            await start_handler(message)
-
-            message.answer.assert_called_once()
-            call_args = message.answer.call_args
-            assert "WebApp is not configured" in call_args[0][0]
-
-
-@pytest.mark.asyncio
-class TestNotificationsHandler:
-    """Test /notifications command handler."""
-
-    async def test_toggle_notifications(self):
-        """Test /notifications command handler."""
-        message = MagicMock(spec=Message)
-        message.answer = AsyncMock()
-        message.from_user = MagicMock(id=12345)
-
-        await toggle_notifications(message)
-
-        message.answer.assert_called_once()
-        call_args = message.answer.call_args
-        assert "Управление уведомлениями" in call_args[0][0]
-        assert "Новых матчах" in call_args[0][0]
-        assert "Новых сообщениях" in call_args[0][0]
-        assert "Лайках" in call_args[0][0]
+# Bot no longer has command handlers - all interactions via WebApp
 
 
 @pytest.mark.asyncio

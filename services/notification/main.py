@@ -39,26 +39,47 @@ async def send_match_notification(request: web.Request) -> web.Response:
         if not user_id:
             return web.json_response({"error": "user_id is required"}, status=400)
 
-        # For now, we'll implement a simple HTTP API endpoint on the bot
-        # that the notification service can call to send notifications
-        # In a production environment, this could use a message queue
-
-        # TODO: Call bot API endpoint to send notification
-        # For the initial implementation, we'll just log and return success
-
-        logger.info(
-            "Match notification queued",
-            extra={
-                "event_type": "match_notification_queued",
-                "user_id": user_id,
-                "match_id": match_data.get("id"),
-            },
-        )
-
-        return web.json_response(
-            {"status": "queued", "user_id": user_id, "notification_type": "match"},
-            status=202,  # Accepted
-        )
+        # Call bot HTTP endpoint to send notification
+        async with ClientSession(timeout=ClientTimeout(total=10)) as session:
+            try:
+                async with session.post(
+                    f"{BOT_URL}/notifications/match",
+                    json={"user_id": user_id, "match_data": match_data},
+                ) as response:
+                    if response.status == 200:
+                        logger.info(
+                            "Match notification sent successfully",
+                            extra={
+                                "event_type": "match_notification_sent",
+                                "user_id": user_id,
+                                "match_id": match_data.get("id"),
+                            },
+                        )
+                        return web.json_response(
+                            {"status": "sent", "user_id": user_id, "notification_type": "match"}
+                        )
+                    else:
+                        logger.error(
+                            f"Bot returned error status: {response.status}",
+                            extra={
+                                "event_type": "bot_error",
+                                "status": response.status,
+                                "user_id": user_id,
+                            },
+                        )
+                        return web.json_response(
+                            {"error": "Failed to send notification", "status": response.status},
+                            status=500,
+                        )
+            except ClientError as e:
+                logger.error(
+                    f"Failed to call bot endpoint: {e}",
+                    exc_info=True,
+                    extra={"event_type": "bot_connection_error", "user_id": user_id},
+                )
+                return web.json_response(
+                    {"error": "Failed to connect to bot service"}, status=503
+                )
 
     except Exception as e:
         logger.error(
@@ -90,18 +111,46 @@ async def send_message_notification(request: web.Request) -> web.Response:
         if not user_id:
             return web.json_response({"error": "user_id is required"}, status=400)
 
-        logger.info(
-            "Message notification queued",
-            extra={
-                "event_type": "message_notification_queued",
-                "user_id": user_id,
-            },
-        )
-
-        return web.json_response(
-            {"status": "queued", "user_id": user_id, "notification_type": "message"},
-            status=202,  # Accepted
-        )
+        # Call bot HTTP endpoint to send notification
+        async with ClientSession(timeout=ClientTimeout(total=10)) as session:
+            try:
+                async with session.post(
+                    f"{BOT_URL}/notifications/message",
+                    json={"user_id": user_id, "message_data": message_data},
+                ) as response:
+                    if response.status == 200:
+                        logger.info(
+                            "Message notification sent successfully",
+                            extra={
+                                "event_type": "message_notification_sent",
+                                "user_id": user_id,
+                            },
+                        )
+                        return web.json_response(
+                            {"status": "sent", "user_id": user_id, "notification_type": "message"}
+                        )
+                    else:
+                        logger.error(
+                            f"Bot returned error status: {response.status}",
+                            extra={
+                                "event_type": "bot_error",
+                                "status": response.status,
+                                "user_id": user_id,
+                            },
+                        )
+                        return web.json_response(
+                            {"error": "Failed to send notification", "status": response.status},
+                            status=500,
+                        )
+            except ClientError as e:
+                logger.error(
+                    f"Failed to call bot endpoint: {e}",
+                    exc_info=True,
+                    extra={"event_type": "bot_connection_error", "user_id": user_id},
+                )
+                return web.json_response(
+                    {"error": "Failed to connect to bot service"}, status=503
+                )
 
     except Exception as e:
         logger.error(
@@ -132,18 +181,46 @@ async def send_like_notification(request: web.Request) -> web.Response:
         if not user_id:
             return web.json_response({"error": "user_id is required"}, status=400)
 
-        logger.info(
-            "Like notification queued",
-            extra={
-                "event_type": "like_notification_queued",
-                "user_id": user_id,
-            },
-        )
-
-        return web.json_response(
-            {"status": "queued", "user_id": user_id, "notification_type": "like"},
-            status=202,  # Accepted
-        )
+        # Call bot HTTP endpoint to send notification
+        async with ClientSession(timeout=ClientTimeout(total=10)) as session:
+            try:
+                async with session.post(
+                    f"{BOT_URL}/notifications/like",
+                    json={"user_id": user_id, "like_data": like_data},
+                ) as response:
+                    if response.status == 200:
+                        logger.info(
+                            "Like notification sent successfully",
+                            extra={
+                                "event_type": "like_notification_sent",
+                                "user_id": user_id,
+                            },
+                        )
+                        return web.json_response(
+                            {"status": "sent", "user_id": user_id, "notification_type": "like"}
+                        )
+                    else:
+                        logger.error(
+                            f"Bot returned error status: {response.status}",
+                            extra={
+                                "event_type": "bot_error",
+                                "status": response.status,
+                                "user_id": user_id,
+                            },
+                        )
+                        return web.json_response(
+                            {"error": "Failed to send notification", "status": response.status},
+                            status=500,
+                        )
+            except ClientError as e:
+                logger.error(
+                    f"Failed to call bot endpoint: {e}",
+                    exc_info=True,
+                    extra={"event_type": "bot_connection_error", "user_id": user_id},
+                )
+                return web.json_response(
+                    {"error": "Failed to connect to bot service"}, status=503
+                )
 
     except Exception as e:
         logger.error(

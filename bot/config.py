@@ -17,9 +17,9 @@ class BotConfig:
     """Settings required to run the bot."""
 
     token: str
-    api_gateway_url: str  # URL of API Gateway for thin client architecture
+    api_gateway_url: str | None = None  # Optional - not needed for notification-only bot
     database_url: str | None = None  # Optional - for backward compatibility
-    webapp_url: str | None = None
+    webapp_url: str | None = None  # Optional - not used by bot anymore
     jwt_secret: str | None = None
     photo_storage_path: str = "/app/photos"  # Path for local photo storage
     photo_cdn_url: str | None = None  # Optional CDN URL for serving photos
@@ -86,7 +86,7 @@ def load_config() -> BotConfig:
             "WEBAPP_URL cannot be empty if set; unset it or provide a valid URL"
         )
 
-    # Validate WEBAPP_URL uses HTTPS for production security
+    # Validate WEBAPP_URL uses HTTPS for production security (if provided)
     if webapp_url:
         webapp_url = webapp_url.strip()
         # Allow localhost and 127.0.0.1 for development/testing
@@ -105,22 +105,16 @@ def load_config() -> BotConfig:
             protocol, rest = webapp_url.split("://", 1)
             webapp_url = protocol.lower() + "://" + rest
 
-    # API Gateway URL (thin client architecture)
+    # API Gateway URL is now optional since bot only receives notifications
     api_gateway_url = os.getenv("API_GATEWAY_URL")
-    if not api_gateway_url:
-        raise RuntimeError(
-            "API_GATEWAY_URL environment variable is required. "
-            "The bot now uses thin client architecture and communicates via API Gateway. "
-            "Example: http://api-gateway:8080"
-        )
-
-    # Validate API Gateway URL format
-    api_gateway_url = api_gateway_url.strip()
-    if not api_gateway_url.startswith(("http://", "https://")):
-        raise RuntimeError(
-            "API_GATEWAY_URL must start with http:// or https://. "
-            f"Got: {api_gateway_url}"
-        )
+    if api_gateway_url:
+        # Validate API Gateway URL format if provided
+        api_gateway_url = api_gateway_url.strip()
+        if not api_gateway_url.startswith(("http://", "https://")):
+            raise RuntimeError(
+                "API_GATEWAY_URL must start with http:// or https://. "
+                f"Got: {api_gateway_url}"
+            )
 
     # Database URL is now optional - bot uses API Gateway instead
     database_url_raw = os.getenv("BOT_DATABASE_URL") or os.getenv("DATABASE_URL")
