@@ -102,7 +102,7 @@ Production-ready client with proper timeouts and retries:
 - ✅ **Max retries**: 3 attempts
 - ✅ **Backoff**: Exponential (1s, 2s, 4s)
 - ✅ **Only on**: Network errors and 5xx server errors
-- ✅ **Not on**: 4xx client errors (immediate failure)
+- ✅ **Fails immediately on**: 4xx client errors
 
 **Idempotency**:
 - ✅ Client-generated idempotency keys for create operations
