@@ -474,6 +474,10 @@ pytest tests/e2e/ -v          # E2E tests
 # С покрытием
 pytest --cov=bot --cov=core --cov=services --cov-report=html
 
+# С таймаутом (страховка от зависаний)
+pytest -m e2e --timeout=900 -v           # E2E с 15-минутным таймаутом
+pytest -m integration --timeout=600 -v   # Integration с 10-минутным таймаутом
+
 # Остановиться на первой ошибке
 pytest -x
 

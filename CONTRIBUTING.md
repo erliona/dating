@@ -321,6 +321,10 @@ pytest tests/unit/test_validation.py -v
 # С покрытием
 pytest --cov=bot --cov=core --cov=services --cov-report=term --cov-report=html
 
+# С таймаутом (предотвращает зависания)
+pytest -m e2e --timeout=900 -v           # E2E с таймаутом 15 мин
+pytest -m integration --timeout=600 -v   # Integration с таймаутом 10 мин
+
 # Быстрая проверка (только упавшие)
 pytest --lf -v
 

@@ -40,9 +40,9 @@ jobs:
         env:
           BOT_TOKEN: "123456789:ABCdefGHIjklMNOpqrsTUVwxyz-test-token"
           JWT_SECRET: test-secret-key-for-testing-32chars
-          API_GATEWAY_URL: http://localhost:8080
+          API_GATEWAY_URL: http://127.0.0.1:9  # Closed port - unit tests should mock network
         run: |
-          python -m pytest tests/unit/ -v --tb=short -m unit --cov=bot --cov=core --cov-report=xml --cov-report=term
+          python -m pytest tests/unit/ -v --tb=short -m unit --timeout=300 --cov=bot --cov=core --cov-report=xml --cov-report=term
 
       - name: Upload unit test coverage
         uses: codecov/codecov-action@v4
@@ -119,7 +119,7 @@ jobs:
           JWT_SECRET: test-secret-key-for-testing-32chars
           API_GATEWAY_URL: http://localhost:8080
         run: |
-          python -m pytest tests/integration/ -v --tb=short -m integration --cov=bot --cov=core --cov-report=xml --cov-report=term
+          python -m pytest tests/integration/ -v --tb=short -m integration --timeout=600 --cov=bot --cov=core --cov-report=xml --cov-report=term
 
       - name: Upload integration test coverage
         uses: codecov/codecov-action@v4
@@ -135,7 +135,8 @@ jobs:
     name: E2E Tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'e2e')
+    # Run on push to main/develop or when 'e2e' label is added to PR
+    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')) || contains(github.event.pull_request.labels.*.name, 'e2e')
 
     services:
       postgres:
@@ -197,7 +198,7 @@ jobs:
           JWT_SECRET: test-secret-key-for-testing-32chars
           API_GATEWAY_URL: http://localhost:8080
         run: |
-          python -m pytest tests/e2e/ -v --tb=short -m e2e --cov=bot --cov=core --cov-report=xml --cov-report=term
+          python -m pytest tests/e2e/ -v --tb=short -m e2e --timeout=900 --cov=bot --cov=core --cov-report=xml --cov-report=term
 
       - name: Upload E2E test coverage
         uses: codecov/codecov-action@v4

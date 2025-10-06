@@ -192,6 +192,14 @@ pytest --cov=bot --cov=core --cov=services --cov-report=html --cov-report=term
 pytest --lf -v
 ```
 
+### With Timeout (Prevent Hangs)
+```bash
+# Add timeout to prevent hung tests
+pytest -m e2e --timeout=900 -v           # E2E with 15-minute timeout
+pytest -m integration --timeout=600 -v   # Integration with 10-minute timeout
+pytest tests/unit/ --timeout=300 -v      # Unit with 5-minute timeout
+```
+
 ### Skip Xfail Tests
 ```bash
 # Show only real pass/fail (skip known issues)
