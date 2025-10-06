@@ -199,6 +199,14 @@ def create_app(config: dict) -> web.Application:
     )
     logger.info(f"CORS configured for domain: {webapp_domain}")
 
+    # Helper function to add CORS-enabled routes for all methods
+    # aiohttp_cors doesn't support "*" method, so we register each method individually
+    # Note: OPTIONS is handled automatically by aiohttp_cors, no need to add it explicitly
+    def add_cors_route(path: str, handler):
+        """Add a route with CORS support for all HTTP methods."""
+        for method in ["GET", "POST", "PUT", "PATCH", "DELETE"]:
+            cors.add(app.router.add_route(method, path, handler))
+
     # Add routing rules for direct service access (internal/microservice-to-microservice)
     app.router.add_route("*", "/auth/{tail:.*}", route_auth)
     app.router.add_route("*", "/profiles/{tail:.*}", route_profile)
@@ -214,28 +222,28 @@ def create_app(config: dict) -> web.Application:
     # Routes are ordered from most specific to least specific
     
     # Auth endpoints
-    cors.add(app.router.add_route("*", "/api/auth/token", route_api_auth))
-    cors.add(app.router.add_route("*", "/api/auth/{tail:.*}", route_api_auth))
+    add_cors_route("/api/auth/token", route_api_auth)
+    add_cors_route("/api/auth/{tail:.*}", route_api_auth)
     
     # Profile endpoints
-    cors.add(app.router.add_route("*", "/api/profile/check", route_api_profile))
-    cors.add(app.router.add_route("*", "/api/profile/{tail:.*}", route_api_profile))
-    cors.add(app.router.add_route("*", "/api/profile", route_api_profile))
+    add_cors_route("/api/profile/check", route_api_profile)
+    add_cors_route("/api/profile/{tail:.*}", route_api_profile)
+    add_cors_route("/api/profile", route_api_profile)
     
     # Discovery endpoints (like, pass, matches, favorites, discover)
-    cors.add(app.router.add_route("*", "/api/discover", route_api_discovery))
-    cors.add(app.router.add_route("*", "/api/like", route_api_discovery))
-    cors.add(app.router.add_route("*", "/api/pass", route_api_discovery))
-    cors.add(app.router.add_route("*", "/api/matches", route_api_discovery))
-    cors.add(app.router.add_route("*", "/api/favorites/{tail:.*}", route_api_discovery))
-    cors.add(app.router.add_route("*", "/api/favorites", route_api_discovery))
+    add_cors_route("/api/discover", route_api_discovery)
+    add_cors_route("/api/like", route_api_discovery)
+    add_cors_route("/api/pass", route_api_discovery)
+    add_cors_route("/api/matches", route_api_discovery)
+    add_cors_route("/api/favorites/{tail:.*}", route_api_discovery)
+    add_cors_route("/api/favorites", route_api_discovery)
     
     # Media/photos endpoints
-    cors.add(app.router.add_route("*", "/api/photos/upload", route_api_media))
-    cors.add(app.router.add_route("*", "/api/photos/{tail:.*}", route_api_media))
+    add_cors_route("/api/photos/upload", route_api_media)
+    add_cors_route("/api/photos/{tail:.*}", route_api_media)
     
     # Notification endpoints
-    cors.add(app.router.add_route("*", "/api/notifications/{tail:.*}", route_api_notifications))
+    add_cors_route("/api/notifications/{tail:.*}", route_api_notifications)
     
     # Health check
     app.router.add_get("/health", health_check)
