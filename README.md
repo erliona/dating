@@ -454,18 +454,23 @@ new-service:
 
 ### Запуск тестов
 
+**Статус**: 360+ comprehensive tests organized by type
+
 ```bash
 # Все тесты
-pytest
+pytest -v
+
+# Только unit tests (быстрые)
+pytest tests/unit/ -v
+
+# Только integration tests
+pytest tests/integration/ -v
+
+# Только e2e tests
+pytest tests/e2e/ -v
 
 # С покрытием
-pytest --cov=core --cov=services --cov-report=html
-
-# Конкретный файл
-pytest tests/core/test_profile_service.py
-
-# С подробным выводом
-pytest -v
+pytest --cov=bot --cov=core --cov=services --cov-report=html
 
 # Остановиться на первой ошибке
 pytest -x
@@ -475,16 +480,23 @@ pytest -x
 
 ```
 tests/
-├── core/                  # Тесты бизнес-логики
-│   ├── test_models.py
-│   ├── test_profile_service.py
-│   └── test_matching_service.py
-├── services/              # Тесты микросервисов
-│   ├── test_auth.py
-│   ├── test_profile.py
-│   └── test_discovery.py
-└── integration/           # Интеграционные тесты
-    └── test_full_flow.py
+├── unit/                  # Unit tests для отдельных компонентов
+│   ├── test_api_client.py    # API Gateway client
+│   ├── test_config.py         # Конфигурация
+│   ├── test_validation.py     # Валидация данных
+│   ├── test_core_services.py  # Сервисы (профиль, матчинг)
+│   ├── test_cache.py          # Кэширование
+│   └── test_geo.py            # Геолокация
+├── integration/           # Integration tests для взаимодействия
+│   ├── test_api.py           # HTTP API endpoints
+│   ├── test_security.py      # Аутентификация
+│   ├── test_media.py         # Обработка медиа
+│   └── test_repository.py    # База данных
+└── e2e/                   # End-to-end tests для полных сценариев
+    ├── test_user_flows.py    # Пользовательские сценарии
+    ├── test_main.py          # Bot handlers
+    ├── test_discovery.py     # Система поиска
+    └── test_gateway.py       # API Gateway
 ```
 
 ### Написание тестов
