@@ -135,7 +135,9 @@ def load_config() -> BotConfig:
         postgres_port = os.getenv("POSTGRES_PORT", "5432")
         postgres_db = os.getenv("POSTGRES_DB")
 
-        if not database_url_raw and all([postgres_user, postgres_password, postgres_db]):
+        if not database_url_raw and all(
+            [postgres_user, postgres_password, postgres_db]
+        ):
             # URL-encode the username and password to handle special characters
             encoded_user = quote_plus(postgres_user)
             encoded_password = quote_plus(postgres_password)
@@ -148,9 +150,13 @@ def load_config() -> BotConfig:
             try:
                 database_url = make_url(database_url_raw)
                 if database_url.drivername.startswith("postgresql"):
-                    database_url_str = database_url.render_as_string(hide_password=False)
+                    database_url_str = database_url.render_as_string(
+                        hide_password=False
+                    )
             except ArgumentError:
-                logging.warning("Invalid DATABASE_URL provided, ignoring for thin client")
+                logging.warning(
+                    "Invalid DATABASE_URL provided, ignoring for thin client"
+                )
                 database_url_str = None
 
     # JWT secret for authentication (Epic A2)

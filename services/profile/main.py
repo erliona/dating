@@ -46,7 +46,7 @@ async def create_profile(request: web.Request) -> web.Response:
     """Create user profile.
 
     POST /profiles/
-    
+
     Accepts comprehensive profile data from bot or other clients.
     """
     data = await request.json()
@@ -56,7 +56,7 @@ async def create_profile(request: web.Request) -> web.Response:
 
         # Get or create session
         session_maker = request.app["session_maker"]
-        
+
         async with session_maker() as session:
             from bot.repository import ProfileRepository
 
@@ -78,16 +78,15 @@ async def create_profile(request: web.Request) -> web.Response:
                 user_id = data.get("user_id")
                 if not user_id:
                     return web.json_response(
-                        {"error": "Either user_id or telegram_id is required"}, 
-                        status=400
+                        {"error": "Either user_id or telegram_id is required"},
+                        status=400,
                     )
 
             # Check if profile already exists
             existing_profile = await repository.get_profile_by_user_id(user_id)
             if existing_profile:
                 return web.json_response(
-                    {"error": "Profile already exists for this user"}, 
-                    status=409
+                    {"error": "Profile already exists for this user"}, status=409
                 )
 
             # Parse birth_date
@@ -99,15 +98,16 @@ async def create_profile(request: web.Request) -> web.Response:
                         birth_date = date.fromisoformat(birth_date_str)
                     except ValueError:
                         return web.json_response(
-                            {"error": "Invalid birth_date format. Expected ISO format (YYYY-MM-DD)."},
-                            status=400
+                            {
+                                "error": "Invalid birth_date format. Expected ISO format (YYYY-MM-DD)."
+                            },
+                            status=400,
                         )
                 else:
                     birth_date = birth_date_str
             else:
                 return web.json_response(
-                    {"error": "birth_date is required."},
-                    status=400
+                    {"error": "birth_date is required."}, status=400
                 )
 
             # Prepare profile data
@@ -139,7 +139,7 @@ async def create_profile(request: web.Request) -> web.Response:
 
             # Create profile
             profile = await repository.create_profile(user_id, profile_data)
-            
+
             # Commit the transaction
             await session.commit()
 
@@ -165,10 +165,7 @@ async def create_profile(request: web.Request) -> web.Response:
             )
 
     except KeyError as e:
-        return web.json_response(
-            {"error": f"Missing required field: {e}"}, 
-            status=400
-        )
+        return web.json_response({"error": f"Missing required field: {e}"}, status=400)
     except ValueError as e:
         return web.json_response({"error": str(e)}, status=400)
     except Exception as e:

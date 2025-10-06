@@ -11,7 +11,7 @@ All user interactions happen in WebApp which communicates directly with API Gate
 import asyncio
 import logging
 import os
-from typing import Dict, Any
+from typing import Any, Dict
 
 from aiogram import Bot, Dispatcher, Router
 from aiogram.filters import Command
@@ -64,12 +64,12 @@ async def start_handler(message: Message) -> None:
 @router.message(Command("notifications"))
 async def toggle_notifications(message: Message) -> None:
     """Toggle notifications on/off for the user.
-    
+
     In future implementation, this would update user preferences in the database.
     For now, it provides user feedback about notification management.
     """
     logger = logging.getLogger(__name__)
-    
+
     logger.info(
         "Notification toggle requested",
         extra={
@@ -77,7 +77,7 @@ async def toggle_notifications(message: Message) -> None:
             "user_id": message.from_user.id,
         },
     )
-    
+
     await message.answer(
         "🔔 Управление уведомлениями\n\n"
         "Настройки уведомлений можно изменить в Mini App в разделе 'Настройки'.\n\n"
@@ -91,31 +91,28 @@ async def toggle_notifications(message: Message) -> None:
 # Notification handlers for API Gateway
 async def send_match_notification(user_id: int, match_data: Dict[str, Any]) -> bool:
     """Send notification about a new match.
-    
+
     Args:
         user_id: Telegram user ID
         match_data: Match information (name, photo, etc.)
-        
+
     Returns:
         True if notification was sent successfully
     """
     logger = logging.getLogger(__name__)
-    
+
     if not _bot_instance:
         logger.error("Bot instance not initialized")
         return False
-    
+
     try:
         match_name = match_data.get("name", "Someone")
         match_id = match_data.get("id", "")
-        
+
         message_text = f"💕 У вас новый матч!\n\n{match_name} тоже лайкнул(а) вас!"
-        
-        await _bot_instance.send_message(
-            chat_id=user_id,
-            text=message_text
-        )
-        
+
+        await _bot_instance.send_message(chat_id=user_id, text=message_text)
+
         logger.info(
             "Match notification sent",
             extra={
@@ -125,7 +122,7 @@ async def send_match_notification(user_id: int, match_data: Dict[str, Any]) -> b
             },
         )
         return True
-        
+
     except Exception as e:
         logger.error(
             f"Failed to send match notification: {e}",
@@ -140,31 +137,28 @@ async def send_match_notification(user_id: int, match_data: Dict[str, Any]) -> b
 
 async def send_message_notification(user_id: int, message_data: Dict[str, Any]) -> bool:
     """Send notification about a new message.
-    
+
     Args:
         user_id: Telegram user ID
         message_data: Message information (sender, preview, etc.)
-        
+
     Returns:
         True if notification was sent successfully
     """
     logger = logging.getLogger(__name__)
-    
+
     if not _bot_instance:
         logger.error("Bot instance not initialized")
         return False
-    
+
     try:
         sender_name = message_data.get("sender_name", "Someone")
         message_preview = message_data.get("preview", "...")
-        
+
         message_text = f"💬 Новое сообщение от {sender_name}\n\n{message_preview}"
-        
-        await _bot_instance.send_message(
-            chat_id=user_id,
-            text=message_text
-        )
-        
+
+        await _bot_instance.send_message(chat_id=user_id, text=message_text)
+
         logger.info(
             "Message notification sent",
             extra={
@@ -173,7 +167,7 @@ async def send_message_notification(user_id: int, message_data: Dict[str, Any]) 
             },
         )
         return True
-        
+
     except Exception as e:
         logger.error(
             f"Failed to send message notification: {e}",
@@ -188,30 +182,27 @@ async def send_message_notification(user_id: int, message_data: Dict[str, Any]) 
 
 async def send_like_notification(user_id: int, like_data: Dict[str, Any]) -> bool:
     """Send notification about receiving a like.
-    
+
     Args:
         user_id: Telegram user ID
         like_data: Like information (sender name, etc.)
-        
+
     Returns:
         True if notification was sent successfully
     """
     logger = logging.getLogger(__name__)
-    
+
     if not _bot_instance:
         logger.error("Bot instance not initialized")
         return False
-    
+
     try:
         liker_name = like_data.get("name", "Someone")
-        
+
         message_text = f"❤️ {liker_name} лайкнул(а) вас!"
-        
-        await _bot_instance.send_message(
-            chat_id=user_id,
-            text=message_text
-        )
-        
+
+        await _bot_instance.send_message(chat_id=user_id, text=message_text)
+
         logger.info(
             "Like notification sent",
             extra={
@@ -220,7 +211,7 @@ async def send_like_notification(user_id: int, like_data: Dict[str, Any]) -> boo
             },
         )
         return True
-        
+
     except Exception as e:
         logger.error(
             f"Failed to send like notification: {e}",
@@ -294,7 +285,7 @@ async def main() -> None:
             ) from e
 
         logger.info("Bot instance created", extra={"event_type": "bot_created"})
-        
+
         # Store bot instance globally for notification handlers
         global _bot_instance
         _bot_instance = bot
@@ -332,7 +323,7 @@ async def main() -> None:
         # Bot now uses thin client architecture through API Gateway
         # The bot/api.py server now also uses API Gateway instead of direct DB access
 
-        # Start API server for WebApp if API client is available
+        # Start API server for WebApp (requires API Gateway)
         api_server_task = None
         if api_client:
             from .api import run_api_server
@@ -352,37 +343,10 @@ async def main() -> None:
                 "Starting bot API server (thin client mode)",
                 extra={"event_type": "api_server_start", "mode": "thin_client"},
             )
-        elif config.database_url:
-            # Legacy mode: direct database access (deprecated)
-            from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-            from sqlalchemy.orm import sessionmaker
-
-            from .api import run_api_server
-
+        else:
             logger.warning(
-                "Bot API server using legacy direct database access - consider removing DATABASE_URL",
-                extra={"event_type": "api_server_legacy_mode"},
-            )
-
-            # Initialize database for bot/api.py legacy mode
-            engine = create_async_engine(config.database_url, echo=False)
-            async_session_maker = sessionmaker(
-                engine, class_=AsyncSession, expire_on_commit=False
-            )
-
-            # Get API server configuration
-            api_host = os.getenv("API_HOST", "0.0.0.0")
-            api_port = int(os.getenv("API_PORT", "8080"))
-
-            api_server_task = run_api_server(
-                config,
-                session_maker=async_session_maker,
-                host=api_host,
-                port=api_port,
-            )
-            logger.info(
-                "Starting bot API server (legacy mode)",
-                extra={"event_type": "api_server_start", "mode": "legacy"},
+                "Bot API server not started - API Gateway URL is required",
+                extra={"event_type": "api_server_not_started"},
             )
 
         # Run bot polling (and optionally API server)

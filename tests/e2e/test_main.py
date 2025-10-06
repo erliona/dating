@@ -13,11 +13,11 @@ from aiogram.types import Message, User, WebAppData, WebAppInfo
 pytestmark = pytest.mark.e2e
 
 from bot.main import (
-    start_handler,
-    toggle_notifications,
+    send_like_notification,
     send_match_notification,
     send_message_notification,
-    send_like_notification,
+    start_handler,
+    toggle_notifications,
 )
 from core.utils.logging import JsonFormatter, configure_logging
 
@@ -192,50 +192,53 @@ class TestNotificationSenders:
         # Mock bot instance
         mock_bot = MagicMock()
         mock_bot.send_message = AsyncMock()
-        
+
         import bot.main
+
         bot.main._bot_instance = mock_bot
-        
+
         match_data = {
             "id": 123,
             "name": "John Doe",
         }
-        
+
         result = await send_match_notification(12345, match_data)
-        
+
         assert result is True
         mock_bot.send_message.assert_called_once()
         call_args = mock_bot.send_message.call_args
         assert call_args[1]["chat_id"] == 12345
         assert "матч" in call_args[1]["text"].lower()
         assert "John Doe" in call_args[1]["text"]
-        
+
         # Cleanup
         bot.main._bot_instance = None
 
     async def test_send_match_notification_no_bot(self):
         """Test match notification when bot is not initialized."""
         import bot.main
+
         bot.main._bot_instance = None
-        
+
         match_data = {"id": 123, "name": "John Doe"}
         result = await send_match_notification(12345, match_data)
-        
+
         assert result is False
 
     async def test_send_match_notification_error(self):
         """Test match notification when sending fails."""
         mock_bot = MagicMock()
         mock_bot.send_message = AsyncMock(side_effect=Exception("Send failed"))
-        
+
         import bot.main
+
         bot.main._bot_instance = mock_bot
-        
+
         match_data = {"id": 123, "name": "John Doe"}
         result = await send_match_notification(12345, match_data)
-        
+
         assert result is False
-        
+
         # Cleanup
         bot.main._bot_instance = None
 
@@ -243,69 +246,73 @@ class TestNotificationSenders:
         """Test sending message notification successfully."""
         mock_bot = MagicMock()
         mock_bot.send_message = AsyncMock()
-        
+
         import bot.main
+
         bot.main._bot_instance = mock_bot
-        
+
         message_data = {
             "sender_name": "Jane Doe",
             "preview": "Hello there!",
         }
-        
+
         result = await send_message_notification(12345, message_data)
-        
+
         assert result is True
         mock_bot.send_message.assert_called_once()
         call_args = mock_bot.send_message.call_args
         assert call_args[1]["chat_id"] == 12345
         assert "Jane Doe" in call_args[1]["text"]
         assert "Hello there!" in call_args[1]["text"]
-        
+
         # Cleanup
         bot.main._bot_instance = None
 
     async def test_send_message_notification_no_bot(self):
         """Test message notification when bot is not initialized."""
         import bot.main
+
         bot.main._bot_instance = None
-        
+
         message_data = {"sender_name": "Jane", "preview": "Hi"}
         result = await send_message_notification(12345, message_data)
-        
+
         assert result is False
 
     async def test_send_like_notification_success(self):
         """Test sending like notification successfully."""
         mock_bot = MagicMock()
         mock_bot.send_message = AsyncMock()
-        
+
         import bot.main
+
         bot.main._bot_instance = mock_bot
-        
+
         like_data = {
             "name": "Alice",
         }
-        
+
         result = await send_like_notification(12345, like_data)
-        
+
         assert result is True
         mock_bot.send_message.assert_called_once()
         call_args = mock_bot.send_message.call_args
         assert call_args[1]["chat_id"] == 12345
         assert "Alice" in call_args[1]["text"]
         assert "лайкнул" in call_args[1]["text"]
-        
+
         # Cleanup
         bot.main._bot_instance = None
 
     async def test_send_like_notification_no_bot(self):
         """Test like notification when bot is not initialized."""
         import bot.main
+
         bot.main._bot_instance = None
-        
+
         like_data = {"name": "Alice"}
         result = await send_like_notification(12345, like_data)
-        
+
         assert result is False
 
 
@@ -329,7 +336,9 @@ class TestMainFunction:
             "bot.main.Bot"
         ) as mock_bot, patch("bot.main.Dispatcher") as mock_dispatcher, patch(
             "bot.main.APIGatewayClient"
-        ) as mock_api_client, patch("bot.api.run_api_server") as mock_run_api_server:
+        ) as mock_api_client, patch(
+            "bot.api.run_api_server"
+        ) as mock_run_api_server:
 
             # Mock config with API Gateway URL
             mock_config = MagicMock()
@@ -364,6 +373,7 @@ class TestMainFunction:
             # It should return a coroutine that will be awaited later in asyncio.gather()
             async def mock_server(*args, **kwargs):
                 return None
+
             mock_run_api_server.side_effect = mock_server
 
             from bot.main import main

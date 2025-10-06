@@ -202,7 +202,8 @@ class TestPhotoStorage:
         from bot.config import BotConfig
 
         # Test with custom storage path
-        config = BotConfig(api_gateway_url="http://localhost:8080", 
+        config = BotConfig(
+            api_gateway_url="http://localhost:8080",
             token="test:token",
             database_url="postgresql://test",
             photo_storage_path="/custom/path",
@@ -217,7 +218,8 @@ class TestPhotoStorage:
         from bot.config import BotConfig
 
         # Test with CDN URL
-        config = BotConfig(api_gateway_url="http://localhost:8080", 
+        config = BotConfig(
+            api_gateway_url="http://localhost:8080",
             token="test:token",
             database_url="postgresql://test",
             photo_storage_path="/app/photos",
@@ -310,7 +312,8 @@ class TestGenerateTokenHandler:
         from bot.api import generate_token_handler
         from bot.config import BotConfig
 
-        config = BotConfig(api_gateway_url="http://localhost:8080", 
+        config = BotConfig(
+            api_gateway_url="http://localhost:8080",
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -330,7 +333,8 @@ class TestGenerateTokenHandler:
         from bot.api import generate_token_handler
         from bot.config import BotConfig
 
-        config = BotConfig(api_gateway_url="http://localhost:8080", 
+        config = BotConfig(
+            api_gateway_url="http://localhost:8080",
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -353,7 +357,8 @@ class TestGenerateTokenHandler:
         from bot.api import generate_token_handler
         from bot.config import BotConfig
 
-        config = BotConfig(api_gateway_url="http://localhost:8080", 
+        config = BotConfig(
+            api_gateway_url="http://localhost:8080",
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -369,14 +374,21 @@ class TestGenerateTokenHandler:
 
 @pytest.mark.asyncio
 class TestUploadPhotoHandler:
-    """Test photo upload endpoint."""
+    """Test photo upload endpoint.
 
+    Note: These tests are expected to fail with 501 (Not Implemented)
+    because upload_photo_handler has been deprecated in favor of using
+    the API Gateway endpoint directly.
+    """
+
+    @pytest.mark.skip(reason="upload_photo_handler deprecated - returns 501")
     async def test_upload_photo_authentication_required(self):
         """Test photo upload requires authentication."""
         from bot.api import upload_photo_handler
         from bot.config import BotConfig
 
-        config = BotConfig(api_gateway_url="http://localhost:8080", 
+        config = BotConfig(
+            api_gateway_url="http://localhost:8080",
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -390,12 +402,14 @@ class TestUploadPhotoHandler:
         response = await upload_photo_handler(request)
         assert response.status == 401
 
+    @pytest.mark.skip(reason="upload_photo_handler deprecated - returns 501")
     async def test_upload_photo_no_data(self):
         """Test photo upload fails without photo data."""
         from bot.api import create_jwt_token, upload_photo_handler
         from bot.config import BotConfig
 
-        config = BotConfig(api_gateway_url="http://localhost:8080", 
+        config = BotConfig(
+            api_gateway_url="http://localhost:8080",
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -417,12 +431,14 @@ class TestUploadPhotoHandler:
         response = await upload_photo_handler(request)
         assert response.status == 400
 
+    @pytest.mark.skip(reason="upload_photo_handler deprecated - returns 501")
     async def test_upload_photo_invalid_slot_index(self):
         """Test photo upload fails with invalid slot_index."""
         from bot.api import create_jwt_token, upload_photo_handler
         from bot.config import BotConfig
 
-        config = BotConfig(api_gateway_url="http://localhost:8080", 
+        config = BotConfig(
+            api_gateway_url="http://localhost:8080",
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -460,7 +476,7 @@ class TestCreateApp:
     """Test create_app function."""
 
     def test_create_app_without_cdn(self, tmp_path):
-        """Test app creation without CDN URL."""
+        """Test app creation without CDN URL (thin client mode)."""
         import os
         import warnings
 
@@ -470,7 +486,8 @@ class TestCreateApp:
         storage_path = str(tmp_path / "photos")
         os.makedirs(storage_path, exist_ok=True)
 
-        config = BotConfig(api_gateway_url="http://localhost:8080", 
+        config = BotConfig(
+            api_gateway_url="http://localhost:8080",
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -478,18 +495,20 @@ class TestCreateApp:
             photo_cdn_url=None,
         )
 
-        session_maker = MagicMock()
+        # Create mock API client for thin client mode
+        api_client = MagicMock()
 
         # Suppress aiohttp AppKey warnings in tests
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            app = create_app(config, session_maker)
+            app = create_app(config, api_client)
 
         assert app is not None
         # Access via dict syntax is acceptable in tests
         assert app["config"] == config
-        # session_maker might be None if not set - just check app was created
-        assert "session_maker" in app
+        # api_client should be set in thin client mode
+        assert "api_client" in app
+        assert app["api_client"] == api_client
 
     def test_create_app_with_cdn(self):
         """Test app creation with CDN URL."""
@@ -498,7 +517,8 @@ class TestCreateApp:
         from bot.api import create_app
         from bot.config import BotConfig
 
-        config = BotConfig(api_gateway_url="http://localhost:8080", 
+        config = BotConfig(
+            api_gateway_url="http://localhost:8080",
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -519,9 +539,13 @@ class TestCreateApp:
 
 @pytest.mark.asyncio
 class TestUploadPhotoHandlerComplete:
-    """Test complete photo upload flow."""
+    """Test complete photo upload flow.
 
-    @pytest.mark.xfail(reason="NSFW detector initialization can fail intermittently causing 500 status")
+    Note: These tests are skipped because upload_photo_handler has been deprecated
+    in favor of using the API Gateway endpoint directly.
+    """
+
+    @pytest.mark.skip(reason="upload_photo_handler deprecated - returns 501")
     async def test_upload_photo_successful_flow(self, tmp_path):
         """Test successful complete photo upload with all validations."""
         from io import BytesIO
@@ -533,7 +557,8 @@ class TestUploadPhotoHandlerComplete:
 
         storage_path = str(tmp_path / "photos")
 
-        config = BotConfig(api_gateway_url="http://localhost:8080", 
+        config = BotConfig(
+            api_gateway_url="http://localhost:8080",
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -606,6 +631,7 @@ class TestUploadPhotoHandlerComplete:
             assert "optimized_size" in body
             assert "safe_score" in body
 
+    @pytest.mark.skip(reason="upload_photo_handler deprecated - returns 501")
     async def test_upload_photo_too_large(self):
         """Test photo upload with file too large."""
         from io import BytesIO
@@ -615,7 +641,8 @@ class TestUploadPhotoHandlerComplete:
         from bot.api import create_jwt_token, upload_photo_handler
         from bot.config import BotConfig
 
-        config = BotConfig(api_gateway_url="http://localhost:8080", 
+        config = BotConfig(
+            api_gateway_url="http://localhost:8080",
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -647,12 +674,14 @@ class TestUploadPhotoHandlerComplete:
         response = await upload_photo_handler(request)
         assert response.status == 400
 
+    @pytest.mark.skip(reason="upload_photo_handler deprecated - returns 501")
     async def test_upload_photo_invalid_mime_type(self):
         """Test photo upload with invalid MIME type."""
         from bot.api import create_jwt_token, upload_photo_handler
         from bot.config import BotConfig
 
-        config = BotConfig(api_gateway_url="http://localhost:8080", 
+        config = BotConfig(
+            api_gateway_url="http://localhost:8080",
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -690,14 +719,12 @@ class TestCheckProfileHandler:
     """Test profile check endpoint."""
 
     async def test_check_profile_exists(self):
-        """Test checking for existing profile."""
-        from datetime import date
-
+        """Test checking for existing profile (thin client mode)."""
         from bot.api import check_profile_handler
         from bot.config import BotConfig
-        from bot.db import Profile, User
 
-        config = BotConfig(api_gateway_url="http://localhost:8080", 
+        config = BotConfig(
+            api_gateway_url="http://localhost:8080",
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -705,51 +732,34 @@ class TestCheckProfileHandler:
 
         user_id = 12345
 
-        # Mock user and profile with required fields
-        mock_user = User(id=1, tg_id=user_id)
-        mock_profile = Profile(
-            id=1,
-            user_id=1,
-            name="Test User",
-            birth_date=date(1990, 1, 1),
-            gender="male",
-            orientation="female",
-            goal="relationship",
+        # Mock API Gateway client
+        mock_api_client = AsyncMock()
+        mock_api_client.check_profile = AsyncMock(
+            return_value={"has_profile": True, "user_id": user_id}
         )
-
-        # Mock repository
-        mock_repository = AsyncMock()
-        mock_repository.get_user_by_tg_id = AsyncMock(return_value=mock_user)
-        mock_repository.get_profile_by_user_id = AsyncMock(return_value=mock_profile)
-
-        # Mock session properly as async context manager
-        mock_session = MagicMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-
-        def mock_session_maker():
-            return mock_session
 
         # Mock request with properly signed init_data for authentication
         init_data = create_valid_init_data(config.token, user_id)
         request = MagicMock()
-        request.app = {"config": config, "session_maker": mock_session_maker}
+        request.app = {"config": config, "api_client": mock_api_client}
         request.query = {"user_id": str(user_id), "init_data": init_data}
 
-        with patch("bot.api.ProfileRepository", return_value=mock_repository):
-            response = await check_profile_handler(request)
+        response = await check_profile_handler(request)
 
         assert response.status == 200
         data = json.loads(response.body)
         assert data["has_profile"] is True
         assert data["user_id"] == user_id
+        # Verify API client was called
+        mock_api_client.check_profile.assert_called_once_with(user_id)
 
     async def test_check_profile_not_exists(self):
-        """Test checking for non-existing profile."""
+        """Test checking for non-existing profile (thin client mode)."""
         from bot.api import check_profile_handler
         from bot.config import BotConfig
 
-        config = BotConfig(api_gateway_url="http://localhost:8080", 
+        config = BotConfig(
+            api_gateway_url="http://localhost:8080",
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -757,46 +767,45 @@ class TestCheckProfileHandler:
 
         user_id = 12345
 
-        # Mock repository - no user found
-        mock_repository = AsyncMock()
-        mock_repository.get_user_by_tg_id = AsyncMock(return_value=None)
-
-        # Mock session properly as async context manager
-        mock_session = MagicMock()
-        mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session.__aexit__ = AsyncMock(return_value=None)
-
-        def mock_session_maker():
-            return mock_session
+        # Mock API Gateway client - no profile found
+        mock_api_client = AsyncMock()
+        mock_api_client.check_profile = AsyncMock(
+            return_value={"has_profile": False, "user_id": user_id}
+        )
 
         # Mock request with properly signed init_data for authentication
         init_data = create_valid_init_data(config.token, user_id)
         request = MagicMock()
-        request.app = {"config": config, "session_maker": mock_session_maker}
+        request.app = {"config": config, "api_client": mock_api_client}
         request.query = {"user_id": str(user_id), "init_data": init_data}
 
-        with patch("bot.api.ProfileRepository", return_value=mock_repository):
-            response = await check_profile_handler(request)
+        response = await check_profile_handler(request)
 
         assert response.status == 200
         data = json.loads(response.body)
         assert data["has_profile"] is False
         assert data["user_id"] == user_id
+        # Verify API client was called
+        mock_api_client.check_profile.assert_called_once_with(user_id)
 
     async def test_check_profile_missing_user_id(self):
         """Test profile check without user_id parameter."""
         from bot.api import check_profile_handler
         from bot.config import BotConfig
 
-        config = BotConfig(api_gateway_url="http://localhost:8080", 
+        config = BotConfig(
+            api_gateway_url="http://localhost:8080",
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
         )
 
+        # Mock API client (won't be called since validation happens first)
+        mock_api_client = MagicMock()
+
         # Mock request without user_id
         request = MagicMock()
-        request.app = {"config": config, "session_maker": MagicMock()}
+        request.app = {"config": config, "api_client": mock_api_client}
         request.query = {}
 
         response = await check_profile_handler(request)
@@ -812,15 +821,19 @@ class TestCheckProfileHandler:
         from bot.api import check_profile_handler
         from bot.config import BotConfig
 
-        config = BotConfig(api_gateway_url="http://localhost:8080", 
+        config = BotConfig(
+            api_gateway_url="http://localhost:8080",
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
         )
 
+        # Mock API client (won't be called since validation happens first)
+        mock_api_client = MagicMock()
+
         # Mock request with invalid user_id
         request = MagicMock()
-        request.app = {"config": config, "session_maker": MagicMock()}
+        request.app = {"config": config, "api_client": mock_api_client}
         request.query = {"user_id": "not_a_number"}
 
         response = await check_profile_handler(request)

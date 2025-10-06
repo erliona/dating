@@ -37,18 +37,15 @@ async def send_match_notification(request: web.Request) -> web.Response:
         match_data = data.get("match_data", {})
 
         if not user_id:
-            return web.json_response(
-                {"error": "user_id is required"}, 
-                status=400
-            )
+            return web.json_response({"error": "user_id is required"}, status=400)
 
         # For now, we'll implement a simple HTTP API endpoint on the bot
         # that the notification service can call to send notifications
         # In a production environment, this could use a message queue
-        
+
         # TODO: Call bot API endpoint to send notification
         # For the initial implementation, we'll just log and return success
-        
+
         logger.info(
             "Match notification queued",
             extra={
@@ -59,12 +56,8 @@ async def send_match_notification(request: web.Request) -> web.Response:
         )
 
         return web.json_response(
-            {
-                "status": "queued",
-                "user_id": user_id,
-                "notification_type": "match"
-            },
-            status=202  # Accepted
+            {"status": "queued", "user_id": user_id, "notification_type": "match"},
+            status=202,  # Accepted
         )
 
     except Exception as e:
@@ -73,10 +66,7 @@ async def send_match_notification(request: web.Request) -> web.Response:
             exc_info=True,
             extra={"event_type": "match_notification_error"},
         )
-        return web.json_response(
-            {"error": "Internal server error"}, 
-            status=500
-        )
+        return web.json_response({"error": "Internal server error"}, status=500)
 
 
 async def send_message_notification(request: web.Request) -> web.Response:
@@ -98,10 +88,7 @@ async def send_message_notification(request: web.Request) -> web.Response:
         message_data = data.get("message_data", {})
 
         if not user_id:
-            return web.json_response(
-                {"error": "user_id is required"}, 
-                status=400
-            )
+            return web.json_response({"error": "user_id is required"}, status=400)
 
         logger.info(
             "Message notification queued",
@@ -112,12 +99,8 @@ async def send_message_notification(request: web.Request) -> web.Response:
         )
 
         return web.json_response(
-            {
-                "status": "queued",
-                "user_id": user_id,
-                "notification_type": "message"
-            },
-            status=202  # Accepted
+            {"status": "queued", "user_id": user_id, "notification_type": "message"},
+            status=202,  # Accepted
         )
 
     except Exception as e:
@@ -126,10 +109,7 @@ async def send_message_notification(request: web.Request) -> web.Response:
             exc_info=True,
             extra={"event_type": "message_notification_error"},
         )
-        return web.json_response(
-            {"error": "Internal server error"}, 
-            status=500
-        )
+        return web.json_response({"error": "Internal server error"}, status=500)
 
 
 async def send_like_notification(request: web.Request) -> web.Response:
@@ -150,10 +130,7 @@ async def send_like_notification(request: web.Request) -> web.Response:
         like_data = data.get("like_data", {})
 
         if not user_id:
-            return web.json_response(
-                {"error": "user_id is required"}, 
-                status=400
-            )
+            return web.json_response({"error": "user_id is required"}, status=400)
 
         logger.info(
             "Like notification queued",
@@ -164,12 +141,8 @@ async def send_like_notification(request: web.Request) -> web.Response:
         )
 
         return web.json_response(
-            {
-                "status": "queued",
-                "user_id": user_id,
-                "notification_type": "like"
-            },
-            status=202  # Accepted
+            {"status": "queued", "user_id": user_id, "notification_type": "like"},
+            status=202,  # Accepted
         )
 
     except Exception as e:
@@ -178,10 +151,7 @@ async def send_like_notification(request: web.Request) -> web.Response:
             exc_info=True,
             extra={"event_type": "like_notification_error"},
         )
-        return web.json_response(
-            {"error": "Internal server error"}, 
-            status=500
-        )
+        return web.json_response({"error": "Internal server error"}, status=500)
 
 
 async def health_check(request: web.Request) -> web.Response:
@@ -217,10 +187,10 @@ if __name__ == "__main__":
     # Create and run app
     app = create_app()
     port = int(os.getenv("PORT", "8084"))
-    
+
     logger.info(
         f"Notification service listening on port {port}",
         extra={"event_type": "service_ready", "port": port},
     )
-    
+
     web.run_app(app, host="0.0.0.0", port=port)

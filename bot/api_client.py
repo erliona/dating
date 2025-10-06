@@ -17,7 +17,9 @@ logger = logging.getLogger(__name__)
 class APIGatewayError(Exception):
     """Base exception for API Gateway errors."""
 
-    def __init__(self, message: str, status_code: int = 500, response_data: Optional[Dict] = None):
+    def __init__(
+        self, message: str, status_code: int = 500, response_data: Optional[Dict] = None
+    ):
         super().__init__(message)
         self.status_code = status_code
         self.response_data = response_data or {}
@@ -82,13 +84,13 @@ class APIGatewayClient:
         """
         url = f"{self.gateway_url}{path}"
         request_headers = headers.copy() if headers else {}
-        
+
         # Add idempotency key for POST/PUT operations if provided
         if idempotency_key and method in ("POST", "PUT"):
             request_headers["Idempotency-Key"] = idempotency_key
 
         last_error = None
-        
+
         for attempt in range(self.max_retries):
             try:
                 async with ClientSession(timeout=self.timeout) as session:
@@ -110,14 +112,19 @@ class APIGatewayClient:
                             response_data = {
                                 "error": {
                                     "code": "invalid_response",
-                                    "message": response_text or "Invalid response format"
+                                    "message": response_text
+                                    or "Invalid response format",
                                 }
                             }
 
                         # Handle 4xx errors (client errors - don't retry)
                         if 400 <= resp.status < 500:
-                            error_msg = response_data.get('error', {}).get('message', 'Client error')
-                            error_code = response_data.get('error', {}).get('code', 'client_error')
+                            error_msg = response_data.get("error", {}).get(
+                                "message", "Client error"
+                            )
+                            error_code = response_data.get("error", {}).get(
+                                "code", "client_error"
+                            )
                             # Log without sensitive data (tokens, passwords, etc.)
                             logger.warning(
                                 f"API client error: {method} {path}",
@@ -138,7 +145,9 @@ class APIGatewayClient:
 
                         # Handle 5xx errors (server errors - retry with backoff)
                         if resp.status >= 500:
-                            error_msg = response_data.get('error', {}).get('message', 'Server error')
+                            error_msg = response_data.get("error", {}).get(
+                                "message", "Server error"
+                            )
                             logger.warning(
                                 f"API server error (attempt {attempt + 1}/{self.max_retries}): {method} {path}",
                                 extra={
@@ -151,7 +160,7 @@ class APIGatewayClient:
                             )
                             if attempt < self.max_retries - 1:
                                 # Exponential backoff: 1s, 2s, 4s, etc.
-                                delay = self.retry_backoff_base * (2 ** attempt)
+                                delay = self.retry_backoff_base * (2**attempt)
                                 await asyncio.sleep(delay)
                                 continue
                             else:
@@ -177,7 +186,7 @@ class APIGatewayClient:
                 )
                 last_error = e
                 if attempt < self.max_retries - 1:
-                    delay = self.retry_backoff_base * (2 ** attempt)
+                    delay = self.retry_backoff_base * (2**attempt)
                     await asyncio.sleep(delay)
                     continue
                 else:
@@ -248,6 +257,19 @@ class APIGatewayClient:
             "/profiles/",
             json_data=profile_data,
             idempotency_key=idempotency_key,
+        )
+
+    async def check_profile(self, user_id: int) -> Dict[str, Any]:
+        """Check if user has a profile.
+
+        Args:
+            user_id: Telegram user ID
+
+        Returns:
+            Dict with has_profile boolean
+        """
+        return await self._request(
+            "GET", f"/api/profile/check", params={"user_id": user_id}
         )
 
     async def get_profile(self, user_id: int) -> Optional[Dict[str, Any]]:
@@ -404,7 +426,9 @@ class APIGatewayClient:
         return await self._request("GET", "/discovery/matches", params=params)
 
     # Auth Service endpoints
-    async def authenticate(self, telegram_id: int, username: Optional[str] = None) -> Dict[str, Any]:
+    async def authenticate(
+        self, telegram_id: int, username: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Authenticate user and get JWT token.
 
         Args:
@@ -429,9 +453,7 @@ class APIGatewayClient:
         Returns:
             Token validation result
         """
-        return await self._request(
-            "POST", "/auth/validate", json_data={"token": token}
-        )
+        return await self._request("POST", "/auth/validate", json_data={"token": token})
 
     # Location Service endpoints
     async def update_location(self, location_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -446,9 +468,61 @@ class APIGatewayClient:
         telegram_id = location_data.get("telegram_id")
         if not telegram_id:
             raise ValueError("telegram_id is required in location_data")
-        
+
         return await self._request(
             "PUT",
             f"/profiles/{telegram_id}/location",
             json_data=location_data,
         )
+
+    # Favorites endpoints
+    async def add_favorite(self, user_id: int, target_id: int) -> Dict[str, Any]:
+        """Add a profile to favorites.
+
+        Args:
+            user_id: User ID adding the favorite
+            target_id: Target user ID to add to favorites
+
+        Returns:
+            Favorite creation result
+        """
+        return await self._request(
+            "POST",
+            "/api/favorites",
+            json_data={"user_id": user_id, "target_id": target_id},
+        )
+
+    async def remove_favorite(self, user_id: int, target_id: int) -> Dict[str, Any]:
+        """Remove a profile from favorites.
+
+        Args:
+            user_id: User ID removing the favorite
+            target_id: Target user ID to remove from favorites
+
+        Returns:
+            Removal result
+        """
+        return await self._request(
+            "DELETE",
+            f"/api/favorites/{target_id}",
+            params={"user_id": user_id},
+        )
+
+    async def get_favorites(
+        self, user_id: int, limit: int = 20, cursor: Optional[int] = None
+    ) -> Dict[str, Any]:
+        """Get user's favorites.
+
+        Args:
+            user_id: User ID
+            limit: Max favorites to return
+            cursor: Pagination cursor
+
+        Returns:
+            List of favorites with pagination info
+        """
+        params = {"user_id": user_id, "limit": limit}
+        if cursor:
+            params["cursor"] = cursor
+
+        return await self._request("GET", "/api/favorites", params=params)

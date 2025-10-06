@@ -7,16 +7,19 @@ import logging
 import os
 
 from aiohttp import ClientSession, ClientTimeout, web
-from aiohttp_cors import ResourceOptions, setup as cors_setup
+from aiohttp_cors import ResourceOptions
+from aiohttp_cors import setup as cors_setup
 
 from core.utils.logging import configure_logging
 
 logger = logging.getLogger(__name__)
 
 
-async def proxy_request(request: web.Request, target_url: str, path_override: str = None) -> web.Response:
+async def proxy_request(
+    request: web.Request, target_url: str, path_override: str = None
+) -> web.Response:
     """Proxy request to target microservice.
-    
+
     Args:
         request: Original request
         target_url: Base URL of target service
@@ -140,7 +143,7 @@ async def route_api_discovery(request: web.Request) -> web.Response:
         new_path = path.replace("/api/favorites", "/discovery/favorites", 1)
     else:
         new_path = path.replace("/api/", "/discovery/", 1)
-    
+
     return await proxy_request(request, discovery_url, path_override=new_path)
 
 
@@ -216,20 +219,20 @@ def create_app(config: dict) -> web.Application:
     app.router.add_route("*", "/admin/{tail:.*}", route_admin)
     app.router.add_route("*", "/admin-panel/{tail:.*}", route_admin)
     app.router.add_route("*", "/notifications/{tail:.*}", route_notifications)
-    
+
     # Add unified /api/* routes for frontend/WebApp (public API)
     # These provide a consistent API prefix for all public endpoints
     # Routes are ordered from most specific to least specific
-    
+
     # Auth endpoints
     add_cors_route("/api/auth/token", route_api_auth)
     add_cors_route("/api/auth/{tail:.*}", route_api_auth)
-    
+
     # Profile endpoints
     add_cors_route("/api/profile/check", route_api_profile)
     add_cors_route("/api/profile/{tail:.*}", route_api_profile)
     add_cors_route("/api/profile", route_api_profile)
-    
+
     # Discovery endpoints (like, pass, matches, favorites, discover)
     add_cors_route("/api/discover", route_api_discovery)
     add_cors_route("/api/like", route_api_discovery)
@@ -237,14 +240,14 @@ def create_app(config: dict) -> web.Application:
     add_cors_route("/api/matches", route_api_discovery)
     add_cors_route("/api/favorites/{tail:.*}", route_api_discovery)
     add_cors_route("/api/favorites", route_api_discovery)
-    
+
     # Media/photos endpoints
     add_cors_route("/api/photos/upload", route_api_media)
     add_cors_route("/api/photos/{tail:.*}", route_api_media)
-    
+
     # Notification endpoints
     add_cors_route("/api/notifications/{tail:.*}", route_api_notifications)
-    
+
     # Health check
     app.router.add_get("/health", health_check)
 
@@ -273,7 +276,9 @@ if __name__ == "__main__":
         "notification_service_url": os.getenv(
             "NOTIFICATION_SERVICE_URL", "http://notification-service:8087"
         ),
-        "webapp_domain": os.getenv("WEBAPP_DOMAIN", "*"),  # CORS: Allow all origins by default
+        "webapp_domain": os.getenv(
+            "WEBAPP_DOMAIN", "*"
+        ),  # CORS: Allow all origins by default
         "host": os.getenv("GATEWAY_HOST", "0.0.0.0"),
         "port": int(os.getenv("GATEWAY_PORT", 8080)),
     }
