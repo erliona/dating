@@ -17,7 +17,7 @@ from bot.api import (
     optimize_image,
     verify_jwt_token,
 )
-from tests.test_utils import create_valid_init_data
+from tests.unit.test_utils import create_valid_init_data
 
 
 class TestJWTAuthentication:
@@ -200,7 +200,7 @@ class TestPhotoStorage:
         from bot.config import BotConfig
 
         # Test with custom storage path
-        config = BotConfig(
+        config = BotConfig(api_gateway_url="http://localhost:8080", 
             token="test:token",
             database_url="postgresql://test",
             photo_storage_path="/custom/path",
@@ -215,7 +215,7 @@ class TestPhotoStorage:
         from bot.config import BotConfig
 
         # Test with CDN URL
-        config = BotConfig(
+        config = BotConfig(api_gateway_url="http://localhost:8080", 
             token="test:token",
             database_url="postgresql://test",
             photo_storage_path="/app/photos",
@@ -308,7 +308,7 @@ class TestGenerateTokenHandler:
         from bot.api import generate_token_handler
         from bot.config import BotConfig
 
-        config = BotConfig(
+        config = BotConfig(api_gateway_url="http://localhost:8080", 
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -328,7 +328,7 @@ class TestGenerateTokenHandler:
         from bot.api import generate_token_handler
         from bot.config import BotConfig
 
-        config = BotConfig(
+        config = BotConfig(api_gateway_url="http://localhost:8080", 
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -351,7 +351,7 @@ class TestGenerateTokenHandler:
         from bot.api import generate_token_handler
         from bot.config import BotConfig
 
-        config = BotConfig(
+        config = BotConfig(api_gateway_url="http://localhost:8080", 
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -374,7 +374,7 @@ class TestUploadPhotoHandler:
         from bot.api import upload_photo_handler
         from bot.config import BotConfig
 
-        config = BotConfig(
+        config = BotConfig(api_gateway_url="http://localhost:8080", 
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -393,7 +393,7 @@ class TestUploadPhotoHandler:
         from bot.api import create_jwt_token, upload_photo_handler
         from bot.config import BotConfig
 
-        config = BotConfig(
+        config = BotConfig(api_gateway_url="http://localhost:8080", 
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -420,7 +420,7 @@ class TestUploadPhotoHandler:
         from bot.api import create_jwt_token, upload_photo_handler
         from bot.config import BotConfig
 
-        config = BotConfig(
+        config = BotConfig(api_gateway_url="http://localhost:8080", 
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -468,7 +468,7 @@ class TestCreateApp:
         storage_path = str(tmp_path / "photos")
         os.makedirs(storage_path, exist_ok=True)
 
-        config = BotConfig(
+        config = BotConfig(api_gateway_url="http://localhost:8080", 
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -495,7 +495,7 @@ class TestCreateApp:
         from bot.api import create_app
         from bot.config import BotConfig
 
-        config = BotConfig(
+        config = BotConfig(api_gateway_url="http://localhost:8080", 
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -529,7 +529,7 @@ class TestUploadPhotoHandlerComplete:
 
         storage_path = str(tmp_path / "photos")
 
-        config = BotConfig(
+        config = BotConfig(api_gateway_url="http://localhost:8080", 
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -611,7 +611,7 @@ class TestUploadPhotoHandlerComplete:
         from bot.api import create_jwt_token, upload_photo_handler
         from bot.config import BotConfig
 
-        config = BotConfig(
+        config = BotConfig(api_gateway_url="http://localhost:8080", 
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -648,7 +648,7 @@ class TestUploadPhotoHandlerComplete:
         from bot.api import create_jwt_token, upload_photo_handler
         from bot.config import BotConfig
 
-        config = BotConfig(
+        config = BotConfig(api_gateway_url="http://localhost:8080", 
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -693,7 +693,7 @@ class TestCheckProfileHandler:
         from bot.config import BotConfig
         from bot.db import Profile, User
 
-        config = BotConfig(
+        config = BotConfig(api_gateway_url="http://localhost:8080", 
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -745,7 +745,7 @@ class TestCheckProfileHandler:
         from bot.api import check_profile_handler
         from bot.config import BotConfig
 
-        config = BotConfig(
+        config = BotConfig(api_gateway_url="http://localhost:8080", 
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -784,7 +784,7 @@ class TestCheckProfileHandler:
         from bot.api import check_profile_handler
         from bot.config import BotConfig
 
-        config = BotConfig(
+        config = BotConfig(api_gateway_url="http://localhost:8080", 
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
@@ -808,7 +808,7 @@ class TestCheckProfileHandler:
         from bot.api import check_profile_handler
         from bot.config import BotConfig
 
-        config = BotConfig(
+        config = BotConfig(api_gateway_url="http://localhost:8080", 
             token="test:token",
             database_url="postgresql://test",
             jwt_secret="test-secret",
