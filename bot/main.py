@@ -114,23 +114,23 @@ async def handle_webapp_data(message: Message, dispatcher: Dispatcher = None) ->
 
 async def handle_location(message: Message, dispatcher: Dispatcher = None) -> None:
     """Handle location updates from user.
-    
+
     Args:
         message: Message with location data
         dispatcher: Optional dispatcher for API client access
     """
     logger = logging.getLogger(__name__)
-    
+
     if not message.location:
         await message.answer("❌ No location data received")
         return
-    
+
     try:
         # Get API client from dispatcher workflow_data or create new one for testing
         api_client = None
         if dispatcher:
             api_client = dispatcher.workflow_data.get("api_client")
-        
+
         if not api_client:
             # Fallback for testing or if dispatcher not available
             try:
@@ -140,13 +140,13 @@ async def handle_location(message: Message, dispatcher: Dispatcher = None) -> No
                 logger.error(f"Failed to create API client: {e}")
                 await message.answer("❌ API Gateway not configured")
                 return
-        
+
         # Process location data
         location = process_location_data(
             latitude=message.location.latitude,
             longitude=message.location.longitude,
         )
-        
+
         # Update location via API Gateway
         location_data = {
             "telegram_id": message.from_user.id,
@@ -155,9 +155,9 @@ async def handle_location(message: Message, dispatcher: Dispatcher = None) -> No
             "geohash": location.get("geohash"),
             "city": location.get("city"),
         }
-        
+
         result = await api_client.update_location(location_data)
-        
+
         logger.info(
             "Location updated successfully",
             extra={
@@ -166,10 +166,10 @@ async def handle_location(message: Message, dispatcher: Dispatcher = None) -> No
                 "city": result.get("city", "unknown"),
             },
         )
-        
+
         city = result.get("city", "не указан")
         await message.answer(f"✅ Location updated: {city}")
-        
+
     except Exception as exc:
         logger.error(f"Error updating location: {exc}", exc_info=True)
         await message.answer("❌ Failed to update location")
@@ -182,7 +182,7 @@ async def handle_update_profile(
     logger: logging.Logger,
 ) -> None:
     """Handle profile updates via API Gateway.
-    
+
     Args:
         message: Message from user
         data: Update data from WebApp
@@ -194,14 +194,14 @@ async def handle_update_profile(
     if not update_data:
         # If no "profile" key, use the data itself (excluding "action")
         update_data = {k: v for k, v in data.items() if k != "action"}
-    
+
     try:
         # Add Telegram user ID for identification
         update_data["telegram_id"] = message.from_user.id
-        
+
         # Update profile via API Gateway
         result = await api_client.update_profile(update_data)
-        
+
         logger.info(
             "Profile updated successfully",
             extra={
@@ -209,9 +209,9 @@ async def handle_update_profile(
                 "user_id": message.from_user.id,
             },
         )
-        
+
         await message.answer("✅ Profile updated successfully")
-        
+
     except Exception as exc:
         logger.error(f"Error updating profile: {exc}", exc_info=True)
         await message.answer(f"❌ Failed to update profile: {exc}")
@@ -404,13 +404,11 @@ async def main() -> None:
         )
 
         # Start both bot and API server concurrently
-        logger.info(
-            "Starting bot polling", extra={"event_type": "services_start"}
-        )
+        logger.info("Starting bot polling", extra={"event_type": "services_start"})
 
         # Bot now uses thin client architecture through API Gateway
         # The bot/api.py server now also uses API Gateway instead of direct DB access
-        
+
         # Start API server for WebApp if API client is available
         api_server_task = None
         if api_client:

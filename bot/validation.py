@@ -258,18 +258,18 @@ def validate_location(
         latitude = location_country_latitude.get("latitude")
         longitude = location_country_latitude.get("longitude")
         city = location_country_latitude.get("city")
-        
+
         if latitude is not None:
             if not isinstance(latitude, (int, float)):
                 return False, "Latitude must be a number"
-            
+
             if latitude < -90 or latitude > 90:
                 return False, "Latitude must be between -90 and 90"
 
         if longitude is not None:
             if not isinstance(longitude, (int, float)):
                 return False, "Longitude must be a number"
-            
+
             if longitude < -180 or longitude > 180:
                 return False, "Longitude must be between -180 and 180"
 
@@ -279,21 +279,23 @@ def validate_location(
 
             if len(city) > 100:
                 return False, "City name must not exceed 100 characters"
-    
+
     # Handle coordinates format (latitude, longitude, city)
-    elif isinstance(location_country_latitude, (int, float)) and isinstance(city_longitude, (int, float)):
+    elif isinstance(location_country_latitude, (int, float)) and isinstance(
+        city_longitude, (int, float)
+    ):
         latitude = location_country_latitude
         longitude = city_longitude
-        
+
         if not isinstance(latitude, (int, float)):
             return False, "Latitude must be a number"
-        
+
         if latitude < -90 or latitude > 90:
             return False, "Latitude must be between -90 and 90"
 
         if not isinstance(longitude, (int, float)):
             return False, "Longitude must be a number"
-        
+
         if longitude < -180 or longitude > 180:
             return False, "Longitude must be between -180 and 180"
 
@@ -303,12 +305,12 @@ def validate_location(
 
             if len(city) > 100:
                 return False, "City name must not exceed 100 characters"
-    
+
     # Handle country/city format (old API)
     else:
         country = location_country_latitude
         city = city_longitude
-        
+
         if country is not None:
             if not isinstance(country, str):
                 return False, "Country must be a string"
