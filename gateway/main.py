@@ -7,6 +7,7 @@ import logging
 import os
 
 from aiohttp import ClientSession, ClientTimeout, web
+from aiohttp_cors import ResourceOptions, setup as cors_setup
 
 from core.utils.logging import configure_logging
 
@@ -168,6 +169,22 @@ def create_app(config: dict) -> web.Application:
     app = web.Application()
     app["config"] = config
 
+    # Setup CORS for WebApp/frontend access
+    # Allow requests from the configured WebApp domain
+    webapp_domain = config.get("webapp_domain", "*")
+    cors = cors_setup(
+        app,
+        defaults={
+            webapp_domain: ResourceOptions(
+                allow_credentials=True,
+                expose_headers="*",
+                allow_headers=("Content-Type", "Authorization", "X-Requested-With"),
+                allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+            )
+        },
+    )
+    logger.info(f"CORS configured for domain: {webapp_domain}")
+
     # Add routing rules for direct service access (internal/microservice-to-microservice)
     app.router.add_route("*", "/auth/{tail:.*}", route_auth)
     app.router.add_route("*", "/profiles/{tail:.*}", route_profile)
@@ -182,25 +199,25 @@ def create_app(config: dict) -> web.Application:
     # Routes are ordered from most specific to least specific
     
     # Auth endpoints
-    app.router.add_route("*", "/api/auth/token", route_api_auth)
-    app.router.add_route("*", "/api/auth/{tail:.*}", route_api_auth)
+    cors.add(app.router.add_route("*", "/api/auth/token", route_api_auth))
+    cors.add(app.router.add_route("*", "/api/auth/{tail:.*}", route_api_auth))
     
     # Profile endpoints
-    app.router.add_route("*", "/api/profile/check", route_api_profile)
-    app.router.add_route("*", "/api/profile/{tail:.*}", route_api_profile)
-    app.router.add_route("*", "/api/profile", route_api_profile)
+    cors.add(app.router.add_route("*", "/api/profile/check", route_api_profile))
+    cors.add(app.router.add_route("*", "/api/profile/{tail:.*}", route_api_profile))
+    cors.add(app.router.add_route("*", "/api/profile", route_api_profile))
     
     # Discovery endpoints (like, pass, matches, favorites, discover)
-    app.router.add_route("*", "/api/discover", route_api_discovery)
-    app.router.add_route("*", "/api/like", route_api_discovery)
-    app.router.add_route("*", "/api/pass", route_api_discovery)
-    app.router.add_route("*", "/api/matches", route_api_discovery)
-    app.router.add_route("*", "/api/favorites/{tail:.*}", route_api_discovery)
-    app.router.add_route("*", "/api/favorites", route_api_discovery)
+    cors.add(app.router.add_route("*", "/api/discover", route_api_discovery))
+    cors.add(app.router.add_route("*", "/api/like", route_api_discovery))
+    cors.add(app.router.add_route("*", "/api/pass", route_api_discovery))
+    cors.add(app.router.add_route("*", "/api/matches", route_api_discovery))
+    cors.add(app.router.add_route("*", "/api/favorites/{tail:.*}", route_api_discovery))
+    cors.add(app.router.add_route("*", "/api/favorites", route_api_discovery))
     
     # Media/photos endpoints
-    app.router.add_route("*", "/api/photos/upload", route_api_media)
-    app.router.add_route("*", "/api/photos/{tail:.*}", route_api_media)
+    cors.add(app.router.add_route("*", "/api/photos/upload", route_api_media))
+    cors.add(app.router.add_route("*", "/api/photos/{tail:.*}", route_api_media))
     
     # Health check
     app.router.add_get("/health", health_check)
@@ -227,6 +244,7 @@ if __name__ == "__main__":
         "admin_service_url": os.getenv(
             "ADMIN_SERVICE_URL", "http://admin-service:8086"
         ),
+        "webapp_domain": os.getenv("WEBAPP_DOMAIN", "*"),  # CORS: Allow all origins by default
         "host": os.getenv("GATEWAY_HOST", "0.0.0.0"),
         "port": int(os.getenv("GATEWAY_PORT", 8080)),
     }

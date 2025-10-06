@@ -29,7 +29,7 @@ class APIGatewayClient:
     def __init__(
         self,
         gateway_url: str,
-        timeout_seconds: int = 30,
+        timeout_seconds: int = 10,
         max_retries: int = 3,
         retry_backoff_base: float = 1.0,
     ):
@@ -37,12 +37,12 @@ class APIGatewayClient:
 
         Args:
             gateway_url: Base URL of API Gateway (e.g., http://api-gateway:8080)
-            timeout_seconds: Request timeout in seconds
+            timeout_seconds: Request timeout in seconds (default: 10s for production)
             max_retries: Maximum number of retries for 5xx errors and network failures
             retry_backoff_base: Base delay for exponential backoff (seconds)
         """
         self.gateway_url = gateway_url.rstrip("/")
-        self.timeout = ClientTimeout(total=timeout_seconds, connect=10)
+        self.timeout = ClientTimeout(total=timeout_seconds, connect=5)
         self.max_retries = max_retries
         self.retry_backoff_base = retry_backoff_base
         logger.info(
@@ -103,10 +103,14 @@ class APIGatewayClient:
                             response_data = await resp.json()
                         except Exception:
                             # If response is not JSON, create error response
+                            response_text = await resp.text()
+                            # Don't log full response if it might contain sensitive data
+                            if len(response_text) > 200:
+                                response_text = response_text[:200] + "..."
                             response_data = {
                                 "error": {
                                     "code": "invalid_response",
-                                    "message": await resp.text() or "Invalid response format"
+                                    "message": response_text or "Invalid response format"
                                 }
                             }
 
@@ -114,6 +118,7 @@ class APIGatewayClient:
                         if 400 <= resp.status < 500:
                             error_msg = response_data.get('error', {}).get('message', 'Client error')
                             error_code = response_data.get('error', {}).get('code', 'client_error')
+                            # Log without sensitive data (tokens, passwords, etc.)
                             logger.warning(
                                 f"API client error: {method} {path}",
                                 extra={
@@ -122,6 +127,7 @@ class APIGatewayClient:
                                     "path": path,
                                     "status": resp.status,
                                     "error_code": error_code,
+                                    # Note: Do not log request headers or body as they may contain tokens
                                 },
                             )
                             raise APIGatewayError(
