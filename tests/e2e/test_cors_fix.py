@@ -65,16 +65,13 @@ class TestCORSFix:
         routes = list(app.router.routes())
 
         # Check that /api/auth/token has multiple methods (GET, POST, etc.)
-        api_auth_routes = [
-            r for r in routes 
-            if "/api/auth/token" in str(r.resource)
-        ]
-        
+        api_auth_routes = [r for r in routes if "/api/auth/token" in str(r.resource)]
+
         # Should have at least GET and POST methods
         methods = {r.method for r in api_auth_routes}
-        assert "GET" in methods and "POST" in methods, (
-            f"Expected multiple methods for /api/auth/token, got: {methods}"
-        )
+        assert (
+            "GET" in methods and "POST" in methods
+        ), f"Expected multiple methods for /api/auth/token, got: {methods}"
 
     def test_internal_routes_use_wildcard_method(self):
         """Test that internal routes (without CORS) use '*' method."""
@@ -94,10 +91,11 @@ class TestCORSFix:
 
         # Check that internal routes like /auth/{tail} use '*' method
         internal_routes = [
-            r for r in routes
+            r
+            for r in routes
             if "/auth/" in str(r.resource) and "/api/auth/" not in str(r.resource)
         ]
-        
-        assert any(r.method == "*" for r in internal_routes), (
-            "Expected internal routes to use '*' method"
-        )
+
+        assert any(
+            r.method == "*" for r in internal_routes
+        ), "Expected internal routes to use '*' method"

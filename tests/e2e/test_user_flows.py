@@ -17,30 +17,32 @@ class TestOnboardingFlow:
     async def test_new_user_onboarding(self):
         """Test complete flow for new user from /start to profile creation."""
         from bot.main import start_handler
-        
+
         # Step 1: User sends /start command
         message = MagicMock(spec=Message)
         message.from_user = User(id=12345, is_bot=False, first_name="Test")
         message.answer = AsyncMock()
-        
+
         with patch("bot.main.load_config") as mock_config:
             mock_config.return_value = MagicMock(webapp_url="https://example.com/app")
-            
+
             await start_handler(message)
-            
+
             # Should send welcome message with WebApp button
             message.answer.assert_called_once()
             call_args = message.answer.call_args
             assert "Mini App" in call_args[0][0] or "WebApp" in str(call_args)
-        
+
         # Note: Profile creation now happens directly in WebApp via API Gateway
         # The bot no longer handles WebApp data - this is part of the minimalist refactoring
 
-    @pytest.mark.skip(reason="Bot no longer handles WebApp data - WebApp communicates directly with API Gateway (minimalist refactoring)")
+    @pytest.mark.skip(
+        reason="Bot no longer handles WebApp data - WebApp communicates directly with API Gateway (minimalist refactoring)"
+    )
     @pytest.mark.asyncio
     async def test_profile_creation_flow(self):
         """Test profile creation through WebApp.
-        
+
         DEPRECATED: This test is for the old architecture where bot handled WebApp data.
         Profile creation now happens directly: WebApp -> API Gateway -> Profile Service
         """
@@ -79,23 +81,21 @@ class TestPhotoUploadFlow:
         """Test uploading photo with NSFW check."""
         import base64
         import io
+
         from PIL import Image
-        
+
         # Create test image
         image = Image.new("RGB", (100, 100), color=(255, 0, 0))
         buffer = io.BytesIO()
         image.save(buffer, format="JPEG")
         image_bytes = buffer.getvalue()
         image_base64 = base64.b64encode(image_bytes).decode()
-        
+
         # Mock photo upload
         mock_request = MagicMock()
         mock_request.headers = {"Authorization": "Bearer test_token"}
-        mock_request.json = AsyncMock(return_value={
-            "image": image_base64,
-            "slot": 0
-        })
-        
+        mock_request.json = AsyncMock(return_value={"image": image_base64, "slot": 0})
+
         # This would test the full flow:
         # 1. User uploads photo
         # 2. Photo is validated
@@ -132,11 +132,13 @@ class TestChatFlow:
 class TestProfileManagementFlow:
     """Test profile editing and management."""
 
-    @pytest.mark.skip(reason="Bot no longer handles WebApp data - WebApp communicates directly with API Gateway (minimalist refactoring)")
+    @pytest.mark.skip(
+        reason="Bot no longer handles WebApp data - WebApp communicates directly with API Gateway (minimalist refactoring)"
+    )
     @pytest.mark.asyncio
     async def test_profile_edit_flow(self):
         """Test editing profile information.
-        
+
         DEPRECATED: This test is for the old architecture where bot handled WebApp data.
         Profile editing now happens directly: WebApp -> API Gateway -> Profile Service
         """
@@ -157,11 +159,13 @@ class TestProfileManagementFlow:
 class TestLocationFlow:
     """Test location-based features."""
 
-    @pytest.mark.skip(reason="Bot no longer handles location updates - WebApp communicates directly with API Gateway (minimalist refactoring)")
+    @pytest.mark.skip(
+        reason="Bot no longer handles location updates - WebApp communicates directly with API Gateway (minimalist refactoring)"
+    )
     @pytest.mark.asyncio
     async def test_location_update_flow(self):
         """Test updating user location.
-        
+
         DEPRECATED: This test is for the old architecture where bot handled location updates.
         Location updates now happen directly: WebApp -> API Gateway -> Profile Service
         """
@@ -202,21 +206,25 @@ class TestNotificationFlow:
 class TestErrorHandlingFlow:
     """Test error handling in user flows."""
 
-    @pytest.mark.skip(reason="Bot no longer handles WebApp data validation - validation happens in microservices (minimalist refactoring)")
+    @pytest.mark.skip(
+        reason="Bot no longer handles WebApp data validation - validation happens in microservices (minimalist refactoring)"
+    )
     @pytest.mark.asyncio
     async def test_invalid_profile_data_handling(self):
         """Test handling of invalid profile data.
-        
+
         DEPRECATED: This test is for the old architecture where bot validated WebApp data.
         Validation now happens in microservices: WebApp -> API Gateway -> Profile Service (with validation)
         """
         pass  # Test is obsolete after minimalist bot refactoring
 
-    @pytest.mark.skip(reason="Bot no longer handles WebApp data - error handling happens in WebApp/microservices (minimalist refactoring)")
+    @pytest.mark.skip(
+        reason="Bot no longer handles WebApp data - error handling happens in WebApp/microservices (minimalist refactoring)"
+    )
     @pytest.mark.asyncio
     async def test_network_error_handling(self):
         """Test handling of network errors.
-        
+
         DEPRECATED: This test is for the old architecture where bot handled WebApp errors.
         Error handling now happens in WebApp: WebApp handles API Gateway errors directly
         """

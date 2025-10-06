@@ -108,7 +108,9 @@ class TestProxyRequest:
 class TestGatewayRouting:
     """Tests for gateway routing configuration."""
 
-    @pytest.mark.xfail(reason="Gateway app routes already have handlers - test isolation issue with CORS")
+    @pytest.mark.xfail(
+        reason="Gateway app routes already have handlers - test isolation issue with CORS"
+    )
     def test_create_app(self):
         """Test that create_app creates a valid application."""
         config = {

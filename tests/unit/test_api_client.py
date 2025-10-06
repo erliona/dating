@@ -17,7 +17,7 @@ class TestAPIGatewayClientInit:
     def test_client_initialization(self):
         """Test basic client initialization."""
         client = APIGatewayClient("http://localhost:8080")
-        
+
         assert client.gateway_url == "http://localhost:8080"
         assert client.max_retries == 3
         assert client.retry_backoff_base == 1.0
@@ -25,7 +25,7 @@ class TestAPIGatewayClientInit:
     def test_client_initialization_strips_trailing_slash(self):
         """Test that trailing slash is removed from gateway URL."""
         client = APIGatewayClient("http://localhost:8080/")
-        
+
         assert client.gateway_url == "http://localhost:8080"
 
     def test_client_initialization_custom_params(self):
@@ -34,9 +34,9 @@ class TestAPIGatewayClientInit:
             gateway_url="http://gateway:9000",
             timeout_seconds=30,
             max_retries=5,
-            retry_backoff_base=2.0
+            retry_backoff_base=2.0,
         )
-        
+
         assert client.gateway_url == "http://gateway:9000"
         assert client.max_retries == 5
         assert client.retry_backoff_base == 2.0
@@ -48,7 +48,7 @@ class TestAPIGatewayError:
     def test_api_gateway_error_basic(self):
         """Test basic APIGatewayError creation."""
         error = APIGatewayError("Test error")
-        
+
         assert str(error) == "Test error"
         assert error.status_code == 500
         assert error.response_data == {}
@@ -56,14 +56,16 @@ class TestAPIGatewayError:
     def test_api_gateway_error_with_status_code(self):
         """Test APIGatewayError with custom status code."""
         error = APIGatewayError("Not found", status_code=404)
-        
+
         assert error.status_code == 404
 
     def test_api_gateway_error_with_response_data(self):
         """Test APIGatewayError with response data."""
         response_data = {"error": "validation_failed", "details": {"field": "email"}}
-        error = APIGatewayError("Validation error", status_code=400, response_data=response_data)
-        
+        error = APIGatewayError(
+            "Validation error", status_code=400, response_data=response_data
+        )
+
         assert error.status_code == 400
         assert error.response_data == response_data
 
@@ -75,86 +77,86 @@ class TestAPIGatewayClientRequests:
     async def test_successful_get_request(self):
         """Test successful GET request."""
         client = APIGatewayClient("http://localhost:8080")
-        
+
         mock_response_data = {"id": 123, "name": "Test"}
-        
+
         with patch("bot.api_client.ClientSession") as mock_session_class:
             # Create async context manager for session
             mock_session = MagicMock()
             mock_session.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session.__aexit__ = AsyncMock(return_value=None)
             mock_session_class.return_value = mock_session
-            
+
             # Create async context manager for response
             mock_response = MagicMock()
             mock_response.status = 200
             mock_response.json = AsyncMock(return_value=mock_response_data)
             mock_response.__aenter__ = AsyncMock(return_value=mock_response)
             mock_response.__aexit__ = AsyncMock(return_value=None)
-            
+
             # session.request() returns the response context manager
             mock_session.request = MagicMock(return_value=mock_response)
-            
+
             result = await client._request("GET", "/profiles/123")
-            
+
             assert result == mock_response_data
 
     async def test_post_request_with_json(self):
         """Test POST request with JSON data."""
         client = APIGatewayClient("http://localhost:8080")
-        
+
         request_data = {"name": "John", "age": 25}
         response_data = {"id": 456, **request_data}
-        
+
         with patch("bot.api_client.ClientSession") as mock_session_class:
             # Create async context manager for session
             mock_session = MagicMock()
             mock_session.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session.__aexit__ = AsyncMock(return_value=None)
             mock_session_class.return_value = mock_session
-            
+
             # Create async context manager for response
             mock_response = MagicMock()
             mock_response.status = 201
             mock_response.json = AsyncMock(return_value=response_data)
             mock_response.__aenter__ = AsyncMock(return_value=mock_response)
             mock_response.__aexit__ = AsyncMock(return_value=None)
-            
+
             # session.request() returns the response context manager
             mock_session.request = MagicMock(return_value=mock_response)
-            
+
             result = await client._request("POST", "/profiles", json_data=request_data)
-            
+
             assert result == response_data
 
     async def test_request_with_idempotency_key(self):
         """Test request includes idempotency key for POST/PUT."""
         client = APIGatewayClient("http://localhost:8080")
-        
+
         with patch("bot.api_client.ClientSession") as mock_session_class:
             # Create async context manager for session
             mock_session = MagicMock()
             mock_session.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session.__aexit__ = AsyncMock(return_value=None)
             mock_session_class.return_value = mock_session
-            
+
             # Create async context manager for response
             mock_response = MagicMock()
             mock_response.status = 200
             mock_response.json = AsyncMock(return_value={})
             mock_response.__aenter__ = AsyncMock(return_value=mock_response)
             mock_response.__aexit__ = AsyncMock(return_value=None)
-            
+
             # session.request() returns the response context manager
             mock_session.request = MagicMock(return_value=mock_response)
-            
+
             await client._request(
                 "POST",
                 "/profiles",
                 json_data={"name": "Test"},
-                idempotency_key="test-key-123"
+                idempotency_key="test-key-123",
             )
-            
+
             # Verify idempotency key was added to headers
             call_kwargs = mock_session.request.call_args[1]
             assert "headers" in call_kwargs
@@ -164,29 +166,31 @@ class TestAPIGatewayClientRequests:
     async def test_request_retry_on_5xx_error(self):
         """Test that requests are retried on 5xx server errors."""
         client = APIGatewayClient("http://localhost:8080", max_retries=3)
-        
+
         with patch("bot.api_client.ClientSession") as mock_session_class:
             # Create async context manager for session
             mock_session = MagicMock()
             mock_session.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session.__aexit__ = AsyncMock(return_value=None)
             mock_session_class.return_value = mock_session
-            
+
             # Create async context manager for 500 response
             mock_response = MagicMock()
             mock_response.status = 500
-            mock_response.json = AsyncMock(return_value={"error": {"message": "server_error"}})
+            mock_response.json = AsyncMock(
+                return_value={"error": {"message": "server_error"}}
+            )
             mock_response.__aenter__ = AsyncMock(return_value=mock_response)
             mock_response.__aexit__ = AsyncMock(return_value=None)
-            
+
             # session.request() returns the response context manager
             mock_session.request = MagicMock(return_value=mock_response)
-            
+
             # Should retry after 500 errors
             with patch("asyncio.sleep", new_callable=AsyncMock):
                 with pytest.raises(APIGatewayError) as exc_info:
                     await client._request("GET", "/test")
-                
+
                 assert exc_info.value.status_code == 500
                 # Should have tried max_retries times
                 assert mock_session.request.call_count == 3
@@ -194,28 +198,30 @@ class TestAPIGatewayClientRequests:
     async def test_request_no_retry_on_4xx_error(self):
         """Test that requests are NOT retried on 4xx client errors."""
         client = APIGatewayClient("http://localhost:8080", max_retries=3)
-        
+
         with patch("bot.api_client.ClientSession") as mock_session_class:
             # Create async context manager for session
             mock_session = MagicMock()
             mock_session.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session.__aexit__ = AsyncMock(return_value=None)
             mock_session_class.return_value = mock_session
-            
+
             # Create async context manager for 404 response
             mock_response = MagicMock()
             mock_response.status = 404
-            mock_response.json = AsyncMock(return_value={"error": {"message": "not_found"}})
+            mock_response.json = AsyncMock(
+                return_value={"error": {"message": "not_found"}}
+            )
             mock_response.__aenter__ = AsyncMock(return_value=mock_response)
             mock_response.__aexit__ = AsyncMock(return_value=None)
-            
+
             # session.request() returns the response context manager
             mock_session.request = MagicMock(return_value=mock_response)
-            
+
             # Should not retry 4xx errors
             with pytest.raises(APIGatewayError) as exc_info:
                 await client._request("GET", "/test")
-            
+
             assert exc_info.value.status_code == 404
             # Should only be called once (no retries)
             assert mock_session.request.call_count == 1
@@ -228,20 +234,20 @@ class TestAPIGatewayClientProfileMethods:
     async def test_create_profile(self):
         """Test creating a profile via API Gateway."""
         client = APIGatewayClient("http://localhost:8080")
-        
+
         profile_data = {
             "tg_user_id": 123456,
             "name": "John Doe",
             "birth_date": "1995-01-15",
             "gender": "male",
-            "orientation": "heterosexual"
+            "orientation": "heterosexual",
         }
-        
+
         with patch.object(client, "_request", new_callable=AsyncMock) as mock_request:
             mock_request.return_value = {"id": 1, **profile_data}
-            
+
             result = await client.create_profile(profile_data)
-            
+
             assert result["id"] == 1
             assert result["name"] == "John Doe"
             mock_request.assert_called_once()
@@ -249,26 +255,26 @@ class TestAPIGatewayClientProfileMethods:
     async def test_get_profile(self):
         """Test getting a profile via API Gateway."""
         client = APIGatewayClient("http://localhost:8080")
-        
+
         with patch.object(client, "_request", new_callable=AsyncMock) as mock_request:
             mock_request.return_value = {"id": 1, "name": "John Doe"}
-            
+
             result = await client.get_profile(123456)
-            
+
             assert result["id"] == 1
             mock_request.assert_called_once_with("GET", "/profiles/123456")
 
     async def test_update_profile(self):
         """Test updating a profile via API Gateway."""
         client = APIGatewayClient("http://localhost:8080")
-        
+
         update_data = {"bio": "Updated bio"}
-        
+
         with patch.object(client, "_request", new_callable=AsyncMock) as mock_request:
             mock_request.return_value = {"id": 1, "bio": "Updated bio"}
-            
+
             result = await client.update_profile(123456, update_data)
-            
+
             assert result["bio"] == "Updated bio"
             mock_request.assert_called_once()
 
@@ -280,35 +286,30 @@ class TestAPIGatewayClientDiscoveryMethods:
     async def test_find_candidates(self):
         """Test getting discovery candidates via API Gateway."""
         client = APIGatewayClient("http://localhost:8080")
-        
+
         with patch.object(client, "_request", new_callable=AsyncMock) as mock_request:
             mock_request.return_value = {
-                "candidates": [
-                    {"id": 2, "name": "Jane"},
-                    {"id": 3, "name": "Alice"}
-                ]
+                "candidates": [{"id": 2, "name": "Jane"}, {"id": 3, "name": "Alice"}]
             }
-            
+
             # Note: find_candidates doesn't accept 'limit' parameter, use filters instead
             result = await client.find_candidates(user_id=1, filters={"limit": 10})
-            
+
             assert len(result) == 2
             mock_request.assert_called_once()
 
     async def test_create_interaction(self):
         """Test recording user interaction via API Gateway."""
         client = APIGatewayClient("http://localhost:8080")
-        
+
         with patch.object(client, "_request", new_callable=AsyncMock) as mock_request:
             mock_request.return_value = {"status": "success"}
-            
+
             # Note: create_interaction uses 'target_id' not 'target_user_id'
             await client.create_interaction(
-                user_id=1,
-                target_id=2,
-                interaction_type="like"
+                user_id=1, target_id=2, interaction_type="like"
             )
-            
+
             mock_request.assert_called_once()
             call_args = mock_request.call_args
             assert call_args[0][0] == "POST"
@@ -321,37 +322,39 @@ class TestAPIGatewayClientErrorHandling:
     async def test_network_error_raises_exception(self):
         """Test that network errors raise APIGatewayError."""
         client = APIGatewayClient("http://localhost:8080")
-        
+
         with patch("bot.api_client.ClientSession") as mock_session_class:
             # Create async context manager for session
             mock_session = MagicMock()
             mock_session.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session.__aexit__ = AsyncMock(return_value=None)
             mock_session_class.return_value = mock_session
-            
+
             # Make session.request raise ClientError
-            mock_session.request = MagicMock(side_effect=ClientError("Connection refused"))
-            
+            mock_session.request = MagicMock(
+                side_effect=ClientError("Connection refused")
+            )
+
             with patch("asyncio.sleep", new_callable=AsyncMock):
                 with pytest.raises(APIGatewayError) as exc_info:
                     await client._request("GET", "/test")
-                
+
                 assert "Connection refused" in str(exc_info.value)
 
     async def test_timeout_error(self):
         """Test that timeout errors are handled properly."""
         client = APIGatewayClient("http://localhost:8080", timeout_seconds=1)
-        
+
         with patch("bot.api_client.ClientSession") as mock_session_class:
             # Create async context manager for session
             mock_session = MagicMock()
             mock_session.__aenter__ = AsyncMock(return_value=mock_session)
             mock_session.__aexit__ = AsyncMock(return_value=None)
             mock_session_class.return_value = mock_session
-            
+
             # Make session.request raise TimeoutError
             mock_session.request = MagicMock(side_effect=asyncio.TimeoutError())
-            
+
             with patch("asyncio.sleep", new_callable=AsyncMock):
                 with pytest.raises(APIGatewayError):
                     await client._request("GET", "/test")
