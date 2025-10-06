@@ -81,7 +81,7 @@ dating/
 ├── ROADMAP.md                   # Future plans
 ├── SECURITY.md                  # Security policy
 ├── docs/
-│   ├── archive/                 # 30 historical documentation files
+│   ├── archive/                 # 13 historical documentation files
 │   │   └── README.md            # Archive index
 │   └── *.md                     # Active documentation (16 files)
 ├── bot/                         # Telegram bot (thin client)
