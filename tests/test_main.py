@@ -1,5 +1,6 @@
 """Tests for bot/main.py - bot handlers and main entry point."""
 
+import asyncio
 import json
 import logging
 from datetime import datetime
@@ -397,7 +398,7 @@ class TestMainFunction:
             "bot.main.Bot"
         ) as mock_bot, patch("bot.main.Dispatcher") as mock_dispatcher, patch(
             "bot.main.APIGatewayClient"
-        ) as mock_api_client:
+        ) as mock_api_client, patch("bot.api.run_api_server") as mock_run_api_server:
 
             # Mock config with API Gateway URL
             mock_config = MagicMock()
@@ -427,6 +428,12 @@ class TestMainFunction:
             # Mock API client
             mock_client_instance = MagicMock()
             mock_api_client.return_value = mock_client_instance
+
+            # Mock run_api_server as an async function
+            # It should return a coroutine that will be awaited later in asyncio.gather()
+            async def mock_server(*args, **kwargs):
+                return None
+            mock_run_api_server.side_effect = mock_server
 
             from bot.main import main
 

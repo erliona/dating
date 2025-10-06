@@ -256,6 +256,7 @@ async def main() -> None:
         dp = Dispatcher(storage=MemoryStorage())
 
         # Initialize API Gateway client (thin client architecture)
+        api_client = None
         if config.api_gateway_url:
             api_client = APIGatewayClient(config.api_gateway_url)
             # Store API client in dispatcher workflow_data (aiogram 3.x pattern)
