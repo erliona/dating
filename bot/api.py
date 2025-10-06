@@ -511,9 +511,9 @@ async def check_profile_handler(request: web.Request) -> web.Response:
             from .api_client import APIGatewayError
 
             result = await api_client.check_profile(requested_user_id)
-            
+
             return web.json_response(result)
-            
+
         except APIGatewayError as e:
             logger.error(f"API Gateway error: {e}", exc_info=True)
             return web.json_response(
@@ -549,13 +549,13 @@ async def get_profile_handler(request: web.Request) -> web.Response:
             from .api_client import APIGatewayError
 
             result = await api_client.get_profile(user_id)
-            
+
             if not result:
                 return error_response("not_found", "Profile not found", 404)
-            
+
             # Return the profile data from API Gateway
             return web.json_response({"profile": result})
-            
+
         except APIGatewayError as e:
             if e.status_code == 404:
                 return error_response("not_found", "Profile not found", 404)
@@ -598,7 +598,7 @@ async def update_profile_handler(request: web.Request) -> web.Response:
             from .api_client import APIGatewayError
 
             result = await api_client.update_profile(user_id, data)
-            
+
             logger.info(
                 "Profile updated via API",
                 extra={"event_type": "profile_updated_api", "user_id": user_id},
@@ -607,7 +607,7 @@ async def update_profile_handler(request: web.Request) -> web.Response:
             return web.json_response(
                 {"success": True, "message": "Profile updated successfully"}
             )
-            
+
         except APIGatewayError as e:
             if e.status_code == 404:
                 return error_response("not_found", "Profile not found", 404)
@@ -709,9 +709,9 @@ async def discover_handler(request: web.Request) -> web.Response:
 
             # Get candidates from API Gateway
             result = await api_client.find_candidates(user_id, filters)
-            
+
             return web.json_response(result)
-            
+
         except APIGatewayError as e:
             logger.error(f"API Gateway error: {e}", exc_info=True)
             return web.json_response(
@@ -786,9 +786,9 @@ async def like_handler(request: web.Request) -> web.Response:
             result = await api_client.create_interaction(
                 user_id, target_id, interaction_type
             )
-            
+
             return web.json_response(result)
-            
+
         except APIGatewayError as e:
             if e.status_code == 404:
                 return web.json_response(
@@ -851,9 +851,9 @@ async def pass_handler(request: web.Request) -> web.Response:
             from .api_client import APIGatewayError
 
             result = await api_client.create_interaction(user_id, target_id, "pass")
-            
+
             return web.json_response(result)
-            
+
         except APIGatewayError as e:
             if e.status_code == 404:
                 return web.json_response(
@@ -906,9 +906,9 @@ async def matches_handler(request: web.Request) -> web.Response:
             from .api_client import APIGatewayError
 
             result = await api_client.get_matches(user_id, limit, cursor)
-            
+
             return web.json_response(result)
-            
+
         except APIGatewayError as e:
             logger.error(f"API Gateway error: {e}", exc_info=True)
             return web.json_response(
@@ -961,9 +961,9 @@ async def add_favorite_handler(request: web.Request) -> web.Response:
             from .api_client import APIGatewayError
 
             result = await api_client.add_favorite(user_id, target_id)
-            
+
             return web.json_response(result)
-            
+
         except APIGatewayError as e:
             logger.error(f"API Gateway error: {e}", exc_info=True)
             return web.json_response(
@@ -1004,9 +1004,9 @@ async def remove_favorite_handler(request: web.Request) -> web.Response:
             from .api_client import APIGatewayError
 
             result = await api_client.remove_favorite(user_id, target_id)
-            
+
             return web.json_response(result)
-            
+
         except APIGatewayError as e:
             if e.status_code == 404:
                 return web.json_response(
@@ -1059,9 +1059,9 @@ async def get_favorites_handler(request: web.Request) -> web.Response:
             from .api_client import APIGatewayError
 
             result = await api_client.get_favorites(user_id, limit, cursor)
-            
+
             return web.json_response(result)
-            
+
         except APIGatewayError as e:
             logger.error(f"API Gateway error: {e}", exc_info=True)
             return web.json_response(
@@ -1097,14 +1097,16 @@ def create_app(config: BotConfig, api_client) -> web.Application:
         aiohttp Application
     """
     if not api_client:
-        raise ValueError("api_client is required - bot/api.py only supports thin client mode")
-    
+        raise ValueError(
+            "api_client is required - bot/api.py only supports thin client mode"
+        )
+
     app = web.Application()
 
     # Store config and dependencies
     app["config"] = config
     app["api_client"] = api_client
-    
+
     logger.info("Bot API server running in thin client mode (using API Gateway)")
 
     # Initialize rate limiter
