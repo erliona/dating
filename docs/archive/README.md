@@ -4,12 +4,33 @@ This directory contains historical documentation files that are no longer active
 
 ## Contents
 
-### Summary Files
+### Architecture Refactoring Documentation
+These files document major architecture changes and refactorings:
+- `BOT_MINIMALIST_REFACTORING.md` - Bot simplification to minimalist architecture
+- `BOT_NOTIFICATION_REFACTORING.md` - Bot notification system refactoring
+- `REFACTORING_COMPLETE.md` - Complete refactoring summary
+- `REFACTORING_SUMMARY.md` - Bot thin client architecture refactoring
+- `REFACTORING_TEST_FIX_SUMMARY.md` - Test fixes during refactoring
+- `MIGRATION_NOTES.md` - Database removal from bot migration notes
+- `WHY_BOT_REPOSITORY_KEPT.md` - Rationale for keeping bot repository structure
+
+### Test Suite Documentation
+These files document test suite reorganization:
+- `TEST_REFACTORING_SUMMARY.md` - Complete test suite refactoring
+- `TEST_FIXES_SUMMARY.md` - Test fixes and improvements
+- `TEST_WORKFLOW_FIX_SUMMARY.md` - CI/CD workflow test fixes
+
+### Feature Implementation Summaries
 These files document completed features and updates:
 - `ADMIN_PANEL_SUMMARY.md` - Admin panel implementation details
 - `INTEGRATION_SUMMARY.md` - Integration work completed
 - `MINIAPP_UPDATE_SUMMARY.md` - Mini app updates
 - `MONITORING_REFRESH_SUMMARY.md` - Monitoring stack refresh
+- `MONITORING_REFACTORING_SUMMARY.md` - Monitoring system refactoring
+
+### Issue Resolution
+- `ISSUE_RESOLUTION_SUMMARY.md` - Summary of resolved issues
+- `DEPLOYMENT_FIX_SUMMARY.md` - Deployment fixes and improvements
 
 ### Bug Fix Documentation
 Historical bug fixes, primarily related to port conflicts during deployment:

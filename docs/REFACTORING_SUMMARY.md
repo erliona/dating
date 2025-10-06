@@ -12,7 +12,11 @@ The issue reported indicated that an old container `dating-bot-1` or another ser
 
 ### 1. Documentation Cleanup
 
-Created `docs/archive/` directory and moved 16 historical documentation files:
+Created `docs/archive/` directory and moved historical documentation files from root to archive:
+
+**Initial cleanup (16 files)** - Port fixes and feature summaries moved to archive
+
+**Latest cleanup (13 additional files)** - Refactoring and test summaries moved to archive:
 
 #### Moved Files:
 - **Port Conflict Fixes** (5 files)
@@ -38,6 +42,28 @@ Created `docs/archive/` directory and moved 16 historical documentation files:
 - **Miscellaneous** (2 files)
   - `FIX_SUMMARY.md`
   - `FIX_SUMMARY_PORT_8080_DOCKER_PROXY.md`
+
+**Latest cleanup additions (13 files)**:
+- **Architecture Refactoring** (7 files)
+  - `BOT_MINIMALIST_REFACTORING.md`
+  - `BOT_NOTIFICATION_REFACTORING.md`
+  - `REFACTORING_COMPLETE.md`
+  - `REFACTORING_SUMMARY.md` (root, bot thin client)
+  - `REFACTORING_TEST_FIX_SUMMARY.md`
+  - `MIGRATION_NOTES.md`
+  - `WHY_BOT_REPOSITORY_KEPT.md`
+
+- **Test Suite** (3 files)
+  - `TEST_REFACTORING_SUMMARY.md`
+  - `TEST_FIXES_SUMMARY.md`
+  - `TEST_WORKFLOW_FIX_SUMMARY.md`
+
+- **Issues & Deployments** (3 files)
+  - `ISSUE_RESOLUTION_SUMMARY.md`
+  - `DEPLOYMENT_FIX_SUMMARY.md`
+  - `MONITORING_REFACTORING_SUMMARY.md`
+
+**Total archived**: 29 historical documentation files
 
 ### 2. Script Updates
 
