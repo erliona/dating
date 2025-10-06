@@ -235,7 +235,7 @@ def createProfile(userId,n,a,i):
 
 ## Тестирование
 
-**Current Status**: 360+ comprehensive tests organized by type
+**Current Status**: 365 tests in 20 files, 337 passing (92% pass rate), ~11s runtime
 
 ### Структура тестов
 
@@ -256,11 +256,14 @@ def createProfile(userId,n,a,i):
   - `test_monitoring_config.py` - конфигурация мониторинга
 
 - **`tests/e2e/`** - End-to-end tests для полных пользовательских сценариев
+  - `test_api_handlers.py` - API handlers с Gateway client (thin client)
   - `test_user_flows.py` - создание профиля, discovery, матчинг
-  - `test_main.py` - бот handlers и команды
+  - `test_main.py` - notification handlers и логирование
   - `test_discovery.py` - система поиска и рекомендаций
-  - `test_gateway.py` - API Gateway маршрутизация
+  - `test_discovery_api.py` - API endpoints для discovery
+  - `test_gateway.py` - API Gateway маршрутизация и CORS
   - `test_admin.py` - админ панель
+  - `test_orientation_filtering.py` - фильтрация по ориентации
 
 ### Требования к тестам
 
