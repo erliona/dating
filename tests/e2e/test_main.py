@@ -10,7 +10,13 @@ import pytest
 from aiogram import Dispatcher
 from aiogram.types import Message, User, WebAppData, WebAppInfo
 
-from bot.main import handle_create_profile, handle_webapp_data, start_handler
+from bot.main import (
+    start_handler,
+    toggle_notifications,
+    send_match_notification,
+    send_message_notification,
+    send_like_notification,
+)
 from core.utils.logging import JsonFormatter, configure_logging
 
 
@@ -156,226 +162,149 @@ class TestStartHandler:
 
 
 @pytest.mark.asyncio
-class TestHandleWebappData:
-    """Test WebApp data handler."""
+class TestNotificationsHandler:
+    """Test /notifications command handler."""
 
-    async def test_handle_webapp_data_no_data(self):
-        """Test handler when no WebApp data is present."""
+    async def test_toggle_notifications(self):
+        """Test /notifications command handler."""
         message = MagicMock(spec=Message)
-        message.web_app_data = None
-        message.answer = AsyncMock()
-
-        dispatcher = MagicMock(spec=Dispatcher)
-
-        await handle_webapp_data(message, dispatcher)
-
-        message.answer.assert_called_once()
-        assert "No WebApp data received" in message.answer.call_args[0][0]
-
-    async def test_handle_webapp_data_invalid_json(self):
-        """Test handler with invalid JSON data."""
-        message = MagicMock(spec=Message)
-        message.web_app_data = MagicMock(spec=WebAppData)
-        message.web_app_data.data = "invalid json"
         message.answer = AsyncMock()
         message.from_user = MagicMock(id=12345)
 
-        dispatcher = MagicMock(spec=Dispatcher)
-
-        await handle_webapp_data(message, dispatcher)
+        await toggle_notifications(message)
 
         message.answer.assert_called_once()
-        assert "Invalid data format" in message.answer.call_args[0][0]
-
-    async def test_handle_webapp_data_no_api_client(self):
-        """Test handler when API client is not configured."""
-        message = MagicMock(spec=Message)
-        message.web_app_data = MagicMock(spec=WebAppData)
-        message.web_app_data.data = json.dumps({"action": "create_profile"})
-        message.answer = AsyncMock()
-        message.from_user = MagicMock(id=12345)
-
-        dispatcher = MagicMock(spec=Dispatcher)
-        dispatcher.workflow_data = {}
-
-        await handle_webapp_data(message, dispatcher)
-
-        message.answer.assert_called_once()
-        assert "API Gateway not configured" in message.answer.call_args[0][0]
-
-    async def test_handle_webapp_data_unknown_action(self):
-        """Test handler with unknown action."""
-        message = MagicMock(spec=Message)
-        message.web_app_data = MagicMock(spec=WebAppData)
-        message.web_app_data.data = json.dumps({"action": "unknown_action"})
-        message.answer = AsyncMock()
-        message.from_user = MagicMock(id=12345)
-
-        api_client = MagicMock()
-
-        dispatcher = MagicMock(spec=Dispatcher)
-        dispatcher.workflow_data = {"api_client": api_client}
-
-        await handle_webapp_data(message, dispatcher)
-
-        message.answer.assert_called_once()
-        assert "Unknown action" in message.answer.call_args[0][0]
-
-    async def test_handle_webapp_data_create_profile_success(self):
-        """Test successful profile creation via WebApp data using API Gateway."""
-        message = MagicMock(spec=Message)
-        message.web_app_data = MagicMock(spec=WebAppData)
-        profile_data = {
-            "name": "John Doe",
-            "birth_date": "1990-01-01",
-            "gender": "male",
-            "orientation": "female",
-            "goal": "relationship",
-            "city": "Moscow",
-        }
-        message.web_app_data.data = json.dumps(
-            {"action": "create_profile", "profile": profile_data}
-        )
-        message.answer = AsyncMock()
-        message.from_user = MagicMock(
-            id=12345,
-            username="testuser",
-            first_name="Test",
-            language_code="en",
-            is_premium=False,
-        )
-
-        # Mock API client
-        api_client = MagicMock()
-        api_client.create_profile = AsyncMock(
-            return_value={
-                "user_id": 1,
-                "name": "John Doe",
-                "gender": "male",
-                "goal": "relationship",
-                "city": "Moscow",
-                "created": True,
-            }
-        )
-
-        dispatcher = MagicMock(spec=Dispatcher)
-        dispatcher.workflow_data = {"api_client": api_client}
-
-        await handle_webapp_data(message, dispatcher)
-
-        message.answer.assert_called_once()
-        assert "Профиль создан" in message.answer.call_args[0][0]
-        api_client.create_profile.assert_called_once()
+        call_args = message.answer.call_args
+        assert "Управление уведомлениями" in call_args[0][0]
+        assert "Новых матчах" in call_args[0][0]
+        assert "Новых сообщениях" in call_args[0][0]
+        assert "Лайках" in call_args[0][0]
 
 
 @pytest.mark.asyncio
-class TestHandleCreateProfile:
-    """Test profile creation handler."""
+class TestNotificationSenders:
+    """Test notification sender functions."""
 
-    async def test_handle_create_profile_validation_error(self):
-        """Test profile creation with validation error."""
-        message = MagicMock(spec=Message)
-        message.answer = AsyncMock()
-        message.from_user = MagicMock(id=12345)
-
-        data = {
-            "profile": {
-                "name": "",  # Invalid: empty name
-                "birth_date": "1990-01-01",
-                "gender": "male",
-                "orientation": "female",
-                "goal": "relationship",
-            }
+    async def test_send_match_notification_success(self):
+        """Test sending match notification successfully."""
+        # Mock bot instance
+        mock_bot = MagicMock()
+        mock_bot.send_message = AsyncMock()
+        
+        import bot.main
+        bot.main._bot_instance = mock_bot
+        
+        match_data = {
+            "id": 123,
+            "name": "John Doe",
         }
+        
+        result = await send_match_notification(12345, match_data)
+        
+        assert result is True
+        mock_bot.send_message.assert_called_once()
+        call_args = mock_bot.send_message.call_args
+        assert call_args[1]["chat_id"] == 12345
+        assert "матч" in call_args[1]["text"].lower()
+        assert "John Doe" in call_args[1]["text"]
+        
+        # Cleanup
+        bot.main._bot_instance = None
 
-        api_client = MagicMock()
-        logger = logging.getLogger(__name__)
+    async def test_send_match_notification_no_bot(self):
+        """Test match notification when bot is not initialized."""
+        import bot.main
+        bot.main._bot_instance = None
+        
+        match_data = {"id": 123, "name": "John Doe"}
+        result = await send_match_notification(12345, match_data)
+        
+        assert result is False
 
-        await handle_create_profile(message, data, api_client, logger)
+    async def test_send_match_notification_error(self):
+        """Test match notification when sending fails."""
+        mock_bot = MagicMock()
+        mock_bot.send_message = AsyncMock(side_effect=Exception("Send failed"))
+        
+        import bot.main
+        bot.main._bot_instance = mock_bot
+        
+        match_data = {"id": 123, "name": "John Doe"}
+        result = await send_match_notification(12345, match_data)
+        
+        assert result is False
+        
+        # Cleanup
+        bot.main._bot_instance = None
 
-        message.answer.assert_called_once()
-        assert "Validation error" in message.answer.call_args[0][0]
-
-    async def test_handle_create_profile_duplicate(self):
-        """Test profile creation when profile already exists (via API Gateway)."""
-        message = MagicMock(spec=Message)
-        message.answer = AsyncMock()
-        message.from_user = MagicMock(
-            id=12345,
-            username="testuser",
-            first_name="Test",
-            language_code="en",
-            is_premium=False,
-        )
-
-        data = {
-            "profile": {
-                "name": "John Doe",
-                "birth_date": "1990-01-01",
-                "gender": "male",
-                "orientation": "female",
-                "goal": "relationship",
-                "city": "Moscow",
-            }
+    async def test_send_message_notification_success(self):
+        """Test sending message notification successfully."""
+        mock_bot = MagicMock()
+        mock_bot.send_message = AsyncMock()
+        
+        import bot.main
+        bot.main._bot_instance = mock_bot
+        
+        message_data = {
+            "sender_name": "Jane Doe",
+            "preview": "Hello there!",
         }
+        
+        result = await send_message_notification(12345, message_data)
+        
+        assert result is True
+        mock_bot.send_message.assert_called_once()
+        call_args = mock_bot.send_message.call_args
+        assert call_args[1]["chat_id"] == 12345
+        assert "Jane Doe" in call_args[1]["text"]
+        assert "Hello there!" in call_args[1]["text"]
+        
+        # Cleanup
+        bot.main._bot_instance = None
 
-        # Mock API client to raise conflict error
-        api_client = MagicMock()
-        api_client.create_profile = AsyncMock(
-            side_effect=Exception("API request failed with status 409")
-        )
+    async def test_send_message_notification_no_bot(self):
+        """Test message notification when bot is not initialized."""
+        import bot.main
+        bot.main._bot_instance = None
+        
+        message_data = {"sender_name": "Jane", "preview": "Hi"}
+        result = await send_message_notification(12345, message_data)
+        
+        assert result is False
 
-        logger = logging.getLogger(__name__)
-
-        await handle_create_profile(message, data, api_client, logger)
-
-        # Should show error message
-        message.answer.assert_called_once()
-        assert "Не удалось создать профиль" in message.answer.call_args[0][0]
-
-    async def test_handle_create_profile_success(self):
-        """Test successful profile creation via API Gateway."""
-        message = MagicMock(spec=Message)
-        message.answer = AsyncMock()
-        message.from_user = MagicMock(
-            id=12345,
-            username="testuser",
-            first_name="Test",
-            language_code="en",
-            is_premium=False,
-        )
-
-        data = {
-            "profile": {
-                "name": "John Doe",
-                "birth_date": "1990-01-01",
-                "gender": "male",
-                "orientation": "female",
-                "goal": "relationship",
-                "city": "Moscow",
-            }
+    async def test_send_like_notification_success(self):
+        """Test sending like notification successfully."""
+        mock_bot = MagicMock()
+        mock_bot.send_message = AsyncMock()
+        
+        import bot.main
+        bot.main._bot_instance = mock_bot
+        
+        like_data = {
+            "name": "Alice",
         }
+        
+        result = await send_like_notification(12345, like_data)
+        
+        assert result is True
+        mock_bot.send_message.assert_called_once()
+        call_args = mock_bot.send_message.call_args
+        assert call_args[1]["chat_id"] == 12345
+        assert "Alice" in call_args[1]["text"]
+        assert "лайкнул" in call_args[1]["text"]
+        
+        # Cleanup
+        bot.main._bot_instance = None
 
-        # Mock API client
-        api_client = MagicMock()
-        api_client.create_profile = AsyncMock(
-            return_value={
-                "user_id": 1,
-                "name": "John Doe",
-                "gender": "male",
-                "goal": "relationship",
-                "city": "Moscow",
-                "created": True,
-            }
-        )
-
-        logger = logging.getLogger(__name__)
-
-        await handle_create_profile(message, data, api_client, logger)
-
-        message.answer.assert_called_once()
-        assert "Профиль создан" in message.answer.call_args[0][0]
-        api_client.create_profile.assert_called_once()
+    async def test_send_like_notification_no_bot(self):
+        """Test like notification when bot is not initialized."""
+        import bot.main
+        bot.main._bot_instance = None
+        
+        like_data = {"name": "Alice"}
+        result = await send_like_notification(12345, like_data)
+        
+        assert result is False
 
 
 @pytest.mark.asyncio

@@ -1,9 +1,17 @@
-"""Minimal bot entry point - infrastructure only."""
+"""Minimal bot entry point - infrastructure only.
+
+Bot role (minimalist):
+- Welcome message with WebApp button (/start)
+- Notification management (/notifications)
+- Push notifications (matches, messages, likes)
+
+All user interactions happen in WebApp which communicates directly with API Gateway.
+"""
 
 import asyncio
-import json
 import logging
 import os
+from typing import Dict, Any
 
 from aiogram import Bot, Dispatcher, Router
 from aiogram.filters import Command
@@ -14,11 +22,12 @@ from core.utils.logging import configure_logging
 
 from .api_client import APIGatewayClient
 from .config import load_config
-from .geo import process_location_data
-from .validation import validate_profile_data
 
 # Create router for handlers
 router = Router()
+
+# Bot instance for notifications (set during initialization)
+_bot_instance: Bot = None
 
 
 @router.message(Command("start"))
@@ -52,289 +61,176 @@ async def start_handler(message: Message) -> None:
     )
 
 
-# Module-level cache for API client (lazy initialization)
-_api_client_cache: APIGatewayClient = None
-
-
-def get_api_client() -> APIGatewayClient:
-    """Get or create API client (lazy initialization with module-level cache)."""
-    global _api_client_cache
-    if _api_client_cache is None:
-        config = load_config()
-        _api_client_cache = APIGatewayClient(config.api_gateway_url)
-    return _api_client_cache
-
-
-def _clear_api_client_cache() -> None:
-    """Clear the API client cache (for testing purposes)."""
-    global _api_client_cache
-    _api_client_cache = None
-
-
-@router.message(lambda m: m.location is not None)
-async def handle_location(message: Message, dispatcher: Dispatcher = None) -> None:
-    """Handle location updates from user.
-
-    Args:
-        message: Message with location data
-        dispatcher: Optional dispatcher for DI
+@router.message(Command("notifications"))
+async def toggle_notifications(message: Message) -> None:
+    """Toggle notifications on/off for the user.
+    
+    In future implementation, this would update user preferences in the database.
+    For now, it provides user feedback about notification management.
     """
     logger = logging.getLogger(__name__)
-
-    if not message.location:
-        await message.answer("❌ No location data received")
-        return
-
-    try:
-        # Get API client
-        api_client = None
-        if dispatcher:
-            api_client = dispatcher.workflow_data.get("api_client")
-            if not api_client:
-                logger.error("API client not configured in dispatcher")
-                await message.answer("❌ API Gateway not configured")
-                return
-        else:
-            # No dispatcher - use module-level cached client
-            try:
-                api_client = get_api_client()
-            except Exception as e:
-                logger.error(f"Failed to get API client: {e}")
-                await message.answer("❌ API Gateway not configured")
-                return
-
-        # Process location data
-        location = process_location_data(
-            latitude=message.location.latitude,
-            longitude=message.location.longitude,
-        )
-
-        # Update location via API Gateway
-        location_data = {
-            "telegram_id": message.from_user.id,
-            "latitude": message.location.latitude,
-            "longitude": message.location.longitude,
-            "geohash": location.get("geohash"),
-            "city": location.get("city"),
-        }
-
-        result = await api_client.update_location(location_data)
-
-        logger.info(
-            "Location updated successfully",
-            extra={
-                "event_type": "location_updated",
-                "user_id": message.from_user.id,
-                "city": result.get("city", "unknown"),
-            },
-        )
-
-        city = result.get("city", "не указан")
-        await message.answer(f"✅ Location updated: {city}")
-
-    except Exception as exc:
-        logger.error(f"Error updating location: {exc}", exc_info=True)
-        await message.answer("❌ Failed to update location")
+    
+    logger.info(
+        "Notification toggle requested",
+        extra={
+            "event_type": "notification_toggle",
+            "user_id": message.from_user.id,
+        },
+    )
+    
+    await message.answer(
+        "🔔 Управление уведомлениями\n\n"
+        "Настройки уведомлений можно изменить в Mini App в разделе 'Настройки'.\n\n"
+        "Вы можете получать уведомления о:\n"
+        "• Новых матчах 💕\n"
+        "• Новых сообщениях 💬\n"
+        "• Лайках ❤️"
+    )
 
 
-@router.message(lambda m: m.web_app_data is not None)
-async def handle_webapp_data(message: Message, dispatcher: Dispatcher = None) -> None:
-    """Handle data received from WebApp.
-
-    This handler processes profile data submitted from the Mini App,
-    including validation and API Gateway communication.
-
+# Notification handlers for API Gateway
+async def send_match_notification(user_id: int, match_data: Dict[str, Any]) -> bool:
+    """Send notification about a new match.
+    
     Args:
-        message: Message from user
-        dispatcher: Optional dispatcher for DI. If not provided, uses lazy-loaded client.
+        user_id: Telegram user ID
+        match_data: Match information (name, photo, etc.)
+        
+    Returns:
+        True if notification was sent successfully
     """
     logger = logging.getLogger(__name__)
-
-    if not message.web_app_data:
-        await message.answer("❌ No WebApp data received")
-        return
-
+    
+    if not _bot_instance:
+        logger.error("Bot instance not initialized")
+        return False
+    
     try:
-        # Parse WebApp data
-        data = json.loads(message.web_app_data.data)
-        action = data.get("action")
-
+        match_name = match_data.get("name", "Someone")
+        match_id = match_data.get("id", "")
+        
+        message_text = f"💕 У вас новый матч!\n\n{match_name} тоже лайкнул(а) вас!"
+        
+        await _bot_instance.send_message(
+            chat_id=user_id,
+            text=message_text
+        )
+        
         logger.info(
-            f"WebApp data received: {action}",
+            "Match notification sent",
             extra={
-                "event_type": "webapp_data_received",
-                "user_id": message.from_user.id,
+                "event_type": "match_notification_sent",
+                "user_id": user_id,
+                "match_id": match_id,
             },
         )
-
-        # Get API client from dispatcher workflow_data or use lazy-loaded cache
-        api_client = None
-        if dispatcher:
-            api_client = dispatcher.workflow_data.get("api_client")
-            if not api_client:
-                # Dispatcher provided but no client - configuration error
-                logger.error("API client not configured in dispatcher")
-                await message.answer("❌ API Gateway not configured")
-                return
-        else:
-            # No dispatcher - use module-level cached client (testing fallback)
-            try:
-                api_client = get_api_client()
-            except Exception as e:
-                logger.error(f"Failed to get API client: {e}")
-                await message.answer("❌ API Gateway not configured")
-                return
-
-        if action == "create_profile":
-            await handle_create_profile(message, data, api_client, logger)
-        elif action == "update_profile":
-            await handle_update_profile(message, data, api_client, logger)
-        else:
-            await message.answer(f"❌ Unknown action: {action}")
-
-    except json.JSONDecodeError:
-        logger.error("Failed to parse WebApp data", exc_info=True)
-        await message.answer("❌ Invalid data format")
-    except Exception as exc:
-        logger.error(f"Error processing WebApp data: {exc}", exc_info=True)
-        await message.answer("❌ Failed to process data")
-
-
-async def handle_create_profile(
-    message: Message,
-    data: dict,
-    api_client: APIGatewayClient,
-    logger: logging.Logger,
-) -> None:
-    """Handle profile creation via API Gateway.
-
-    Note: Photos are not sent via sendData() due to the 4KB size limit.
-    Photos should be uploaded separately via HTTP API.
-    """
-    # Support both nested and flat formats for backwards compatibility
-    profile_data = data.get("profile", {})
-    if not profile_data:
-        # Flat format: extract all fields except 'action'
-        profile_data = {k: v for k, v in data.items() if k != "action"}
-
-    # Validate profile data
-    is_valid, error = validate_profile_data(profile_data)
-    if not is_valid:
-        await message.answer(f"❌ Validation error: {error}")
-        return
-
-    try:
-        # Add Telegram user info to profile data
-        profile_data["telegram_id"] = message.from_user.id
-        profile_data["username"] = message.from_user.username
-        profile_data["first_name"] = message.from_user.first_name
-        profile_data["language_code"] = message.from_user.language_code
-        profile_data["is_premium"] = message.from_user.is_premium or False
-
-        # Process location data
-        location = process_location_data(
-            latitude=profile_data.get("latitude"),
-            longitude=profile_data.get("longitude"),
-            country=profile_data.get("country"),
-            city=profile_data.get("city"),
-        )
-
-        # Add location to profile data
-        profile_data.update(location)
-
-        # Convert birth_date string to ISO format if needed
-        if "birth_date" in profile_data and isinstance(profile_data["birth_date"], str):
-            # Keep as string for API - service will handle conversion
-            pass
-
-        # Mark profile as complete when all required fields are present
-        # Photos are uploaded separately via HTTP API and don't affect completion
-        profile_data["is_complete"] = True
-
-        # Create profile via API Gateway
-        result = await api_client.create_profile(profile_data)
-
-        logger.info(
-            "Profile created successfully via API Gateway",
-            extra={
-                "event_type": "profile_created",
-                "user_id": message.from_user.id,
-            },
-        )
-
-        # Note: Photos are uploaded via HTTP API (see bot/api.py upload_photo_handler)
-        # The photo_count reflects photos already uploaded to the server
-        photo_count = profile_data.get("photo_count", 0)
-        photo_status = (
-            f"📸 Фото: {photo_count}" if photo_count > 0 else "📸 Фото: не загружены"
-        )
-
-        # Extract profile info from result
-        profile_name = result.get("name", profile_data.get("name", ""))
-        profile_gender = result.get("gender", profile_data.get("gender", ""))
-        profile_goal = result.get("goal", profile_data.get("goal", ""))
-        profile_city = result.get("city", profile_data.get("city", "не указан"))
-        profile_birth_date = profile_data.get("birth_date", "")
-
-        await message.answer(
-            "✅ Профиль создан!\n\n"
-            f"Имя: {profile_name}\n"
-            f"Возраст: {profile_birth_date}\n"
-            f"Пол: {profile_gender}\n"
-            f"Цель: {profile_goal}\n"
-            f"Город: {profile_city}\n"
-            f"{photo_status}"
-        )
+        return True
+        
     except Exception as e:
         logger.error(
-            f"Failed to create profile via API Gateway: {e}",
+            f"Failed to send match notification: {e}",
             exc_info=True,
             extra={
-                "event_type": "profile_creation_failed",
-                "user_id": message.from_user.id,
+                "event_type": "match_notification_failed",
+                "user_id": user_id,
             },
         )
-        await message.answer("❌ Не удалось создать профиль. Попробуйте позже.")
+        return False
 
 
-async def handle_update_profile(
-    message: Message,
-    data: dict,
-    api_client: APIGatewayClient,
-    logger: logging.Logger,
-) -> None:
-    """Handle profile updates via API Gateway.
-
+async def send_message_notification(user_id: int, message_data: Dict[str, Any]) -> bool:
+    """Send notification about a new message.
+    
     Args:
-        message: Message from user
-        data: Update data from WebApp
-        api_client: API Gateway client
-        logger: Logger instance
+        user_id: Telegram user ID
+        message_data: Message information (sender, preview, etc.)
+        
+    Returns:
+        True if notification was sent successfully
     """
-    # Support both nested and flat formats
-    update_data = data.get("profile", {})
-    if not update_data:
-        update_data = {k: v for k, v in data.items() if k != "action"}
-
-    # Ensure telegram_id is present in the update data for the API
-    update_data["telegram_id"] = message.from_user.id
+    logger = logging.getLogger(__name__)
+    
+    if not _bot_instance:
+        logger.error("Bot instance not initialized")
+        return False
+    
     try:
-        # Update profile via API Gateway
-        result = await api_client.update_profile(message.from_user.id, update_data)
-
+        sender_name = message_data.get("sender_name", "Someone")
+        message_preview = message_data.get("preview", "...")
+        
+        message_text = f"💬 Новое сообщение от {sender_name}\n\n{message_preview}"
+        
+        await _bot_instance.send_message(
+            chat_id=user_id,
+            text=message_text
+        )
+        
         logger.info(
-            "Profile updated successfully",
+            "Message notification sent",
             extra={
-                "event_type": "profile_updated",
-                "user_id": message.from_user.id,
+                "event_type": "message_notification_sent",
+                "user_id": user_id,
             },
         )
+        return True
+        
+    except Exception as e:
+        logger.error(
+            f"Failed to send message notification: {e}",
+            exc_info=True,
+            extra={
+                "event_type": "message_notification_failed",
+                "user_id": user_id,
+            },
+        )
+        return False
 
-        await message.answer("✅ Profile updated successfully")
 
-    except Exception as exc:
-        logger.error(f"Error updating profile: {exc}", exc_info=True)
-        await message.answer(f"❌ Failed to update profile")
+async def send_like_notification(user_id: int, like_data: Dict[str, Any]) -> bool:
+    """Send notification about receiving a like.
+    
+    Args:
+        user_id: Telegram user ID
+        like_data: Like information (sender name, etc.)
+        
+    Returns:
+        True if notification was sent successfully
+    """
+    logger = logging.getLogger(__name__)
+    
+    if not _bot_instance:
+        logger.error("Bot instance not initialized")
+        return False
+    
+    try:
+        liker_name = like_data.get("name", "Someone")
+        
+        message_text = f"❤️ {liker_name} лайкнул(а) вас!"
+        
+        await _bot_instance.send_message(
+            chat_id=user_id,
+            text=message_text
+        )
+        
+        logger.info(
+            "Like notification sent",
+            extra={
+                "event_type": "like_notification_sent",
+                "user_id": user_id,
+            },
+        )
+        return True
+        
+    except Exception as e:
+        logger.error(
+            f"Failed to send like notification: {e}",
+            exc_info=True,
+            extra={
+                "event_type": "like_notification_failed",
+                "user_id": user_id,
+            },
+        )
+        return False
 
 
 async def main() -> None:
@@ -398,6 +294,10 @@ async def main() -> None:
             ) from e
 
         logger.info("Bot instance created", extra={"event_type": "bot_created"})
+        
+        # Store bot instance globally for notification handlers
+        global _bot_instance
+        _bot_instance = bot
 
         dp = Dispatcher(storage=MemoryStorage())
 
