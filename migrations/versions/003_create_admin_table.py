@@ -1,7 +1,7 @@
 """Create admin table
 
 Revision ID: 003
-Revises: 002
+Revises: 002_create_discovery_tables
 Create Date: 2024-01-15 12:00:00.000000
 
 """
@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "003"
-down_revision: Union[str, None] = "002"
+down_revision: Union[str, None] = "002_create_discovery_tables"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
