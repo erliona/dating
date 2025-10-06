@@ -34,7 +34,6 @@ class TestOnboardingFlow:
             assert "Mini App" in call_args[0][0] or "WebApp" in str(call_args)
 
     @pytest.mark.asyncio
-    @pytest.mark.xfail(reason="WebAppData requires button_text field - API change in aiogram")
     async def test_profile_creation_flow(self):
         """Test profile creation through WebApp."""
         from bot.main import handle_webapp_data
@@ -164,7 +163,6 @@ class TestProfileManagementFlow:
     """Test profile editing and management."""
 
     @pytest.mark.asyncio
-    @pytest.mark.xfail(reason="WebAppData requires button_text field - API change in aiogram")
     async def test_profile_edit_flow(self):
         """Test editing profile information."""
         from bot.main import handle_webapp_data
@@ -210,7 +208,6 @@ class TestLocationFlow:
     """Test location-based features."""
 
     @pytest.mark.asyncio
-    @pytest.mark.xfail(reason="handle_location function does not exist in bot.main - needs implementation")
     async def test_location_update_flow(self):
         """Test updating user location."""
         from bot.main import handle_location
@@ -270,7 +267,6 @@ class TestErrorHandlingFlow:
     """Test error handling in user flows."""
 
     @pytest.mark.asyncio
-    @pytest.mark.xfail(reason="WebAppData requires button_text field - API change in aiogram")
     async def test_invalid_profile_data_handling(self):
         """Test handling of invalid profile data."""
         from bot.main import handle_webapp_data
@@ -299,7 +295,6 @@ class TestErrorHandlingFlow:
             assert "ошибка" in call_args.lower() or "error" in call_args.lower()
 
     @pytest.mark.asyncio
-    @pytest.mark.xfail(reason="WebAppData requires button_text field - API change in aiogram")
     async def test_network_error_handling(self):
         """Test handling of network errors."""
         from bot.main import handle_webapp_data

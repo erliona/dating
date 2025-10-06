@@ -53,7 +53,7 @@ async def start_handler(message: Message) -> None:
 
 
 @router.message(lambda m: m.web_app_data is not None)
-async def handle_webapp_data(message: Message, dispatcher: Dispatcher) -> None:
+async def handle_webapp_data(message: Message, dispatcher: Dispatcher = None) -> None:
     """Handle data received from WebApp.
 
     This handler processes profile data submitted from the Mini App,
@@ -78,15 +78,25 @@ async def handle_webapp_data(message: Message, dispatcher: Dispatcher) -> None:
             },
         )
 
-        # Get API client from dispatcher workflow_data
-        api_client = dispatcher.workflow_data.get("api_client")
+        # Get API client from dispatcher workflow_data or create new one for testing
+        api_client = None
+        if dispatcher:
+            api_client = dispatcher.workflow_data.get("api_client")
+        
         if not api_client:
-            logger.error("API client not configured")
-            await message.answer("❌ API Gateway not configured")
-            return
+            # Fallback for testing or if dispatcher not available
+            try:
+                config = load_config()
+                api_client = APIGatewayClient(config.api_gateway_url)
+            except Exception as e:
+                logger.error(f"Failed to create API client: {e}")
+                await message.answer("❌ API Gateway not configured")
+                return
 
         if action == "create_profile":
             await handle_create_profile(message, data, api_client, logger)
+        elif action == "update_profile":
+            await handle_update_profile(message, data, api_client, logger)
         else:
             await message.answer(f"❌ Unknown action: {action}")
 
@@ -96,6 +106,111 @@ async def handle_webapp_data(message: Message, dispatcher: Dispatcher) -> None:
     except Exception as exc:
         logger.error(f"Error processing WebApp data: {exc}", exc_info=True)
         await message.answer("❌ Failed to process data")
+
+
+async def handle_location(message: Message, dispatcher: Dispatcher = None) -> None:
+    """Handle location updates from user.
+    
+    Args:
+        message: Message with location data
+        dispatcher: Optional dispatcher for API client access
+    """
+    logger = logging.getLogger(__name__)
+    
+    if not message.location:
+        await message.answer("❌ No location data received")
+        return
+    
+    try:
+        # Get API client from dispatcher workflow_data or create new one for testing
+        api_client = None
+        if dispatcher:
+            api_client = dispatcher.workflow_data.get("api_client")
+        
+        if not api_client:
+            # Fallback for testing or if dispatcher not available
+            try:
+                config = load_config()
+                api_client = APIGatewayClient(config.api_gateway_url)
+            except Exception as e:
+                logger.error(f"Failed to create API client: {e}")
+                await message.answer("❌ API Gateway not configured")
+                return
+        
+        # Process location data
+        location = process_location_data(
+            latitude=message.location.latitude,
+            longitude=message.location.longitude,
+        )
+        
+        # Update location via API Gateway
+        location_data = {
+            "telegram_id": message.from_user.id,
+            "latitude": message.location.latitude,
+            "longitude": message.location.longitude,
+            "geohash": location.get("geohash"),
+            "city": location.get("city"),
+        }
+        
+        result = await api_client.update_location(location_data)
+        
+        logger.info(
+            "Location updated successfully",
+            extra={
+                "event_type": "location_updated",
+                "user_id": message.from_user.id,
+                "city": result.get("city", "unknown"),
+            },
+        )
+        
+        city = result.get("city", "не указан")
+        await message.answer(f"✅ Location updated: {city}")
+        
+    except Exception as exc:
+        logger.error(f"Error updating location: {exc}", exc_info=True)
+        await message.answer("❌ Failed to update location")
+
+
+async def handle_update_profile(
+    message: Message,
+    data: dict,
+    api_client: APIGatewayClient,
+    logger: logging.Logger,
+) -> None:
+    """Handle profile updates via API Gateway.
+    
+    Args:
+        message: Message from user
+        data: Update data from WebApp
+        api_client: API Gateway client
+        logger: Logger instance
+    """
+    # Support both nested and flat format for backwards compatibility
+    update_data = data.get("profile", {})
+    if not update_data:
+        # If no "profile" key, use the data itself (excluding "action")
+        update_data = {k: v for k, v in data.items() if k != "action"}
+    
+    try:
+        # Add Telegram user ID for identification
+        update_data["telegram_id"] = message.from_user.id
+        
+        # Update profile via API Gateway
+        result = await api_client.update_profile(update_data)
+        
+        logger.info(
+            "Profile updated successfully",
+            extra={
+                "event_type": "profile_updated",
+                "user_id": message.from_user.id,
+            },
+        )
+        
+        await message.answer("✅ Profile updated successfully")
+        
+    except Exception as exc:
+        logger.error(f"Error updating profile: {exc}", exc_info=True)
+        await message.answer(f"❌ Failed to update profile: {exc}")
 
 
 async def handle_create_profile(
@@ -109,7 +224,11 @@ async def handle_create_profile(
     Note: Photos are not sent via sendData() due to the 4KB size limit.
     Photos should be uploaded separately via HTTP API.
     """
+    # Support both nested and flat format for backwards compatibility
     profile_data = data.get("profile", {})
+    if not profile_data:
+        # If no "profile" key, use the data itself (excluding "action")
+        profile_data = {k: v for k, v in data.items() if k != "action"}
 
     # Validate profile data
     is_valid, error = validate_profile_data(profile_data)
