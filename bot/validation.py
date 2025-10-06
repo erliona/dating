@@ -4,9 +4,14 @@ Epic B1: Profile form validation including age 18+ check.
 """
 
 from datetime import date, datetime
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from .db import Education, Gender, Goal, Orientation
+
+# Validation constants
+NAME_MAX_LEN = 100  # Maximum length for user names
+CITY_MIN_LEN = 2  # Minimum length for city names
+CITY_MAX_LEN = 100  # Maximum length for city names
 
 
 class ValidationError(Exception):
@@ -45,8 +50,8 @@ def validate_name(name: str) -> tuple[bool, Optional[str]]:
     if len(name) < 2:
         return False, "Имя должно содержать минимум 2 символа"
 
-    if len(name) > 100:
-        return False, "Имя не может превышать 100 символов"
+    if len(name) > NAME_MAX_LEN:
+        return False, f"Имя не может превышать {NAME_MAX_LEN} символов"
 
     return True, None
 
@@ -233,31 +238,128 @@ def validate_education(education: Optional[str]) -> tuple[bool, Optional[str]]:
     return True, None
 
 
-def validate_location(
-    country: Optional[str], city: Optional[str]
-) -> tuple[bool, Optional[str]]:
-    """Validate location data.
+def normalize_location(
+    location_input: Union[dict, tuple, None],
+) -> tuple[Optional[float], Optional[float], Optional[str]]:
+    """Normalize location input to (latitude, longitude, city) format.
 
     Args:
-        country: Country name
+        location_input: Can be a dict with 'latitude', 'longitude', 'city' keys
+
+    Returns:
+        Tuple of (latitude, longitude, city)
+
+    Raises:
+        ValueError: If input format is invalid
+    """
+    if location_input is None:
+        return None, None, None
+
+    if isinstance(location_input, dict):
+        return (
+            location_input.get("latitude"),
+            location_input.get("longitude"),
+            location_input.get("city"),
+        )
+
+    raise ValueError(f"Unsupported location input type: {type(location_input)}")
+
+
+def validate_location(
+    first_arg: Union[float, dict, str, None] = None,
+    second_arg: Union[float, str, None] = None,
+    city: Optional[str] = None,
+) -> tuple[bool, Optional[str]]:
+    """Validate location data with flexible input format.
+
+    Can accept either:
+    - Dict format: validate_location({"latitude": 55.7, "longitude": 37.6, "city": "Moscow"})
+    - Country/city format: validate_location("Russia", "Moscow")  # legacy API
+    - Coordinates format: validate_location(55.7, 37.6, "Moscow")
+
+    Args:
+        first_arg: Dict with location data, latitude coordinate, or country name
+        second_arg: Longitude coordinate or city name
+        city: City name (when using coordinates format)
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    # Determine format and normalize arguments
+    if isinstance(first_arg, dict):
+        # Dict format: extract latitude, longitude, city
+        try:
+            latitude, longitude, city = normalize_location(first_arg)
+        except ValueError as e:
+            return False, str(e)
+    elif isinstance(first_arg, str):
+        # Legacy country/city format
+        country = first_arg
+        city = second_arg
+        # Validate country
+        if country is not None:
+            if not isinstance(country, str):
+                return False, "Country must be a string"
+            if len(country) > 100:
+                return False, "Country name must not exceed 100 characters"
+        # Validate city
+        if city is not None:
+            if not isinstance(city, str):
+                return False, "City must be a string"
+            if len(city) > CITY_MAX_LEN:
+                return False, f"City name must not exceed {CITY_MAX_LEN} characters"
+        return True, None
+    elif isinstance(first_arg, (int, float)) or first_arg is None:
+        # Coordinates format
+        latitude = first_arg
+        longitude = second_arg
+    else:
+        return False, f"Invalid first argument type: {type(first_arg)}"
+
+    # Validate latitude
+    if latitude is not None:
+        if not isinstance(latitude, (int, float)):
+            return False, "Latitude must be a number"
+        if latitude < -90 or latitude > 90:
+            return False, "Latitude must be between -90 and 90"
+
+    # Validate longitude
+    if longitude is not None:
+        if not isinstance(longitude, (int, float)):
+            return False, "Longitude must be a number"
+        if longitude < -180 or longitude > 180:
+            return False, "Longitude must be between -180 and 180"
+
+    # Validate city
+    if city is not None:
+        if not isinstance(city, str):
+            return False, "City must be a string"
+        if len(city) > CITY_MAX_LEN:
+            return False, f"City name must not exceed {CITY_MAX_LEN} characters"
+
+    return True, None
+
+
+def validate_city(city: str) -> tuple[bool, Optional[str]]:
+    """Validate city name.
+
+    Args:
         city: City name
 
     Returns:
         Tuple of (is_valid, error_message)
     """
-    if country is not None:
-        if not isinstance(country, str):
-            return False, "Country must be a string"
+    if not city:
+        return False, "City is required"
 
-        if len(country) > 100:
-            return False, "Country name must not exceed 100 characters"
+    if not isinstance(city, str):
+        return False, "City must be a string"
 
-    if city is not None:
-        if not isinstance(city, str):
-            return False, "City must be a string"
+    if len(city) < CITY_MIN_LEN:
+        return False, f"City name must be at least {CITY_MIN_LEN} characters"
 
-        if len(city) > 100:
-            return False, "City name must not exceed 100 characters"
+    if len(city) > CITY_MAX_LEN:
+        return False, f"City name must not exceed {CITY_MAX_LEN} characters"
 
     return True, None
 
@@ -340,9 +442,10 @@ def validate_profile_data(data: dict[str, Any]) -> tuple[bool, Optional[str]]:
             return False, error
 
     # Validate location
-    country = data.get("country")
+    latitude = data.get("latitude")
+    longitude = data.get("longitude")
     city = data.get("city")
-    is_valid, error = validate_location(country, city)
+    is_valid, error = validate_location(latitude, longitude, city)
     if not is_valid:
         return False, error
 

@@ -414,6 +414,17 @@ class RateLimiter:
         self._storage[user_id] = valid_requests + [(now, 1)]
         return True
 
+    def check_rate_limit(self, user_id: int) -> bool:
+        """Check rate limit for user (public API method).
+
+        Args:
+            user_id: User identifier
+
+        Returns:
+            True if request is allowed, False if rate limit exceeded
+        """
+        return self.is_allowed(user_id)
+
     def get_remaining_requests(self, user_id: int) -> int:
         """Get remaining requests for user in current window.
 
