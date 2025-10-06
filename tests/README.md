@@ -5,7 +5,9 @@ This directory contains the comprehensive test suite for the Dating Bot applicat
 ## 📊 Overview
 
 **Total Tests**: 360+  
+**Pass Rate**: 338 passed, 27 xfailed (API mismatches documented), 1 xpassed  
 **Organization**: Unit, Integration, and End-to-End tests  
+**Test Markers**: `unit`, `integration`, `e2e`  
 **Coverage Goal**: >75% code coverage
 
 ## 📁 Test Structure
@@ -135,14 +137,37 @@ End-to-end tests simulate complete user workflows and scenarios.
 
 ## 🚀 Running Tests
 
+### Test Markers
+
+Tests are organized using pytest markers for easy filtering:
+- `@pytest.mark.unit` - Fast, isolated component tests
+- `@pytest.mark.integration` - Component interaction tests
+- `@pytest.mark.e2e` - Complete user flow tests
+- `@pytest.mark.xfail` - Known issues/API mismatches (documented)
+
 ### All Tests
 ```bash
 pytest -v
 ```
 
-### By Category
+### By Marker (Recommended)
 ```bash
-# Unit tests only (fast)
+# Unit tests only (fast ~2s)
+pytest -m unit -v
+
+# Integration tests (~4s)
+pytest -m integration -v
+
+# End-to-end tests (~3s)
+pytest -m e2e -v
+
+# Run unit and integration (skip e2e)
+pytest -m "unit or integration" -v
+```
+
+### By Directory
+```bash
+# Unit tests
 pytest tests/unit/ -v
 
 # Integration tests
@@ -165,6 +190,12 @@ pytest --cov=bot --cov=core --cov=services --cov-report=html --cov-report=term
 ### Failed Tests Only
 ```bash
 pytest --lf -v
+```
+
+### Skip Xfail Tests
+```bash
+# Show only real pass/fail (skip known issues)
+pytest --no-xfail -v
 ```
 
 ### Parallel Execution

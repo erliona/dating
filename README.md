@@ -454,26 +454,31 @@ new-service:
 
 ### Запуск тестов
 
-**Статус**: 360+ comprehensive tests organized by type
+**Статус**: 360+ comprehensive tests organized by type  
+**Pass Rate**: 338 passed, 27 xfailed (API mismatches documented)
 
 ```bash
 # Все тесты
 pytest -v
 
-# Только unit tests (быстрые)
-pytest tests/unit/ -v
+# По категориям (используя pytest markers)
+pytest -m unit -v              # Unit tests (быстрые ~2s)
+pytest -m integration -v       # Integration tests (~4s)
+pytest -m e2e -v              # E2E tests (~3s)
 
-# Только integration tests
-pytest tests/integration/ -v
-
-# Только e2e tests
-pytest tests/e2e/ -v
+# По директориям
+pytest tests/unit/ -v          # Unit tests
+pytest tests/integration/ -v   # Integration tests
+pytest tests/e2e/ -v          # E2E tests
 
 # С покрытием
 pytest --cov=bot --cov=core --cov=services --cov-report=html
 
 # Остановиться на первой ошибке
 pytest -x
+
+# Показать только passed/failed (без xfail)
+pytest --no-xfail -v
 ```
 
 ### Структура тестов

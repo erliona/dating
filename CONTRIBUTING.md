@@ -305,14 +305,15 @@ def createProfile(userId,n,a,i):
 # Все тесты
 pytest -v
 
-# Только unit tests (быстрые)
-pytest tests/unit/ -v
+# По категориям (используя markers)
+pytest -m unit -v              # Только unit tests (быстрые ~2s)
+pytest -m integration -v       # Только integration tests (~4s)
+pytest -m e2e -v              # Только e2e tests (~3s)
 
-# Только integration tests
-pytest tests/integration/ -v
-
-# Только e2e tests
-pytest tests/e2e/ -v
+# По директориям
+pytest tests/unit/ -v          # Unit tests
+pytest tests/integration/ -v   # Integration tests
+pytest tests/e2e/ -v          # E2E tests
 
 # Конкретный файл
 pytest tests/unit/test_validation.py -v
@@ -322,6 +323,9 @@ pytest --cov=bot --cov=core --cov=services --cov-report=term --cov-report=html
 
 # Быстрая проверка (только упавшие)
 pytest --lf -v
+
+# Пропустить xfail тесты
+pytest --no-xfail -v
 
 # Параллельный запуск (если установлен pytest-xdist)
 pytest -n auto
