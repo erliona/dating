@@ -1,11 +1,11 @@
-"""Minimal bot entry point - infrastructure only.
+"""Minimal bot entry point - notifications only.
 
-Bot role (minimalist):
-- Welcome message with WebApp button (/start)
-- Notification management (/notifications)
-- Push notifications (matches, messages, likes)
+Bot role:
+- Receive notification requests from notification service
+- Send push notifications to users (matches, messages, likes)
 
 All user interactions happen in WebApp which communicates directly with API Gateway.
+The bot no longer has any command handlers or HTTP API server.
 """
 
 import asyncio
@@ -13,82 +13,126 @@ import logging
 import os
 from typing import Any, Dict
 
-from aiogram import Bot, Dispatcher, Router
-from aiogram.filters import Command
+from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import KeyboardButton, Message, ReplyKeyboardMarkup, WebAppInfo
+from aiohttp import web
 
 from core.utils.logging import configure_logging
 
-from .api_client import APIGatewayClient
 from .config import load_config
-
-# Create router for handlers
-router = Router()
 
 # Bot instance for notifications (set during initialization)
 _bot_instance: Bot = None
 
 
-@router.message(Command("start"))
-async def start_handler(message: Message) -> None:
-    """Send welcome message with WebApp button."""
-    config = load_config()
-
-    if not config.webapp_url:
-        await message.answer(
-            "⚠️ WebApp is not configured. " "Please set WEBAPP_URL environment variable."
-        )
-        return
-
-    # Create keyboard with WebApp button
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=[
-            [
-                KeyboardButton(
-                    text="🚀 Открыть Mini App",
-                    web_app=WebAppInfo(url=config.webapp_url),
-                )
-            ]
-        ],
-        resize_keyboard=True,
-    )
-
-    await message.answer(
-        "👋 Добро пожаловать в Dating Mini App!\n\n"
-        "Нажмите кнопку ниже, чтобы открыть приложение и создать свою анкету.",
-        reply_markup=keyboard,
-    )
-
-
-@router.message(Command("notifications"))
-async def toggle_notifications(message: Message) -> None:
-    """Toggle notifications on/off for the user.
-
-    In future implementation, this would update user preferences in the database.
-    For now, it provides user feedback about notification management.
+# HTTP handlers for receiving notification requests from notification service
+async def send_match_notification_handler(request: web.Request) -> web.Response:
+    """HTTP endpoint to send match notification.
+    
+    POST /notifications/match
+    Body: {
+        "user_id": int,
+        "match_data": {
+            "id": int,
+            "name": str,
+            "photo_url": str (optional)
+        }
+    }
     """
-    logger = logging.getLogger(__name__)
+    try:
+        data = await request.json()
+        user_id = data.get("user_id")
+        match_data = data.get("match_data", {})
+        
+        if not user_id:
+            return web.json_response({"error": "user_id is required"}, status=400)
+        
+        success = await send_match_notification(user_id, match_data)
+        
+        if success:
+            return web.json_response({"status": "sent", "user_id": user_id})
+        else:
+            return web.json_response(
+                {"error": "Failed to send notification"}, status=500
+            )
+    except Exception as e:
+        logging.error(f"Error handling match notification request: {e}", exc_info=True)
+        return web.json_response({"error": "Internal server error"}, status=500)
 
-    logger.info(
-        "Notification toggle requested",
-        extra={
-            "event_type": "notification_toggle",
-            "user_id": message.from_user.id,
-        },
-    )
 
-    await message.answer(
-        "🔔 Управление уведомлениями\n\n"
-        "Настройки уведомлений можно изменить в Mini App в разделе 'Настройки'.\n\n"
-        "Вы можете получать уведомления о:\n"
-        "• Новых матчах 💕\n"
-        "• Новых сообщениях 💬\n"
-        "• Лайках ❤️"
-    )
+async def send_message_notification_handler(request: web.Request) -> web.Response:
+    """HTTP endpoint to send message notification.
+    
+    POST /notifications/message
+    Body: {
+        "user_id": int,
+        "message_data": {
+            "sender_name": str,
+            "preview": str,
+            "conversation_id": int (optional)
+        }
+    }
+    """
+    try:
+        data = await request.json()
+        user_id = data.get("user_id")
+        message_data = data.get("message_data", {})
+        
+        if not user_id:
+            return web.json_response({"error": "user_id is required"}, status=400)
+        
+        success = await send_message_notification(user_id, message_data)
+        
+        if success:
+            return web.json_response({"status": "sent", "user_id": user_id})
+        else:
+            return web.json_response(
+                {"error": "Failed to send notification"}, status=500
+            )
+    except Exception as e:
+        logging.error(f"Error handling message notification request: {e}", exc_info=True)
+        return web.json_response({"error": "Internal server error"}, status=500)
 
 
-# Notification handlers for API Gateway
+async def send_like_notification_handler(request: web.Request) -> web.Response:
+    """HTTP endpoint to send like notification.
+    
+    POST /notifications/like
+    Body: {
+        "user_id": int,
+        "like_data": {
+            "name": str,
+            "photo_url": str (optional)
+        }
+    }
+    """
+    try:
+        data = await request.json()
+        user_id = data.get("user_id")
+        like_data = data.get("like_data", {})
+        
+        if not user_id:
+            return web.json_response({"error": "user_id is required"}, status=400)
+        
+        success = await send_like_notification(user_id, like_data)
+        
+        if success:
+            return web.json_response({"status": "sent", "user_id": user_id})
+        else:
+            return web.json_response(
+                {"error": "Failed to send notification"}, status=500
+            )
+    except Exception as e:
+        logging.error(f"Error handling like notification request: {e}", exc_info=True)
+        return web.json_response({"error": "Internal server error"}, status=500)
+
+
+async def health_check_handler(request: web.Request) -> web.Response:
+    """Health check endpoint."""
+    return web.json_response({"status": "ok", "service": "telegram-bot"})
+
+
+# Internal notification sending functions
 async def send_match_notification(user_id: int, match_data: Dict[str, Any]) -> bool:
     """Send notification about a new match.
 
@@ -224,8 +268,44 @@ async def send_like_notification(user_id: int, like_data: Dict[str, Any]) -> boo
         return False
 
 
+def create_notification_app() -> web.Application:
+    """Create HTTP server for receiving notification requests."""
+    app = web.Application()
+    
+    # Register notification endpoints
+    app.router.add_post("/notifications/match", send_match_notification_handler)
+    app.router.add_post("/notifications/message", send_message_notification_handler)
+    app.router.add_post("/notifications/like", send_like_notification_handler)
+    app.router.add_get("/health", health_check_handler)
+    
+    return app
+
+
+async def run_notification_server(host: str = "0.0.0.0", port: int = 8080):
+    """Run HTTP server for notification requests."""
+    logger = logging.getLogger(__name__)
+    
+    app = create_notification_app()
+    runner = web.AppRunner(app)
+    await runner.setup()
+    
+    site = web.TCPSite(runner, host, port)
+    await site.start()
+    
+    logger.info(
+        f"Notification HTTP server started on {host}:{port}",
+        extra={"event_type": "notification_server_started", "host": host, "port": port},
+    )
+    
+    # Keep running
+    try:
+        await asyncio.Event().wait()
+    finally:
+        await runner.cleanup()
+
+
 async def main() -> None:
-    """Bootstrap the bot and API server."""
+    """Bootstrap the bot notification server."""
     configure_logging("telegram-bot", os.getenv("LOG_LEVEL", "INFO"))
     logger = logging.getLogger(__name__)
     logger.info("Bot initialization started", extra={"event_type": "startup"})
@@ -236,8 +316,6 @@ async def main() -> None:
             "Configuration loaded successfully",
             extra={
                 "event_type": "config_loaded",
-                "webapp_url": config.webapp_url,
-                "database_configured": bool(config.database_url),
             },
         )
     except Exception as exc:
@@ -290,70 +368,18 @@ async def main() -> None:
         global _bot_instance
         _bot_instance = bot
 
-        dp = Dispatcher(storage=MemoryStorage())
-
-        # Initialize API Gateway client (thin client architecture)
-        api_client = None
-        if config.api_gateway_url:
-            api_client = APIGatewayClient(config.api_gateway_url)
-            # Store API client in dispatcher workflow_data (aiogram 3.x pattern)
-            dp.workflow_data["api_client"] = api_client
-            logger.info(
-                "API Gateway client initialized",
-                extra={
-                    "event_type": "api_client_initialized",
-                    "gateway_url": config.api_gateway_url,
-                },
-            )
-        else:
-            logger.warning(
-                "API Gateway URL not configured - profile creation will not work",
-                extra={"event_type": "api_gateway_not_configured"},
-            )
-
-        dp.include_router(router)
+        # Start notification HTTP server
+        notification_host = os.getenv("API_HOST", "0.0.0.0")
+        notification_port = int(os.getenv("API_PORT", "8080"))
+        
         logger.info(
-            "Dispatcher initialized with MemoryStorage",
-            extra={"event_type": "dispatcher_initialized"},
+            "Starting notification HTTP server",
+            extra={"event_type": "server_start"},
         )
-
-        # Start both bot and API server concurrently
-        logger.info("Starting bot polling", extra={"event_type": "services_start"})
-
-        # Bot now uses thin client architecture through API Gateway
-        # The bot/api.py server now also uses API Gateway instead of direct DB access
-
-        # Start API server for WebApp (requires API Gateway)
-        api_server_task = None
-        if api_client:
-            from .api import run_api_server
-
-            # Get API server configuration
-            api_host = os.getenv("API_HOST", "0.0.0.0")
-            api_port = int(os.getenv("API_PORT", "8080"))
-
-            # Use API Gateway client for WebApp endpoints
-            api_server_task = run_api_server(
-                config,
-                api_client=api_client,
-                host=api_host,
-                port=api_port,
-            )
-            logger.info(
-                "Starting bot API server (thin client mode)",
-                extra={"event_type": "api_server_start", "mode": "thin_client"},
-            )
-        else:
-            logger.warning(
-                "Bot API server not started - API Gateway URL is required",
-                extra={"event_type": "api_server_not_started"},
-            )
-
-        # Run bot polling (and optionally API server)
-        if api_server_task:
-            await asyncio.gather(dp.start_polling(bot), api_server_task)
-        else:
-            await dp.start_polling(bot)
+        
+        # Run notification server (no polling needed - bot only sends notifications)
+        await run_notification_server(notification_host, notification_port)
+        
     except Exception as exc:
         logger.error(
             f"Error during bot execution: {exc}",
