@@ -4,20 +4,17 @@ import asyncio
 import json
 import logging
 import os
-from datetime import datetime
 
 from aiogram import Bot, Dispatcher, Router
 from aiogram.filters import Command
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import KeyboardButton, Message, ReplyKeyboardMarkup, WebAppInfo
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
 
 from core.utils.logging import configure_logging
 
+from .api_client import APIGatewayClient
 from .config import load_config
 from .geo import process_location_data
-from .repository import ProfileRepository
 from .validation import validate_profile_data
 
 # Create router for handlers
@@ -60,7 +57,7 @@ async def handle_webapp_data(message: Message, dispatcher: Dispatcher) -> None:
     """Handle data received from WebApp.
 
     This handler processes profile data submitted from the Mini App,
-    including validation and database storage.
+    including validation and API Gateway communication.
     """
     logger = logging.getLogger(__name__)
 
@@ -81,20 +78,17 @@ async def handle_webapp_data(message: Message, dispatcher: Dispatcher) -> None:
             },
         )
 
-        # Get database session from dispatcher workflow_data
-        session_maker = dispatcher.workflow_data.get("session_maker")
-        if not session_maker:
-            logger.error("Database not configured")
-            await message.answer("❌ Database not configured")
+        # Get API client from dispatcher workflow_data
+        api_client = dispatcher.workflow_data.get("api_client")
+        if not api_client:
+            logger.error("API client not configured")
+            await message.answer("❌ API Gateway not configured")
             return
 
-        async with session_maker() as session:
-            repository = ProfileRepository(session)
-
-            if action == "create_profile":
-                await handle_create_profile(message, data, repository, session, logger)
-            else:
-                await message.answer(f"❌ Unknown action: {action}")
+        if action == "create_profile":
+            await handle_create_profile(message, data, api_client, logger)
+        else:
+            await message.answer(f"❌ Unknown action: {action}")
 
     except json.JSONDecodeError:
         logger.error("Failed to parse WebApp data", exc_info=True)
@@ -107,14 +101,13 @@ async def handle_webapp_data(message: Message, dispatcher: Dispatcher) -> None:
 async def handle_create_profile(
     message: Message,
     data: dict,
-    repository: ProfileRepository,
-    session: AsyncSession,
+    api_client: APIGatewayClient,
     logger: logging.Logger,
 ) -> None:
-    """Handle profile creation.
+    """Handle profile creation via API Gateway.
 
     Note: Photos are not sent via sendData() due to the 4KB size limit.
-    Photos should be uploaded separately via HTTP API in a future update.
+    Photos should be uploaded separately via HTTP API.
     """
     profile_data = data.get("profile", {})
 
@@ -125,20 +118,12 @@ async def handle_create_profile(
         return
 
     try:
-        # Create or update user
-        user = await repository.create_or_update_user(
-            tg_id=message.from_user.id,
-            username=message.from_user.username,
-            first_name=message.from_user.first_name,
-            language_code=message.from_user.language_code,
-            is_premium=message.from_user.is_premium or False,
-        )
-
-        # Check if profile already exists
-        existing_profile = await repository.get_profile_by_user_id(user.id)
-        if existing_profile:
-            await message.answer("❌ У вас уже есть профиль!")
-            return
+        # Add Telegram user info to profile data
+        profile_data["telegram_id"] = message.from_user.id
+        profile_data["username"] = message.from_user.username
+        profile_data["first_name"] = message.from_user.first_name
+        profile_data["language_code"] = message.from_user.language_code
+        profile_data["is_premium"] = message.from_user.is_premium or False
 
         # Process location data
         location = process_location_data(
@@ -151,28 +136,23 @@ async def handle_create_profile(
         # Add location to profile data
         profile_data.update(location)
 
-        # Convert birth_date string to date object if needed
+        # Convert birth_date string to ISO format if needed
         if "birth_date" in profile_data and isinstance(profile_data["birth_date"], str):
-            profile_data["birth_date"] = datetime.strptime(
-                profile_data["birth_date"], "%Y-%m-%d"
-            ).date()
+            # Keep as string for API - service will handle conversion
+            pass
 
         # Mark profile as complete when all required fields are present
         # Photos are uploaded separately via HTTP API and don't affect completion
         profile_data["is_complete"] = True
 
-        # Create profile
-        profile = await repository.create_profile(user.id, profile_data)
-
-        # Commit the transaction (both user and profile creation)
-        await session.commit()
+        # Create profile via API Gateway
+        result = await api_client.create_profile(profile_data)
 
         logger.info(
-            "Profile created successfully",
+            "Profile created successfully via API Gateway",
             extra={
                 "event_type": "profile_created",
                 "user_id": message.from_user.id,
-                "profile_id": profile.id,
             },
         )
 
@@ -183,20 +163,25 @@ async def handle_create_profile(
             f"📸 Фото: {photo_count}" if photo_count > 0 else "📸 Фото: не загружены"
         )
 
+        # Extract profile info from result
+        profile_name = result.get("name", profile_data.get("name", ""))
+        profile_gender = result.get("gender", profile_data.get("gender", ""))
+        profile_goal = result.get("goal", profile_data.get("goal", ""))
+        profile_city = result.get("city", profile_data.get("city", "не указан"))
+        profile_birth_date = profile_data.get("birth_date", "")
+
         await message.answer(
             "✅ Профиль создан!\n\n"
-            f"Имя: {profile.name}\n"
-            f"Возраст: {profile.birth_date}\n"
-            f"Пол: {profile.gender}\n"
-            f"Цель: {profile.goal}\n"
-            f"Город: {profile.city or 'не указан'}\n"
+            f"Имя: {profile_name}\n"
+            f"Возраст: {profile_birth_date}\n"
+            f"Пол: {profile_gender}\n"
+            f"Цель: {profile_goal}\n"
+            f"Город: {profile_city}\n"
             f"{photo_status}"
         )
     except Exception as e:
-        # Rollback transaction on any error
-        await session.rollback()
         logger.error(
-            f"Failed to create profile: {e}",
+            f"Failed to create profile via API Gateway: {e}",
             exc_info=True,
             extra={
                 "event_type": "profile_creation_failed",
@@ -270,23 +255,22 @@ async def main() -> None:
 
         dp = Dispatcher(storage=MemoryStorage())
 
-        # Initialize database if configured
-        async_session_maker = None
-        if config.database_url:
-            engine = create_async_engine(config.database_url, echo=False)
-            async_session_maker = sessionmaker(
-                engine, class_=AsyncSession, expire_on_commit=False
-            )
-            # Store session maker in dispatcher workflow_data (aiogram 3.x pattern)
-            dp.workflow_data["session_maker"] = async_session_maker
+        # Initialize API Gateway client (thin client architecture)
+        if config.api_gateway_url:
+            api_client = APIGatewayClient(config.api_gateway_url)
+            # Store API client in dispatcher workflow_data (aiogram 3.x pattern)
+            dp.workflow_data["api_client"] = api_client
             logger.info(
-                "Database connection initialized",
-                extra={"event_type": "db_initialized"},
+                "API Gateway client initialized",
+                extra={
+                    "event_type": "api_client_initialized",
+                    "gateway_url": config.api_gateway_url,
+                },
             )
         else:
             logger.warning(
-                "Database URL not configured - profile creation will not work",
-                extra={"event_type": "db_not_configured"},
+                "API Gateway URL not configured - profile creation will not work",
+                extra={"event_type": "api_gateway_not_configured"},
             )
 
         dp.include_router(router)
@@ -297,29 +281,70 @@ async def main() -> None:
 
         # Start both bot and API server concurrently
         logger.info(
-            "Starting bot and API server", extra={"event_type": "services_start"}
+            "Starting bot polling", extra={"event_type": "services_start"}
         )
 
-        # Import API module
-        from .api import run_api_server
+        # Bot now uses thin client architecture through API Gateway
+        # The bot/api.py server now also uses API Gateway instead of direct DB access
+        
+        # Start API server for WebApp if API client is available
+        api_server_task = None
+        if api_client:
+            from .api import run_api_server
 
-        # Get API server configuration
-        api_host = os.getenv("API_HOST", "0.0.0.0")
-        api_port = int(os.getenv("API_PORT", "8080"))
+            # Get API server configuration
+            api_host = os.getenv("API_HOST", "0.0.0.0")
+            api_port = int(os.getenv("API_PORT", "8080"))
 
-        # Prepare API server coroutine
-        async def noop():
-            """No-op coroutine for when API server is not needed."""
-            pass
+            # Use API Gateway client for WebApp endpoints
+            api_server_task = run_api_server(
+                config,
+                api_client=api_client,
+                host=api_host,
+                port=api_port,
+            )
+            logger.info(
+                "Starting bot API server (thin client mode)",
+                extra={"event_type": "api_server_start", "mode": "thin_client"},
+            )
+        elif config.database_url:
+            # Legacy mode: direct database access (deprecated)
+            from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+            from sqlalchemy.orm import sessionmaker
 
-        api_server_task = (
-            run_api_server(config, async_session_maker, api_host, api_port)
-            if async_session_maker
-            else noop()
-        )
+            from .api import run_api_server
 
-        # Run both services concurrently
-        await asyncio.gather(dp.start_polling(bot), api_server_task)
+            logger.warning(
+                "Bot API server using legacy direct database access - consider removing DATABASE_URL",
+                extra={"event_type": "api_server_legacy_mode"},
+            )
+
+            # Initialize database for bot/api.py legacy mode
+            engine = create_async_engine(config.database_url, echo=False)
+            async_session_maker = sessionmaker(
+                engine, class_=AsyncSession, expire_on_commit=False
+            )
+
+            # Get API server configuration
+            api_host = os.getenv("API_HOST", "0.0.0.0")
+            api_port = int(os.getenv("API_PORT", "8080"))
+
+            api_server_task = run_api_server(
+                config,
+                session_maker=async_session_maker,
+                host=api_host,
+                port=api_port,
+            )
+            logger.info(
+                "Starting bot API server (legacy mode)",
+                extra={"event_type": "api_server_start", "mode": "legacy"},
+            )
+
+        # Run bot polling (and optionally API server)
+        if api_server_task:
+            await asyncio.gather(dp.start_polling(bot), api_server_task)
+        else:
+            await dp.start_polling(bot)
     except Exception as exc:
         logger.error(
             f"Error during bot execution: {exc}",

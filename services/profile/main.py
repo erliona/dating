@@ -45,35 +45,134 @@ async def get_profile(request: web.Request) -> web.Response:
 async def create_profile(request: web.Request) -> web.Response:
     """Create user profile.
 
-    POST /profiles
+    POST /profiles/
+    
+    Accepts comprehensive profile data from bot or other clients.
     """
     data = await request.json()
-    profile_service: ProfileService = request.app["profile_service"]
 
     try:
         from datetime import date
 
-        from core.models.enums import Gender, Orientation
+        # Get or create session
+        session_maker = request.app["session_maker"]
+        
+        async with session_maker() as session:
+            from bot.repository import ProfileRepository
 
-        profile = await profile_service.create_profile(
-            user_id=data["user_id"],
-            name=data["name"],
-            birth_date=date.fromisoformat(data["birth_date"]),
-            gender=Gender(data["gender"]),
-            orientation=Orientation(data["orientation"]),
-            city=data["city"],
-            bio=data.get("bio"),
-        )
+            repository = ProfileRepository(session)
 
+            # Handle Telegram user creation if telegram_id is provided
+            telegram_id = data.get("telegram_id")
+            if telegram_id:
+                user = await repository.create_or_update_user(
+                    tg_id=telegram_id,
+                    username=data.get("username"),
+                    first_name=data.get("first_name"),
+                    language_code=data.get("language_code"),
+                    is_premium=data.get("is_premium", False),
+                )
+                user_id = user.id
+            else:
+                # Use provided user_id
+                user_id = data.get("user_id")
+                if not user_id:
+                    return web.json_response(
+                        {"error": "Either user_id or telegram_id is required"}, 
+                        status=400
+                    )
+
+            # Check if profile already exists
+            existing_profile = await repository.get_profile_by_user_id(user_id)
+            if existing_profile:
+                return web.json_response(
+                    {"error": "Profile already exists for this user"}, 
+                    status=409
+                )
+
+            # Parse birth_date
+            birth_date_str = data.get("birth_date")
+            birth_date = None
+            if birth_date_str is not None:
+                if isinstance(birth_date_str, str):
+                    try:
+                        birth_date = date.fromisoformat(birth_date_str)
+                    except ValueError:
+                        return web.json_response(
+                            {"error": "Invalid birth_date format. Expected ISO format (YYYY-MM-DD)."},
+                            status=400
+                        )
+                else:
+                    birth_date = birth_date_str
+            else:
+                return web.json_response(
+                    {"error": "birth_date is required."},
+                    status=400
+                )
+
+            # Prepare profile data
+            profile_data = {
+                "name": data["name"],
+                "birth_date": birth_date,
+                "gender": data["gender"],
+                "orientation": data["orientation"],
+                "goal": data.get("goal"),
+                "bio": data.get("bio"),
+                "interests": data.get("interests", []),
+                "height_cm": data.get("height_cm"),
+                "education": data.get("education"),
+                "has_children": data.get("has_children"),
+                "wants_children": data.get("wants_children"),
+                "smoking": data.get("smoking"),
+                "drinking": data.get("drinking"),
+                "country": data.get("country"),
+                "city": data.get("city"),
+                "geohash": data.get("geohash"),
+                "latitude": data.get("latitude"),
+                "longitude": data.get("longitude"),
+                "hide_distance": data.get("hide_distance", False),
+                "hide_online": data.get("hide_online", False),
+                "hide_age": data.get("hide_age", False),
+                "allow_messages_from": data.get("allow_messages_from", "matches"),
+                "is_complete": data.get("is_complete", True),
+            }
+
+            # Create profile
+            profile = await repository.create_profile(user_id, profile_data)
+            
+            # Commit the transaction
+            await session.commit()
+
+            logger.info(
+                f"Profile created for user {user_id}",
+                extra={
+                    "event_type": "profile_created",
+                    "user_id": user_id,
+                    "profile_id": profile.id,
+                },
+            )
+
+            return web.json_response(
+                {
+                    "user_id": profile.user_id,
+                    "name": profile.name,
+                    "gender": profile.gender,
+                    "city": profile.city,
+                    "goal": profile.goal,
+                    "created": True,
+                },
+                status=201,
+            )
+
+    except KeyError as e:
         return web.json_response(
-            {"user_id": profile.user_id, "name": profile.name, "created": True},
-            status=201,
+            {"error": f"Missing required field: {e}"}, 
+            status=400
         )
-
     except ValueError as e:
         return web.json_response({"error": str(e)}, status=400)
     except Exception as e:
-        logger.error(f"Error creating profile: {e}")
+        logger.error(f"Error creating profile: {e}", exc_info=True)
         return web.json_response({"error": "Internal server error"}, status=500)
 
 

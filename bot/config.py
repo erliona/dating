@@ -17,7 +17,8 @@ class BotConfig:
     """Settings required to run the bot."""
 
     token: str
-    database_url: str
+    api_gateway_url: str  # URL of API Gateway for thin client architecture
+    database_url: str | None = None  # Optional - for backward compatibility
     webapp_url: str | None = None
     jwt_secret: str | None = None
     photo_storage_path: str = "/app/photos"  # Path for local photo storage
@@ -104,21 +105,37 @@ def load_config() -> BotConfig:
             protocol, rest = webapp_url.split("://", 1)
             webapp_url = protocol.lower() + "://" + rest
 
-    database_url_raw = os.getenv("BOT_DATABASE_URL") or os.getenv("DATABASE_URL")
+    # API Gateway URL (thin client architecture)
+    api_gateway_url = os.getenv("API_GATEWAY_URL")
+    if not api_gateway_url:
+        raise RuntimeError(
+            "API_GATEWAY_URL environment variable is required. "
+            "The bot now uses thin client architecture and communicates via API Gateway. "
+            "Example: http://api-gateway:8080"
+        )
 
-    # Fallback: construct database URL from POSTGRES_* environment variables
-    # This is particularly useful in Docker Compose environments where these
-    # variables are already set for the database container
-    if not database_url_raw:
+    # Validate API Gateway URL format
+    api_gateway_url = api_gateway_url.strip()
+    if not api_gateway_url.startswith(("http://", "https://")):
+        raise RuntimeError(
+            "API_GATEWAY_URL must start with http:// or https://. "
+            f"Got: {api_gateway_url}"
+        )
+
+    # Database URL is now optional - bot uses API Gateway instead
+    database_url_raw = os.getenv("BOT_DATABASE_URL") or os.getenv("DATABASE_URL")
+    database_url_str = None
+
+    # Only validate database URL if provided (for backward compatibility with bot/api.py)
+    if database_url_raw:
+        # Fallback: construct database URL from POSTGRES_* environment variables
         postgres_user = os.getenv("POSTGRES_USER")
         postgres_password = os.getenv("POSTGRES_PASSWORD")
-        postgres_host = os.getenv(
-            "POSTGRES_HOST", "db"
-        )  # Default to 'db' for docker-compose
+        postgres_host = os.getenv("POSTGRES_HOST", "db")
         postgres_port = os.getenv("POSTGRES_PORT", "5432")
         postgres_db = os.getenv("POSTGRES_DB")
 
-        if all([postgres_user, postgres_password, postgres_db]):
+        if not database_url_raw and all([postgres_user, postgres_password, postgres_db]):
             # URL-encode the username and password to handle special characters
             encoded_user = quote_plus(postgres_user)
             encoded_password = quote_plus(postgres_password)
@@ -126,35 +143,15 @@ def load_config() -> BotConfig:
                 f"postgresql+asyncpg://{encoded_user}:{encoded_password}"
                 f"@{postgres_host}:{postgres_port}/{postgres_db}"
             )
-        else:
-            raise RuntimeError(
-                "BOT_DATABASE_URL environment variable is required to start the bot. "
-                "Alternatively, set POSTGRES_USER, POSTGRES_PASSWORD, and POSTGRES_DB "
-                "to automatically construct the database URL."
-            )
 
-    try:
-        database_url = make_url(database_url_raw)
-    except ArgumentError as exc:  # pragma: no cover - simple configuration guard
-        raise RuntimeError(
-            "BOT_DATABASE_URL must be a valid SQLAlchemy connection string. "
-            "If the password contains special characters, they must be URL-encoded. "
-            "Use only alphanumeric characters (A-Z, a-z, 0-9, hyphen, underscore) for database passwords "
-            "to avoid URL encoding issues."
-        ) from exc
-
-    if not database_url.drivername.startswith("postgresql"):
-        raise RuntimeError(
-            "Only PostgreSQL databases are supported; "
-            "set BOT_DATABASE_URL to a postgresql+asyncpg URL"
-        )
-
-    # Validate database URL has required components
-    if not database_url.host:
-        raise RuntimeError("BOT_DATABASE_URL must include a database host")
-
-    if not database_url.database:
-        raise RuntimeError("BOT_DATABASE_URL must include a database name")
+        if database_url_raw:
+            try:
+                database_url = make_url(database_url_raw)
+                if database_url.drivername.startswith("postgresql"):
+                    database_url_str = database_url.render_as_string(hide_password=False)
+            except ArgumentError:
+                logging.warning("Invalid DATABASE_URL provided, ignoring for thin client")
+                database_url_str = None
 
     # JWT secret for authentication (Epic A2)
     jwt_secret = os.getenv("JWT_SECRET")
@@ -184,12 +181,13 @@ def load_config() -> BotConfig:
             )
             nsfw_threshold = 0.7
     except ValueError:
-        logging.warning(f"Invalid NSFW_THRESHOLD format, using default 0.7")
+        logging.warning("Invalid NSFW_THRESHOLD format, using default 0.7")
         nsfw_threshold = 0.7
 
     return BotConfig(
         token=token,
-        database_url=database_url.render_as_string(hide_password=False),
+        api_gateway_url=api_gateway_url,
+        database_url=database_url_str,
         webapp_url=webapp_url,
         jwt_secret=jwt_secret,
         photo_storage_path=photo_storage_path,
