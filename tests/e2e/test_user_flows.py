@@ -13,28 +13,18 @@ pytestmark = pytest.mark.e2e
 class TestOnboardingFlow:
     """Test complete user onboarding flow."""
 
+    @pytest.mark.skip(
+        reason="Bot no longer has command handlers - all user interactions happen in WebApp"
+    )
     @pytest.mark.asyncio
     async def test_new_user_onboarding(self):
-        """Test complete flow for new user from /start to profile creation."""
-        from bot.main import start_handler
-
-        # Step 1: User sends /start command
-        message = MagicMock(spec=Message)
-        message.from_user = User(id=12345, is_bot=False, first_name="Test")
-        message.answer = AsyncMock()
-
-        with patch("bot.main.load_config") as mock_config:
-            mock_config.return_value = MagicMock(webapp_url="https://example.com/app")
-
-            await start_handler(message)
-
-            # Should send welcome message with WebApp button
-            message.answer.assert_called_once()
-            call_args = message.answer.call_args
-            assert "Mini App" in call_args[0][0] or "WebApp" in str(call_args)
-
-        # Note: Profile creation now happens directly in WebApp via API Gateway
-        # The bot no longer handles WebApp data - this is part of the minimalist refactoring
+        """Test complete flow for new user from /start to profile creation.
+        
+        DEPRECATED: After refactoring, the bot only receives notifications from the notification service.
+        All user onboarding happens directly in the WebApp which communicates with API Gateway.
+        The bot has no /start command or WebApp button anymore.
+        """
+        pass  # Test is obsolete after bot refactoring to notification-only mode
 
     @pytest.mark.skip(
         reason="Bot no longer handles WebApp data - WebApp communicates directly with API Gateway (minimalist refactoring)"

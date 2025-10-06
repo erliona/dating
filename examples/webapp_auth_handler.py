@@ -1,6 +1,12 @@
 """Example handler demonstrating WebApp authentication with Epic A2.
 
-This example shows how to integrate the security module with aiogram handlers.
+DEPRECATED: This example shows the OLD architecture where bot had command handlers.
+
+After refactoring, the bot only receives notifications from the notification service.
+All user interactions happen in the WebApp which communicates directly with API Gateway.
+The bot no longer has /start command or WebApp buttons.
+
+This file is kept for reference only.
 """
 
 import logging
