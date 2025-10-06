@@ -6,6 +6,31 @@ import pytest
 
 
 @pytest.fixture(scope="function", autouse=True)
+def clear_module_caches():
+    """Clear module-level caches before each test to prevent state pollution.
+    
+    This ensures that patching works correctly even when tests run in sequence.
+    """
+    # Clear bot.main API client cache
+    try:
+        from bot import main
+        if hasattr(main, '_clear_api_client_cache'):
+            main._clear_api_client_cache()
+    except ImportError:
+        pass  # Module not imported yet
+    
+    yield
+    
+    # Clear cache after test as well
+    try:
+        from bot import main
+        if hasattr(main, '_clear_api_client_cache'):
+            main._clear_api_client_cache()
+    except ImportError:
+        pass
+
+
+@pytest.fixture(scope="function", autouse=True)
 def ensure_test_environment():
     """Ensure required environment variables are set for all tests.
     

@@ -65,6 +65,12 @@ def get_api_client() -> APIGatewayClient:
     return _api_client_cache
 
 
+def _clear_api_client_cache() -> None:
+    """Clear the API client cache (for testing purposes)."""
+    global _api_client_cache
+    _api_client_cache = None
+
+
 @router.message(lambda m: m.location is not None)
 async def handle_location(message: Message, dispatcher: Dispatcher = None) -> None:
     """Handle location updates from user.
@@ -311,11 +317,8 @@ async def handle_update_profile(
         update_data = {k: v for k, v in data.items() if k != "action"}
 
     try:
-        # Add user ID for identification
-        update_data["telegram_id"] = message.from_user.id
-
         # Update profile via API Gateway
-        result = await api_client.update_profile(update_data)
+        result = await api_client.update_profile(message.from_user.id, update_data)
 
         logger.info(
             "Profile updated successfully",

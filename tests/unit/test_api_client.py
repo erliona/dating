@@ -72,31 +72,33 @@ class TestAPIGatewayError:
 class TestAPIGatewayClientRequests:
     """Test API Gateway client request methods."""
 
-    @pytest.mark.xfail(reason="Mock setup for aiohttp ClientSession needs proper async context managers")
     async def test_successful_get_request(self):
         """Test successful GET request."""
         client = APIGatewayClient("http://localhost:8080")
         
-        mock_response = {"id": 123, "name": "Test"}
+        mock_response_data = {"id": 123, "name": "Test"}
         
         with patch("bot.api_client.ClientSession") as mock_session_class:
+            # Create async context manager for session
             mock_session = MagicMock()
             mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-            mock_session.__aexit__ = AsyncMock()
+            mock_session.__aexit__ = AsyncMock(return_value=None)
             mock_session_class.return_value = mock_session
             
-            mock_request = AsyncMock()
-            mock_request.__aenter__ = AsyncMock()
-            mock_request.__aexit__ = AsyncMock()
-            mock_request.return_value.status = 200
-            mock_request.return_value.json = AsyncMock(return_value=mock_response)
-            mock_session.request = mock_request
+            # Create async context manager for response
+            mock_response = MagicMock()
+            mock_response.status = 200
+            mock_response.json = AsyncMock(return_value=mock_response_data)
+            mock_response.__aenter__ = AsyncMock(return_value=mock_response)
+            mock_response.__aexit__ = AsyncMock(return_value=None)
+            
+            # session.request() returns the response context manager
+            mock_session.request = MagicMock(return_value=mock_response)
             
             result = await client._request("GET", "/profiles/123")
             
-            assert result == mock_response
+            assert result == mock_response_data
 
-    @pytest.mark.xfail(reason="Mock setup for aiohttp ClientSession needs proper async context managers")
     async def test_post_request_with_json(self):
         """Test POST request with JSON data."""
         client = APIGatewayClient("http://localhost:8080")
@@ -105,39 +107,46 @@ class TestAPIGatewayClientRequests:
         response_data = {"id": 456, **request_data}
         
         with patch("bot.api_client.ClientSession") as mock_session_class:
+            # Create async context manager for session
             mock_session = MagicMock()
             mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-            mock_session.__aexit__ = AsyncMock()
+            mock_session.__aexit__ = AsyncMock(return_value=None)
             mock_session_class.return_value = mock_session
             
-            mock_request = AsyncMock()
-            mock_request.__aenter__ = AsyncMock()
-            mock_request.__aexit__ = AsyncMock()
-            mock_request.return_value.status = 201
-            mock_request.return_value.json = AsyncMock(return_value=response_data)
-            mock_session.request = mock_request
+            # Create async context manager for response
+            mock_response = MagicMock()
+            mock_response.status = 201
+            mock_response.json = AsyncMock(return_value=response_data)
+            mock_response.__aenter__ = AsyncMock(return_value=mock_response)
+            mock_response.__aexit__ = AsyncMock(return_value=None)
+            
+            # session.request() returns the response context manager
+            mock_session.request = MagicMock(return_value=mock_response)
             
             result = await client._request("POST", "/profiles", json_data=request_data)
             
             assert result == response_data
 
-    @pytest.mark.xfail(reason="Mock setup for aiohttp ClientSession needs proper async context managers")
     async def test_request_with_idempotency_key(self):
         """Test request includes idempotency key for POST/PUT."""
         client = APIGatewayClient("http://localhost:8080")
         
         with patch("bot.api_client.ClientSession") as mock_session_class:
+            # Create async context manager for session
             mock_session = MagicMock()
             mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-            mock_session.__aexit__ = AsyncMock()
+            mock_session.__aexit__ = AsyncMock(return_value=None)
             mock_session_class.return_value = mock_session
             
-            mock_request = AsyncMock()
-            mock_request.__aenter__ = AsyncMock()
-            mock_request.__aexit__ = AsyncMock()
-            mock_request.return_value.status = 200
-            mock_request.return_value.json = AsyncMock(return_value={})
-            mock_session.request = mock_request
+            # Create async context manager for response
+            mock_response = MagicMock()
+            mock_response.status = 200
+            mock_response.json = AsyncMock(return_value={})
+            mock_response.__aenter__ = AsyncMock(return_value=mock_response)
+            mock_response.__aexit__ = AsyncMock(return_value=None)
+            
+            # session.request() returns the response context manager
+            mock_session.request = MagicMock(return_value=mock_response)
             
             await client._request(
                 "POST",
@@ -147,36 +156,31 @@ class TestAPIGatewayClientRequests:
             )
             
             # Verify idempotency key was added to headers
-            call_kwargs = mock_request.call_args[1]
+            call_kwargs = mock_session.request.call_args[1]
+            assert "headers" in call_kwargs
             assert "Idempotency-Key" in call_kwargs["headers"]
             assert call_kwargs["headers"]["Idempotency-Key"] == "test-key-123"
 
-    @pytest.mark.xfail(reason="Mock setup for aiohttp ClientSession needs proper async context managers")
     async def test_request_retry_on_5xx_error(self):
         """Test that requests are retried on 5xx server errors."""
         client = APIGatewayClient("http://localhost:8080", max_retries=3)
         
         with patch("bot.api_client.ClientSession") as mock_session_class:
+            # Create async context manager for session
             mock_session = MagicMock()
             mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-            mock_session.__aexit__ = AsyncMock()
+            mock_session.__aexit__ = AsyncMock(return_value=None)
             mock_session_class.return_value = mock_session
             
-            # First two attempts fail with 500, third succeeds
-            mock_request = AsyncMock()
-            mock_request.__aenter__ = AsyncMock()
-            mock_request.__aexit__ = AsyncMock()
+            # Create async context manager for 500 response
+            mock_response = MagicMock()
+            mock_response.status = 500
+            mock_response.json = AsyncMock(return_value={"error": {"message": "server_error"}})
+            mock_response.__aenter__ = AsyncMock(return_value=mock_response)
+            mock_response.__aexit__ = AsyncMock(return_value=None)
             
-            response_500 = MagicMock()
-            response_500.status = 500
-            response_500.json = AsyncMock(return_value={"error": "server_error"})
-            
-            response_200 = MagicMock()
-            response_200.status = 200
-            response_200.json = AsyncMock(return_value={"success": True})
-            
-            mock_request.return_value = response_500
-            mock_session.request = mock_request
+            # session.request() returns the response context manager
+            mock_session.request = MagicMock(return_value=mock_response)
             
             # Should retry after 500 errors
             with patch("asyncio.sleep", new_callable=AsyncMock):
@@ -184,28 +188,29 @@ class TestAPIGatewayClientRequests:
                     await client._request("GET", "/test")
                 
                 assert exc_info.value.status_code == 500
+                # Should have tried max_retries times
+                assert mock_session.request.call_count == 3
 
-    @pytest.mark.xfail(reason="Mock setup for aiohttp ClientSession needs proper async context managers")
     async def test_request_no_retry_on_4xx_error(self):
         """Test that requests are NOT retried on 4xx client errors."""
         client = APIGatewayClient("http://localhost:8080", max_retries=3)
         
         with patch("bot.api_client.ClientSession") as mock_session_class:
+            # Create async context manager for session
             mock_session = MagicMock()
             mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-            mock_session.__aexit__ = AsyncMock()
+            mock_session.__aexit__ = AsyncMock(return_value=None)
             mock_session_class.return_value = mock_session
             
-            mock_request = AsyncMock()
-            mock_request.__aenter__ = AsyncMock()
-            mock_request.__aexit__ = AsyncMock()
+            # Create async context manager for 404 response
+            mock_response = MagicMock()
+            mock_response.status = 404
+            mock_response.json = AsyncMock(return_value={"error": {"message": "not_found"}})
+            mock_response.__aenter__ = AsyncMock(return_value=mock_response)
+            mock_response.__aexit__ = AsyncMock(return_value=None)
             
-            response_404 = MagicMock()
-            response_404.status = 404
-            response_404.json = AsyncMock(return_value={"error": "not_found"})
-            
-            mock_request.return_value = response_404
-            mock_session.request = mock_request
+            # session.request() returns the response context manager
+            mock_session.request = MagicMock(return_value=mock_response)
             
             # Should not retry 4xx errors
             with pytest.raises(APIGatewayError) as exc_info:
@@ -213,7 +218,7 @@ class TestAPIGatewayClientRequests:
             
             assert exc_info.value.status_code == 404
             # Should only be called once (no retries)
-            assert mock_request.call_count == 1
+            assert mock_session.request.call_count == 1
 
 
 @pytest.mark.asyncio
@@ -313,18 +318,19 @@ class TestAPIGatewayClientDiscoveryMethods:
 class TestAPIGatewayClientErrorHandling:
     """Test error handling in API Gateway client."""
 
-    @pytest.mark.xfail(reason="Mock setup for aiohttp ClientSession needs proper async context managers")
     async def test_network_error_raises_exception(self):
         """Test that network errors raise APIGatewayError."""
         client = APIGatewayClient("http://localhost:8080")
         
         with patch("bot.api_client.ClientSession") as mock_session_class:
+            # Create async context manager for session
             mock_session = MagicMock()
             mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-            mock_session.__aexit__ = AsyncMock()
+            mock_session.__aexit__ = AsyncMock(return_value=None)
             mock_session_class.return_value = mock_session
             
-            mock_session.request = AsyncMock(side_effect=ClientError("Connection refused"))
+            # Make session.request raise ClientError
+            mock_session.request = MagicMock(side_effect=ClientError("Connection refused"))
             
             with patch("asyncio.sleep", new_callable=AsyncMock):
                 with pytest.raises(APIGatewayError) as exc_info:
@@ -332,18 +338,19 @@ class TestAPIGatewayClientErrorHandling:
                 
                 assert "Connection refused" in str(exc_info.value)
 
-    @pytest.mark.xfail(reason="Mock setup for aiohttp ClientSession needs proper async context managers")
     async def test_timeout_error(self):
         """Test that timeout errors are handled properly."""
         client = APIGatewayClient("http://localhost:8080", timeout_seconds=1)
         
         with patch("bot.api_client.ClientSession") as mock_session_class:
+            # Create async context manager for session
             mock_session = MagicMock()
             mock_session.__aenter__ = AsyncMock(return_value=mock_session)
-            mock_session.__aexit__ = AsyncMock()
+            mock_session.__aexit__ = AsyncMock(return_value=None)
             mock_session_class.return_value = mock_session
             
-            mock_session.request = AsyncMock(side_effect=asyncio.TimeoutError())
+            # Make session.request raise TimeoutError
+            mock_session.request = MagicMock(side_effect=asyncio.TimeoutError())
             
             with patch("asyncio.sleep", new_callable=AsyncMock):
                 with pytest.raises(APIGatewayError):
