@@ -16,7 +16,7 @@ class TestOnboardingFlow:
     @pytest.mark.asyncio
     async def test_new_user_onboarding(self):
         """Test complete flow for new user from /start to profile creation."""
-        from bot.main import start_handler, handle_webapp_data
+        from bot.main import start_handler
         
         # Step 1: User sends /start command
         message = MagicMock(spec=Message)
@@ -32,49 +32,19 @@ class TestOnboardingFlow:
             message.answer.assert_called_once()
             call_args = message.answer.call_args
             assert "Mini App" in call_args[0][0] or "WebApp" in str(call_args)
+        
+        # Note: Profile creation now happens directly in WebApp via API Gateway
+        # The bot no longer handles WebApp data - this is part of the minimalist refactoring
 
+    @pytest.mark.skip(reason="Bot no longer handles WebApp data - WebApp communicates directly with API Gateway (minimalist refactoring)")
     @pytest.mark.asyncio
     async def test_profile_creation_flow(self):
-        """Test profile creation through WebApp."""
-        from bot.main import handle_webapp_data
+        """Test profile creation through WebApp.
         
-        # User submits profile data through WebApp
-        profile_data = {
-            "action": "create_profile",
-            "name": "John Doe",
-            "birth_date": "1995-01-15",
-            "gender": "male",
-            "orientation": "male",  # Use actual enum value
-            "goal": "relationship",
-            "city": "Moscow",
-            "bio": "Love hiking and photography",
-            "interests": ["hiking", "photography", "travel"]
-        }
-        
-        message = MagicMock(spec=Message)
-        message.from_user = User(id=12345, is_bot=False, first_name="Test")
-        message.web_app_data = WebAppData(data=json.dumps(profile_data), button_text="Create Profile")
-        message.answer = AsyncMock()
-        
-        # Mock API client
-        mock_api_client = AsyncMock()
-        mock_api_client.create_profile = AsyncMock(return_value={
-            "id": 1,
-            "status": "success",
-            **profile_data
-        })
-        
-        with patch("bot.main.APIGatewayClient", return_value=mock_api_client):
-            with patch("bot.main.load_config") as mock_config:
-                mock_config.return_value = MagicMock(api_gateway_url="http://localhost:8080")
-                
-                await handle_webapp_data(message)
-                
-                # Should create profile via API
-                mock_api_client.create_profile.assert_called_once()
-                
-                # Should confirm to user
-                message.answer.assert_called()
+        DEPRECATED: This test is for the old architecture where bot handled WebApp data.
+        Profile creation now happens directly: WebApp -> API Gateway -> Profile Service
+        """
+        pass  # Test is obsolete after minimalist bot refactoring
 
 
 class TestDiscoveryFlow:
@@ -162,35 +132,15 @@ class TestChatFlow:
 class TestProfileManagementFlow:
     """Test profile editing and management."""
 
+    @pytest.mark.skip(reason="Bot no longer handles WebApp data - WebApp communicates directly with API Gateway (minimalist refactoring)")
     @pytest.mark.asyncio
     async def test_profile_edit_flow(self):
-        """Test editing profile information."""
-        from bot.main import handle_webapp_data
+        """Test editing profile information.
         
-        update_data = {
-            "action": "update_profile",
-            "bio": "Updated bio text",
-            "interests": ["coding", "music", "gaming"]
-        }
-        
-        message = MagicMock(spec=Message)
-        message.from_user = User(id=12345, is_bot=False, first_name="Test")
-        message.web_app_data = WebAppData(data=json.dumps(update_data), button_text="Update Profile")
-        message.answer = AsyncMock()
-        
-        mock_api_client = AsyncMock()
-        mock_api_client.update_profile = AsyncMock(return_value={
-            "status": "success",
-            **update_data
-        })
-        
-        with patch("bot.main.APIGatewayClient", return_value=mock_api_client):
-            with patch("bot.main.load_config") as mock_config:
-                mock_config.return_value = MagicMock(api_gateway_url="http://localhost:8080")
-                
-                await handle_webapp_data(message)
-                
-                mock_api_client.update_profile.assert_called_once()
+        DEPRECATED: This test is for the old architecture where bot handled WebApp data.
+        Profile editing now happens directly: WebApp -> API Gateway -> Profile Service
+        """
+        pass  # Test is obsolete after minimalist bot refactoring
 
     @pytest.mark.asyncio
     async def test_profile_deletion_flow(self):
@@ -207,29 +157,15 @@ class TestProfileManagementFlow:
 class TestLocationFlow:
     """Test location-based features."""
 
+    @pytest.mark.skip(reason="Bot no longer handles location updates - WebApp communicates directly with API Gateway (minimalist refactoring)")
     @pytest.mark.asyncio
     async def test_location_update_flow(self):
-        """Test updating user location."""
-        from bot.main import handle_location
+        """Test updating user location.
         
-        message = MagicMock(spec=Message)
-        message.from_user = User(id=12345, is_bot=False, first_name="Test")
-        message.location = MagicMock(latitude=55.7558, longitude=37.6173)
-        message.answer = AsyncMock()
-        
-        mock_api_client = AsyncMock()
-        mock_api_client.update_location = AsyncMock(return_value={
-            "status": "success",
-            "city": "Moscow"
-        })
-        
-        with patch("bot.main.APIGatewayClient", return_value=mock_api_client):
-            with patch("bot.main.load_config") as mock_config:
-                mock_config.return_value = MagicMock(api_gateway_url="http://localhost:8080")
-                
-                await handle_location(message)
-                
-                mock_api_client.update_location.assert_called_once()
+        DEPRECATED: This test is for the old architecture where bot handled location updates.
+        Location updates now happen directly: WebApp -> API Gateway -> Profile Service
+        """
+        pass  # Test is obsolete after minimalist bot refactoring
 
     @pytest.mark.asyncio
     async def test_distance_filtering_flow(self):
@@ -266,64 +202,25 @@ class TestNotificationFlow:
 class TestErrorHandlingFlow:
     """Test error handling in user flows."""
 
+    @pytest.mark.skip(reason="Bot no longer handles WebApp data validation - validation happens in microservices (minimalist refactoring)")
     @pytest.mark.asyncio
     async def test_invalid_profile_data_handling(self):
-        """Test handling of invalid profile data."""
-        from bot.main import handle_webapp_data
+        """Test handling of invalid profile data.
         
-        invalid_data = {
-            "action": "create_profile",
-            "name": "A",  # Too short
-            "birth_date": "2020-01-01",  # Too young
-            "gender": "invalid",
-            "orientation": "invalid"
-        }
-        
-        message = MagicMock(spec=Message)
-        message.from_user = User(id=12345, is_bot=False, first_name="Test")
-        message.web_app_data = WebAppData(data=json.dumps(invalid_data), button_text="Create")
-        message.answer = AsyncMock()
-        
-        with patch("bot.main.load_config") as mock_config:
-            mock_config.return_value = MagicMock(api_gateway_url="http://localhost:8080")
-            
-            await handle_webapp_data(message)
-            
-            # Should send error message
-            message.answer.assert_called()
-            call_args = message.answer.call_args[0][0]
-            assert "ошибка" in call_args.lower() or "error" in call_args.lower()
+        DEPRECATED: This test is for the old architecture where bot validated WebApp data.
+        Validation now happens in microservices: WebApp -> API Gateway -> Profile Service (with validation)
+        """
+        pass  # Test is obsolete after minimalist bot refactoring
 
+    @pytest.mark.skip(reason="Bot no longer handles WebApp data - error handling happens in WebApp/microservices (minimalist refactoring)")
     @pytest.mark.asyncio
     async def test_network_error_handling(self):
-        """Test handling of network errors."""
-        from bot.main import handle_webapp_data
+        """Test handling of network errors.
         
-        profile_data = {
-            "action": "create_profile",
-            "name": "John Doe",
-            "birth_date": "1995-01-15",
-            "gender": "male",
-            "orientation": "male"  # Use actual enum value
-        }
-        
-        message = MagicMock(spec=Message)
-        message.from_user = User(id=12345, is_bot=False, first_name="Test")
-        message.web_app_data = WebAppData(data=json.dumps(profile_data), button_text="Create")
-        message.answer = AsyncMock()
-        
-        # Mock API client that raises network error
-        mock_api_client = AsyncMock()
-        mock_api_client.create_profile = AsyncMock(side_effect=Exception("Network error"))
-        
-        with patch("bot.main.APIGatewayClient", return_value=mock_api_client):
-            with patch("bot.main.load_config") as mock_config:
-                mock_config.return_value = MagicMock(api_gateway_url="http://localhost:8080")
-                
-                await handle_webapp_data(message)
-                
-                # Should handle error gracefully and notify user
-                message.answer.assert_called()
+        DEPRECATED: This test is for the old architecture where bot handled WebApp errors.
+        Error handling now happens in WebApp: WebApp handles API Gateway errors directly
+        """
+        pass  # Test is obsolete after minimalist bot refactoring
 
 
 class TestAdminFlow:

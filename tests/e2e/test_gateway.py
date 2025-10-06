@@ -88,6 +88,7 @@ class TestProxyRequest:
                 "media_service_url": "http://media-service:8084",
                 "chat_service_url": "http://chat-service:8085",
                 "admin_service_url": "http://admin-service:8086",
+                "notification_service_url": "http://notification-service:8087",
             }
         }
 

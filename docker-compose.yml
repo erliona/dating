@@ -176,8 +176,6 @@ services:
     build:
       context: .
       dockerfile: services/notification/Dockerfile
-    depends_on:
-      - telegram-bot
     environment:
       BOT_URL: ${BOT_URL:-http://telegram-bot:8080}
       NOTIFICATION_SERVICE_HOST: 0.0.0.0
