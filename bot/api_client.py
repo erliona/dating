@@ -432,3 +432,23 @@ class APIGatewayClient:
         return await self._request(
             "POST", "/auth/validate", json_data={"token": token}
         )
+
+    # Location Service endpoints
+    async def update_location(self, location_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update user location.
+
+        Args:
+            location_data: Location data including telegram_id, latitude, longitude, geohash, city
+
+        Returns:
+            Updated location data with city information
+        """
+        telegram_id = location_data.get("telegram_id")
+        if not telegram_id:
+            raise ValueError("telegram_id is required in location_data")
+        
+        return await self._request(
+            "PUT",
+            f"/profiles/{telegram_id}/location",
+            json_data=location_data,
+        )
