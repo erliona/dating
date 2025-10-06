@@ -171,6 +171,25 @@ services:
       retries: 3
     restart: unless-stopped
 
+  # Notification Service - Push notifications to users
+  notification-service:
+    build:
+      context: .
+      dockerfile: services/notification/Dockerfile
+    environment:
+      BOT_URL: ${BOT_URL:-http://telegram-bot:8080}
+      NOTIFICATION_SERVICE_HOST: 0.0.0.0
+      NOTIFICATION_SERVICE_PORT: ${NOTIFICATION_SERVICE_PORT:-8087}
+      PORT: ${NOTIFICATION_SERVICE_PORT:-8087}
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT:-8087}:${NOTIFICATION_SERVICE_PORT:-8087}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8087/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
   # Admin Service - Admin panel for managing the system
   admin-service:
     build:
@@ -205,6 +224,7 @@ services:
       - media-service
       - chat-service
       - admin-service
+      - notification-service
       - traefik
     environment:
       GATEWAY_HOST: 0.0.0.0
@@ -215,6 +235,7 @@ services:
       MEDIA_SERVICE_URL: ${MEDIA_SERVICE_URL:-http://media-service:${MEDIA_SERVICE_PORT:-8084}}
       CHAT_SERVICE_URL: ${CHAT_SERVICE_URL:-http://chat-service:${CHAT_SERVICE_PORT:-8085}}
       ADMIN_SERVICE_URL: ${ADMIN_SERVICE_URL:-http://admin-service:${ADMIN_SERVICE_PORT:-8086}}
+      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:${NOTIFICATION_SERVICE_PORT:-8087}}
     ports:
       - "${GATEWAY_PORT:-8080}:${GATEWAY_PORT:-8080}"
     healthcheck:

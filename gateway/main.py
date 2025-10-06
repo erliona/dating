@@ -101,6 +101,12 @@ async def route_admin(request: web.Request) -> web.Response:
     return await proxy_request(request, admin_url)
 
 
+async def route_notifications(request: web.Request) -> web.Response:
+    """Route to notification service."""
+    notification_url = request.app["config"]["notification_service_url"]
+    return await proxy_request(request, notification_url)
+
+
 async def route_api_auth(request: web.Request) -> web.Response:
     """Route /api/auth/* to auth service, stripping /api prefix."""
     auth_url = request.app["config"]["auth_service_url"]
@@ -146,6 +152,13 @@ async def route_api_media(request: web.Request) -> web.Response:
     return await proxy_request(request, media_url, path_override=new_path)
 
 
+async def route_api_notifications(request: web.Request) -> web.Response:
+    """Route /api/notifications/* to notification service."""
+    notification_url = request.app["config"]["notification_service_url"]
+    # Keep the /api/notifications path as-is
+    return await proxy_request(request, notification_url)
+
+
 async def health_check(request: web.Request) -> web.Response:
     """Health check endpoint."""
     return web.json_response(
@@ -159,6 +172,7 @@ async def health_check(request: web.Request) -> web.Response:
                 "media": request.app["config"]["media_service_url"],
                 "chat": request.app["config"]["chat_service_url"],
                 "admin": request.app["config"]["admin_service_url"],
+                "notification": request.app["config"]["notification_service_url"],
             },
         }
     )
@@ -193,6 +207,7 @@ def create_app(config: dict) -> web.Application:
     app.router.add_route("*", "/chat/{tail:.*}", route_chat)
     app.router.add_route("*", "/admin/{tail:.*}", route_admin)
     app.router.add_route("*", "/admin-panel/{tail:.*}", route_admin)
+    app.router.add_route("*", "/notifications/{tail:.*}", route_notifications)
     
     # Add unified /api/* routes for frontend/WebApp (public API)
     # These provide a consistent API prefix for all public endpoints
@@ -219,6 +234,9 @@ def create_app(config: dict) -> web.Application:
     cors.add(app.router.add_route("*", "/api/photos/upload", route_api_media))
     cors.add(app.router.add_route("*", "/api/photos/{tail:.*}", route_api_media))
     
+    # Notification endpoints
+    cors.add(app.router.add_route("*", "/api/notifications/{tail:.*}", route_api_notifications))
+    
     # Health check
     app.router.add_get("/health", health_check)
 
@@ -243,6 +261,9 @@ if __name__ == "__main__":
         "chat_service_url": os.getenv("CHAT_SERVICE_URL", "http://chat-service:8085"),
         "admin_service_url": os.getenv(
             "ADMIN_SERVICE_URL", "http://admin-service:8086"
+        ),
+        "notification_service_url": os.getenv(
+            "NOTIFICATION_SERVICE_URL", "http://notification-service:8087"
         ),
         "webapp_domain": os.getenv("WEBAPP_DOMAIN", "*"),  # CORS: Allow all origins by default
         "host": os.getenv("GATEWAY_HOST", "0.0.0.0"),

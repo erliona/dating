@@ -6,6 +6,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+pytestmark = pytest.mark.e2e
+
 from bot.db import Favorite, Interaction, Match, Profile, User
 from bot.repository import ProfileRepository
 
