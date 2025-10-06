@@ -2,6 +2,9 @@
 
 import pytest
 
+pytestmark = pytest.mark.unit
+
+
 from bot.geo import (
     encode_geohash,
     get_default_location,

@@ -4,6 +4,9 @@ import time
 
 import pytest
 
+pytestmark = pytest.mark.unit
+
+
 from bot.cache import Cache, get_cache
 
 

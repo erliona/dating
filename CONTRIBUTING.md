@@ -235,7 +235,32 @@ def createProfile(userId,n,a,i):
 
 ## Тестирование
 
-**Current Status**: 162 tests, 76% code coverage
+**Current Status**: 360+ comprehensive tests organized by type
+
+### Структура тестов
+
+Тесты организованы в три категории:
+
+- **`tests/unit/`** - Unit tests для отдельных функций и модулей
+  - `test_api_client.py` - тесты API Gateway клиента
+  - `test_config.py` - тесты конфигурации
+  - `test_validation.py` - тесты валидации данных
+  - `test_core_services.py` - тесты сервисов (профиль, матчинг, пользователи)
+  - `test_cache.py`, `test_geo.py`, `test_utils.py` - вспомогательные модули
+
+- **`tests/integration/`** - Integration tests для взаимодействия компонентов
+  - `test_api.py` - HTTP API endpoints
+  - `test_security.py` - аутентификация и безопасность
+  - `test_media.py` - обработка медиа файлов
+  - `test_repository.py` - работа с базой данных
+  - `test_monitoring_config.py` - конфигурация мониторинга
+
+- **`tests/e2e/`** - End-to-end tests для полных пользовательских сценариев
+  - `test_user_flows.py` - создание профиля, discovery, матчинг
+  - `test_main.py` - бот handlers и команды
+  - `test_discovery.py` - система поиска и рекомендаций
+  - `test_gateway.py` - API Gateway маршрутизация
+  - `test_admin.py` - админ панель
 
 ### Требования к тестам
 
@@ -280,17 +305,35 @@ def createProfile(userId,n,a,i):
 # Все тесты
 pytest -v
 
+# По категориям (используя markers)
+pytest -m unit -v              # Только unit tests (быстрые ~2s)
+pytest -m integration -v       # Только integration tests (~4s)
+pytest -m e2e -v              # Только e2e tests (~3s)
+
+# По директориям
+pytest tests/unit/ -v          # Unit tests
+pytest tests/integration/ -v   # Integration tests
+pytest tests/e2e/ -v          # E2E tests
+
 # Конкретный файл
-pytest tests/test_your_feature.py -v
+pytest tests/unit/test_validation.py -v
 
 # С покрытием
-pytest --cov=bot --cov-report=term --cov-report=html
+pytest --cov=bot --cov=core --cov=services --cov-report=term --cov-report=html
+
+# С таймаутом (предотвращает зависания)
+pytest -m e2e --timeout=900 -v           # E2E с таймаутом 15 мин
+pytest -m integration --timeout=600 -v   # Integration с таймаутом 10 мин
 
 # Быстрая проверка (только упавшие)
 pytest --lf -v
-```
 
-См. подробнее: [📘 Testing Guide](docs/TESTING.md)
+# Пропустить xfail тесты
+pytest --no-xfail -v
+
+# Параллельный запуск (если установлен pytest-xdist)
+pytest -n auto
+```
 
 ---
 

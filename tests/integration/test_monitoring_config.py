@@ -2,6 +2,10 @@
 Test monitoring configuration files for validity and completeness.
 """
 
+import pytest
+
+pytestmark = pytest.mark.integration
+
 import json
 import os
 from pathlib import Path
