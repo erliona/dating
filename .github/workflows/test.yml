@@ -75,7 +75,7 @@ jobs:
         env:
           DATABASE_URL: postgresql+asyncpg://dating:test_password@localhost:5432/dating_test
           BOT_DATABASE_URL: postgresql+asyncpg://dating:test_password@localhost:5432/dating_test
-          BOT_TOKEN: test:token
+          BOT_TOKEN: "123456789:ABCdefGHIjklMNOpqrsTUVwxyz-test-token"
           JWT_SECRET: test-secret-key-for-testing-32chars
           API_GATEWAY_URL: http://localhost:8080
         run: |
