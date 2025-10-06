@@ -65,6 +65,72 @@ def get_api_client() -> APIGatewayClient:
     return _api_client_cache
 
 
+@router.message(lambda m: m.location is not None)
+async def handle_location(message: Message, dispatcher: Dispatcher = None) -> None:
+    """Handle location updates from user.
+
+    Args:
+        message: Message with location data
+        dispatcher: Optional dispatcher for DI
+    """
+    logger = logging.getLogger(__name__)
+
+    if not message.location:
+        await message.answer("❌ No location data received")
+        return
+
+    try:
+        # Get API client
+        api_client = None
+        if dispatcher:
+            api_client = dispatcher.workflow_data.get("api_client")
+            if not api_client:
+                logger.error("API client not configured in dispatcher")
+                await message.answer("❌ API Gateway not configured")
+                return
+        else:
+            # No dispatcher - use module-level cached client
+            try:
+                api_client = get_api_client()
+            except Exception as e:
+                logger.error(f"Failed to get API client: {e}")
+                await message.answer("❌ API Gateway not configured")
+                return
+
+        # Process location data
+        location = process_location_data(
+            latitude=message.location.latitude,
+            longitude=message.location.longitude,
+        )
+
+        # Update location via API Gateway
+        location_data = {
+            "telegram_id": message.from_user.id,
+            "latitude": message.location.latitude,
+            "longitude": message.location.longitude,
+            "geohash": location.get("geohash"),
+            "city": location.get("city"),
+        }
+
+        result = await api_client.update_location(location_data)
+
+        logger.info(
+            "Location updated successfully",
+            extra={
+                "event_type": "location_updated",
+                "user_id": message.from_user.id,
+                "city": result.get("city", "unknown"),
+            },
+        )
+
+        city = result.get("city", "не указан")
+        await message.answer(f"✅ Location updated: {city}")
+
+    except Exception as exc:
+        logger.error(f"Error updating location: {exc}", exc_info=True)
+        await message.answer("❌ Failed to update location")
+
+
 @router.message(lambda m: m.web_app_data is not None)
 async def handle_webapp_data(message: Message, dispatcher: Dispatcher = None) -> None:
     """Handle data received from WebApp.
@@ -264,71 +330,6 @@ async def handle_update_profile(
     except Exception as exc:
         logger.error(f"Error updating profile: {exc}", exc_info=True)
         await message.answer(f"❌ Failed to update profile")
-
-
-async def handle_location(message: Message, dispatcher: Dispatcher = None) -> None:
-    """Handle location updates from user.
-
-    Args:
-        message: Message with location data
-        dispatcher: Optional dispatcher for DI
-    """
-    logger = logging.getLogger(__name__)
-
-    if not message.location:
-        await message.answer("❌ No location data received")
-        return
-
-    try:
-        # Get API client
-        api_client = None
-        if dispatcher:
-            api_client = dispatcher.workflow_data.get("api_client")
-            if not api_client:
-                logger.error("API client not configured in dispatcher")
-                await message.answer("❌ API Gateway not configured")
-                return
-        else:
-            # No dispatcher - use module-level cached client
-            try:
-                api_client = get_api_client()
-            except Exception as e:
-                logger.error(f"Failed to get API client: {e}")
-                await message.answer("❌ API Gateway not configured")
-                return
-
-        # Process location data
-        location = process_location_data(
-            latitude=message.location.latitude,
-            longitude=message.location.longitude,
-        )
-
-        # Update location via API Gateway
-        location_data = {
-            "telegram_id": message.from_user.id,
-            "latitude": message.location.latitude,
-            "longitude": message.location.longitude,
-            "geohash": location.get("geohash"),
-            "city": location.get("city"),
-        }
-
-        result = await api_client.update_location(location_data)
-
-        logger.info(
-            "Location updated successfully",
-            extra={
-                "event_type": "location_updated",
-                "user_id": message.from_user.id,
-                "city": result.get("city", "unknown"),
-            },
-        )
-
-        city = result.get("city", "не указан")
-        await message.answer(f"✅ Location updated: {city}")
-
-    except Exception as exc:
-        logger.error(f"Error updating location: {exc}", exc_info=True)
-        await message.answer("❌ Failed to update location")
 
 
 async def main() -> None:
