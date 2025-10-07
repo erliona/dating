@@ -98,7 +98,7 @@ async def login_handler(request: web.Request) -> web.Response:
             )
 
     except Exception as e:
-        logger.error(f"Login error: {e}")
+        logger.error(f"Login error: {e}", exc_info=True)
         return web.json_response({"error": "Internal server error"}, status=500)
 
 
@@ -178,7 +178,7 @@ async def get_stats_handler(request: web.Request) -> web.Response:
             )
 
     except Exception as e:
-        logger.error(f"Error getting stats: {e}")
+        logger.error(f"Error getting stats: {e}", exc_info=True)
         return web.json_response({"error": "Internal server error"}, status=500)
 
 
@@ -239,7 +239,7 @@ async def list_users_handler(request: web.Request) -> web.Response:
             )
 
     except Exception as e:
-        logger.error(f"Error listing users: {e}")
+        logger.error(f"Error listing users: {e}", exc_info=True)
         return web.json_response({"error": "Internal server error"}, status=500)
 
 
@@ -350,7 +350,7 @@ async def get_user_handler(request: web.Request) -> web.Response:
     except ValueError:
         return web.json_response({"error": "Invalid user ID"}, status=400)
     except Exception as e:
-        logger.error(f"Error getting user: {e}")
+        logger.error(f"Error getting user: {e}", exc_info=True)
         return web.json_response({"error": "Internal server error"}, status=500)
 
 
@@ -389,7 +389,7 @@ async def update_user_handler(request: web.Request) -> web.Response:
     except ValueError:
         return web.json_response({"error": "Invalid user ID"}, status=400)
     except Exception as e:
-        logger.error(f"Error updating user: {e}")
+        logger.error(f"Error updating user: {e}", exc_info=True)
         return web.json_response({"error": "Internal server error"}, status=500)
 
 
@@ -447,7 +447,7 @@ async def list_photos_handler(request: web.Request) -> web.Response:
             )
 
     except Exception as e:
-        logger.error(f"Error listing photos: {e}")
+        logger.error(f"Error listing photos: {e}", exc_info=True)
         return web.json_response({"error": "Internal server error"}, status=500)
 
 
@@ -477,7 +477,7 @@ async def update_photo_handler(request: web.Request) -> web.Response:
     except ValueError:
         return web.json_response({"error": "Invalid photo ID"}, status=400)
     except Exception as e:
-        logger.error(f"Error updating photo: {e}")
+        logger.error(f"Error updating photo: {e}", exc_info=True)
         return web.json_response({"error": "Internal server error"}, status=500)
 
 
@@ -504,7 +504,7 @@ async def delete_photo_handler(request: web.Request) -> web.Response:
     except ValueError:
         return web.json_response({"error": "Invalid photo ID"}, status=400)
     except Exception as e:
-        logger.error(f"Error deleting photo: {e}")
+        logger.error(f"Error deleting photo: {e}", exc_info=True)
         return web.json_response({"error": "Internal server error"}, status=500)
 
 
