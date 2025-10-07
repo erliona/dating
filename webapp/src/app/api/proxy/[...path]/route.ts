@@ -10,10 +10,10 @@ import { NextRequest, NextResponse } from "next/server";
  *   fetch('/api/proxy/profiles/123', { credentials: 'include' })
  *
  * Environment Variables:
- *   NEXT_PUBLIC_API_URL - Backend API Gateway URL (default: http://api-gateway:8080)
+ *   API_URL - Backend API Gateway URL (default: http://api-gateway:8080)
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://api-gateway:8080";
+const API_BASE_URL = process.env.API_URL || "http://api-gateway:8080";
 
 async function handler(
   request: NextRequest,
