@@ -62,6 +62,8 @@ jobs:
 
       - name: Run Playwright smoke tests
         run: npm test
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
 
       - name: Upload test results
         if: always()
