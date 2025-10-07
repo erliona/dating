@@ -35,14 +35,14 @@ wait_for_database() {
     
     MAX_WAIT=30
     WAIT_COUNT=0
-    
+    DB_CONNECT_TIMEOUT="${DB_CONNECT_TIMEOUT:-15}"
     while [ $WAIT_COUNT -lt $MAX_WAIT ]; do
-      if nc -z -w5 "$DB_HOST" "$DB_PORT" 2>/dev/null; then
+      if nc -z -w"$DB_CONNECT_TIMEOUT" "$DB_HOST" "$DB_PORT" 2>/dev/null; then
         log_info "Database is ready"
         return 0
       fi
       WAIT_COUNT=$((WAIT_COUNT + 1))
-      echo "   Attempt $WAIT_COUNT/$MAX_WAIT - waiting 2s..."
+      echo "   Attempt $WAIT_COUNT/$MAX_WAIT - waiting 2s (timeout: ${DB_CONNECT_TIMEOUT}s)..."
       sleep 2
     done
     
