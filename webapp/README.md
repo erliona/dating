@@ -4,13 +4,17 @@ Public web application for Dating service built with Next.js 15, TypeScript, Tai
 
 ## 🚀 Tech Stack
 
-- **Framework**: Next.js 15 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS v4
+- **Framework**: Next.js 15.5.4 (App Router)
+- **Runtime**: React 19.1.0 + React DOM 19.1.0 (verified compatible with Next.js 15)
+- **Language**: TypeScript (strict mode)
+- **Styling**: Tailwind CSS v4 (PostCSS plugin)
 - **UI Components**: shadcn/ui + lucide-react
-- **State Management**: TanStack Query
-- **Internationalization**: next-intl (ru/en)
+- **State Management**: TanStack Query v5
+- **Internationalization**: next-intl (ru/en with auto-detection)
+- **Testing**: Playwright (smoke tests)
 - **Code Quality**: ESLint + Prettier
+
+> **Note**: React 19 is compatible with Next.js 15.5.4. All builds, SSR, and dev server are verified working. Version pinning is handled via `.npmrc` with `save-exact=true`.
 
 ## 📁 Project Structure
 
