@@ -79,3 +79,9 @@ webapp/*_old.*
 # Exclude version number files
 =*
 coverage.xml
+
+# Next.js
+webapp/.next/
+webapp/out/
+webapp/node_modules/
+webapp/.env*.local

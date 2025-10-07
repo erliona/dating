@@ -1,436 +1,357 @@
-# 📱 Dating Mini App - Frontend
+# Dating Web App - Next.js 15
 
-Telegram Mini App для сервиса знакомств Dating.
+Public web application for Dating service built with Next.js 15, TypeScript, Tailwind CSS, and shadcn/ui.
 
----
+## 🚀 Tech Stack
 
-## 📂 Структура
+- **Framework**: Next.js 15.5.4 (App Router)
+- **Runtime**: React 19.1.0 + React DOM 19.1.0 (verified compatible with Next.js 15)
+- **Language**: TypeScript (strict mode)
+- **Styling**: Tailwind CSS v4 (PostCSS plugin)
+- **UI Components**: shadcn/ui + lucide-react
+- **State Management**: TanStack Query v5
+- **Internationalization**: next-intl (ru/en with auto-detection)
+- **Testing**: Playwright (smoke tests)
+- **Code Quality**: ESLint + Prettier
+
+> **Note**: React 19 is compatible with Next.js 15.5.4. All builds, SSR, and dev server are verified working. Version pinning is handled via `.npmrc` with `save-exact=true`.
+
+## 📁 Project Structure
 
 ```
 webapp/
-├── index.html          # Главная страница приложения
-├── test.html           # Тестовая страница для проверки интеграции
-├── css/
-│   └── style.css      # Стили с Telegram Theme API
-└── js/
-    ├── app.js         # Основная логика и Telegram WebApp интеграция
-    ├── discovery.js   # Поиск партнёров и свайпы
-    └── navigation.js  # Навигация между экранами
+├── src/
+│   ├── app/
+│   │   ├── [locale]/         # Localized routes
+│   │   │   ├── layout.tsx    # Locale-specific layout
+│   │   │   └── page.tsx      # Home page
+│   │   ├── layout.tsx        # Root layout
+│   │   └── globals.css       # Global styles
+│   ├── shared/
+│   │   ├── lib/              # Utilities (cn, etc.)
+│   │   ├── providers/        # React Query provider
+│   │   └── ui/               # shadcn/ui components (to be added)
+│   ├── entities/             # Domain entities (to be added)
+│   ├── features/             # Feature components
+│   │   └── language-switcher/  # Language switcher component
+│   └── i18n/                 # i18n configuration
+│       ├── routing.ts        # Route configuration
+│       └── request.ts        # Server-side i18n config
+├── messages/
+│   ├── ru.json               # Russian translations
+│   └── en.json               # English translations
+├── public/                   # Static assets
+├── Dockerfile                # Production Docker build
+├── next.config.ts            # Next.js configuration
+├── tsconfig.json             # TypeScript configuration
+├── tailwind.config.ts        # Tailwind configuration
+└── package.json              # Dependencies and scripts
 ```
 
----
+## 🛠️ Development
 
-## 🚀 Быстрый старт
+### Prerequisites
 
-### Локальный запуск
+- Node.js 20+
+- npm or yarn
+
+### Install Dependencies
 
 ```bash
-# Python HTTP сервер
-cd webapp/
-python3 -m http.server 8000
-# Открыть: http://localhost:8000
-
-# Или с Node.js
-npx http-server -p 8000
+npm install
 ```
 
-### Тестирование в Telegram
+### Run Development Server
 
-1. **Запустить ngrok:**
 ```bash
-ngrok http 8000
+npm run dev
 ```
 
-2. **Обновить URL в BotFather:**
-```
-/setmenubutton
-<выберите бота>
-<выберите "Edit menu button URL">
-<вставьте https://xxxxx.ngrok.io URL>
-```
+Open [http://localhost:3000](http://localhost:3000) to view the app.
 
-3. **Открыть бота в Telegram и нажать кнопку Menu**
+The app will automatically redirect to `/ru` (default locale) or `/en`.
 
----
+### Available Scripts
 
-## 🧩 Ключевые файлы
+```bash
+# Development
+npm run dev          # Start dev server (port 3000)
 
-### `index.html`
+# Production
+npm run build        # Build for production
+npm start            # Start production server
 
-Основная страница с экранами:
-- **Onboarding** - Приветствие
-- **Profile Form** - Создание профиля
-- **Success Screen** - Подтверждение создания
-- **Discovery Screen** - Поиск партнёров (свайпы)
-- **Matches Screen** - Взаимные симпатии
-- **Favorites Screen** - Избранные профили
-- **Profile Edit** - Редактирование своего профиля
-- **Settings** - Настройки приватности
-
-### `js/app.js`
-
-Основная логика приложения:
-
-```javascript
-// Инициализация Telegram WebApp
-initTelegramWebApp()
-
-// Управление темой
-applyTheme()
-setupThemeListener()
-
-// Управление UI
-showOnboarding()
-showLoading()
-showError()
-
-// Работа с формами
-setupProfileForm()
-handleProfileSubmit()
+# Code Quality
+npm run lint         # Run ESLint
+npm run format       # Format code with Prettier
+npm run format:check # Check formatting
+npm run type-check   # Run TypeScript compiler
 ```
 
-### `js/discovery.js`
+## 🐳 Docker Deployment
 
-Функционал поиска партнёров:
+### Build Docker Image
 
-```javascript
-// Загрузка карточек
-loadDiscoveryCards()
-
-// Действия
-handleLike()
-handlePass()
-handleSuperlike()
-handleAddFavorite()
-
-// Фильтры
-applyFilters()
+```bash
+docker build -t dating-webapp .
 ```
 
-### `js/navigation.js`
+### Run with Docker Compose
 
-Навигация и управление экранами:
-
-```javascript
-// Показать экраны
-showProfileEdit()
-showSettings()
-showDiscoveryFromNav()
-
-// Управление навигацией
-showBottomNav()
-setActiveTab()
+```bash
+# From the project root
+docker compose --profile webapp up -d
 ```
 
-### `css/style.css`
+The webapp will be available at:
 
-Стили с использованием CSS переменных Telegram:
+- **Local**: http://localhost:3000
+- **Traefik**: https://app.yourdomain.com (production)
 
-```css
-:root {
-  --tg-theme-bg-color: #ffffff;
-  --tg-theme-text-color: #000000;
-  --tg-theme-button-color: #2481cc;
-  /* ... */
-}
+### Environment Variables
+
+Create `.env.local` for local development:
+
+```env
+# API Configuration (optional)
+NEXT_PUBLIC_API_URL=http://localhost:8080
 ```
 
----
+## 🔗 Monorepo Integration
 
-## 🎨 Telegram UI Components
+### API Gateway Connection
 
-### MainButton
+The webapp communicates with the backend through a secure API proxy:
 
-Основная кнопка действия в нижней части экрана:
+**Local Development:**
 
-```javascript
-// Показать кнопку
-tg.MainButton.setText('Создать профиль');
-tg.MainButton.show();
-tg.MainButton.enable();
+```bash
+# Start API Gateway and services
+docker compose up -d api-gateway profile-service
 
-// Обработчик
-tg.MainButton.onClick(handleSubmit);
-
-// Скрыть
-tg.MainButton.hide();
-
-// Удалить обработчик перед добавлением нового
-tg.MainButton.offClick(oldHandler);
+# Start webapp in dev mode
+cd webapp
+npm run dev
 ```
 
-**Используется на экранах:**
-- Onboarding: "Начать знакомства"
-- Profile Form: "Создать анкету"
-- Profile Edit: "Сохранить изменения"
+**Environment Variables:**
 
-### BackButton
+```env
+# Backend API (Server-side)
+NEXT_PUBLIC_API_URL=http://api-gateway:8080  # Docker Compose
+# or
+NEXT_PUBLIC_API_URL=http://localhost:8080     # Local development
 
-Кнопка назад в шапке:
+# Public Site URL (for sitemap, etc.)
+NEXT_PUBLIC_SITE_URL=https://app.your-domain.com
 
-```javascript
-tg.BackButton.show();
-tg.BackButton.onClick(handleBack);
-tg.BackButton.hide();
+# Optional: Custom webapp port
+WEBAPP_PORT=3000
 ```
 
-### HapticFeedback
+**Required for Production:**
 
-Тактильная обратная связь:
+- `NEXT_PUBLIC_API_URL` - Backend API Gateway URL
+- `NEXT_PUBLIC_SITE_URL` - Public site URL for SEO
+- `BOT_TOKEN` - For Telegram integration (if using Mini App)
 
-```javascript
-// При нажатии на кнопки
-tg.HapticFeedback.impactOccurred('medium');
+### Docker Compose Profiles
 
-// При успехе
-tg.HapticFeedback.notificationOccurred('success');
+The webapp service is profile-gated:
 
-// При ошибке
-tg.HapticFeedback.notificationOccurred('error');
+```bash
+# Start only backend services
+docker compose up -d
+
+# Start with webapp
+docker compose --profile webapp up -d
+
+# Start with monitoring + webapp
+docker compose --profile monitoring --profile webapp up -d
 ```
 
-### Theme API
+### API Integration Example
 
-Автоматическая адаптация под тему Telegram:
+```typescript
+import { apiClient } from "@/shared/lib/api-client";
 
-```javascript
-// Применение темы
-function applyTheme() {
-  const themeParams = tg.themeParams;
-  for (const [key, cssVar] of Object.entries(themeMap)) {
-    root.style.setProperty(cssVar, themeParams[key]);
+// All requests go through /api/proxy with httpOnly cookies
+const profile = await apiClient.get("/profiles/123");
+const newProfile = await apiClient.post("/profiles", { name: "John", age: 25 });
+```
+
+The API proxy (`/api/proxy/[...path]`) automatically:
+
+- Forwards requests to API Gateway
+- Handles httpOnly cookies (secure token storage)
+- Manages CORS
+- Returns proper error responses
+
+## 🌍 Internationalization
+
+The app supports Russian (default) and English.
+
+### Adding New Languages
+
+1. Add locale to `src/i18n/routing.ts`:
+
+```typescript
+locales: ["ru", "en", "es"], // Add new locale
+```
+
+2. Create translation file `messages/es.json`:
+
+```json
+{
+  "home": {
+    "title": "Bienvenido a Dating",
+    "description": "Aplicación de citas en Telegram",
+    "getStarted": "Comenzar"
   }
 }
-
-// Слушатель изменений
-tg.onEvent('themeChanged', applyTheme);
 ```
 
----
+### Using Translations
 
-## 🔌 Интеграция с Backend
+```tsx
+import { useTranslations } from "next-intl";
 
-### API Gateway
-
-Все запросы через Gateway (порт 8080):
-
-```javascript
-const API_BASE_URL = window.location.protocol + '//' + 
-                     window.location.hostname + ':8080';
-```
-
-### Аутентификация
-
-```javascript
-// Получить JWT токен
-async function getAuthToken() {
-  const response = await fetch(`${API_BASE_URL}/auth/telegram`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ init_data: tg.initData })
-  });
-  return (await response.json()).access_token;
+export function MyComponent() {
+  const t = useTranslations("home");
+  return <h1>{t("title")}</h1>;
 }
-
-// Использовать в запросах
-fetch(`${API_BASE_URL}/api/profile`, {
-  headers: { 'Authorization': `Bearer ${authToken}` }
-});
 ```
 
-### Микросервисы
+## 🎨 Adding UI Components
 
-| Endpoint | Сервис | Описание |
-|----------|--------|----------|
-| `/auth/*` | Auth Service (8081) | JWT токены |
-| `/profiles/*` | Profile Service (8082) | CRUD профилей |
-| `/discovery/*` | Discovery Service (8083) | Поиск и матчинг |
-| `/media/*` | Media Service (8084) | Загрузка фото |
-| `/chat/*` | Chat Service (8085) | Сообщения |
-
----
-
-## 🧪 Тестирование
-
-### Тестовая страница
-
-Откройте `test.html` для проверки интеграции:
+This project is set up for shadcn/ui. To add components:
 
 ```bash
-# Запустить сервер
-python3 -m http.server 8000
+# Example: Add Button component
+npx shadcn@latest add button
 
-# Открыть в браузере
-open http://localhost:8000/test.html
+# Example: Add Card component
+npx shadcn@latest add card
 ```
 
-Страница проверит:
-- ✓ Загрузку Telegram WebApp SDK
-- ✓ CSS переменные темы
-- ✓ Доступность UI компонентов
-- ✓ Информацию о платформе
+Components will be added to `src/shared/ui/`.
 
-### Ручное тестирование
+## 🔧 Configuration
 
-1. **В браузере** - проверка вёрстки и логики
-2. **В Telegram Desktop** - полная проверка с DevTools
-3. **В Telegram Mobile** - финальная проверка на устройстве
+### Path Aliases
 
-### Отладка
+The project uses `@/*` alias for imports:
 
-```javascript
-// Проверить состояние WebApp
-console.log('Telegram WebApp:', tg);
-console.log('User:', tg.initDataUnsafe.user);
-console.log('Theme:', tg.colorScheme);
-console.log('Platform:', tg.platform);
-
-// Проверить MainButton
-console.log('MainButton visible:', tg.MainButton.isVisible);
-console.log('MainButton active:', tg.MainButton.isActive);
+```typescript
+import { cn } from "@/shared/lib/utils";
+import { QueryProvider } from "@/shared/providers/query-provider";
 ```
 
----
+### ESLint & Prettier
 
-## 📦 Production Build
+- ESLint configured with Next.js rules
+- Prettier configured with Tailwind plugin for class sorting
+- Run `npm run format` before committing
 
-### Минификация
+### TypeScript
+
+Strict mode enabled. Run `npm run type-check` to verify types.
+
+## 🧪 Testing
+
+### Smoke Tests (Playwright)
 
 ```bash
-# JavaScript
-npx terser js/app.js -c -m -o js/app.min.js
-npx terser js/discovery.js -c -m -o js/discovery.min.js
-npx terser js/navigation.js -c -m -o js/navigation.min.js
+# Run all tests
+npm test
 
-# CSS
-npx csso css/style.css -o css/style.min.css
+# Run with UI
+npm run test:ui
+
+# Run in headed mode
+npm run test:headed
 ```
 
-### Обновить index.html
+**Tests include:**
 
-```html
-<!-- Production -->
-<link rel="stylesheet" href="css/style.min.css">
-<script src="js/app.min.js"></script>
-<script src="js/discovery.min.js"></script>
-<script src="js/navigation.min.js"></script>
-```
+- Health endpoint verification
+- Homepage rendering
+- Language switching
+- API proxy accessibility
 
-### HTTPS
+### Health Check
 
-⚠️ **Важно:** Для production обязательно нужен HTTPS!
+The webapp exposes a health endpoint for monitoring:
 
 ```bash
-# Использовать Let's Encrypt через Traefik
-# см. docker-compose.yml в корне проекта
+curl http://localhost:3000/api/health
 ```
 
----
+Response:
 
-## 🎯 Best Practices
-
-### ✅ DO
-
-- Использовать MainButton вместо обычных кнопок
-- Добавлять Haptic Feedback на все действия
-- Адаптироваться к теме Telegram автоматически
-- Удалять старые обработчики перед добавлением новых
-- Использовать `tg.showAlert()` вместо `alert()`
-- Проверять `tg` перед использованием API
-
-### ❌ DON'T
-
-- Не использовать custom модальные окна (используйте tg.showPopup)
-- Не блокировать UI долгими операциями
-- Не забывать про Safe Areas (iPhone X+)
-- Не игнорировать viewport changes
-- Не хранить чувствительные данные в localStorage
-
----
-
-## 🐛 Common Issues
-
-### Проблема: MainButton не показывается
-
-```javascript
-// Решение: убедиться что вызваны show() и enable()
-tg.MainButton.show();
-tg.MainButton.enable();
-
-// Проверить состояние
-console.log('Visible:', tg.MainButton.isVisible);
-console.log('Active:', tg.MainButton.isActive);
+```json
+{
+  "status": "healthy",
+  "service": "webapp",
+  "timestamp": "2025-01-27T10:00:00.000Z",
+  "uptime": 123.45
+}
 ```
 
-### Проблема: Тема не применяется
+## 📦 Building for Production
 
-```javascript
-// Решение: убедиться что applyTheme() вызывается после инициализации
-setTimeout(applyTheme, 100);
+```bash
+# Build optimized production bundle
+npm run build
 
-// Или подписаться на событие
-tg.ready(() => applyTheme());
+# Preview production build locally
+npm start
 ```
 
-### Проблема: WebApp не открывается в Telegram
+Production build includes:
 
-1. Проверить что URL использует HTTPS (для production)
-2. Проверить что URL правильно настроен в BotFather
-3. Проверить что SDK загружается (`<script src="https://telegram.org/js/telegram-web-app.js"></script>`)
+- Server-side rendering (SSR)
+- Static optimization
+- Image optimization
+- Code splitting
+- Minification
 
----
+## 🚢 Deployment Checklist
 
-## 📚 Дополнительная документация
+- [ ] Set `NEXT_PUBLIC_API_URL` environment variable
+- [ ] Configure `DOMAIN` in `.env` for Traefik
+- [ ] Set up SSL certificates (Let's Encrypt via Traefik)
+- [ ] Run `npm run build` to verify build succeeds
+- [ ] Test language switching works
+- [ ] Verify all pages render correctly
+- [ ] Check mobile responsiveness
 
-- 🚀 [Quick Start Guide](../docs/MINIAPP_QUICK_START.md)
-- 📱 [Architecture Documentation](../docs/MINIAPP_ARCHITECTURE.md)
-- 🔌 [Port Mapping](../docs/PORT_MAPPING.md)
-- 📊 [Monitoring Setup](../docs/MONITORING_SETUP.md)
+## 📚 Learn More
 
-### Official Resources
+- [Next.js Documentation](https://nextjs.org/docs)
+- [Next.js App Router](https://nextjs.org/docs/app)
+- [Tailwind CSS](https://tailwindcss.com/docs)
+- [shadcn/ui](https://ui.shadcn.com/)
+- [TanStack Query](https://tanstack.com/query/latest)
+- [next-intl](https://next-intl-docs.vercel.app/)
 
-- [Telegram WebApp API](https://core.telegram.org/bots/webapps)
-- [Telegram Bot API](https://core.telegram.org/bots/api)
-- [WebApp Demo](https://t.me/DurgerKingBot)
+## 🤝 Contributing
 
----
+1. Create a feature branch
+2. Make your changes
+3. Run linting: `npm run lint`
+4. Format code: `npm run format`
+5. Check types: `npm run type-check`
+6. Test locally: `npm run dev`
+7. Build production: `npm run build`
+8. Create pull request
 
-## 🔄 Changelog
+## 📝 License
 
-### v1.3.0 (2025-01-06)
-
-- ✨ Добавлена поддержка Telegram MainButton
-- ✨ Добавлена поддержка BackButton
-- ✨ Улучшена интеграция с Theme API
-- ✨ Добавлена поддержка viewport changes
-- ✨ Расширены CSS переменные для темы
-- 📝 Добавлена полная документация
-- 🧪 Добавлена тестовая страница
-
-### v1.2.0
-
-- ✨ Добавлен экран редактирования профиля
-- ✨ Добавлена нижняя навигация
-- ✨ Улучшена работа с фото
-
-### v1.1.0
-
-- ✨ Добавлен поиск партнёров (discovery)
-- ✨ Добавлены фильтры
-- ✨ Добавлена система матчинга
-
-### v1.0.0
-
-- 🎉 Первый релиз
-- ✨ Создание профиля
-- ✨ Интеграция с Telegram WebApp
+Part of the Dating project. See main repository for license details.
 
 ---
 
-**Version:** 1.3.0  
-**Last Updated:** 2025-01-06  
-**Maintainer:** Dating Team
-
----
-
-*Для вопросов и предложений создавайте Issues на GitHub*
+**Version**: 1.0.0  
+**Last Updated**: 2025-01-27  
+**Framework**: Next.js 15.5.4
