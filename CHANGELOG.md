@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Admin Timezone Issue** - Fixed timezone-aware datetime handling in Admin model
+  - Updated Admin model to use `DateTime(timezone=True)` for `last_login`, `created_at`, and `updated_at` columns
+  - Created migration `004_fix_admin_timezone.py` to convert database columns from TIMESTAMP to TIMESTAMPTZ
+  - Resolved PostgreSQL/asyncpg error: "can't subtract offset-naive and offset-aware datetimes"
+  - Added unit tests to verify timezone-aware datetime handling (3 tests)
+
 ### Changed
 - **Legacy Documentation Cleanup** - Archived completed refactoring and summary documentation
   - Moved 13 legacy summary files to `docs/archive/`
