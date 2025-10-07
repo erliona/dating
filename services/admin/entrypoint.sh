@@ -74,10 +74,11 @@ run_migrations() {
   RETRY_DELAY=3
   
   for i in $(seq 1 $MAX_RETRIES); do
-    if alembic upgrade head 2>&1; then
+    if output=$(alembic upgrade head 2>&1); then
       log_info "Database migrations completed successfully"
       return 0
     else
+      log_error "Migration failed: $output"
       if [ "$i" -eq "$MAX_RETRIES" ]; then
         log_error "Failed to apply database migrations after $MAX_RETRIES attempts"
         exit 1
