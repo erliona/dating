@@ -277,17 +277,19 @@ services:
       start_period: 40s
     restart: unless-stopped
 
-  # WebApp (static files)
-  # Note: This service is optional. Only enable if you want to serve static web files.
-  # If port 80 is already in use, you can disable this service or change the port.
+  # WebApp (Next.js)
+  # Note: This service is optional. Use --profile webapp to enable.
   webapp:
-    image: nginx:alpine
+    build:
+      context: ./webapp
+      dockerfile: Dockerfile
     depends_on:
       - traefik
-    volumes:
-      - ./webapp:/usr/share/nginx/html:ro
-    expose:
-      - "80"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+    ports:
+      - "${WEBAPP_PORT:-3000}:3000"
     restart: unless-stopped
     profiles:
       - webapp
@@ -296,7 +298,7 @@ services:
       # HTTP router
       - "traefik.http.routers.webapp.rule=Host(`app.${DOMAIN:-localhost}`)"
       - "traefik.http.routers.webapp.entrypoints=web"
-      - "traefik.http.services.webapp.loadbalancer.server.port=80"
+      - "traefik.http.services.webapp.loadbalancer.server.port=3000"
       # HTTPS router
       - "traefik.http.routers.webapp-secure.rule=Host(`app.${DOMAIN:-localhost}`)"
       - "traefik.http.routers.webapp-secure.entrypoints=websecure"
