@@ -8,11 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- **Admin Timezone Issue** - Fixed timezone-aware datetime handling in Admin model
-  - Updated Admin model to use `DateTime(timezone=True)` for `last_login`, `created_at`, and `updated_at` columns
-  - Created migration `004_fix_admin_timezone.py` to convert database columns from TIMESTAMP to TIMESTAMPTZ
-  - Resolved PostgreSQL/asyncpg error: "can't subtract offset-naive and offset-aware datetimes"
-  - Added unit tests to verify timezone-aware datetime handling (3 tests)
+- **Timezone Issue Across All Tables** - Fixed timezone-aware datetime handling for ALL database models
+  - Updated ALL models (User, Profile, Photo, Interaction, Match, Favorite, Admin) to use `DateTime(timezone=True)`
+  - Created migration `005_fix_profile_tables_timezone.py` to convert users, profiles, and photos tables from TIMESTAMP to TIMESTAMPTZ
+  - Created migration `006_fix_discovery_tables_timezone.py` to convert interactions, matches, and favorites tables from TIMESTAMP to TIMESTAMPTZ
+  - Previous migration `004_fix_admin_timezone.py` already fixed admins table
+  - Resolved PostgreSQL/asyncpg error in admin panel statistics: "can't subtract offset-naive and offset-aware datetimes"
+  - Fixed admin panel crashing when querying user statistics with `WHERE users.created_at >= $1::TIMESTAMP WITHOUT TIME ZONE`
+  - Added comprehensive unit tests for all models (15 tests total covering all 7 database tables)
 
 ### Changed
 - **Legacy Documentation Cleanup** - Archived completed refactoring and summary documentation
