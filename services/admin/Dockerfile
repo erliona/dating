@@ -1,5 +1,11 @@
 FROM python:3.11-slim
 
+# Install runtime dependencies
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y \
+        netcat-traditional \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Copy requirements
@@ -10,6 +16,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY bot/ bot/
 COPY core/ core/
 COPY services/admin/ services/admin/
+COPY migrations/ migrations/
+COPY alembic.ini .
+
+# Make entrypoint executable
+RUN chmod +x services/admin/entrypoint.sh
 
 # Set PYTHONPATH to find modules
 ENV PYTHONPATH=/app
@@ -17,5 +28,5 @@ ENV PYTHONPATH=/app
 # Expose port
 EXPOSE 8086
 
-# Run the service
-CMD ["python", "-m", "services.admin.main"]
+# Use entrypoint script to run migrations before starting the service
+ENTRYPOINT ["./services/admin/entrypoint.sh"]
