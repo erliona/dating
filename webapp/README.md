@@ -113,6 +113,76 @@ Create `.env.local` for local development:
 NEXT_PUBLIC_API_URL=http://localhost:8080
 ```
 
+## 🔗 Monorepo Integration
+
+### API Gateway Connection
+
+The webapp communicates with the backend through a secure API proxy:
+
+**Local Development:**
+
+```bash
+# Start API Gateway and services
+docker compose up -d api-gateway profile-service
+
+# Start webapp in dev mode
+cd webapp
+npm run dev
+```
+
+**Environment Variables:**
+
+```env
+# Backend API (Server-side)
+NEXT_PUBLIC_API_URL=http://api-gateway:8080  # Docker Compose
+# or
+NEXT_PUBLIC_API_URL=http://localhost:8080     # Local development
+
+# Public Site URL (for sitemap, etc.)
+NEXT_PUBLIC_SITE_URL=https://app.your-domain.com
+
+# Optional: Custom webapp port
+WEBAPP_PORT=3000
+```
+
+**Required for Production:**
+
+- `NEXT_PUBLIC_API_URL` - Backend API Gateway URL
+- `NEXT_PUBLIC_SITE_URL` - Public site URL for SEO
+- `BOT_TOKEN` - For Telegram integration (if using Mini App)
+
+### Docker Compose Profiles
+
+The webapp service is profile-gated:
+
+```bash
+# Start only backend services
+docker compose up -d
+
+# Start with webapp
+docker compose --profile webapp up -d
+
+# Start with monitoring + webapp
+docker compose --profile monitoring --profile webapp up -d
+```
+
+### API Integration Example
+
+```typescript
+import { apiClient } from "@/shared/lib/api-client";
+
+// All requests go through /api/proxy with httpOnly cookies
+const profile = await apiClient.get("/profiles/123");
+const newProfile = await apiClient.post("/profiles", { name: "John", age: 25 });
+```
+
+The API proxy (`/api/proxy/[...path]`) automatically:
+
+- Forwards requests to API Gateway
+- Handles httpOnly cookies (secure token storage)
+- Manages CORS
+- Returns proper error responses
+
 ## 🌍 Internationalization
 
 The app supports Russian (default) and English.
@@ -183,14 +253,45 @@ import { QueryProvider } from "@/shared/providers/query-provider";
 
 Strict mode enabled. Run `npm run type-check` to verify types.
 
-## 🧪 Testing (To Be Added)
+## 🧪 Testing
+
+### Smoke Tests (Playwright)
 
 ```bash
-# Unit tests
+# Run all tests
 npm test
 
-# E2E tests
-npm run test:e2e
+# Run with UI
+npm run test:ui
+
+# Run in headed mode
+npm run test:headed
+```
+
+**Tests include:**
+
+- Health endpoint verification
+- Homepage rendering
+- Language switching
+- API proxy accessibility
+
+### Health Check
+
+The webapp exposes a health endpoint for monitoring:
+
+```bash
+curl http://localhost:3000/api/health
+```
+
+Response:
+
+```json
+{
+  "status": "healthy",
+  "service": "webapp",
+  "timestamp": "2025-01-27T10:00:00.000Z",
+  "uptime": 123.45
+}
 ```
 
 ## 📦 Building for Production
