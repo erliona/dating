@@ -14,6 +14,8 @@ export default defineConfig({
   use: {
     baseURL: "http://localhost:3001",
     trace: "on-first-retry",
+    screenshot: "only-on-failure",
+    video: "retain-on-failure",
     headless: true,
   },
 
@@ -28,6 +30,8 @@ export default defineConfig({
     command: "npm run start -- -p 3001",
     url: "http://localhost:3001",
     reuseExistingServer: !process.env.CI,
-    timeout: 90_000,
+    timeout: 120_000,
+    stdout: "pipe",
+    stderr: "pipe",
   },
 });
