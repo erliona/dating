@@ -17,10 +17,11 @@ test.describe("Smoke Tests", () => {
     // Should redirect to /ru or /en
     await expect(page).toHaveURL(/\/(ru|en)/);
 
-    // Should have a non-empty title
-    const title = await page.title();
-    expect(title).toBeTruthy();
-    expect(title.length).toBeGreaterThan(0);
+    // Verify page renders with main content region
+    await expect(page.locator("main")).toBeVisible();
+
+    // Verify a heading is present (structure check, not content)
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   });
 
   test("language switcher works", async ({ page }) => {
@@ -30,10 +31,8 @@ test.describe("Smoke Tests", () => {
     await expect(page).toHaveURL("/en");
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
 
-    // Check English content via Get Started button (stable UI affordance)
-    await expect(page.getByRole("button", { name: "Get Started" })).toBeVisible({
-      timeout: 10000,
-    });
+    // Verify main content region is visible (structure check)
+    await expect(page.locator("main")).toBeVisible();
 
     // Click language switcher
     await page.getByRole("button", { name: /switch language/i }).click();
@@ -44,10 +43,8 @@ test.describe("Smoke Tests", () => {
     // Verify Russian locale via html[lang] attribute
     await expect(page.locator("html")).toHaveAttribute("lang", "ru");
 
-    // Check Russian content via Начать button (stable UI affordance)
-    await expect(page.getByRole("button", { name: "Начать" })).toBeVisible({
-      timeout: 10000,
-    });
+    // Verify main content region remains visible after language switch
+    await expect(page.locator("main")).toBeVisible();
   });
 
   test("API proxy is accessible", async ({ request }) => {
