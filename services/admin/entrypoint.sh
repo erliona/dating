@@ -26,9 +26,9 @@ wait_for_database() {
     return 0
   fi
 
-  # Parse database connection info from DATABASE_URL
-  DB_HOST=$(echo "$DATABASE_URL" | sed -n 's|^.*@\([^:]*\):.*$|\1|p')
-  DB_PORT=$(echo "$DATABASE_URL" | sed -n 's|^.*:\([0-9]*\)/.*$|\1|p')
+  # Parse database connection info from DATABASE_URL using Python for robustness
+  DB_HOST=$(python3 -c "import sys; from urllib.parse import urlparse; u = urlparse(sys.argv[1]); print(u.hostname or '')" "$DATABASE_URL")
+  DB_PORT=$(python3 -c "import sys; from urllib.parse import urlparse; u = urlparse(sys.argv[1]); print(u.port or '')" "$DATABASE_URL")
 
   if [ -n "$DB_HOST" ] && [ -n "$DB_PORT" ]; then
     echo "⏳ Waiting for database at ${DB_HOST}:${DB_PORT}..."
