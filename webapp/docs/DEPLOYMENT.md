@@ -55,6 +55,7 @@ labels:
 ```
 
 **Routing Priority:**
+
 - WebApp serves the root domain (/) with priority 1 (catch-all)
 - API Gateway handles specific paths (/api, /health, /admin-panel, /chat) with priority 100
 - This allows https://yourdomain.com/ to serve the webapp while https://yourdomain.com/api/* routes to the API
