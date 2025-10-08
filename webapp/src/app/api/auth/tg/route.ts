@@ -66,23 +66,28 @@ export async function POST(request: NextRequest) {
     // Set httpOnly cookies for secure token storage
     const cookieStore = await cookies();
 
-    // Access token cookie (24 hours to match JWT expiration)
+    // Access token cookie (shorter TTL for better security)
+    // Recommended: 15-60 minutes for access tokens
     cookieStore.set("access_token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax", // Changed from 'strict' to 'lax' for better UX with Telegram widget redirects
-      maxAge: 24 * 60 * 60, // 24 hours
+      sameSite: "lax", // Lax provides CSRF protection while allowing Telegram widget redirects
+      maxAge: 60 * 60, // 1 hour (3600 seconds)
       path: "/",
     });
 
-    // Refresh token cookie (7 days for longer session)
-    // TODO: Backend should generate a separate refresh token with longer TTL
-    // Currently using same token as access token - this should be improved
+    // Refresh token cookie (longer TTL for extended sessions)
+    // TODO: CRITICAL - Backend must generate a separate refresh token with:
+    //   - Different signature/secret
+    //   - Longer TTL (7-30 days)
+    //   - Token rotation on use
+    //   - Different audience/scope
+    // Currently using same token as access token - this is a security risk
     cookieStore.set("refresh_token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "lax", // Changed from 'strict' to 'lax' for better UX
-      maxAge: 7 * 24 * 60 * 60, // 7 days
+      sameSite: "lax", // Lax provides CSRF protection while allowing Telegram widget redirects
+      maxAge: 7 * 24 * 60 * 60, // 7 days (604800 seconds)
       path: "/",
     });
 

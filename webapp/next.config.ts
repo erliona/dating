@@ -22,13 +22,17 @@ const nextConfig: NextConfig = {
 
     // Configure script-src based on environment
     // Dev: Allow unsafe-eval and unsafe-inline for Next.js hot reload
-    // Prod: Remove unsafe directives, rely on Next.js automatic nonce generation
+    // Prod: NO unsafe directives - strict allowlist only
     const scriptSrc = isDev
       ? "'self' 'unsafe-eval' 'unsafe-inline' https://telegram.org https://*.telegram.org"
-      : "'self' https://telegram.org https://*.telegram.org";
+      : "'self' https://telegram.org https://oauth.telegram.org";
 
     // Style-src: unsafe-inline needed for Tailwind in both dev and prod
     const styleSrc = "'self' 'unsafe-inline'";
+
+    // Frame-src: Allow Telegram OAuth and widgets
+    const frameSrc =
+      "https://oauth.telegram.org https://telegram.org https://*.telegram.org https://t.me";
 
     return [
       {
@@ -43,7 +47,7 @@ const nextConfig: NextConfig = {
               "img-src 'self' data: blob: https:",
               "font-src 'self' data:",
               `connect-src ${connectSrc}`,
-              "frame-src https://oauth.telegram.org https://*.telegram.org", // Allow Telegram OAuth iframe and embeds
+              `frame-src ${frameSrc}`,
               "frame-ancestors 'none'",
             ].join("; "),
           },

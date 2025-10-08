@@ -59,30 +59,50 @@ User (Telegram) → Login Page → /api/auth/tg → API Gateway → Auth Service
 All authentication tokens are stored in httpOnly cookies with the following security settings:
 
 ```typescript
+// Access Token (short-lived)
 {
   httpOnly: true,              // Not accessible via JavaScript
   secure: true,                // Only sent over HTTPS (production)
   sameSite: "lax",             // CSRF protection while allowing Telegram widget redirects
-  maxAge: 24 * 60 * 60,       // 24 hours for access token
+  maxAge: 60 * 60,            // 1 hour (recommended: 15-60 minutes)
   path: "/",                   // Available to all routes
+}
+
+// Refresh Token (long-lived)
+{
+  httpOnly: true,
+  secure: true,
+  sameSite: "lax",
+  maxAge: 7 * 24 * 60 * 60,   // 7 days (recommended: 7-30 days)
+  path: "/",
 }
 ```
 
 ### Content Security Policy (CSP)
 
-The CSP headers allow:
+The CSP headers are environment-specific:
 
-- Telegram widget scripts from `https://telegram.org` and `https://*.telegram.org`
-- Telegram OAuth iframe from `https://oauth.telegram.org` and `https://*.telegram.org`
-- In development: `unsafe-eval` and `unsafe-inline` for Next.js hot reload
-- In production: Removed unsafe directives for enhanced security
+**Production (Strict):**
+
+- `script-src`: `'self' https://telegram.org https://oauth.telegram.org` (NO unsafe directives)
+- `frame-src`: `https://oauth.telegram.org https://telegram.org https://*.telegram.org https://t.me`
+- `connect-src`: Restricted to API Gateway domain and WSS
+
+**Development (Relaxed):**
+
+- `script-src`: Includes `'unsafe-eval'` and `'unsafe-inline'` for Next.js hot reload
+- `connect-src`: Allows all localhost ports and API Gateway
 
 ### Token Management
 
-- **Access Token**: 24-hour expiration, used for API requests
+- **Access Token**: 1-hour expiration, used for API requests (shorter TTL for better security)
 - **Refresh Token**: 7-day expiration, used to renew access token
-- **Auto-Refresh**: Token refreshed 1 hour before expiration (23-hour interval)
-- **Note**: Currently both tokens use the same JWT value. Backend should generate separate refresh tokens in future.
+- **Auto-Refresh**: Token refreshed every 50 minutes (10 minutes before expiration)
+- **⚠️ CRITICAL**: Currently both tokens use the same JWT value. Backend MUST generate separate refresh tokens with:
+  - Different signature/secret
+  - Longer TTL (7-30 days)
+  - Token rotation on use
+  - Different audience/scope
 
 ## Usage
 

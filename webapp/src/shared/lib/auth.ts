@@ -83,11 +83,11 @@ export async function refreshToken(): Promise<boolean> {
 
 /**
  * Auto refresh token before expiration
- * Refreshes token 1 hour before it expires (23 hours after login)
+ * Access token TTL is 1 hour, so refresh after 50 minutes to ensure continuity
  */
 export function startTokenRefresh() {
-  // Refresh token every 23 hours (1 hour before 24h expiration)
-  const REFRESH_INTERVAL = 23 * 60 * 60 * 1000; // 23 hours in ms
+  // Refresh token every 50 minutes (10 minutes before 1h expiration)
+  const REFRESH_INTERVAL = 50 * 60 * 1000; // 50 minutes in ms
 
   const refresh = async () => {
     const success = await refreshToken();
