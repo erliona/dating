@@ -53,6 +53,7 @@ jobs:
         env:
           NEXT_TELEMETRY_DISABLED: 1
           NEXT_PUBLIC_API_URL: "http://localhost:9999"
+          API_URL: "http://localhost:9999"
 
       - name: Check build output
         run: |
@@ -77,6 +78,7 @@ jobs:
           CI: "1"
           NEXT_TELEMETRY_DISABLED: "1"
           NEXT_PUBLIC_API_URL: "http://localhost:9999"
+          API_URL: "http://localhost:9999"
 
       - name: Upload Playwright report
         if: always()
