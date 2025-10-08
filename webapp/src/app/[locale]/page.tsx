@@ -5,7 +5,7 @@ export default function HomePage() {
   const t = useTranslations("home");
 
   return (
-    <>
+    <div className="relative">
       <header className="absolute top-4 right-4 z-10">
         <LanguageSwitcher />
       </header>
@@ -18,6 +18,6 @@ export default function HomePage() {
           {t("getStarted")}
         </button>
       </main>
-    </>
+    </div>
   );
 }
