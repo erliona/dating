@@ -94,11 +94,13 @@ Dating - это современное приложение для знаком�
 ### 🔐 Безопасность
 
 - Валидация возраста 18+
-- JWT аутентификация
+- JWT аутентификация с httpOnly cookies
 - HMAC валидация Telegram данных
 - Rate limiting
 - HTTPS everywhere
 - Автоматический NSFW детектор фотографий
+- CSP (Content Security Policy) headers
+- Защита от CSRF атак
 
 ### 🛠️ Административная панель
 
@@ -1433,6 +1435,7 @@ docker compose up -d
 
 - 🏛️ **[Thin Client Architecture](docs/THIN_CLIENT_ARCHITECTURE.md)** - Архитектура тонкого клиента
 - 📱 **[WebApp README](webapp/README.md)** - Next.js 15 WebApp (основная версия)
+- 🔐 **[Authentication Guide](webapp/docs/AUTH.md)** - Telegram Login и JWT авторизация
 - 🎨 **[Mini App Architecture](docs/MINIAPP_ARCHITECTURE.md)** - Legacy Telegram Mini App
 - 🔌 **[API Gateway Routes](docs/API_GATEWAY_ROUTES.md)** - Маршруты API Gateway
 - 🗺️ **[Port Mapping](docs/PORT_MAPPING.md)** - Карта портов всех сервисов
