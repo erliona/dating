@@ -194,10 +194,14 @@ dating/
 ├── adapters/            # Платформенные адаптеры
 │   └── telegram/       # Интеграция с Telegram
 │
-├── webapp/              # Frontend (Mini App)
-│   ├── index.html      # Главная страница
-│   ├── js/             # JavaScript
-│   └── css/            # Стили
+├── webapp/              # Frontend (Next.js WebApp)
+│   ├── src/            # React компоненты
+│   ├── messages/       # i18n переводы
+│   └── public/         # Статические файлы
+│
+├── webapp_old/         # Legacy Mini App (Vanilla JS)
+│   ├── index.html      # Простая версия
+│   └── js/css/         # Статические ресурсы
 │
 ├── tests/               # Тесты
 ├── migrations/          # DB миграции (Alembic)
@@ -215,19 +219,24 @@ dating/
 - aiohttp (HTTP сервер для микросервисов)
 
 **Frontend (WebApp):**
+
+*Основная реализация (Next.js):*
 - Next.js 15.5.4 (App Router) с React 19
 - TypeScript (strict mode)
 - Tailwind CSS v4 (PostCSS plugin)
 - shadcn/ui + lucide-react компоненты
 - TanStack Query v5 (state management)
 - next-intl (i18n: русский/английский)
-- Telegram WebApp API v6.9+
-  - MainButton, BackButton - нативные компоненты UI
-  - HapticFeedback - тактильная обратная связь
-  - Theme API - автоматическая адаптация под тему
-  - Cloud Storage - хранилище данных
 - Progressive Web App (PWA) готовность
-- Полностью адаптивный дизайн с Safe Area поддержкой
+- Полностью адаптивный дизайн
+
+*Telegram Mini App интеграция:*
+- Telegram WebApp API v6.9+
+- MainButton, BackButton - нативные компоненты UI
+- HapticFeedback - тактильная обратная связь
+- Theme API - автоматическая адаптация под тему
+- Cloud Storage - хранилище данных
+- Safe Area поддержка для iOS
 
 **Инфраструктура:**
 - Docker & Docker Compose
