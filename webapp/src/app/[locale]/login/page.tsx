@@ -4,7 +4,7 @@ type Props = {
 };
 
 export default async function LoginPage({ searchParams }: Props) {
-  const resolvedSearchParams = await searchParams;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
   const reason = (resolvedSearchParams?.reason as string) || "";
 
   return (
