@@ -236,6 +236,7 @@ services:
       CHAT_SERVICE_URL: ${CHAT_SERVICE_URL:-http://chat-service:${CHAT_SERVICE_PORT:-8085}}
       ADMIN_SERVICE_URL: ${ADMIN_SERVICE_URL:-http://admin-service:${ADMIN_SERVICE_PORT:-8086}}
       NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:${NOTIFICATION_SERVICE_PORT:-8087}}
+      WEBAPP_DOMAIN: https://${DOMAIN:-localhost}
     ports:
       - "${GATEWAY_PORT:-8080}:${GATEWAY_PORT:-8080}"
     healthcheck:
@@ -246,13 +247,15 @@ services:
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
-      # HTTP router
-      - "traefik.http.routers.api-gateway.rule=Host(`${DOMAIN:-localhost}`) || Host(`api.${DOMAIN:-localhost}`)"
+      # HTTP router - high priority for specific paths
+      - "traefik.http.routers.api-gateway.rule=Host(`${DOMAIN:-localhost}`) && (PathPrefix(`/api`) || Path(`/health`) || PathPrefix(`/admin-panel`) || PathPrefix(`/chat`))"
       - "traefik.http.routers.api-gateway.entrypoints=web"
+      - "traefik.http.routers.api-gateway.priority=100"
       - "traefik.http.services.api-gateway.loadbalancer.server.port=${GATEWAY_PORT:-8080}"
-      # HTTPS router
-      - "traefik.http.routers.api-gateway-secure.rule=Host(`${DOMAIN:-localhost}`) || Host(`api.${DOMAIN:-localhost}`)"
+      # HTTPS router - high priority for specific paths
+      - "traefik.http.routers.api-gateway-secure.rule=Host(`${DOMAIN:-localhost}`) && (PathPrefix(`/api`) || Path(`/health`) || PathPrefix(`/admin-panel`) || PathPrefix(`/chat`))"
       - "traefik.http.routers.api-gateway-secure.entrypoints=websecure"
+      - "traefik.http.routers.api-gateway-secure.priority=100"
       - "traefik.http.routers.api-gateway-secure.tls.certresolver=letsencrypt"
       # HTTP to HTTPS redirect
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
@@ -278,21 +281,19 @@ services:
     restart: unless-stopped
 
   # WebApp (Next.js)
-  # Note: This service is optional. Use --profile webapp to enable.
   webapp:
     build:
       context: ./webapp
       dockerfile: Dockerfile
     depends_on:
       - traefik
+      - api-gateway
     environment:
       NODE_ENV: production
       PORT: 3000
     ports:
       - "${WEBAPP_PORT:-3000}:3000"
     restart: unless-stopped
-    profiles:
-      - webapp
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
@@ -301,13 +302,15 @@ services:
       start_period: 40s
     labels:
       - "traefik.enable=true"
-      # HTTP router
-      - "traefik.http.routers.webapp.rule=Host(`app.${DOMAIN:-localhost}`)"
+      # HTTP router - low priority catch-all
+      - "traefik.http.routers.webapp.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/`)"
       - "traefik.http.routers.webapp.entrypoints=web"
+      - "traefik.http.routers.webapp.priority=1"
       - "traefik.http.services.webapp.loadbalancer.server.port=3000"
-      # HTTPS router
-      - "traefik.http.routers.webapp-secure.rule=Host(`app.${DOMAIN:-localhost}`)"
+      # HTTPS router - low priority catch-all
+      - "traefik.http.routers.webapp-secure.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/`)"
       - "traefik.http.routers.webapp-secure.entrypoints=websecure"
+      - "traefik.http.routers.webapp-secure.priority=1"
       - "traefik.http.routers.webapp-secure.tls.certresolver=letsencrypt"
       # HTTP to HTTPS redirect
       - "traefik.http.routers.webapp.middlewares=redirect-to-https"

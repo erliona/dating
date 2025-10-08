@@ -100,13 +100,13 @@ docker build -t dating-webapp .
 
 ```bash
 # From the project root
-docker compose --profile webapp up -d
+docker compose up -d
 ```
 
 The webapp will be available at:
 
 - **Local**: http://localhost:3000
-- **Traefik**: https://app.yourdomain.com (production)
+- **Traefik**: https://yourdomain.com (production - root domain)
 
 ### Environment Variables
 
@@ -157,17 +157,14 @@ WEBAPP_PORT=3000
 
 ### Docker Compose Profiles
 
-The webapp service is profile-gated:
+The webapp service is now a core service and runs by default:
 
 ```bash
-# Start only backend services
+# Start all core services (including webapp)
 docker compose up -d
 
-# Start with webapp
-docker compose --profile webapp up -d
-
-# Start with monitoring + webapp
-docker compose --profile monitoring --profile webapp up -d
+# Start with monitoring
+docker compose --profile monitoring up -d
 ```
 
 ### API Integration Example
