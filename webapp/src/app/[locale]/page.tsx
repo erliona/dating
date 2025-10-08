@@ -5,12 +5,12 @@ export default function HomePage() {
   const t = useTranslations("home");
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-8 p-8">
-      <header className="absolute top-4 right-4">
+    <>
+      <header className="absolute top-4 right-4 z-10">
         <LanguageSwitcher />
       </header>
 
-      <main className="flex flex-col items-center gap-6 text-center">
+      <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-8 text-center">
         <h1 className="text-4xl font-bold md:text-6xl">{t("title")}</h1>
         <p className="text-muted-foreground text-xl">{t("description")}</p>
 
@@ -18,6 +18,6 @@ export default function HomePage() {
           {t("getStarted")}
         </button>
       </main>
-    </div>
+    </>
   );
 }
