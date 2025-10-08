@@ -36,12 +36,15 @@ export default async function middleware(request: NextRequest) {
 
     if (!accessToken) {
       // Redirect to login with the original URL
-      const loginUrl = new URL(
-        `${pathname.startsWith("/ru") ? "/ru" : "/en"}/login`,
-        request.url
-      );
+      // Preserve locale from pathname
+      const locale = pathname.startsWith("/ru") ? "ru" : "en";
+      const loginUrl = new URL(`/${locale}/login`, request.url);
+
       loginUrl.searchParams.set("reason", "unauthorized");
-      loginUrl.searchParams.set("redirect", pathname);
+
+      // Preserve full path with query params for redirect after login
+      const redirectPath = pathname + (request.nextUrl.search || "");
+      loginUrl.searchParams.set("redirect", redirectPath);
 
       return NextResponse.redirect(loginUrl);
     }

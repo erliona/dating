@@ -70,17 +70,18 @@ export async function POST(request: NextRequest) {
     cookieStore.set("access_token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      sameSite: "lax", // Changed from 'strict' to 'lax' for better UX with Telegram widget redirects
       maxAge: 24 * 60 * 60, // 24 hours
       path: "/",
     });
 
     // Refresh token cookie (7 days for longer session)
-    // Note: Currently using same token, can be extended with separate refresh token
+    // TODO: Backend should generate a separate refresh token with longer TTL
+    // Currently using same token as access token - this should be improved
     cookieStore.set("refresh_token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      sameSite: "lax", // Changed from 'strict' to 'lax' for better UX
       maxAge: 7 * 24 * 60 * 60, // 7 days
       path: "/",
     });

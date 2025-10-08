@@ -62,7 +62,7 @@ All authentication tokens are stored in httpOnly cookies with the following secu
 {
   httpOnly: true,              // Not accessible via JavaScript
   secure: true,                // Only sent over HTTPS (production)
-  sameSite: "strict",          // CSRF protection
+  sameSite: "lax",             // CSRF protection while allowing Telegram widget redirects
   maxAge: 24 * 60 * 60,       // 24 hours for access token
   path: "/",                   // Available to all routes
 }
@@ -71,14 +71,18 @@ All authentication tokens are stored in httpOnly cookies with the following secu
 ### Content Security Policy (CSP)
 
 The CSP headers allow:
-- Telegram widget scripts from `https://telegram.org`
-- Telegram OAuth iframe from `https://oauth.telegram.org`
+
+- Telegram widget scripts from `https://telegram.org` and `https://*.telegram.org`
+- Telegram OAuth iframe from `https://oauth.telegram.org` and `https://*.telegram.org`
+- In development: `unsafe-eval` and `unsafe-inline` for Next.js hot reload
+- In production: Removed unsafe directives for enhanced security
 
 ### Token Management
 
 - **Access Token**: 24-hour expiration, used for API requests
 - **Refresh Token**: 7-day expiration, used to renew access token
 - **Auto-Refresh**: Token refreshed 1 hour before expiration (23-hour interval)
+- **Note**: Currently both tokens use the same JWT value. Backend should generate separate refresh tokens in future.
 
 ## Usage
 
@@ -198,6 +202,7 @@ JWT_SECRET=your_jwt_secret_here
 **Issue**: Telegram widget doesn't appear on login page
 
 **Solution**:
+
 1. Check CSP headers allow `https://telegram.org`
 2. Verify `data-telegram-login` attribute has correct bot username
 3. Check browser console for CSP violations
@@ -207,6 +212,7 @@ JWT_SECRET=your_jwt_secret_here
 **Issue**: API requests return 401 even after login
 
 **Solution**:
+
 1. Check cookies are set (DevTools → Application → Cookies)
 2. Verify `credentials: "include"` in fetch requests
 3. Check API proxy forwards cookies correctly
@@ -217,6 +223,7 @@ JWT_SECRET=your_jwt_secret_here
 **Issue**: Redirecting between login and protected pages
 
 **Solution**:
+
 1. Check middleware protected routes configuration
 2. Verify login page is in `PUBLIC_ROUTES`
 3. Check cookie domain and path settings
@@ -226,6 +233,7 @@ JWT_SECRET=your_jwt_secret_here
 **Issue**: Auto-refresh not working
 
 **Solution**:
+
 1. Check `startTokenRefresh()` is called on app load
 2. Verify refresh token exists in cookies
 3. Check backend `/api/auth/refresh` endpoint
@@ -237,6 +245,7 @@ JWT_SECRET=your_jwt_secret_here
 Exchange Telegram initData for JWT tokens.
 
 **Request:**
+
 ```json
 {
   "initData": "user=...&hash=..."
@@ -244,6 +253,7 @@ Exchange Telegram initData for JWT tokens.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -253,6 +263,7 @@ Exchange Telegram initData for JWT tokens.
 ```
 
 **Sets Cookies:**
+
 - `access_token` (httpOnly, 24h)
 - `refresh_token` (httpOnly, 7d)
 
@@ -261,6 +272,7 @@ Exchange Telegram initData for JWT tokens.
 Clear authentication cookies.
 
 **Response:**
+
 ```json
 {
   "success": true
@@ -272,6 +284,7 @@ Clear authentication cookies.
 Refresh access token using refresh token.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -280,11 +293,12 @@ Refresh access token using refresh token.
 ```
 
 **Updates Cookies:**
+
 - `access_token` (httpOnly, 24h)
 
 ## Future Improvements
 
-- [ ] Implement separate refresh token endpoint on backend
+- [ ] **Priority**: Implement separate refresh token generation on backend (currently uses same token)
 - [ ] Add session management (track active sessions)
 - [ ] Implement "remember me" functionality
 - [ ] Add 2FA support
@@ -292,6 +306,7 @@ Refresh access token using refresh token.
 - [ ] Add login activity logging
 - [ ] Support multiple device sessions
 - [ ] Add "logout all devices" functionality
+- [ ] Consider nonce-based CSP for scripts in production (if Next.js auto-nonce is insufficient)
 
 ## Related Documentation
 
