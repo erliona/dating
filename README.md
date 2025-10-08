@@ -1417,39 +1417,42 @@ docker compose up -d
 
 ## 📚 Документация
 
-### Подробная документация по компонентам
+### 📖 Основная документация
 
-- 🚀 **[Mini App Quick Start](docs/MINIAPP_QUICK_START.md)** - Быстрый старт для разработки Mini App
-  - 5-минутный старт
-  - Основные компоненты и API
-  - Примеры кода и snippets
-  - Отладка и troubleshooting
+- 🚀 **[Getting Started](docs/GETTING_STARTED.md)** - Полное руководство для новичков
+  - Быстрый старт за 5 минут
+  - Настройка окружения
+  - Первые шаги в разработке
+  
+- 📑 **[Documentation Index](docs/INDEX.md)** - Полный каталог документации
+  - Навигация по всем документам
+  - Ссылки на внешние ресурсы
+  - Структурированный доступ
 
-- 📱 **[Mini App Architecture](docs/MINIAPP_ARCHITECTURE.md)** - Архитектура Frontend приложения
-  - Интеграция с Telegram WebApp API
-  - Использование нативных UI компонентов
-  - Система навигации и управление состоянием
-  - Best practices и performance
+### 🏗️ Архитектура и разработка
 
-- 📊 **[Monitoring Setup](docs/MONITORING_SETUP.md)** - Настройка мониторинга
-  - Prometheus, Grafana, Loki
-  - Дашборды и метрики
-  - Логирование и трейсинг
+- 🏛️ **[Thin Client Architecture](docs/THIN_CLIENT_ARCHITECTURE.md)** - Архитектура тонкого клиента
+- 📱 **[WebApp README](webapp/README.md)** - Next.js 15 WebApp (основная версия)
+- 🎨 **[Mini App Architecture](docs/MINIAPP_ARCHITECTURE.md)** - Legacy Telegram Mini App
+- 🔌 **[API Gateway Routes](docs/API_GATEWAY_ROUTES.md)** - Маршруты API Gateway
+- 🗺️ **[Port Mapping](docs/PORT_MAPPING.md)** - Карта портов всех сервисов
 
-- 🔌 **[Port Mapping](docs/PORT_MAPPING.md)** - Карта портов всех сервисов
-  - Микросервисы (8080-8086)
-  - Мониторинг (3000, 8090-8091, 9090-9187)
-  - База данных (5432)
+### 🚀 DevOps и деплой
 
-- 🚀 **[CI/CD Guide](docs/CI_CD_GUIDE.md)** - Continuous Integration и Deployment
-  - GitHub Actions workflows
-  - Автоматическое тестирование
-  - Деплой на production
+- 🔄 **[CI/CD Guide](docs/CI_CD_GUIDE.md)** - Continuous Integration/Deployment
+- ✅ **[Deployment Checklist](docs/DEPLOYMENT_CHECKLIST.md)** - Чек-лист деплоя
+- 🐛 **[Deployment Troubleshooting](docs/DEPLOYMENT_TROUBLESHOOTING.md)** - Решение проблем
 
-- 🐛 **[Deployment Troubleshooting](docs/DEPLOYMENT_TROUBLESHOOTING.md)** - Решение проблем деплоя
-  - Типичные ошибки и их решения
-  - Отладка контейнеров
-  - Проблемы с сетью и портами
+### 📊 Мониторинг и администрирование
+
+- 📈 **[Monitoring Setup](docs/MONITORING_SETUP.md)** - Prometheus, Grafana, Loki v3.0
+- 👨‍💼 **[Admin Panel Guide](docs/ADMIN_PANEL_GUIDE.md)** - Административная панель
+- 📋 **[Admin Service README](services/admin/README.md)** - Admin Service
+
+### 🧪 Тестирование
+
+- 🧪 **[Test Refactoring 2024](docs/TEST_REFACTORING_2024.md)** - 380+ тестов
+- 📝 **[tests/README.md](tests/README.md)** - Документация по тестам
 
 ---
 
