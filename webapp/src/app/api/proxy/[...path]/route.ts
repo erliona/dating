@@ -31,16 +31,27 @@ async function handler(
   });
 
   try {
+    // Get access token from cookies
+    const cookieHeader = request.headers.get("cookie");
+    const accessToken = cookieHeader
+      ?.split("; ")
+      .find((c) => c.startsWith("access_token="))
+      ?.split("=")[1];
+
     // Forward the request to the backend
     const response = await fetch(url.toString(), {
       method: request.method,
       headers: {
         "Content-Type": "application/json",
         // Forward cookies from the request (for authentication)
-        ...(request.headers.get("cookie") && {
-          Cookie: request.headers.get("cookie")!,
+        ...(cookieHeader && {
+          Cookie: cookieHeader,
         }),
-        // Forward authorization header if present
+        // Add Authorization header with token from cookie
+        ...(accessToken && {
+          Authorization: `Bearer ${accessToken}`,
+        }),
+        // Also forward authorization header if present
         ...(request.headers.get("authorization") && {
           Authorization: request.headers.get("authorization")!,
         }),

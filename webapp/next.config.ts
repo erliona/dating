@@ -28,11 +28,12 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline'", // unsafe-eval and unsafe-inline needed for Next.js SSR
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://telegram.org", // Allow Telegram widget + Next.js SSR
               "style-src 'self' 'unsafe-inline'", // unsafe-inline needed for Tailwind
               "img-src 'self' data: blob: https:",
               "font-src 'self' data:",
               `connect-src ${connectSrc}`,
+              "frame-src https://oauth.telegram.org", // Allow Telegram OAuth iframe
               "frame-ancestors 'none'",
             ].join("; "),
           },
