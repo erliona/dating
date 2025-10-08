@@ -50,13 +50,17 @@
 ### 1. Настройка окружения
 
 ```bash
+# Убедитесь, что используете Python 3.11+
+python3 --version  # Должно быть 3.11 или выше (рекомендуется 3.12)
+
 # Создайте виртуальное окружение
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate  # Linux/Mac
 # или
 venv\Scripts\activate  # Windows
 
 # Установите зависимости
+pip install -r requirements.txt
 pip install -r requirements-dev.txt
 
 # Настройте .env для тестов

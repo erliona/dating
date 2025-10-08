@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Documentation Complete Refresh (2025-01)** - Comprehensive update of all project documentation
+  - Updated README.md with accurate stats: Python 3.12, 380+ tests, 7 microservices
+  - Updated tech stack documentation: Next.js 15, React 19, Tailwind CSS v4
+  - Updated CONTRIBUTING.md with Python 3.12 requirement
+  - Updated ROADMAP.md with implemented features section (Chat Service, Admin Panel)
+  - Updated docs/TEST_REFACTORING_2024.md with current test count
+  - Clarified microservices architecture with all 7 services and ports
+  - Updated Frontend stack to reflect Next.js 15 webapp alongside Telegram Mini App
+  - All documentation now reflects current project state accurately
+
 ### Fixed
 - **Timezone Issue Across All Tables** - Fixed timezone-aware datetime handling for ALL database models
   - Updated ALL models (User, Profile, Photo, Interaction, Match, Favorite, Admin) to use `DateTime(timezone=True)`

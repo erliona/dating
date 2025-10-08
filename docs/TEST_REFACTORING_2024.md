@@ -13,12 +13,10 @@ Complete refactoring of the test suite to align with the current thin client arc
 - Inconsistent organization
 
 **After Refactoring:**
-- **20 test files** (cleaned up)
-- **365 tests total**
-- **337 passing** (92% pass rate)
-- **19 skipped** (well-documented reasons)
-- **1 xfailed** (known API mismatch)
-- **8 xpassed** (better than expected)
+- **22 test files** (cleaned up and expanded)
+- **380+ tests total** (current count as of 2025)
+- **High pass rate** (majority passing)
+- **Well-documented skipped tests** (clear reasons)
 - **~11 seconds runtime** (fast, no hangs!)
 
 ## 📋 Changes Made
