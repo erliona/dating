@@ -105,8 +105,8 @@ docker compose up -d
 
 The webapp will be available at:
 
-- **Local**: http://localhost:3000
-- **Traefik**: https://yourdomain.com (production - root domain)
+- **Via Traefik**: http://localhost/ (local development) or https://yourdomain.com (production - root domain)
+- **Note**: The webapp does not expose a host port and is accessible only through Traefik reverse proxy
 
 ### Environment Variables
 
@@ -144,10 +144,9 @@ NEXT_PUBLIC_API_URL=http://localhost:8080     # Local development
 
 # Public Site URL (for sitemap, etc.)
 NEXT_PUBLIC_SITE_URL=https://app.your-domain.com
-
-# Optional: Custom webapp port
-WEBAPP_PORT=3000
 ```
+
+**Note:** `WEBAPP_PORT` environment variable is no longer used. The webapp is accessible only via Traefik reverse proxy on the configured domain, not directly on a host port.
 
 **Required for Production:**
 
