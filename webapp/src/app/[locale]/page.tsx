@@ -1,8 +1,12 @@
-import { useTranslations } from "next-intl";
+import { getTranslations } from "next-intl/server";
 import { LanguageSwitcher } from "@/features/language-switcher";
 
-export default function HomePage() {
-  const t = useTranslations("home");
+type PageProps = {
+  params: { locale: string };
+};
+
+export default async function HomePage({ params: { locale } }: PageProps) {
+  const t = await getTranslations({ locale, namespace: "home" });
 
   return (
     <>
