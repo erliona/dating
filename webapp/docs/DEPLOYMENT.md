@@ -35,22 +35,29 @@ webapp:
 
 ### Traefik Integration
 
-Complete Traefik labels for HTTP/HTTPS routing:
+Complete Traefik labels for HTTP/HTTPS routing (updated to serve at root domain):
 
 ```yaml
 labels:
   - "traefik.enable=true"
-  # HTTP router
-  - "traefik.http.routers.webapp.rule=Host(`app.${DOMAIN:-localhost}`)"
+  # HTTP router - low priority catch-all
+  - "traefik.http.routers.webapp.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/`)"
   - "traefik.http.routers.webapp.entrypoints=web"
+  - "traefik.http.routers.webapp.priority=1"
   - "traefik.http.services.webapp.loadbalancer.server.port=3000"
-  # HTTPS router
-  - "traefik.http.routers.webapp-secure.rule=Host(`app.${DOMAIN:-localhost}`)"
+  # HTTPS router - low priority catch-all
+  - "traefik.http.routers.webapp-secure.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/`)"
   - "traefik.http.routers.webapp-secure.entrypoints=websecure"
+  - "traefik.http.routers.webapp-secure.priority=1"
   - "traefik.http.routers.webapp-secure.tls.certresolver=letsencrypt"
   # HTTP to HTTPS redirect
   - "traefik.http.routers.webapp.middlewares=redirect-to-https"
 ```
+
+**Routing Priority:**
+- WebApp serves the root domain (/) with priority 1 (catch-all)
+- API Gateway handles specific paths (/api, /health, /admin-panel, /chat) with priority 100
+- This allows https://yourdomain.com/ to serve the webapp while https://yourdomain.com/api/* routes to the API
 
 ### Dockerfile Overview
 
@@ -87,7 +94,7 @@ CMD ["node", "server.js"]
 NEXT_PUBLIC_API_URL=http://api-gateway:8080
 
 # Public site URL (for SEO/sitemap)
-NEXT_PUBLIC_SITE_URL=https://app.yourdomain.com
+NEXT_PUBLIC_SITE_URL=https://yourdomain.com
 ```
 
 ### Optional
@@ -113,8 +120,8 @@ npm run dev  # http://localhost:3000
 ### Production (Docker Compose)
 
 ```bash
-# Build and start
-docker compose --profile webapp up -d
+# Build and start (webapp is now a core service)
+docker compose up -d
 
 # Check health
 curl http://localhost:3000/api/health

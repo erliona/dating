@@ -112,6 +112,7 @@ The application now uses a single, unified microservices architecture with the f
 - `admin-service` - Admin panel backend
 - `api-gateway` - API Gateway (port 8080)
 - `telegram-bot` - Telegram bot adapter
+- `webapp` - Next.js WebApp (port 3000)
 
 **Monitoring Stack** (optional, use `--profile monitoring`):
 - `prometheus` - Metrics collection
@@ -122,20 +123,14 @@ The application now uses a single, unified microservices architecture with the f
 - `node-exporter` - System metrics
 - `postgres-exporter` - Database metrics
 
-**Web Application** (optional, use `--profile webapp`):
-- `webapp` - Static file server (port 80)
-
 ### Deployment Commands
 
 ```bash
-# Standard deployment (core services only)
+# Standard deployment (includes webapp)
 docker compose up -d
 
 # With monitoring
 docker compose --profile monitoring up -d
-
-# With monitoring and webapp
-docker compose --profile monitoring --profile webapp up -d
 
 # Build and deploy
 docker compose build
@@ -152,11 +147,11 @@ All services use their designated ports without conflicts:
 - 8084: Media Service
 - 8085: Chat Service
 - 8086: Admin Service
+- 3000: WebApp (Next.js)
 - 5432: PostgreSQL (internal only by default)
 - 9090: Prometheus (monitoring)
 - 3000: Grafana (monitoring)
 - 3100: Loki (monitoring)
-- 80: WebApp (optional)
 
 ## Verification
 
