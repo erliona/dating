@@ -16,17 +16,30 @@ Error: Bind for 0.0.0.0:<port> failed: port is already allocated
 **Common Ports and Solutions:**
 
 #### Port 80 (HTTP)
-**Cause**: Webapp service trying to bind to port 80  
-**Status**: ✅ Fixed - webapp is profile-gated by default  
-**If you see this error**: The webapp profile might have been accidentally enabled
+**Cause**: Traefik reverse proxy trying to bind to port 80  
+**Status**: ✅ This is expected - Traefik uses port 80 for HTTP traffic  
+**If you see this error**: Another service (e.g., Apache, nginx) might be using port 80
 
 **Solution:**
 ```bash
-# Option 1: Deploy without webapp (recommended)
-docker compose up -d
+# Check what's using port 80
+sudo lsof -i :80
 
-# Option 2: Use custom port
-WEBAPP_PORT=8080 docker compose --profile webapp up -d
+# Stop conflicting service or use custom HTTP port
+HTTP_PORT=8080 docker compose up -d
+```
+
+#### Port 3000 (Grafana)
+**Cause**: Grafana monitoring dashboard trying to bind to port 3000  
+**Status**: ✅ Fixed - webapp no longer exposes port 3000 (accessible only via Traefik)  
+**If you see this error**: Check if another service is using port 3000
+
+**Solution:**
+```bash
+# Use custom Grafana port
+GRAFANA_PORT=3001 docker compose up -d
+
+# Access Grafana at http://localhost:3001
 ```
 
 #### Port 5432 (PostgreSQL)

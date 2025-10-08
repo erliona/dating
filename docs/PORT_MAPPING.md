@@ -74,7 +74,7 @@ These services collect, store, and visualize metrics and logs.
 
 | Port | Service | Internal Port | Description | Access |
 |------|---------|---------------|-------------|--------|
-| 3000 | Grafana (monitoring profile) | 3000 | Visualization and dashboards | Web UI: http://localhost:3000<br/>Login: admin/admin<br/>**Note:** Conflicts with webapp port |
+| 3000 | Grafana (monitoring profile) | 3000 | Visualization and dashboards | Web UI: http://localhost:3000<br/>Login: admin/admin |
 | 3100 | Loki | 3100 | Log aggregation and storage | API: http://localhost:3100 |
 | 8090 | cAdvisor | 8080 | Container metrics collection | Web UI: http://localhost:8090 |
 | 8091 | Traefik Dashboard | 8080 | Reverse proxy dashboard and metrics | Web UI: http://localhost:8091/dashboard/ |
@@ -122,18 +122,13 @@ db:
 
 | Port | Service | Internal Port | Description | Status |
 |------|---------|---------------|-------------|--------|
-| 3000 | WebApp (Next.js) | 3000 | Next.js web application | Core service (always runs) |
+| N/A | WebApp (Next.js) | 3000 | Next.js web application | Core service (always runs) |
 
 **Routing:**
 - Production: https://dating.serge.cc/ (via Traefik)
-- Development: http://localhost:3000
+- Development: Accessible only through Traefik at http://localhost/ (port 80)
 
-**Alternative Port:** Set `WEBAPP_PORT` environment variable:
-```bash
-WEBAPP_PORT=4000 docker compose up -d
-```
-
-**Note:** The webapp service now runs by default as a core service. It serves the root domain (/) with Traefik routing API requests (/api, /health, /admin-panel, /chat) to the api-gateway with higher priority.
+**Note:** The webapp service runs as a core service but does **not** expose a host port. It is accessible only through Traefik reverse proxy, which routes the root domain (/) to the webapp's internal port 3000. API requests (/api, /health, /admin-panel, /chat) are routed to the api-gateway with higher priority.
 
 ---
 

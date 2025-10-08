@@ -14,8 +14,6 @@ webapp:
   environment:
     NODE_ENV: production
     PORT: 3000
-  ports:
-    - "3000:3000"
   restart: unless-stopped
   healthcheck:
     test: ["CMD", "wget", "--spider", "http://localhost:3000/api/health"]
@@ -30,8 +28,9 @@ webapp:
 - ✅ Uses `build` with Dockerfile (Node.js 20 Alpine)
 - ✅ Runs `node server.js` (standalone Next.js server)
 - ✅ Supports SSR, App Router, and dynamic routes
-- ✅ Port 3000 exposed for Traefik
+- ✅ Internal port 3000 used by Traefik (not exposed to host)
 - ✅ Healthcheck on `/api/health` endpoint
+- ✅ Accessible only through Traefik reverse proxy
 
 ### Traefik Integration
 
@@ -101,11 +100,11 @@ NEXT_PUBLIC_SITE_URL=https://yourdomain.com
 ### Optional
 
 ```env
-# Custom webapp port (default: 3000)
-WEBAPP_PORT=3000
-
 # Domain for Traefik (default: localhost)
 DOMAIN=yourdomain.com
+
+# Note: WEBAPP_PORT is no longer used - webapp is accessible only via Traefik
+# The internal container port remains 3000 but is not exposed to the host
 ```
 
 ## Deployment Commands
@@ -124,8 +123,10 @@ npm run dev  # http://localhost:3000
 # Build and start (webapp is now a core service)
 docker compose up -d
 
-# Check health
-curl http://localhost:3000/api/health
+# Check health via Traefik (production)
+curl http://localhost/api/health
+# or directly to api-gateway
+curl http://localhost:8080/health
 
 # View logs
 docker compose logs -f webapp
