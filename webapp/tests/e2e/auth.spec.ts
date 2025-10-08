@@ -14,9 +14,7 @@ test.describe("Authentication", () => {
     await expect(page.locator("#telegram-login-widget")).toBeVisible();
   });
 
-  test("login page shows unauthorized message from query param", async ({
-    page,
-  }) => {
+  test("login page shows unauthorized message from query param", async ({ page }) => {
     await page.goto("/en/login?reason=unauthorized");
 
     // Verify unauthorized message is shown
