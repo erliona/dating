@@ -250,6 +250,7 @@ def create_app(config: dict) -> web.Application:
 
     # Health check
     app.router.add_get("/health", health_check)
+    app.router.add_get("/api/health", health_check)
 
     return app
 

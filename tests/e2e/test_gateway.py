@@ -104,6 +104,26 @@ class TestProxyRequest:
         assert data["service"] == "api-gateway"
         assert "routes" in data
 
+    def test_api_health_endpoint_registered(self):
+        """Test that /api/health endpoint is registered."""
+        config = {
+            "auth_service_url": "http://auth:8081",
+            "profile_service_url": "http://profile:8082",
+            "discovery_service_url": "http://discovery:8083",
+            "media_service_url": "http://media:8084",
+            "chat_service_url": "http://chat:8085",
+            "admin_service_url": "http://admin:8086",
+            "notification_service_url": "http://notification:8087",
+            "webapp_domain": "*",
+        }
+
+        app = create_app(config)
+        routes = [str(route.resource) for route in app.router.routes()]
+
+        # Check that both /health and /api/health are registered
+        assert any("/health" in route for route in routes)
+        assert any("/api/health" in route for route in routes)
+
 
 class TestGatewayRouting:
     """Tests for gateway routing configuration."""
