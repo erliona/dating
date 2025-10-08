@@ -19,7 +19,7 @@
 ### Обязательное ПО
 
 - **Docker** 20.10+ и **Docker Compose** v2.0+
-- **Python** 3.12+ (для локальной разработки)
+- **Python** 3.11+ (рекомендуется 3.12 для разработки, Docker образы используют 3.11)
 - **Node.js** 20+ (для разработки webapp)
 - **Git** 2.30+
 
@@ -166,8 +166,8 @@ dating/
 ### Локальная разработка (Python)
 
 ```bash
-# Создать виртуальное окружение
-python3.12 -m venv venv
+# Создать виртуальное окружение (Python 3.11 или 3.12)
+python3 -m venv venv
 source venv/bin/activate  # Linux/Mac
 # или venv\Scripts\activate  # Windows
 

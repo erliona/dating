@@ -47,7 +47,7 @@ Dating - это современное приложение для знаком�
 - 📊 **Мониторинг v3.0** - Prometheus v2.51.0, Grafana 10.4.0, Loki v3.0.0 с TSDB
 - 🧪 **Тестирование** - 380+ тестов с высоким покрытием кода
 - 🚀 **CI/CD** - полный pipeline: тесты, линтинг, сборка, деплой и мониторинг
-- 🌐 **Modern Stack** - Python 3.12, Next.js 15, TypeScript, Tailwind CSS v4
+- 🌐 **Modern Stack** - Python 3.11+, Next.js 15, TypeScript, Tailwind CSS v4
 
 ---
 
@@ -212,7 +212,7 @@ dating/
 ### Технологический стек
 
 **Backend:**
-- Python 3.12
+- Python 3.11+ (Docker: 3.11, CI/Testing: 3.12)
 - aiogram 3.x (Telegram Bot Framework)
 - SQLAlchemy 2.0 + asyncpg (async ORM)
 - Alembic (миграции БД)
