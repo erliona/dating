@@ -30,6 +30,24 @@ async function handler(
     url.searchParams.append(key, value);
   });
 
+  // CSRF protection for state-changing requests
+  // Verify Origin/Referer for POST, PUT, DELETE, PATCH
+  const unsafeMethods = ["POST", "PUT", "DELETE", "PATCH"];
+  if (unsafeMethods.includes(request.method)) {
+    const origin = request.headers.get("origin");
+    const referer = request.headers.get("referer");
+    const requestUrl = new URL(request.url);
+    const expectedOrigin = `${requestUrl.protocol}//${requestUrl.host}`;
+
+    // Check that request comes from same origin
+    const isValidOrigin = origin === expectedOrigin;
+    const isValidReferer = referer?.startsWith(expectedOrigin);
+
+    if (!isValidOrigin && !isValidReferer) {
+      return NextResponse.json({ error: "Invalid request origin" }, { status: 403 });
+    }
+  }
+
   try {
     // Get access token from cookies
     const cookieHeader = request.headers.get("cookie");

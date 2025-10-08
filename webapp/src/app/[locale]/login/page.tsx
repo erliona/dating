@@ -18,8 +18,21 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Get redirect URL from query params
-  const redirectTo = searchParams.get("redirect") || "/";
+  // Get redirect URL from query params and validate it
+  // Only allow relative paths to prevent open redirect attacks
+  const validateRedirectUrl = (url: string): string => {
+    if (!url) return "/";
+
+    // Only allow relative paths starting with /
+    if (url.startsWith("/") && !url.startsWith("//")) {
+      return url;
+    }
+
+    // Default to home for any suspicious URLs
+    return "/";
+  };
+
+  const redirectTo = validateRedirectUrl(searchParams.get("redirect") || "/");
 
   useEffect(() => {
     // Load Telegram Login Widget script

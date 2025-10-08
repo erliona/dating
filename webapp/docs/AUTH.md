@@ -86,12 +86,30 @@ The CSP headers are environment-specific:
 
 - `script-src`: `'self' https://telegram.org https://oauth.telegram.org` (NO unsafe directives)
 - `frame-src`: `https://oauth.telegram.org https://telegram.org https://*.telegram.org https://t.me`
-- `connect-src`: Restricted to API Gateway domain and WSS
+- `frame-ancestors`: `'self'` (allows same-origin framing)
+- `connect-src`: Restricted to API Gateway domain and WSS (per-environment)
 
 **Development (Relaxed):**
 
 - `script-src`: Includes `'unsafe-eval'` and `'unsafe-inline'` for Next.js hot reload
 - `connect-src`: Allows all localhost ports and API Gateway
+
+### CSRF Protection
+
+State-changing requests (POST, PUT, DELETE, PATCH) through `/api/proxy/*` are protected by:
+
+- **Origin/Referer validation**: Verifies requests come from same origin
+- **SameSite cookies**: `lax` setting prevents CSRF in most scenarios
+- Server-side validation before proxying to backend
+
+### Open Redirect Protection
+
+Login redirect URLs are validated to prevent open redirect attacks:
+
+- **Relative paths only**: Only URLs starting with `/` are allowed
+- **Protocol validation**: URLs with `//` prefix (protocol-relative) are rejected
+- **Default fallback**: Invalid URLs default to `/` (home page)
+- Applied in both login page and middleware
 
 ### Token Management
 

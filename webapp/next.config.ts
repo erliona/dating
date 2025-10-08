@@ -48,7 +48,7 @@ const nextConfig: NextConfig = {
               "font-src 'self' data:",
               `connect-src ${connectSrc}`,
               `frame-src ${frameSrc}`,
-              "frame-ancestors 'none'",
+              "frame-ancestors 'self'", // Allow same-origin framing
             ].join("; "),
           },
           {
