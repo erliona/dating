@@ -1,10 +1,11 @@
 type Props = {
-  params: { locale: "en" | "ru" };
-  searchParams?: { [key: string]: string | string[] | undefined };
+  params: Promise<{ locale: "en" | "ru" }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
-export default function LoginPage({ searchParams }: Props) {
-  const reason = (searchParams?.reason as string) || "";
+export default async function LoginPage({ searchParams }: Props) {
+  const resolvedSearchParams = await searchParams;
+  const reason = (resolvedSearchParams?.reason as string) || "";
 
   return (
     <section style={{ padding: "2rem" }}>
