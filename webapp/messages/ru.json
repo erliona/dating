@@ -3,5 +3,19 @@
     "title": "Добро пожаловать в Dating",
     "description": "Telegram-приложение для знакомств",
     "getStarted": "Начать"
+  },
+  "auth": {
+    "login": {
+      "title": "Вход",
+      "description": "Войдите через Telegram, чтобы продолжить",
+      "telegramLogin": "Войти через Telegram",
+      "loading": "Загрузка...",
+      "error": "Ошибка авторизации. Попробуйте снова.",
+      "unauthorized": "Необходимо войти для доступа к этой странице"
+    },
+    "logout": {
+      "button": "Выйти",
+      "success": "Вы успешно вышли"
+    }
   }
 }

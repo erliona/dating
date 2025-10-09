@@ -20,6 +20,20 @@ const nextConfig: NextConfig = {
       ? "'self' http://localhost:* https://localhost:* http://api-gateway:* ws://localhost:*" // Dev: allow all localhost
       : `'self' https://${apiDomain} http://${apiDomain}:* wss://${apiDomain}`; // Prod: restrict to API domain
 
+    // Configure script-src based on environment
+    // Dev: Allow unsafe-eval and unsafe-inline for Next.js hot reload
+    // Prod: NO unsafe directives - strict allowlist only
+    const scriptSrc = isDev
+      ? "'self' 'unsafe-eval' 'unsafe-inline' https://telegram.org https://*.telegram.org"
+      : "'self' https://telegram.org https://oauth.telegram.org";
+
+    // Style-src: unsafe-inline needed for Tailwind in both dev and prod
+    const styleSrc = "'self' 'unsafe-inline'";
+
+    // Frame-src: Allow Telegram OAuth and widgets
+    const frameSrc =
+      "https://oauth.telegram.org https://telegram.org https://*.telegram.org https://t.me";
+
     return [
       {
         source: "/(.*)",
@@ -28,12 +42,13 @@ const nextConfig: NextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline'", // unsafe-eval and unsafe-inline needed for Next.js SSR
-              "style-src 'self' 'unsafe-inline'", // unsafe-inline needed for Tailwind
+              `script-src ${scriptSrc}`,
+              `style-src ${styleSrc}`,
               "img-src 'self' data: blob: https:",
               "font-src 'self' data:",
               `connect-src ${connectSrc}`,
-              "frame-ancestors 'none'",
+              `frame-src ${frameSrc}`,
+              "frame-ancestors 'self'", // Allow same-origin framing
             ].join("; "),
           },
           {
