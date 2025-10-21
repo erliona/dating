@@ -72,9 +72,7 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    tg_id: Mapped[int] = mapped_column(
-        BigInteger, unique=True, nullable=False, index=True
-    )
+    tg_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False, index=True)
     username: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     first_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     language_code: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
@@ -97,9 +95,7 @@ class Profile(Base):
     __tablename__ = "profiles"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(
-        Integer, nullable=False, unique=True, index=True
-    )
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True, index=True)
 
     # Basic information
     name: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -110,9 +106,7 @@ class Profile(Base):
     bio: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Interests - stored as array
-    interests: Mapped[Optional[list[str]]] = mapped_column(
-        ARRAY(String(50)), nullable=True
-    )
+    interests: Mapped[Optional[list[str]]] = mapped_column(ARRAY(String(50)), nullable=True)
 
     # Optional profile details
     height_cm: Mapped[Optional[int]] = mapped_column(SmallInteger, nullable=True)
@@ -125,9 +119,7 @@ class Profile(Base):
     # Location - geohash for privacy
     country: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     city: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    geohash: Mapped[Optional[str]] = mapped_column(
-        String(20), nullable=True, index=True
-    )
+    geohash: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, index=True)
     latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
@@ -162,9 +154,7 @@ class Profile(Base):
             name="height_cm_range",
         ),
         CheckConstraint("gender IN ('male', 'female', 'other')", name="valid_gender"),
-        CheckConstraint(
-            "orientation IN ('male', 'female', 'any')", name="valid_orientation"
-        ),
+        CheckConstraint("orientation IN ('male', 'female', 'any')", name="valid_orientation"),
         CheckConstraint(
             "goal IN ('friendship', 'dating', 'relationship', 'networking', 'serious', 'casual')",
             name="valid_goal",
@@ -207,9 +197,7 @@ class Photo(Base):
 
     __table_args__ = (
         CheckConstraint("sort_order >= 0 AND sort_order <= 2", name="sort_order_range"),
-        CheckConstraint(
-            "safe_score >= 0.0 AND safe_score <= 1.0", name="safe_score_range"
-        ),
+        CheckConstraint("safe_score >= 0.0 AND safe_score <= 1.0", name="safe_score_range"),
         Index("idx_photos_user_id_sort", "user_id", "sort_order"),
     )
 
@@ -304,9 +292,7 @@ class Admin(Base):
     __tablename__ = "admins"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    username: Mapped[str] = mapped_column(
-        String(255), unique=True, nullable=False, index=True
-    )
+    username: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     full_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     email: Mapped[Optional[str]] = mapped_column(
@@ -314,9 +300,7 @@ class Admin(Base):
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_super_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    last_login: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_login: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(

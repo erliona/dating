@@ -97,9 +97,7 @@ class Cache:
             del self._storage[key]
 
         if keys_to_delete:
-            logger.debug(
-                f"Cache pattern deleted: {pattern}, count: {len(keys_to_delete)}"
-            )
+            logger.debug(f"Cache pattern deleted: {pattern}, count: {len(keys_to_delete)}")
 
         return len(keys_to_delete)
 

@@ -28,7 +28,7 @@ _bot_instance: Bot = None
 # HTTP handlers for receiving notification requests from notification service
 async def send_match_notification_handler(request: web.Request) -> web.Response:
     """HTTP endpoint to send match notification.
-    
+
     POST /notifications/match
     Body: {
         "user_id": int,
@@ -43,18 +43,16 @@ async def send_match_notification_handler(request: web.Request) -> web.Response:
         data = await request.json()
         user_id = data.get("user_id")
         match_data = data.get("match_data", {})
-        
+
         if not user_id:
             return web.json_response({"error": "user_id is required"}, status=400)
-        
+
         success = await send_match_notification(user_id, match_data)
-        
+
         if success:
             return web.json_response({"status": "sent", "user_id": user_id})
         else:
-            return web.json_response(
-                {"error": "Failed to send notification"}, status=500
-            )
+            return web.json_response({"error": "Failed to send notification"}, status=500)
     except Exception as e:
         logging.error(f"Error handling match notification request: {e}", exc_info=True)
         return web.json_response({"error": "Internal server error"}, status=500)
@@ -62,7 +60,7 @@ async def send_match_notification_handler(request: web.Request) -> web.Response:
 
 async def send_message_notification_handler(request: web.Request) -> web.Response:
     """HTTP endpoint to send message notification.
-    
+
     POST /notifications/message
     Body: {
         "user_id": int,
@@ -77,18 +75,16 @@ async def send_message_notification_handler(request: web.Request) -> web.Respons
         data = await request.json()
         user_id = data.get("user_id")
         message_data = data.get("message_data", {})
-        
+
         if not user_id:
             return web.json_response({"error": "user_id is required"}, status=400)
-        
+
         success = await send_message_notification(user_id, message_data)
-        
+
         if success:
             return web.json_response({"status": "sent", "user_id": user_id})
         else:
-            return web.json_response(
-                {"error": "Failed to send notification"}, status=500
-            )
+            return web.json_response({"error": "Failed to send notification"}, status=500)
     except Exception as e:
         logging.error(f"Error handling message notification request: {e}", exc_info=True)
         return web.json_response({"error": "Internal server error"}, status=500)
@@ -96,7 +92,7 @@ async def send_message_notification_handler(request: web.Request) -> web.Respons
 
 async def send_like_notification_handler(request: web.Request) -> web.Response:
     """HTTP endpoint to send like notification.
-    
+
     POST /notifications/like
     Body: {
         "user_id": int,
@@ -110,18 +106,16 @@ async def send_like_notification_handler(request: web.Request) -> web.Response:
         data = await request.json()
         user_id = data.get("user_id")
         like_data = data.get("like_data", {})
-        
+
         if not user_id:
             return web.json_response({"error": "user_id is required"}, status=400)
-        
+
         success = await send_like_notification(user_id, like_data)
-        
+
         if success:
             return web.json_response({"status": "sent", "user_id": user_id})
         else:
-            return web.json_response(
-                {"error": "Failed to send notification"}, status=500
-            )
+            return web.json_response({"error": "Failed to send notification"}, status=500)
     except Exception as e:
         logging.error(f"Error handling like notification request: {e}", exc_info=True)
         return web.json_response({"error": "Internal server error"}, status=500)
@@ -271,32 +265,32 @@ async def send_like_notification(user_id: int, like_data: Dict[str, Any]) -> boo
 def create_notification_app() -> web.Application:
     """Create HTTP server for receiving notification requests."""
     app = web.Application()
-    
+
     # Register notification endpoints
     app.router.add_post("/notifications/match", send_match_notification_handler)
     app.router.add_post("/notifications/message", send_message_notification_handler)
     app.router.add_post("/notifications/like", send_like_notification_handler)
     app.router.add_get("/health", health_check_handler)
-    
+
     return app
 
 
 async def run_notification_server(host: str = "0.0.0.0", port: int = 8080):
     """Run HTTP server for notification requests."""
     logger = logging.getLogger(__name__)
-    
+
     app = create_notification_app()
     runner = web.AppRunner(app)
     await runner.setup()
-    
+
     site = web.TCPSite(runner, host, port)
     await site.start()
-    
+
     logger.info(
         f"Notification HTTP server started on {host}:{port}",
         extra={"event_type": "notification_server_started", "host": host, "port": port},
     )
-    
+
     # Keep running
     try:
         await asyncio.Event().wait()
@@ -335,9 +329,7 @@ async def main() -> None:
             )
             raise ValueError("BOT_TOKEN is not properly configured")
 
-        logger.info(
-            "Creating bot instance...", extra={"event_type": "bot_creation_start"}
-        )
+        logger.info("Creating bot instance...", extra={"event_type": "bot_creation_start"})
         bot = Bot(token=config.token)
 
         # Try to get bot info to validate token early
@@ -371,15 +363,15 @@ async def main() -> None:
         # Start notification HTTP server
         notification_host = os.getenv("API_HOST", "0.0.0.0")
         notification_port = int(os.getenv("API_PORT", "8080"))
-        
+
         logger.info(
             "Starting notification HTTP server",
             extra={"event_type": "server_start"},
         )
-        
+
         # Run notification server (no polling needed - bot only sends notifications)
         await run_notification_server(notification_host, notification_port)
-        
+
     except Exception as exc:
         logger.error(
             f"Error during bot execution: {exc}",

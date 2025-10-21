@@ -222,9 +222,7 @@ def calculate_nsfw_score(photo_bytes: bytes) -> float:
 
             # Calculate safety score (0.0 = unsafe, 1.0 = safe)
             safety_score = (
-                safe_prob / (safe_prob + unsafe_prob)
-                if (safe_prob + unsafe_prob) > 0
-                else 0.5
+                safe_prob / (safe_prob + unsafe_prob) if (safe_prob + unsafe_prob) > 0 else 0.5
             )
 
             logger.info(

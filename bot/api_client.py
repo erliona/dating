@@ -17,9 +17,7 @@ logger = logging.getLogger(__name__)
 class APIGatewayError(Exception):
     """Base exception for API Gateway errors."""
 
-    def __init__(
-        self, message: str, status_code: int = 500, response_data: Optional[Dict] = None
-    ):
+    def __init__(self, message: str, status_code: int = 500, response_data: Optional[Dict] = None):
         super().__init__(message)
         self.status_code = status_code
         self.response_data = response_data or {}
@@ -112,8 +110,7 @@ class APIGatewayClient:
                             response_data = {
                                 "error": {
                                     "code": "invalid_response",
-                                    "message": response_text
-                                    or "Invalid response format",
+                                    "message": response_text or "Invalid response format",
                                 }
                             }
 
@@ -122,9 +119,7 @@ class APIGatewayClient:
                             error_msg = response_data.get("error", {}).get(
                                 "message", "Client error"
                             )
-                            error_code = response_data.get("error", {}).get(
-                                "code", "client_error"
-                            )
+                            error_code = response_data.get("error", {}).get("code", "client_error")
                             # Log without sensitive data (tokens, passwords, etc.)
                             logger.warning(
                                 f"API client error: {method} {path}",
@@ -268,9 +263,7 @@ class APIGatewayClient:
         Returns:
             Dict with has_profile boolean
         """
-        return await self._request(
-            "GET", f"/api/profile/check", params={"user_id": user_id}
-        )
+        return await self._request("GET", f"/api/profile/check", params={"user_id": user_id})
 
     async def get_profile(self, user_id: int) -> Optional[Dict[str, Any]]:
         """Get user profile by ID.
@@ -288,9 +281,7 @@ class APIGatewayClient:
                 return None
             raise
 
-    async def update_profile(
-        self, user_id: int, profile_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    async def update_profile(self, user_id: int, profile_data: Dict[str, Any]) -> Dict[str, Any]:
         """Update user profile.
 
         Args:
@@ -300,9 +291,7 @@ class APIGatewayClient:
         Returns:
             Updated profile data
         """
-        return await self._request(
-            "PUT", f"/profiles/{user_id}", json_data=profile_data
-        )
+        return await self._request("PUT", f"/profiles/{user_id}", json_data=profile_data)
 
     async def delete_profile(self, user_id: int) -> Dict[str, Any]:
         """Delete user profile.
@@ -316,9 +305,7 @@ class APIGatewayClient:
         return await self._request("DELETE", f"/profiles/{user_id}")
 
     # Media Service endpoints
-    async def upload_photo(
-        self, user_id: int, photo_data: bytes, filename: str
-    ) -> Dict[str, Any]:
+    async def upload_photo(self, user_id: int, photo_data: bytes, filename: str) -> Dict[str, Any]:
         """Upload photo via Media Service.
 
         Args:

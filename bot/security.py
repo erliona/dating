@@ -77,9 +77,7 @@ def validate_webapp_init_data(
     # Check auth_date
     auth_date_str = data_dict.get("auth_date")
     if not auth_date_str:
-        logger.warning(
-            "Missing auth_date in initData", extra={"event_type": "auth_failed"}
-        )
+        logger.warning("Missing auth_date in initData", extra={"event_type": "auth_failed"})
         raise ValidationError("Missing auth_date in initData")
 
     try:
@@ -104,9 +102,7 @@ def validate_webapp_init_data(
                 "max_age_seconds": max_age_seconds,
             },
         )
-        raise ValidationError(
-            f"initData is too old (age: {data_age}s, max: {max_age_seconds}s)"
-        )
+        raise ValidationError(f"initData is too old (age: {data_age}s, max: {max_age_seconds}s)")
 
     if data_age < 0:
         logger.warning(
@@ -368,9 +364,7 @@ class RateLimiter:
                 del self._storage[user_id]
 
         self._last_cleanup = now
-        logger.debug(
-            f"Rate limiter cleanup completed, active users: {len(self._storage)}"
-        )
+        logger.debug(f"Rate limiter cleanup completed, active users: {len(self._storage)}")
 
     def is_allowed(self, user_id: int) -> bool:
         """Check if request is allowed for user.
@@ -391,9 +385,7 @@ class RateLimiter:
             self._storage[user_id] = []
 
         # Filter to only include requests within window
-        valid_requests = [
-            (ts, count) for ts, count in self._storage[user_id] if ts > cutoff_time
-        ]
+        valid_requests = [(ts, count) for ts, count in self._storage[user_id] if ts > cutoff_time]
 
         # Count total requests in window
         total_requests = sum(count for _, count in valid_requests)
@@ -440,9 +432,7 @@ class RateLimiter:
         if user_id not in self._storage:
             return self.max_requests
 
-        valid_requests = [
-            (ts, count) for ts, count in self._storage[user_id] if ts > cutoff_time
-        ]
+        valid_requests = [(ts, count) for ts, count in self._storage[user_id] if ts > cutoff_time]
 
         total_requests = sum(count for _, count in valid_requests)
         return max(0, self.max_requests - total_requests)

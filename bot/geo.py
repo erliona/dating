@@ -114,9 +114,7 @@ def validate_coordinates(
     return True, None
 
 
-def get_default_location(
-    country: Optional[str] = None, city: Optional[str] = None
-) -> dict:
+def get_default_location(country: Optional[str] = None, city: Optional[str] = None) -> dict:
     """Get default location coordinates for fallback.
 
     Args:

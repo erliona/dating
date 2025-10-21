@@ -176,14 +176,10 @@ class ProfileRepository:
         Returns:
             Profile object or None
         """
-        result = await self.session.execute(
-            select(Profile).where(Profile.user_id == user_id)
-        )
+        result = await self.session.execute(select(Profile).where(Profile.user_id == user_id))
         return result.scalar_one_or_none()
 
-    async def update_profile(
-        self, user_id: int, profile_data: dict
-    ) -> Optional[Profile]:
+    async def update_profile(self, user_id: int, profile_data: dict) -> Optional[Profile]:
         """Update existing profile.
 
         Args:
@@ -623,9 +619,7 @@ class ProfileRepository:
             # Roll back and fetch the existing match
             await self.session.rollback()
             result = await self.session.execute(
-                select(Match).where(
-                    Match.user1_id == user1_id, Match.user2_id == user2_id
-                )
+                select(Match).where(Match.user1_id == user1_id, Match.user2_id == user2_id)
             )
             match = result.scalar_one_or_none()
 
@@ -680,9 +674,7 @@ class ProfileRepository:
             return cached
 
         # Build query for matches involving this user
-        query = select(Match).where(
-            or_(Match.user1_id == user_id, Match.user2_id == user_id)
-        )
+        query = select(Match).where(or_(Match.user1_id == user_id, Match.user2_id == user_id))
 
         if cursor:
             query = query.where(Match.id < cursor)
@@ -701,9 +693,7 @@ class ProfileRepository:
         # Get profiles for matched users
         matches_with_profiles = []
         for match in matches:
-            other_user_id = (
-                match.user2_id if match.user1_id == user_id else match.user1_id
-            )
+            other_user_id = match.user2_id if match.user1_id == user_id else match.user1_id
             profile = await self.get_profile_by_user_id(other_user_id)
             if profile:
                 matches_with_profiles.append((match, profile))
@@ -736,9 +726,7 @@ class ProfileRepository:
         """
         # Check if favorite already exists
         result = await self.session.execute(
-            select(Favorite).where(
-                Favorite.user_id == user_id, Favorite.target_id == target_id
-            )
+            select(Favorite).where(Favorite.user_id == user_id, Favorite.target_id == target_id)
         )
         favorite = result.scalar_one_or_none()
 
@@ -784,9 +772,7 @@ class ProfileRepository:
             True if removed, False if not found
         """
         result = await self.session.execute(
-            delete(Favorite).where(
-                Favorite.user_id == user_id, Favorite.target_id == target_id
-            )
+            delete(Favorite).where(Favorite.user_id == user_id, Favorite.target_id == target_id)
         )
 
         removed = result.rowcount > 0

@@ -61,9 +61,7 @@ def error_response(code: str, message: str, status: int = 400) -> web.Response:
     Returns:
         JSON response with standardized error format
     """
-    return web.json_response(
-        {"error": {"code": code, "message": message}}, status=status
-    )
+    return web.json_response({"error": {"code": code, "message": message}}, status=status)
 
 
 def create_jwt_token(user_id: int, jwt_secret: str, expires_in: int = 3600) -> str:
@@ -133,9 +131,7 @@ def optimize_image(image_bytes: bytes, format: str = "JPEG") -> bytes:
             background = Image.new("RGB", image.size, (255, 255, 255))
             if image.mode == "P":
                 image = image.convert("RGBA")
-            background.paste(
-                image, mask=image.split()[-1] if image.mode == "RGBA" else None
-            )
+            background.paste(image, mask=image.split()[-1] if image.mode == "RGBA" else None)
             image = background
         elif image.mode not in ("RGB", "L"):
             image = image.convert("RGB")
@@ -240,9 +236,7 @@ def calculate_nsfw_score(image_bytes: bytes, classifier=None) -> float:
 
             # Calculate safety score (0.0 = unsafe, 1.0 = safe)
             safety_score = (
-                safe_prob / (safe_prob + unsafe_prob)
-                if (safe_prob + unsafe_prob) > 0
-                else 0.5
+                safe_prob / (safe_prob + unsafe_prob) if (safe_prob + unsafe_prob) > 0 else 0.5
             )
 
             logger.info(
@@ -455,9 +449,7 @@ async def check_profile_handler(request: web.Request) -> web.Response:
         # Get user_id from query parameter
         user_id_str = request.query.get("user_id")
         if not user_id_str:
-            return error_response(
-                "validation_error", "user_id query parameter required"
-            )
+            return error_response("validation_error", "user_id query parameter required")
 
         try:
             requested_user_id = int(user_id_str)
@@ -485,16 +477,12 @@ async def check_profile_handler(request: web.Request) -> web.Response:
             user_data = validated_data.get("user", {})
             if not isinstance(user_data, dict):
                 logger.warning("init_data user data is not a dictionary")
-                return error_response(
-                    "unauthorized", "Unauthorized: invalid init_data", 401
-                )
+                return error_response("unauthorized", "Unauthorized: invalid init_data", 401)
 
             authenticated_user_id = user_data.get("id")
             if not authenticated_user_id:
                 logger.warning("init_data user missing id field")
-                return error_response(
-                    "unauthorized", "Unauthorized: invalid init_data", 401
-                )
+                return error_response("unauthorized", "Unauthorized: invalid init_data", 401)
 
             # Verify that requested user_id matches authenticated user_id
             if authenticated_user_id != requested_user_id:
@@ -502,9 +490,7 @@ async def check_profile_handler(request: web.Request) -> web.Response:
         except ValidationError as e:
             # If init_data validation fails, reject the request
             logger.warning(f"init_data validation failed: {e}")
-            return error_response(
-                "unauthorized", "Unauthorized: invalid init_data", 401
-            )
+            return error_response("unauthorized", "Unauthorized: invalid init_data", 401)
 
         # Check profile via API Gateway
         try:
@@ -604,9 +590,7 @@ async def update_profile_handler(request: web.Request) -> web.Response:
                 extra={"event_type": "profile_updated_api", "user_id": user_id},
             )
 
-            return web.json_response(
-                {"success": True, "message": "Profile updated successfully"}
-            )
+            return web.json_response({"success": True, "message": "Profile updated successfully"})
 
         except APIGatewayError as e:
             if e.status_code == 404:
@@ -648,32 +632,16 @@ async def discover_handler(request: web.Request) -> web.Response:
         age_min = int(request.query["age_min"]) if "age_min" in request.query else None
         age_max = int(request.query["age_max"]) if "age_max" in request.query else None
         max_distance_km = (
-            float(request.query["max_distance_km"])
-            if "max_distance_km" in request.query
-            else None
+            float(request.query["max_distance_km"]) if "max_distance_km" in request.query else None
         )
         goal = request.query.get("goal")
-        height_min = (
-            int(request.query["height_min"]) if "height_min" in request.query else None
-        )
-        height_max = (
-            int(request.query["height_max"]) if "height_max" in request.query else None
-        )
+        height_min = int(request.query["height_min"]) if "height_min" in request.query else None
+        height_max = int(request.query["height_max"]) if "height_max" in request.query else None
         has_children = (
-            request.query.get("has_children") == "true"
-            if "has_children" in request.query
-            else None
+            request.query.get("has_children") == "true" if "has_children" in request.query else None
         )
-        smoking = (
-            request.query.get("smoking") == "true"
-            if "smoking" in request.query
-            else None
-        )
-        drinking = (
-            request.query.get("drinking") == "true"
-            if "drinking" in request.query
-            else None
-        )
+        smoking = request.query.get("smoking") == "true" if "smoking" in request.query else None
+        drinking = request.query.get("drinking") == "true" if "drinking" in request.query else None
         education = request.query.get("education")
         verified_only = request.query.get("verified_only") == "true"
 
@@ -783,9 +751,7 @@ async def like_handler(request: web.Request) -> web.Response:
         try:
             from .api_client import APIGatewayError
 
-            result = await api_client.create_interaction(
-                user_id, target_id, interaction_type
-            )
+            result = await api_client.create_interaction(user_id, target_id, interaction_type)
 
             return web.json_response(result)
 
@@ -1097,9 +1063,7 @@ def create_app(config: BotConfig, api_client) -> web.Application:
         aiohttp Application
     """
     if not api_client:
-        raise ValueError(
-            "api_client is required - bot/api.py only supports thin client mode"
-        )
+        raise ValueError("api_client is required - bot/api.py only supports thin client mode")
 
     app = web.Application()
 
@@ -1125,9 +1089,7 @@ def create_app(config: BotConfig, api_client) -> web.Application:
     try:
         from nudenet import NudeClassifier
 
-        logger.info(
-            "Initializing NudeNet classifier", extra={"event_type": "nsfw_model_init"}
-        )
+        logger.info("Initializing NudeNet classifier", extra={"event_type": "nsfw_model_init"})
         app["nsfw_classifier"] = NudeClassifier()
     except ImportError:
         logger.warning("NudeNet not available, NSFW detection will use fallback mode")
@@ -1175,9 +1137,7 @@ def create_app(config: BotConfig, api_client) -> web.Application:
     # Add static file serving for photos (if not using CDN)
     if not config.photo_cdn_url:
         app.router.add_static("/photos/", config.photo_storage_path, show_index=False)
-        logger.info(
-            f"Static photo serving enabled at /photos/ from {config.photo_storage_path}"
-        )
+        logger.info(f"Static photo serving enabled at /photos/ from {config.photo_storage_path}")
     else:
         logger.info(f"Using CDN for photos: {config.photo_cdn_url}")
 
