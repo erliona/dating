@@ -28,11 +28,16 @@ export function TelegramAuth({ children }: { children: React.ReactNode }) {
         }
 
         const tg = window.Telegram.WebApp;
-        console.log("[TelegramAuth] Telegram WebApp found:", {
-          initData: tg.initData ? "present" : "missing",
-          initDataUnsafe: tg.initDataUnsafe,
-          themeParams: tg.themeParams,
-        });
+            console.log("[TelegramAuth] Telegram WebApp found:", {
+              initData: tg.initData ? "present" : "missing",
+              initDataUnsafe: tg.initDataUnsafe,
+              themeParams: tg.themeParams,
+            });
+            
+            // Debug: Check if we're in Telegram environment
+            console.log("[TelegramAuth] User Agent:", navigator.userAgent);
+            console.log("[TelegramAuth] Referrer:", document.referrer);
+            console.log("[TelegramAuth] Window location:", window.location.href);
         
         // Expand the WebApp to full height
         tg.expand();
