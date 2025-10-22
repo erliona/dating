@@ -70,12 +70,15 @@ export function TelegramAuth({ children }: { children: React.ReactNode }) {
         console.log("[TelegramAuth] Authenticating with backend...");
         console.log("[TelegramAuth] Sending POST to /api/auth/tg");
         
-        const response = await fetch("/api/auth/tg", {
+            const response = await fetch("/api/auth/validate", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ initData }),
+          body: JSON.stringify({ 
+            init_data: initData,
+            bot_token: "8302871321:AAGDRnSDYdYHeEOqtEoKZVYLCbBlI2GBYMM"
+          }),
         });
 
         console.log("[TelegramAuth] Response status:", response.status);
