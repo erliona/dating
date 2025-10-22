@@ -9,6 +9,7 @@ import logging
 from aiohttp import web
 
 from core.utils.logging import configure_logging
+from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
 from core.utils.security import (
     RateLimiter,
     ValidationError,
@@ -157,12 +158,18 @@ def create_app(config: dict) -> web.Application:
     app = web.Application()
     app["config"] = config
 
+    # Add middleware
+    app.middlewares.append(metrics_middleware)
+
     # Add routes
     app.router.add_post("/auth/validate", validate_telegram_init_data)
     app.router.add_get("/auth/verify", verify_token)
     app.router.add_post("/auth/refresh", refresh_token)
     app.router.add_get("/auth/test", test_token)
     app.router.add_get("/health", health_check)
+    
+    # Add metrics endpoint
+    add_metrics_route(app, "auth-service")
 
     return app
 
