@@ -317,7 +317,7 @@ services:
       - "traefik.http.routers.webapp.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/`)"
       - "traefik.http.routers.webapp.entrypoints=web"
       - "traefik.http.routers.webapp.priority=1"
-      - "traefik.http.services.webapp.loadbalancer.server.port=3000"
+      - "traefik.http.services.webapp.loadbalancer.server.port=80"
       # HTTPS router - low priority catch-all
       - "traefik.http.routers.webapp-secure.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/`)"
       - "traefik.http.routers.webapp-secure.entrypoints=websecure"
