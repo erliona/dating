@@ -10,7 +10,7 @@ from pathlib import Path
 from aiohttp import web
 
 from core.utils.logging import configure_logging
-from core.middleware.jwt_middleware import jwt_middleware
+# from core.middleware.jwt_middleware import jwt_middleware
 
 logger = logging.getLogger(__name__)
 
