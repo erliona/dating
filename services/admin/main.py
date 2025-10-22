@@ -18,7 +18,7 @@ import aiohttp
 from aiohttp import web
 
 from core.utils.logging import configure_logging
-# from core.middleware.jwt_middleware import admin_jwt_middleware
+from core.middleware.jwt_middleware import admin_jwt_middleware
 
 logger = logging.getLogger(__name__)
 
@@ -281,8 +281,8 @@ def create_app(config: dict) -> web.Application:
     app["config"] = config
     app["data_service_url"] = config["data_service_url"]
     
-    # Add admin JWT middleware - temporarily disabled
-    # app.middlewares.append(admin_jwt_middleware)
+    # Add admin JWT middleware
+    app.middlewares.append(admin_jwt_middleware)
 
     # Add routes
     app.router.add_post("/admin/login", login_handler)

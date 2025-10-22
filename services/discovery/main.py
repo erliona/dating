@@ -8,7 +8,7 @@ import aiohttp
 
 from aiohttp import web
 from core.utils.logging import configure_logging
-# from core.middleware.jwt_middleware import jwt_middleware
+from core.middleware.jwt_middleware import jwt_middleware
 
 logger = logging.getLogger(__name__)
 
@@ -154,8 +154,8 @@ def create_app(config: dict) -> web.Application:
     app["config"] = config
     app["data_service_url"] = config["data_service_url"]
     
-    # Add JWT middleware - temporarily disabled
-    # app.middlewares.append(jwt_middleware)
+    # Add JWT middleware
+    app.middlewares.append(jwt_middleware)
 
     # Add routes
     app.router.add_get("/discovery/candidates", get_candidates)

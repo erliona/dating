@@ -8,7 +8,7 @@ import logging
 from aiohttp import web
 
 from core.utils.logging import configure_logging
-# from core.middleware.jwt_middleware import jwt_middleware
+from core.middleware.jwt_middleware import jwt_middleware
 
 logger = logging.getLogger(__name__)
 
@@ -111,8 +111,8 @@ def create_app(config: dict) -> web.Application:
     app = web.Application()
     app["config"] = config
     
-    # Add JWT middleware - temporarily disabled
-    # app.middlewares.append(jwt_middleware)
+    # Add JWT middleware
+    app.middlewares.append(jwt_middleware)
 
     # Add routes
     app.router.add_get("/chat/connect", websocket_handler)
