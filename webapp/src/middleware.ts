@@ -20,10 +20,14 @@ export default async function middleware(request: NextRequest) {
 
   // Check if route requires authentication
   const pathname = request.nextUrl.pathname;
-  const isProtectedRoute = PROTECTED_ROUTES.some((route) => pathname.includes(route));
+  
+  // Check if it's a public route first (including home page)
   const isPublicRoute = PUBLIC_ROUTES.some(
     (route) => pathname === route || pathname.match(/^\/(ru|en)$/)?.[0] === pathname
   );
+  
+  // Only check for protected routes if it's not a public route
+  const isProtectedRoute = !isPublicRoute && PROTECTED_ROUTES.some((route) => pathname.includes(route));
 
   // Skip auth check for public routes and API routes
   if (isPublicRoute || pathname.startsWith("/api/")) {
