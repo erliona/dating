@@ -8,6 +8,7 @@ from core.utils.security import validate_jwt_token, ValidationError
 logger = logging.getLogger(__name__)
 
 
+@web.middleware
 async def jwt_middleware(request: web.Request, handler) -> web.Response:
     """
     JWT authentication middleware.
@@ -79,6 +80,7 @@ async def jwt_middleware(request: web.Request, handler) -> web.Response:
         )
 
 
+@web.middleware
 async def admin_jwt_middleware(request: web.Request, handler) -> web.Response:
     """
     Admin JWT authentication middleware.
