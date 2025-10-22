@@ -32,7 +32,7 @@ scrape_configs:
   # Loki metrics
   - job_name: 'loki'
     static_configs:
-      - targets: ['loki:3100']
+      - targets: ['172.18.0.3:3100']  # loki
         labels:
           service: 'loki'
           component: 'monitoring'
@@ -41,7 +41,7 @@ scrape_configs:
   # cAdvisor - Container metrics
   - job_name: 'cadvisor'
     static_configs:
-      - targets: ['cadvisor:8080']  # Internal container port
+      - targets: ['172.18.0.2:8080']  # cadvisor
         labels:
           service: 'cadvisor'
           component: 'monitoring'
@@ -56,7 +56,7 @@ scrape_configs:
   # Node Exporter - System metrics
   - job_name: 'node-exporter'
     static_configs:
-      - targets: ['node-exporter:9100']
+      - targets: ['172.18.0.4:9100']  # node-exporter
         labels:
           service: 'node-exporter'
           component: 'monitoring'
@@ -66,7 +66,7 @@ scrape_configs:
   # PostgreSQL metrics
   - job_name: 'postgres'
     static_configs:
-      - targets: ['postgres-exporter:9187']
+      - targets: ['172.18.0.6:9187']  # postgres-exporter
         labels:
           service: 'postgres'
           component: 'database'
@@ -76,7 +76,7 @@ scrape_configs:
   # Traefik metrics
   - job_name: 'traefik'
     static_configs:
-      - targets: ['traefik:8080']
+      - targets: ['172.18.0.7:8080']  # traefik
         labels:
           service: 'traefik'
           component: 'proxy'
@@ -86,18 +86,43 @@ scrape_configs:
   - job_name: 'application-services'
     static_configs:
       - targets:
-          - 'api-gateway:8080'
-          - 'auth-service:8081'
-          - 'profile-service:8082'
-          - 'discovery-service:8083'
-          - 'media-service:8084'
-          - 'chat-service:8085'
+          - '172.18.0.8:8080'  # api-gateway
+          - '172.18.0.12:8081' # auth-service
+          - '172.18.0.13:8082' # profile-service
+          - '172.18.0.14:8083' # discovery-service
+          - '172.18.0.15:8084' # media-service
+          - '172.18.0.16:8085' # chat-service
+          - '172.18.0.9:8086'  # admin-service
         labels:
           component: 'application'
     metrics_path: '/metrics'
-    # Relabel to extract service name from target
+    # Relabel to add service names
     relabel_configs:
       - source_labels: [__address__]
-        regex: '([^:]+):.*'
+        regex: '172\.18\.0\.8:.*'
         target_label: service
-        replacement: '$1'
+        replacement: 'api-gateway'
+      - source_labels: [__address__]
+        regex: '172\.18\.0\.12:.*'
+        target_label: service
+        replacement: 'auth-service'
+      - source_labels: [__address__]
+        regex: '172\.18\.0\.13:.*'
+        target_label: service
+        replacement: 'profile-service'
+      - source_labels: [__address__]
+        regex: '172\.18\.0\.14:.*'
+        target_label: service
+        replacement: 'discovery-service'
+      - source_labels: [__address__]
+        regex: '172\.18\.0\.15:.*'
+        target_label: service
+        replacement: 'media-service'
+      - source_labels: [__address__]
+        regex: '172\.18\.0\.16:.*'
+        target_label: service
+        replacement: 'chat-service'
+      - source_labels: [__address__]
+        regex: '172\.18\.0\.9:.*'
+        target_label: service
+        replacement: 'admin-service'
