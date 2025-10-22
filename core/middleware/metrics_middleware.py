@@ -4,7 +4,7 @@ import time
 from typing import Callable
 
 from aiohttp import web
-from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import Counter, Histogram, Gauge, generate_latest
 
 # Prometheus metrics
 REQUEST_COUNT = Counter(
@@ -115,7 +115,7 @@ async def metrics_handler(request: web.Request) -> web.Response:
     metrics_data = generate_latest()
     return web.Response(
         body=metrics_data,
-        content_type=CONTENT_TYPE_LATEST
+        content_type='text/plain; version=0.0.4; charset=utf-8'
     )
 
 
