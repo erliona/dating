@@ -17,8 +17,8 @@ async def jwt_middleware(request: web.Request, handler) -> web.Response:
     Adds user_id to request context for authenticated requests.
     """
     
-    # Пропустить health checks
-    if request.path.startswith('/health'):
+    # Пропустить health checks и metrics
+    if request.path.startswith('/health') or request.path.startswith('/metrics'):
         return await handler(request)
     
     # Пропустить auth endpoints (кроме verify)
@@ -88,8 +88,8 @@ async def admin_jwt_middleware(request: web.Request, handler) -> web.Response:
     Validates admin JWT tokens for admin endpoints.
     """
     
-    # Пропустить health checks и login
-    if request.path.startswith('/health') or request.path == '/admin/login':
+    # Пропустить health checks, metrics и login
+    if request.path.startswith('/health') or request.path.startswith('/metrics') or request.path == '/admin/login':
         return await handler(request)
     
     # Проверить admin JWT токен
