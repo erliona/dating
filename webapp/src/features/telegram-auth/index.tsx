@@ -52,7 +52,8 @@ export function TelegramAuth({ children }: { children: React.ReactNode }) {
           return;
         }
         
-        console.log("[TelegramAuth] initData received (length):", initData.length);
+            console.log("[TelegramAuth] initData received (length):", initData.length);
+            console.log("[TelegramAuth] initData content:", initData);
 
         // Check if already authenticated
         const accessToken = document.cookie
@@ -66,19 +67,22 @@ export function TelegramAuth({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        // Authenticate with backend
-        console.log("[TelegramAuth] Authenticating with backend...");
-        console.log("[TelegramAuth] Sending POST to /api/auth/tg");
-        
+            // Authenticate with backend
+            console.log("[TelegramAuth] Authenticating with backend...");
+            console.log("[TelegramAuth] Sending POST to /api/auth/validate");
+            
+            const requestBody = { 
+              init_data: initData,
+              bot_token: "8302871321:AAGDRnSDYdYHeEOqtEoKZVYLCbBlI2GBYMM"
+            };
+            console.log("[TelegramAuth] Request body:", requestBody);
+            
             const response = await fetch("/api/auth/validate", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ 
-            init_data: initData,
-            bot_token: "8302871321:AAGDRnSDYdYHeEOqtEoKZVYLCbBlI2GBYMM"
-          }),
+          body: JSON.stringify(requestBody),
         });
 
         console.log("[TelegramAuth] Response status:", response.status);
