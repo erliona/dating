@@ -36,6 +36,7 @@ WORKDIR /app
 
 # Copy application code
 COPY bot ./bot
+COPY core ./core
 COPY migrations ./migrations
 COPY webapp ./webapp
 COPY alembic.ini .
