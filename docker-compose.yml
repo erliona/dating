@@ -323,8 +323,6 @@ services:
       - "traefik.http.routers.webapp-secure.entrypoints=websecure"
       - "traefik.http.routers.webapp-secure.priority=1"
       - "traefik.http.routers.webapp-secure.tls.certresolver=letsencrypt"
-      # HTTP to HTTPS redirect
-      - "traefik.http.routers.webapp.middlewares=redirect-to-https"
 
   # ==================== MONITORING STACK ====================
   
