@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Exchange Telegram initData for JWT token via auth service
-    const authResponse = await fetch(`${API_BASE_URL}/api/auth/validate`, {
+    const authResponse = await fetch(`${API_BASE_URL}/api/auth/tg`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
