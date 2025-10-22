@@ -1,0 +1,188 @@
+{
+  "title": "Security & Authentication",
+  "tags": ["security", "auth", "jwt"],
+  "timezone": "browser",
+  "editable": true,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "JWT Token Operations",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "rate(jwt_tokens_created_total[5m])",
+          "refId": "A",
+          "legendFormat": "Tokens Created"
+        },
+        {
+          "expr": "rate(jwt_tokens_validated_total[5m])",
+          "refId": "B",
+          "legendFormat": "Tokens Validated"
+        },
+        {
+          "expr": "rate(jwt_tokens_expired_total[5m])",
+          "refId": "C",
+          "legendFormat": "Tokens Expired"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "id": 2,
+      "title": "Authentication Success Rate",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "rate(telegram_auth_success_total[5m]) / (rate(telegram_auth_success_total[5m]) + rate(telegram_auth_failed_total[5m])) * 100",
+          "refId": "A",
+          "legendFormat": "Success Rate %"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      }
+    },
+    {
+      "id": 3,
+      "title": "NSFW Detection",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "rate(nsfw_detection_total[5m])",
+          "refId": "A",
+          "legendFormat": "NSFW Detections"
+        },
+        {
+          "expr": "rate(nsfw_blocked_total[5m])",
+          "refId": "B",
+          "legendFormat": "NSFW Blocked"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      }
+    },
+    {
+      "id": 4,
+      "title": "Failed Authentication Attempts",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "rate(telegram_auth_failed_total[5m])",
+          "refId": "A",
+          "legendFormat": "Telegram Auth Failed"
+        },
+        {
+          "expr": "rate(jwt_validation_failed_total[5m])",
+          "refId": "B",
+          "legendFormat": "JWT Validation Failed"
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      }
+    },
+    {
+      "id": 5,
+      "title": "Security Events",
+      "type": "table",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "topk(10, rate(security_events_total[5m]))",
+          "refId": "A",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      }
+    },
+    {
+      "id": 6,
+      "title": "API Security Metrics",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "rate(api_security_violations_total[5m])",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
+            ]
+          }
+        }
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      }
+    }
+  ]
+}
