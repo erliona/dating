@@ -20,16 +20,10 @@
 - **[README.md - Архитектура](../README.md#архитектура)** - Обзор микросервисной архитектуры
 
 ### Frontend
-- **[Mini App Architecture](MINIAPP_ARCHITECTURE.md)** - Архитектура Telegram Mini App (legacy Vanilla JS)
-- **[Mini App Quick Start](MINIAPP_QUICK_START.md)** - Быстрый старт с Mini App
-- **[Mini App UI Improvements](MINIAPP_UI_IMPROVEMENTS.md)** - Улучшения UI
 - **[WebApp README](../webapp/README.md)** - Next.js 15 WebApp (основная версия)
 
 ### Backend
 - **[API Documentation](API_DOCUMENTATION.md)** - Полная документация API
-- **[API Gateway Routes](API_GATEWAY_ROUTES.md)** - Маршруты и endpoints API Gateway
-- **[API Contract Verification](API_CONTRACT_VERIFICATION.md)** - Проверка контрактов API
-- **[Port Mapping](PORT_MAPPING.md)** - Карта портов всех сервисов
 
 ---
 
@@ -53,7 +47,6 @@
 ### CI/CD
 - **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Полное руководство по развертыванию
 - **[CI/CD Guide](CI_CD_GUIDE.md)** - Полное руководство по CI/CD с GitHub Actions
-- **[Deployment Checklist](DEPLOYMENT_CHECKLIST.md)** - Чек-лист для деплоя
 
 ### Troubleshooting
 - **[Deployment Troubleshooting](DEPLOYMENT_TROUBLESHOOTING.md)** - Решение проблем при деплое
@@ -65,7 +58,6 @@
 
 ### Настройка мониторинга
 - **[Monitoring Guide](MONITORING_GUIDE.md)** - Полное руководство по мониторингу
-- **[Monitoring Setup](MONITORING_SETUP.md)** - Prometheus, Grafana, Loki v3.0
 - **[README.md - Мониторинг](../README.md#мониторинг)** - Обзор мониторинга
 
 ---

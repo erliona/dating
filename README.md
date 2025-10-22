@@ -1438,20 +1438,16 @@ docker compose up -d
 - 🏛️ **[Architecture Overview](docs/ARCHITECTURE.md)** - Полное описание архитектуры системы
 - 📱 **[WebApp README](webapp/README.md)** - Next.js 15 WebApp (основная версия)
 - 🔐 **[Authentication Guide](webapp/docs/AUTH.md)** - Telegram Login и JWT авторизация
-- 🔌 **[API Gateway Routes](docs/API_GATEWAY_ROUTES.md)** - Маршруты API Gateway
-- 🗺️ **[Port Mapping](docs/PORT_MAPPING.md)** - Карта портов всех сервисов
 
 ### 🚀 DevOps и деплой
 
 - 🚀 **[Deployment Guide](docs/DEPLOYMENT_GUIDE.md)** - Полное руководство по развертыванию
 - 🔄 **[CI/CD Guide](docs/CI_CD_GUIDE.md)** - Continuous Integration/Deployment
-- ✅ **[Deployment Checklist](docs/DEPLOYMENT_CHECKLIST.md)** - Чек-лист деплоя
 - 🐛 **[Deployment Troubleshooting](docs/DEPLOYMENT_TROUBLESHOOTING.md)** - Решение проблем
 
 ### 📊 Мониторинг и администрирование
 
 - 📈 **[Monitoring Guide](docs/MONITORING_GUIDE.md)** - Полное руководство по мониторингу
-- 📈 **[Monitoring Setup](docs/MONITORING_SETUP.md)** - Prometheus, Grafana, Loki v3.0
 - 👨‍💼 **[Admin Panel Guide](docs/ADMIN_PANEL_GUIDE.md)** - Административная панель
 - 📋 **[Admin Service README](services/admin/README.md)** - Admin Service
 
