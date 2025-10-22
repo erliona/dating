@@ -807,8 +807,8 @@ def create_app(config: dict) -> web.Application:
     # Store session maker for creating data service instances
     app["session_maker"] = async_session_maker
     
-    # Add JWT middleware
-    app.middlewares.append(jwt_middleware)
+    # Add JWT middleware - temporarily disabled for data-service
+    # app.middlewares.append(jwt_middleware)
     
     # Add routes
     app.router.add_get("/health", health_handler)
