@@ -95,8 +95,8 @@ echo "  Admin Service Startup"
 echo "========================================"
 echo ""
 
-# Run migrations
-run_migrations
+# Skip migrations - Admin Service now works through Data Service
+log_info "Skipping database migrations - Admin Service works through Data Service"
 
 echo ""
 echo "========================================"

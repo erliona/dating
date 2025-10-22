@@ -9,7 +9,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY bot/ bot/
 COPY core/ core/
-COPY adapters/ adapters/
 COPY services/discovery/ services/discovery/
 
 # Set PYTHONPATH to find modules

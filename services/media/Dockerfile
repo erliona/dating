@@ -8,7 +8,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY core/ core/
-COPY adapters/ adapters/
 COPY services/media/ services/media/
 
 # Create photo storage directory

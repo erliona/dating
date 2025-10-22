@@ -848,3 +848,136 @@ class ProfileRepository:
         )
 
         return favorites_with_profiles, next_cursor
+
+    # Admin methods
+    async def list_users(self, page: int = 1, per_page: int = 20, search: str = "") -> tuple[list[User], int]:
+        """List users with pagination for admin panel."""
+        from sqlalchemy import func, or_
+        
+        offset = (page - 1) * per_page
+        
+        # Build query
+        query = select(User).order_by(User.created_at.desc())
+        
+        if search:
+            query = query.where(
+                or_(
+                    User.username.ilike(f"%{search}%"),
+                    User.first_name.ilike(f"%{search}%"),
+                )
+            )
+        
+        # Count total
+        count_query = select(func.count()).select_from(query.subquery())
+        total_result = await self.session.execute(count_query)
+        total = total_result.scalar()
+        
+        # Get page
+        query = query.offset(offset).limit(per_page)
+        result = await self.session.execute(query)
+        users = result.scalars().all()
+        
+        return users, total
+
+    async def get_system_stats(self) -> dict:
+        """Get system statistics for admin dashboard."""
+        from sqlalchemy import func
+        from datetime import datetime, timedelta, timezone
+        
+        # Total users
+        total_users_result = await self.session.execute(select(func.count(User.id)))
+        total_users = total_users_result.scalar()
+        
+        # Active users (created in last 30 days)
+        thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+        active_users_result = await self.session.execute(
+            select(func.count(User.id)).where(User.created_at >= thirty_days_ago)
+        )
+        active_users = active_users_result.scalar()
+        
+        # Total profiles
+        total_profiles_result = await self.session.execute(
+            select(func.count(Profile.id))
+        )
+        total_profiles = total_profiles_result.scalar()
+        
+        # Complete profiles
+        complete_profiles_result = await self.session.execute(
+            select(func.count(Profile.id)).where(Profile.is_complete)
+        )
+        complete_profiles = complete_profiles_result.scalar()
+        
+        # Total photos
+        total_photos_result = await self.session.execute(select(func.count(Photo.id)))
+        total_photos = total_photos_result.scalar()
+        
+        # Verified photos
+        verified_photos_result = await self.session.execute(
+            select(func.count(Photo.id)).where(Photo.is_verified)
+        )
+        verified_photos = verified_photos_result.scalar()
+        
+        # Total matches
+        total_matches_result = await self.session.execute(select(func.count(Match.id)))
+        total_matches = total_matches_result.scalar()
+        
+        # Total interactions
+        total_interactions_result = await self.session.execute(
+            select(func.count(Interaction.id))
+        )
+        total_interactions = total_interactions_result.scalar()
+        
+        # Banned users
+        banned_users_result = await self.session.execute(
+            select(func.count(User.id)).where(User.is_banned)
+        )
+        banned_users = banned_users_result.scalar()
+        
+        return {
+            "users": {
+                "total": total_users,
+                "active": active_users,
+                "banned": banned_users,
+            },
+            "profiles": {
+                "total": total_profiles,
+                "complete": complete_profiles,
+            },
+            "photos": {
+                "total": total_photos,
+                "verified": verified_photos,
+                "pending": total_photos - verified_photos,
+            },
+            "matches": total_matches,
+            "interactions": total_interactions,
+        }
+
+    async def list_photos(self, page: int = 1, per_page: int = 20, verified_only: bool = False, unverified_only: bool = False) -> tuple[list[Photo], int]:
+        """List photos for moderation."""
+        from sqlalchemy import func
+        
+        offset = (page - 1) * per_page
+        
+        query = select(Photo).order_by(Photo.created_at.desc())
+        
+        if verified_only:
+            query = query.where(Photo.is_verified)
+        elif unverified_only:
+            query = query.where(~Photo.is_verified)
+        
+        # Count total
+        count_query = select(func.count()).select_from(query.subquery())
+        total_result = await self.session.execute(count_query)
+        total = total_result.scalar()
+        
+        # Get page
+        query = query.offset(offset).limit(per_page)
+        result = await self.session.execute(query)
+        photos = result.scalars().all()
+        
+        return photos, total
+
+    async def get_photo_by_id(self, photo_id: int) -> Optional[Photo]:
+        """Get photo by ID."""
+        result = await self.session.execute(select(Photo).where(Photo.id == photo_id))
+        return result.scalar_one_or_none()

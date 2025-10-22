@@ -85,3 +85,20 @@ webapp/.next/
 webapp/out/
 webapp/node_modules/
 webapp/.env*.local
+
+# Legacy and temporary files
+*_old/
+*_backup/
+*_legacy/
+*.bak
+*.orig
+*.rej
+
+# Logs
+*.log
+logs/
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini

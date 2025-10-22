@@ -16,9 +16,8 @@
 ## 🏗️ Архитектура и Дизайн
 
 ### Общая архитектура
+- **[Architecture Overview](ARCHITECTURE.md)** - Полное описание архитектуры системы
 - **[README.md - Архитектура](../README.md#архитектура)** - Обзор микросервисной архитектуры
-- **[Thin Client Architecture](THIN_CLIENT_ARCHITECTURE.md)** - Архитектура тонкого клиента
-- **[Bot Architecture Change](BOT_ARCHITECTURE_CHANGE.md)** - Изменения в архитектуре бота
 
 ### Frontend
 - **[Mini App Architecture](MINIAPP_ARCHITECTURE.md)** - Архитектура Telegram Mini App (legacy Vanilla JS)
@@ -27,6 +26,7 @@
 - **[WebApp README](../webapp/README.md)** - Next.js 15 WebApp (основная версия)
 
 ### Backend
+- **[API Documentation](API_DOCUMENTATION.md)** - Полная документация API
 - **[API Gateway Routes](API_GATEWAY_ROUTES.md)** - Маршруты и endpoints API Gateway
 - **[API Contract Verification](API_CONTRACT_VERIFICATION.md)** - Проверка контрактов API
 - **[Port Mapping](PORT_MAPPING.md)** - Карта портов всех сервисов
@@ -37,10 +37,10 @@
 
 ### Настройка и запуск
 - **[Getting Started](GETTING_STARTED.md)** - Полное руководство по настройке
+- **[Development Guide](DEVELOPMENT_GUIDE.md)** - Руководство для разработчиков
 - **[.env.example](../.env.example)** - Пример конфигурации окружения
 
 ### Тестирование
-- **[Test Refactoring 2024](TEST_REFACTORING_2024.md)** - Обновление тестов (380+ тестов)
 - **[tests/README.md](../tests/README.md)** - Документация по тестам
 
 ### Code Quality
@@ -51,6 +51,7 @@
 ## 🚢 Деплой и DevOps
 
 ### CI/CD
+- **[Deployment Guide](DEPLOYMENT_GUIDE.md)** - Полное руководство по развертыванию
 - **[CI/CD Guide](CI_CD_GUIDE.md)** - Полное руководство по CI/CD с GitHub Actions
 - **[Deployment Checklist](DEPLOYMENT_CHECKLIST.md)** - Чек-лист для деплоя
 
@@ -63,8 +64,8 @@
 ## 📊 Мониторинг
 
 ### Настройка мониторинга
+- **[Monitoring Guide](MONITORING_GUIDE.md)** - Полное руководство по мониторингу
 - **[Monitoring Setup](MONITORING_SETUP.md)** - Prometheus, Grafana, Loki v3.0
-- **[Monitoring v3 Migration](MONITORING_V3_MIGRATION.md)** - Миграция на v3.0
 - **[README.md - Мониторинг](../README.md#мониторинг)** - Обзор мониторинга
 
 ---

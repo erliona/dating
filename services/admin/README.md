@@ -53,7 +53,7 @@ http://localhost:8080/admin-panel/index.html
 
 | Переменная | Описание | По умолчанию |
 |------------|----------|--------------|
-| `DATABASE_URL` | URL подключения к PostgreSQL | `postgresql+asyncpg://dating:dating@localhost:5432/dating` |
+| `DATA_SERVICE_URL` | URL для подключения к Data Service | `http://data-service:8088` |
 | `JWT_SECRET` | Секретный ключ для JWT токенов | `your-secret-key` |
 | `ADMIN_SERVICE_HOST` | Хост для admin service | `0.0.0.0` |
 | `ADMIN_SERVICE_PORT` | Порт для admin service | `8086` |
@@ -68,10 +68,10 @@ admin-service:
     context: .
     dockerfile: services/admin/Dockerfile
   depends_on:
-    db:
+    data-service:
       condition: service_healthy
   environment:
-    DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
+    DATA_SERVICE_URL: http://data-service:8088
     JWT_SECRET: ${JWT_SECRET}
     ADMIN_SERVICE_HOST: 0.0.0.0
     ADMIN_SERVICE_PORT: 8086
@@ -150,7 +150,7 @@ WHERE username = 'admin';
 pip install -r requirements.txt
 
 # Запустить admin service
-export DATABASE_URL="postgresql+asyncpg://dating:dating@localhost:5432/dating"
+export DATA_SERVICE_URL="http://localhost:8088"
 export JWT_SECRET="your-secret-key"
 python -m services.admin.main
 ```

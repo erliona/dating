@@ -4,13 +4,9 @@ This microservice handles matching algorithm and candidate discovery.
 """
 
 import logging
+import aiohttp
 
 from aiohttp import web
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker
-
-from adapters.telegram.repository import TelegramProfileRepository
-from core.services import MatchingService
 from core.utils.logging import configure_logging
 
 logger = logging.getLogger(__name__)
@@ -20,7 +16,7 @@ async def get_candidates(request: web.Request) -> web.Response:
     """Get candidate profiles for matching.
 
     GET /discovery/candidates
-    Query params: user_id, limit
+    Query params: user_id, limit, cursor, filters...
     """
     try:
         user_id = int(request.query.get("user_id", 0))
@@ -29,14 +25,40 @@ async def get_candidates(request: web.Request) -> web.Response:
         if not user_id:
             return web.json_response({"error": "user_id is required"}, status=400)
 
-        # TODO: Implement candidate discovery using MatchingService
-        # For now, return empty list
-        return web.json_response({"candidates": [], "count": 0})
+        data_service_url = request.app["data_service_url"]
+        
+        # Build query parameters for Data Service
+        params = {
+            "user_id": user_id,
+            "limit": limit,
+        }
+        
+        # Add cursor if provided
+        if request.query.get("cursor"):
+            params["cursor"] = request.query.get("cursor")
+        
+        # Add filters
+        filter_params = [
+            "age_min", "age_max", "max_distance_km", "goal", "height_min", 
+            "height_max", "has_children", "smoking", "drinking", "education", "verified_only"
+        ]
+        for param in filter_params:
+            if request.query.get(param):
+                params[param] = request.query.get(param)
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"{data_service_url}/data/candidates", params=params) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    return web.json_response(result)
+                else:
+                    logger.error(f"Data service returned status {response.status}")
+                    return web.json_response({"error": "Failed to get candidates"}, status=500)
 
     except ValueError as e:
         return web.json_response({"error": "Invalid parameters"}, status=400)
     except Exception as e:
-        logger.error(f"Error getting candidates: {e}")
+        logger.error(f"Error getting candidates: {e}", exc_info=True)
         return web.json_response({"error": "Internal server error"}, status=500)
 
 
@@ -44,23 +66,38 @@ async def like_profile(request: web.Request) -> web.Response:
     """Like a profile.
 
     POST /discovery/like
-    Body: {"user_id": int, "target_id": int}
+    Body: {"user_id": int, "target_id": int, "interaction_type": str}
     """
     try:
         data = await request.json()
         user_id = data.get("user_id")
         target_id = data.get("target_id")
+        interaction_type = data.get("interaction_type", "like")
 
         if not user_id or not target_id:
             return web.json_response(
                 {"error": "user_id and target_id are required"}, status=400
             )
 
-        # TODO: Implement like logic
-        return web.json_response({"success": True, "matched": False})
+        data_service_url = request.app["data_service_url"]
+        
+        interaction_data = {
+            "user_id": user_id,
+            "target_id": target_id,
+            "interaction_type": interaction_type,
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.post(f"{data_service_url}/data/interactions", json=interaction_data) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    return web.json_response(result)
+                else:
+                    logger.error(f"Data service returned status {response.status}")
+                    return web.json_response({"error": "Failed to create interaction"}, status=500)
 
     except Exception as e:
-        logger.error(f"Error liking profile: {e}")
+        logger.error(f"Error liking profile: {e}", exc_info=True)
         return web.json_response({"error": "Internal server error"}, status=500)
 
 
@@ -68,19 +105,40 @@ async def get_matches(request: web.Request) -> web.Response:
     """Get user matches.
 
     GET /discovery/matches
-    Query params: user_id
+    Query params: user_id, limit, cursor
     """
     try:
         user_id = int(request.query.get("user_id", 0))
+        limit = int(request.query.get("limit", 20))
 
         if not user_id:
             return web.json_response({"error": "user_id is required"}, status=400)
 
-        # TODO: Implement matches retrieval
-        return web.json_response({"matches": [], "count": 0})
+        data_service_url = request.app["data_service_url"]
+        
+        # Build query parameters for Data Service
+        params = {
+            "user_id": user_id,
+            "limit": limit,
+        }
+        
+        # Add cursor if provided
+        if request.query.get("cursor"):
+            params["cursor"] = request.query.get("cursor")
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"{data_service_url}/data/matches", params=params) as response:
+                if response.status == 200:
+                    result = await response.json()
+                    return web.json_response(result)
+                else:
+                    logger.error(f"Data service returned status {response.status}")
+                    return web.json_response({"error": "Failed to get matches"}, status=500)
 
+    except ValueError as e:
+        return web.json_response({"error": "Invalid parameters"}, status=400)
     except Exception as e:
-        logger.error(f"Error getting matches: {e}")
+        logger.error(f"Error getting matches: {e}", exc_info=True)
         return web.json_response({"error": "Internal server error"}, status=500)
 
 
@@ -93,15 +151,7 @@ def create_app(config: dict) -> web.Application:
     """Create and configure the discovery service application."""
     app = web.Application()
     app["config"] = config
-
-    # Initialize database connection
-    engine = create_async_engine(config["database_url"])
-    async_session_maker = sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
-
-    app["engine"] = engine
-    app["session_maker"] = async_session_maker
+    app["data_service_url"] = config["data_service_url"]
 
     # Add routes
     app.router.add_get("/discovery/candidates", get_candidates)
@@ -119,9 +169,7 @@ if __name__ == "__main__":
     configure_logging("discovery-service", os.getenv("LOG_LEVEL", "INFO"))
 
     config = {
-        "database_url": os.getenv(
-            "DATABASE_URL", "postgresql+asyncpg://dating:dating@localhost/dating"
-        ),
+        "data_service_url": os.getenv("DATA_SERVICE_URL", "http://data-service:8088"),
         "host": os.getenv("DISCOVERY_SERVICE_HOST", "0.0.0.0"),
         "port": int(os.getenv("DISCOVERY_SERVICE_PORT", 8083)),
     }

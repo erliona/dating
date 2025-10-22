@@ -126,6 +126,14 @@ async def route_api_profile(request: web.Request) -> web.Response:
     return await proxy_request(request, profile_url, path_override=new_path)
 
 
+async def route_api_profiles(request: web.Request) -> web.Response:
+    """Route /api/profiles/* to profile service, mapping to /profiles/*."""
+    profile_url = request.app["config"]["profile_service_url"]
+    # Map /api/profiles to /profiles
+    new_path = request.path.replace("/api/profiles", "/profiles", 1)
+    return await proxy_request(request, profile_url, path_override=new_path)
+
+
 async def route_api_discovery(request: web.Request) -> web.Response:
     """Route /api/discover, /api/like, /api/pass, /api/matches, /api/favorites to discovery service."""
     discovery_url = request.app["config"]["discovery_service_url"]
@@ -232,6 +240,8 @@ def create_app(config: dict) -> web.Application:
     add_cors_route("/api/profile/check", route_api_profile)
     add_cors_route("/api/profile/{tail:.*}", route_api_profile)
     add_cors_route("/api/profile", route_api_profile)
+    add_cors_route("/api/profiles/{tail:.*}", route_api_profiles)
+    add_cors_route("/api/profiles", route_api_profiles)
 
     # Discovery endpoints (like, pass, matches, favorites, discover)
     add_cors_route("/api/discover", route_api_discovery)

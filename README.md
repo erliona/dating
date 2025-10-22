@@ -154,8 +154,9 @@ Dating - это современное приложение для знаком�
     │ • Discovery Service (8083)    │ ← Поиск, матчинг
     │ • Media Service     (8084)    │ ← Фото, NSFW детектор
     │ • Chat Service      (8085)    │ ← Сообщения, real-time
-    │ • Admin Service     (8086)    │ ← Административная панель
-    │ • Notification Svc  (8087)    │ ← Push-уведомления
+    │ • Notification Svc  (8086)    │ ← Push-уведомления
+    │ • Admin Service     (8087)    │ ← Административная панель
+    │ • Data Service      (8088)    │ ← Централизованный доступ к БД
     └───────────────────────────────┘
               │
     ┌─────────▼──────────┐
@@ -164,46 +165,47 @@ Dating - это современное приложение для знаком�
 ```
 
 **Ключевая особенность архитектуры:**
+- ✅ **Централизованный доступ к данным** - все операции с БД через Data Service
 - ✅ **Минималистичный бот** - только команды и уведомления
 - ✅ **WebApp как главный клиент** - вся логика взаимодействия
 - ✅ **Прямая связь WebApp → API Gateway** - без промежуточных слоев
 - ✅ **Notification Service** - централизованная отправка уведомлений
 - ✅ **Упрощенное масштабирование** - независимое масштабирование компонентов
-- ✅ **Консистентность данных** - один источник истины через микросервисы
+- ✅ **Консистентность данных** - один источник истины через Data Service
 
 ### Структура проекта
 
 ```
 dating/
-├── core/                  # Платформонезависимая бизнес-логика
-│   ├── models/           # Доменные модели (User, Profile, Match)
-│   ├── services/         # Сервисы (ProfileService, MatchingService)
-│   ├── interfaces/       # Контракты для адаптеров
-│   └── utils/            # Утилиты (validation, security)
+├── bot/                  # Telegram Bot
+│   ├── main.py         # Bot entry point
+│   ├── config.py       # Configuration
+│   ├── db.py           # Database models
+│   └── repository.py   # Data access layer
 │
-├── services/             # Микросервисы
-│   ├── auth/            # Аутентификация
-│   ├── profile/         # Профили
-│   ├── discovery/       # Поиск и матчинг
-│   ├── media/           # Медиа файлы
-│   ├── chat/            # Чат
-│   ├── admin/           # Административная панель
-│   └── notification/    # Push-уведомления
+├── core/                # Shared utilities
+│   └── utils/          # Common utilities
+│       ├── logging.py  # Logging configuration
+│       ├── security.py # Security utilities
+│       └── validation.py # Data validation
+│
+├── services/            # Microservices
+│   ├── auth/           # Authentication service
+│   ├── profile/        # Profile management
+│   ├── discovery/      # Matching algorithm
+│   ├── media/          # File handling
+│   ├── chat/           # Real-time messaging
+│   ├── admin/          # Admin panel
+│   ├── notification/   # Push notifications
+│   └── data/           # Centralized data access
 │
 ├── gateway/             # API Gateway
-│   └── main.py         # Маршрутизация запросов
-│
-├── adapters/            # Платформенные адаптеры
-│   └── telegram/       # Интеграция с Telegram
+│   └── main.py         # Request routing
 │
 ├── webapp/              # Frontend (Next.js WebApp)
-│   ├── src/            # React компоненты
-│   ├── messages/       # i18n переводы
-│   └── public/         # Статические файлы
-│
-├── webapp_old/         # Legacy Mini App (Vanilla JS)
-│   ├── index.html      # Простая версия
-│   └── js/css/         # Статические ресурсы
+│   ├── src/            # React components
+│   ├── messages/       # i18n translations
+│   └── public/         # Static assets
 │
 ├── tests/               # Тесты
 ├── migrations/          # DB миграции (Alembic)
@@ -1433,28 +1435,30 @@ docker compose up -d
 
 ### 🏗️ Архитектура и разработка
 
-- 🏛️ **[Thin Client Architecture](docs/THIN_CLIENT_ARCHITECTURE.md)** - Архитектура тонкого клиента
+- 🏛️ **[Architecture Overview](docs/ARCHITECTURE.md)** - Полное описание архитектуры системы
 - 📱 **[WebApp README](webapp/README.md)** - Next.js 15 WebApp (основная версия)
 - 🔐 **[Authentication Guide](webapp/docs/AUTH.md)** - Telegram Login и JWT авторизация
-- 🎨 **[Mini App Architecture](docs/MINIAPP_ARCHITECTURE.md)** - Legacy Telegram Mini App
 - 🔌 **[API Gateway Routes](docs/API_GATEWAY_ROUTES.md)** - Маршруты API Gateway
 - 🗺️ **[Port Mapping](docs/PORT_MAPPING.md)** - Карта портов всех сервисов
 
 ### 🚀 DevOps и деплой
 
+- 🚀 **[Deployment Guide](docs/DEPLOYMENT_GUIDE.md)** - Полное руководство по развертыванию
 - 🔄 **[CI/CD Guide](docs/CI_CD_GUIDE.md)** - Continuous Integration/Deployment
 - ✅ **[Deployment Checklist](docs/DEPLOYMENT_CHECKLIST.md)** - Чек-лист деплоя
 - 🐛 **[Deployment Troubleshooting](docs/DEPLOYMENT_TROUBLESHOOTING.md)** - Решение проблем
 
 ### 📊 Мониторинг и администрирование
 
+- 📈 **[Monitoring Guide](docs/MONITORING_GUIDE.md)** - Полное руководство по мониторингу
 - 📈 **[Monitoring Setup](docs/MONITORING_SETUP.md)** - Prometheus, Grafana, Loki v3.0
 - 👨‍💼 **[Admin Panel Guide](docs/ADMIN_PANEL_GUIDE.md)** - Административная панель
 - 📋 **[Admin Service README](services/admin/README.md)** - Admin Service
 
-### 🧪 Тестирование
+### 🧪 Тестирование и разработка
 
-- 🧪 **[Test Refactoring 2024](docs/TEST_REFACTORING_2024.md)** - 381 тестов (362 passed, 95.0%)
+- 👨‍💻 **[Development Guide](docs/DEVELOPMENT_GUIDE.md)** - Руководство для разработчиков
+- 📚 **[API Documentation](docs/API_DOCUMENTATION.md)** - Полная документация API
 - 📝 **[tests/README.md](tests/README.md)** - Документация по тестам
 
 ---

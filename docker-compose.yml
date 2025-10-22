@@ -89,10 +89,9 @@ services:
       context: .
       dockerfile: services/profile/Dockerfile
     depends_on:
-      db:
-        condition: service_healthy
+      - data-service
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
+      DATA_SERVICE_URL: http://data-service:${DATA_SERVICE_PORT:-8088}
       PROFILE_SERVICE_HOST: 0.0.0.0
       PROFILE_SERVICE_PORT: ${PROFILE_SERVICE_PORT:-8082}
     ports:
@@ -110,10 +109,10 @@ services:
       context: .
       dockerfile: services/discovery/Dockerfile
     depends_on:
-      db:
+      data-service:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
+      DATA_SERVICE_URL: http://data-service:8088
       DISCOVERY_SERVICE_HOST: 0.0.0.0
       DISCOVERY_SERVICE_PORT: ${DISCOVERY_SERVICE_PORT:-8083}
     ports:
@@ -130,11 +129,7 @@ services:
     build:
       context: .
       dockerfile: services/media/Dockerfile
-    depends_on:
-      db:
-        condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
       MEDIA_SERVICE_HOST: 0.0.0.0
       MEDIA_SERVICE_PORT: ${MEDIA_SERVICE_PORT:-8084}
       PHOTO_STORAGE_PATH: /app/photos
@@ -155,11 +150,7 @@ services:
     build:
       context: .
       dockerfile: services/chat/Dockerfile
-    depends_on:
-      db:
-        condition: service_healthy
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
       CHAT_SERVICE_HOST: 0.0.0.0
       CHAT_SERVICE_PORT: ${CHAT_SERVICE_PORT:-8085}
     ports:
@@ -190,16 +181,39 @@ services:
       retries: 3
     restart: unless-stopped
 
+  # Data Service - Centralized database access
+  data-service:
+    build:
+      context: .
+      dockerfile: services/data/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dating}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dating}
+      POSTGRES_DB: ${POSTGRES_DB:-dating}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
+      DATA_SERVICE_HOST: 0.0.0.0
+      DATA_SERVICE_PORT: ${DATA_SERVICE_PORT:-8088}
+    ports:
+      - "${DATA_SERVICE_PORT:-8088}:${DATA_SERVICE_PORT:-8088}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8088/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
   # Admin Service - Admin panel for managing the system
   admin-service:
     build:
       context: .
       dockerfile: services/admin/Dockerfile
     depends_on:
-      db:
-        condition: service_healthy
+      - data-service
     environment:
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
+      DATA_SERVICE_URL: http://data-service:${DATA_SERVICE_PORT:-8088}
       JWT_SECRET: ${JWT_SECRET}
       ADMIN_SERVICE_HOST: 0.0.0.0
       ADMIN_SERVICE_PORT: ${ADMIN_SERVICE_PORT:-8086}
@@ -247,13 +261,13 @@ services:
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
-      # HTTP router - high priority for specific paths
-      - "traefik.http.routers.api-gateway.rule=Host(`${DOMAIN:-localhost}`) && (PathPrefix(`/api`) || Path(`/health`) || PathPrefix(`/admin-panel`) || PathPrefix(`/chat`))"
+      # HTTP router - high priority for specific paths (excluding /api/profiles)
+      - "traefik.http.routers.api-gateway.rule=Host(`${DOMAIN:-localhost}`) && (PathPrefix(`/api`) && !PathPrefix(`/api/profiles`)) || Path(`/health`) || PathPrefix(`/admin-panel`) || PathPrefix(`/chat`)"
       - "traefik.http.routers.api-gateway.entrypoints=web"
       - "traefik.http.routers.api-gateway.priority=100"
       - "traefik.http.services.api-gateway.loadbalancer.server.port=${GATEWAY_PORT:-8080}"
-      # HTTPS router - high priority for specific paths
-      - "traefik.http.routers.api-gateway-secure.rule=Host(`${DOMAIN:-localhost}`) && (PathPrefix(`/api`) || Path(`/health`) || PathPrefix(`/admin-panel`) || PathPrefix(`/chat`))"
+      # HTTPS router - high priority for specific paths (excluding /api/profiles)
+      - "traefik.http.routers.api-gateway-secure.rule=Host(`${DOMAIN:-localhost}`) && (PathPrefix(`/api`) && !PathPrefix(`/api/profiles`)) || Path(`/health`) || PathPrefix(`/admin-panel`) || PathPrefix(`/chat`)"
       - "traefik.http.routers.api-gateway-secure.entrypoints=websecure"
       - "traefik.http.routers.api-gateway-secure.priority=100"
       - "traefik.http.routers.api-gateway-secure.tls.certresolver=letsencrypt"
@@ -268,8 +282,10 @@ services:
       dockerfile: Dockerfile
     depends_on:
       - api-gateway
+      - db
     environment:
       BOT_TOKEN: ${BOT_TOKEN}
+      BOT_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
       API_GATEWAY_URL: http://api-gateway:8080
       WEBAPP_URL: ${WEBAPP_URL}
     healthcheck:
