@@ -38,12 +38,17 @@ scp scripts/force-deploy.sh $SERVER:$SERVER_PATH/
 scp scripts/quick-deploy.sh $SERVER:$SERVER_PATH/
 ssh $SERVER "chmod +x $SERVER_PATH/force-deploy.sh $SERVER_PATH/quick-deploy.sh"
 
-# Step 2: Copy changed files based on services
+# Step 2: Copy configuration files
+print_status "Copying configuration files..."
+scp docker-compose.yml $SERVER:$SERVER_PATH/
+scp requirements.txt $SERVER:$SERVER_PATH/
+
+# Step 3: Copy changed files based on services
 for service in $SERVICES; do
     case $service in
         "webapp")
             print_status "Copying webapp files..."
-            scp -r webapp/src $SERVER:$SERVER_PATH/webapp/
+            scp -r webapp/* $SERVER:$SERVER_PATH/webapp/
             ;;
         "api-gateway")
             print_status "Copying API Gateway files..."
