@@ -74,6 +74,7 @@
 
 ### Документация по безопасности
 - **[SECURITY.md](../SECURITY.md)** - Политика безопасности, отчет о уязвимостях
+- **[JWT Security Implementation](JWT_SECURITY_IMPLEMENTATION.md)** - Реализация JWT аутентификации
 - **[webapp/docs/SECURITY.md](../webapp/docs/SECURITY.md)** - Безопасность WebApp
 - **[README.md - Безопасность](../README.md#безопасность)** - Обзор функций безопасности
 
