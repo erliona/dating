@@ -127,6 +127,26 @@ async def refresh_token(request: web.Request) -> web.Response:
         return web.json_response({"error": "Internal server error"}, status=500)
 
 
+async def test_token(request: web.Request) -> web.Response:
+    """Generate test JWT token for development.
+    
+    GET /auth/test
+    """
+    try:
+        user_id = request.query.get("user_id", "123")
+        jwt_secret = request.app["config"].get("jwt_secret")
+        token = generate_jwt_token(int(user_id), jwt_secret)
+        
+        return web.json_response({
+            "token": token,
+            "user_id": user_id,
+            "message": "Test token generated (development only)"
+        })
+    except Exception as e:
+        logger.error(f"Error generating test token: {e}")
+        return web.json_response({"error": "Internal server error"}, status=500)
+
+
 async def health_check(request: web.Request) -> web.Response:
     """Health check endpoint."""
     return web.json_response({"status": "healthy", "service": "auth"})
@@ -141,6 +161,7 @@ def create_app(config: dict) -> web.Application:
     app.router.add_post("/auth/validate", validate_telegram_init_data)
     app.router.add_get("/auth/verify", verify_token)
     app.router.add_post("/auth/refresh", refresh_token)
+    app.router.add_get("/auth/test", test_token)
     app.router.add_get("/health", health_check)
 
     return app
