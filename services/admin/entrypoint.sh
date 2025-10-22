@@ -98,6 +98,10 @@ echo ""
 # Skip migrations - Admin Service now works through Data Service
 log_info "Skipping database migrations - Admin Service works through Data Service"
 
+# Start nginx in background
+log_info "Starting nginx for static files..."
+nginx -g "daemon on;"
+
 echo ""
 echo "========================================"
 echo "Starting admin service..."

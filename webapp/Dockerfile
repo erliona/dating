@@ -1,47 +1,21 @@
-# Dating Next.js Web Application Dockerfile
-FROM node:20-alpine AS base
-WORKDIR /app
+# Multi-stage build for Telegram WebApp
+FROM nginx:alpine
 
-# Install dependencies only when needed
-FROM base AS deps
-COPY package.json package-lock.json* ./
-RUN npm ci
+# Copy static files
+COPY . /usr/share/nginx/html/
 
-# Rebuild the source code only when needed
-FROM base AS builder
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+# Copy nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+# Set proper permissions
+RUN chown -R nginx:nginx /usr/share/nginx/html
 
-# Production image, copy all the files and run next
-FROM base AS runner
+# Expose port
+EXPOSE 80
 
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost/ || exit 1
 
-# Install wget for healthcheck
-RUN apk add --no-cache wget
-
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
-
-COPY --from=builder /app/public ./public
-
-# Set the correct permission for prerender cache
-RUN mkdir .next && chown nextjs:nodejs .next
-
-# Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-USER nextjs
-
-EXPOSE 3000
-
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
-
-CMD ["node", "server.js"]
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]
