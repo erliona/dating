@@ -6,12 +6,18 @@ No direct database connections - all data operations go through Data Service.
 
 import logging
 import aiohttp
+from prometheus_client import Counter, Histogram
 
 from aiohttp import web
 from core.utils.logging import configure_logging
 from core.middleware.jwt_middleware import jwt_middleware
 from core.middleware.request_logging import request_logging_middleware, user_context_middleware
 from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
+
+# Business metrics
+users_total = Counter('users_total', 'Total number of users')
+matches_total = Counter('matches_total', 'Total number of matches')
+messages_total = Counter('messages_total', 'Total number of messages')
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +75,8 @@ async def create_profile(request: web.Request) -> web.Response:
                     return web.json_response(error_data, status=response.status)
                 
                 result = await response.json()
+                # Increment business metrics
+                users_total.inc()
                 return web.json_response(result, status=201)
                 
     except Exception as e:

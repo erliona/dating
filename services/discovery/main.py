@@ -5,12 +5,16 @@ This microservice handles matching algorithm and candidate discovery.
 
 import logging
 import aiohttp
+from prometheus_client import Counter
 
 from aiohttp import web
 from core.utils.logging import configure_logging
 from core.middleware.jwt_middleware import jwt_middleware
 from core.middleware.request_logging import request_logging_middleware, user_context_middleware
 from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
+
+# Business metrics
+matches_total = Counter('matches_total', 'Total number of matches')
 
 logger = logging.getLogger(__name__)
 
@@ -133,6 +137,9 @@ async def get_matches(request: web.Request) -> web.Response:
             async with session.get(f"{data_service_url}/data/matches", params=params) as response:
                 if response.status == 200:
                     result = await response.json()
+                    # Increment business metrics for each match
+                    if result and "matches" in result:
+                        matches_total.inc(len(result["matches"]))
                     return web.json_response(result)
                 else:
                     logger.error(f"Data service returned status {response.status}")
