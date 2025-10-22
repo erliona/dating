@@ -424,6 +424,15 @@ class DataService:
             "count": len(matches_data),
             "next_cursor": next_cursor,
         }
+    
+    async def get_profiles_count(self) -> Dict[str, int]:
+        """Get total count of profiles."""
+        from bot.repository import ProfileRepository
+        
+        repository = ProfileRepository(self.session)
+        count = await repository.get_profiles_count()
+        
+        return {"count": count}
 
 
 # API Handlers
@@ -793,6 +802,25 @@ async def health_handler(request: web.Request) -> web.Response:
     return web.json_response({"status": "healthy", "service": "data-service"})
 
 
+async def get_profiles_count_handler(request: web.Request) -> web.Response:
+    """Get total count of profiles.
+    
+    GET /data/profiles/count
+    """
+    try:
+        session_maker = request.app["session_maker"]
+        
+        async with session_maker() as session:
+            data_service = DataService(session)
+            result = await data_service.get_profiles_count()
+        
+        return web.json_response(result)
+        
+    except Exception as e:
+        logger.error(f"Error getting profiles count: {e}")
+        return web.json_response({"error": "Internal server error"}, status=500)
+
+
 def create_app(config: dict) -> web.Application:
     """Create and configure the Data Service application."""
     app = web.Application()
@@ -817,6 +845,7 @@ def create_app(config: dict) -> web.Application:
     app.router.add_get("/data/profiles/{user_id}", get_profile_handler)
     app.router.add_post("/data/profiles", create_profile_handler)
     app.router.add_put("/data/profiles/{user_id}", update_profile_handler)
+    app.router.add_get("/data/profiles/count", get_profiles_count_handler)
     
     # User routes
     app.router.add_get("/data/users/{user_id}", get_user_handler)

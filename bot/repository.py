@@ -981,3 +981,8 @@ class ProfileRepository:
         """Get photo by ID."""
         result = await self.session.execute(select(Photo).where(Photo.id == photo_id))
         return result.scalar_one_or_none()
+    
+    async def get_profiles_count(self) -> int:
+        """Get total count of profiles."""
+        result = await self.session.execute(select(func.count(Profile.id)))
+        return result.scalar() or 0

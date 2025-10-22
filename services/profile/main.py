@@ -89,6 +89,34 @@ async def health_check(request: web.Request) -> web.Response:
     return web.json_response({"status": "healthy", "service": "profile"})
 
 
+async def sync_metrics(request: web.Request) -> web.Response:
+    """Sync business metrics with database data."""
+    try:
+        data_service_url = request.app["data_service_url"]
+        
+        # Get total users count from Data Service
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"{data_service_url}/data/profiles/count") as response:
+                if response.status == 200:
+                    count_data = await response.json()
+                    total_users = count_data.get("count", 0)
+                    
+                    # Set the metric to the current count
+                    users_total._value._value = total_users
+                    
+                    return web.json_response({
+                        "status": "success",
+                        "users_total": total_users,
+                        "message": "Metrics synchronized"
+                    })
+                else:
+                    return web.json_response({"error": "Failed to get user count"}, status=500)
+                    
+    except Exception as e:
+        logger.error(f"Error syncing metrics: {e}")
+        return web.json_response({"error": "Internal server error"}, status=500)
+
+
 def create_app(config: dict) -> web.Application:
     """Create and configure the profile service application."""
     app = web.Application()
@@ -110,6 +138,7 @@ def create_app(config: dict) -> web.Application:
     app.router.add_get("/profiles/{user_id}", get_profile)
     app.router.add_post("/profiles", create_profile)
     app.router.add_get("/health", health_check)
+    app.router.add_post("/sync-metrics", sync_metrics)
 
     return app
 
