@@ -21,6 +21,10 @@ async def jwt_middleware(request: web.Request, handler) -> web.Response:
     if request.path.startswith('/health'):
         return await handler(request)
     
+    # Пропустить metrics endpoint
+    if request.path.startswith('/metrics'):
+        return await handler(request)
+    
     # Пропустить auth endpoints (кроме verify)
     if request.path.startswith('/auth/') and not request.path.startswith('/auth/verify'):
         return await handler(request)
