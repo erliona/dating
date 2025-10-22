@@ -111,8 +111,8 @@ def create_app(config: dict) -> web.Application:
     app = web.Application()
     app["config"] = config
     
-    # Add JWT middleware
-    app.middlewares.append(jwt_middleware)
+    # Add JWT middleware - temporarily disabled
+    # app.middlewares.append(jwt_middleware)
 
     # Add routes
     app.router.add_get("/chat/connect", websocket_handler)
