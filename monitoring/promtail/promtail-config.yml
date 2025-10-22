@@ -29,7 +29,7 @@ scrape_configs:
         refresh_interval: 5s
         filters:
           - name: label
-            values: ["com.docker.compose.project=dating"]
+            values: ["com.docker.compose.project=dating-microservices"]
     
     relabel_configs:
       # Set container name as label
