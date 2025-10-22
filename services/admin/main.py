@@ -19,6 +19,8 @@ from aiohttp import web
 
 from core.utils.logging import configure_logging
 from core.middleware.jwt_middleware import admin_jwt_middleware
+from core.middleware.request_logging import request_logging_middleware, user_context_middleware
+from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
 
 logger = logging.getLogger(__name__)
 
@@ -281,8 +283,14 @@ def create_app(config: dict) -> web.Application:
     app["config"] = config
     app["data_service_url"] = config["data_service_url"]
     
-    # Add admin JWT middleware
+    # Add middleware
+    app.middlewares.append(user_context_middleware)
+    app.middlewares.append(request_logging_middleware)
+    app.middlewares.append(metrics_middleware)
     app.middlewares.append(admin_jwt_middleware)
+    
+    # Add metrics endpoint
+    add_metrics_route(app, "admin-service")
 
     # Add routes
     app.router.add_post("/admin/login", login_handler)

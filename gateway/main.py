@@ -11,6 +11,8 @@ from aiohttp_cors import ResourceOptions
 from aiohttp_cors import setup as cors_setup
 
 from core.utils.logging import configure_logging
+from core.middleware.request_logging import request_logging_middleware, user_context_middleware
+from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
 
 logger = logging.getLogger(__name__)
 
@@ -193,6 +195,14 @@ def create_app(config: dict) -> web.Application:
     """Create and configure the API gateway application."""
     app = web.Application()
     app["config"] = config
+    
+    # Add middleware for request logging and user context
+    app.middlewares.append(user_context_middleware)
+    app.middlewares.append(request_logging_middleware)
+    app.middlewares.append(metrics_middleware)
+    
+    # Add metrics endpoint
+    add_metrics_route(app, "api-gateway")
 
     # Setup CORS for WebApp/frontend access
     # Allow requests from the configured WebApp domain

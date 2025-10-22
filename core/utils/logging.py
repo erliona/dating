@@ -36,6 +36,10 @@ class JsonFormatter(logging.Formatter):
             "status_code",
             "method",
             "path",
+            "remote_addr",
+            "user_agent",
+            "error_type",
+            "error_message",
         ]:
             if hasattr(record, field):
                 log_data[field] = getattr(record, field)

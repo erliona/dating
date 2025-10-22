@@ -1,4 +1,4 @@
-"""Request logging middleware for structured logging and tracing."""
+"""Request logging middleware for tracing and performance monitoring."""
 
 import logging
 import time
@@ -13,13 +13,12 @@ logger = logging.getLogger(__name__)
 @web.middleware
 async def request_logging_middleware(request: web.Request, handler: Callable) -> web.Response:
     """
-    Request logging middleware.
+    Middleware for request logging and tracing.
     
-    Adds request_id for tracing, logs request/response details,
-    and measures request duration.
+    Adds request_id, logs request/response, measures performance.
     """
     # Generate unique request ID
-    request_id = str(uuid.uuid4())
+    request_id = str(uuid.uuid4())[:8]
     request['request_id'] = request_id
     
     # Start timing
@@ -34,7 +33,7 @@ async def request_logging_middleware(request: web.Request, handler: Callable) ->
             "method": request.method,
             "path": request.path,
             "user_agent": request.headers.get("User-Agent", ""),
-            "remote": request.remote,
+            "remote_addr": request.remote,
         }
     )
     
@@ -58,7 +57,7 @@ async def request_logging_middleware(request: web.Request, handler: Callable) ->
             }
         )
         
-        # Add request_id to response headers for debugging
+        # Add request_id to response headers
         response.headers['X-Request-ID'] = request_id
         
         return response
@@ -67,7 +66,7 @@ async def request_logging_middleware(request: web.Request, handler: Callable) ->
         # Calculate duration for failed requests
         duration_ms = int((time.time() - start_time) * 1000)
         
-        # Log failed request
+        # Log error
         logger.error(
             f"Request failed: {request.method} {request.path} -> {type(e).__name__}: {e}",
             exc_info=True,
@@ -84,3 +83,41 @@ async def request_logging_middleware(request: web.Request, handler: Callable) ->
         
         # Re-raise the exception
         raise
+
+
+@web.middleware
+async def user_context_middleware(request: web.Request, handler: Callable) -> web.Response:
+    """
+    Middleware to add user context to logs.
+    
+    Extracts user_id from JWT token and adds to request context.
+    """
+    # Try to extract user_id from JWT token
+    user_id = None
+    auth_header = request.headers.get('Authorization')
+    
+    if auth_header and auth_header.startswith('Bearer '):
+        try:
+            # Import here to avoid circular imports
+            from core.utils.security import validate_jwt_token
+            import os
+            
+            token = auth_header.split(' ')[1]
+            jwt_secret = os.getenv('JWT_SECRET')
+            
+            if jwt_secret:
+                payload = validate_jwt_token(token, jwt_secret)
+                user_id = payload.get('user_id')
+                request['user_id'] = user_id
+                
+        except Exception:
+            # JWT validation failed, but that's handled by jwt_middleware
+            pass
+    
+    # Add user context to request
+    request['user_id'] = user_id
+    
+    # Process request
+    response = await handler(request)
+    
+    return response

@@ -9,6 +9,8 @@ from aiohttp import web
 
 from core.utils.logging import configure_logging
 from core.middleware.jwt_middleware import jwt_middleware
+from core.middleware.request_logging import request_logging_middleware, user_context_middleware
+from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
 
 logger = logging.getLogger(__name__)
 
@@ -111,8 +113,14 @@ def create_app(config: dict) -> web.Application:
     app = web.Application()
     app["config"] = config
     
-    # Add JWT middleware
+    # Add middleware
+    app.middlewares.append(user_context_middleware)
+    app.middlewares.append(request_logging_middleware)
+    app.middlewares.append(metrics_middleware)
     app.middlewares.append(jwt_middleware)
+    
+    # Add metrics endpoint
+    add_metrics_route(app, "chat-service")
 
     # Add routes
     app.router.add_get("/chat/connect", websocket_handler)
