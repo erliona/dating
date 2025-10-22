@@ -879,24 +879,23 @@ Content-Type: application/json
 - ✅ **Health checks** - автоматический мониторинг здоровья сервисов
 - ✅ **Поддержка переменных окружения** - гибкая конфигурация
 
-### Доступ к дашбордам
+### 🎯 Доступ к мониторингу
 
-```bash
-# Запустить все с мониторингом
-docker compose up -d
+**🌐 Production (dating.serge.cc):**
+- **Grafana**: http://dating.serge.cc:3000
+- **Prometheus**: http://dating.serge.cc:9090
+- **Webapp**: http://dating.serge.cc
+- **Admin Panel**: http://dating.serge.cc/admin
 
-# Проверить здоровье сервисов
-curl http://localhost:9090/-/healthy  # Prometheus
-curl http://localhost:3100/ready      # Loki
-curl http://localhost:3000/api/health # Grafana
+**🔐 Доступ к Grafana:**
+- **Пользователь**: `admin`
+- **Пароль**: `admin`
 
-# URLs
-http://localhost:3000    # Grafana (admin/admin)
-http://localhost:9090    # Prometheus
-http://localhost:8090    # cAdvisor
-http://localhost:8091    # Traefik Dashboard
-http://localhost:3100    # Loki
-```
+**📊 Доступные дашборды:**
+1. **Infrastructure Overview** - обзор инфраструктуры и здоровья сервисов
+2. **Application Services** - метрики приложений (HTTP, бизнес-метрики)
+3. **Application Logs** - структурированные логи всех сервисов
+4. **Database Metrics** - метрики PostgreSQL и производительность
 
 ### Что отслеживается
 
@@ -1453,6 +1452,7 @@ docker compose up -d
 - 📈 **[Monitoring Guide](docs/MONITORING_GUIDE.md)** - Полное руководство по мониторингу
 - 👨‍💼 **[Admin Panel Guide](docs/ADMIN_PANEL_GUIDE.md)** - Административная панель
 - 📋 **[Admin Service README](services/admin/README.md)** - Admin Service
+- 🔧 **[Troubleshooting](docs/TROUBLESHOOTING.md)** - Решение проблем
 
 ### 🧪 Тестирование и разработка
 
