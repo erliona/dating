@@ -9,7 +9,11 @@ import aiohttp
 
 from aiohttp import web
 from core.utils.logging import configure_logging
+from core.utils.health import create_health_checker, enhanced_health_check
+from core.utils.metrics import setup_metrics_middleware
 from core.middleware.jwt_middleware import jwt_middleware
+from core.middleware.request_logging import request_logging_middleware
+from core.middleware.metrics_middleware import metrics_middleware
 
 logger = logging.getLogger(__name__)
 
@@ -75,20 +79,33 @@ async def create_profile(request: web.Request) -> web.Response:
 
 
 async def health_check(request: web.Request) -> web.Response:
-    """Health check endpoint."""
-    return web.json_response({"status": "healthy", "service": "profile"})
+    """Enhanced health check endpoint."""
+    return await enhanced_health_check(request)
 
 
 def create_app(config: dict) -> web.Application:
     """Create and configure the profile service application."""
     app = web.Application()
     app["config"] = config
+    app["service_name"] = "profile-service"
     
     # Store Data Service URL
     app["data_service_url"] = config["data_service_url"]
     
-    # Add JWT middleware
-    app.middlewares.append(jwt_middleware)
+    # Setup health checker with dependencies
+    dependencies = {
+        "data-service": config["data_service_url"]
+    }
+    health_checker = create_health_checker("profile-service", dependencies)
+    app["health_checker"] = health_checker
+    
+    # Setup metrics collection
+    setup_metrics_middleware(app, "profile-service")
+    
+    # Add middleware (order matters!)
+    app.middlewares.append(request_logging_middleware)  # First - for request tracing
+    app.middlewares.append(metrics_middleware)          # Second - for metrics
+    app.middlewares.append(jwt_middleware)              # Third - for authentication
 
     # Add routes
     app.router.add_get("/profiles/{user_id}", get_profile)

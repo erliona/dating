@@ -9,6 +9,10 @@ import logging
 from aiohttp import web
 
 from core.utils.logging import configure_logging
+from core.utils.health import create_health_checker, enhanced_health_check
+from core.utils.metrics import setup_metrics_middleware
+from core.middleware.request_logging import request_logging_middleware
+from core.middleware.metrics_middleware import metrics_middleware
 from core.utils.security import (
     RateLimiter,
     ValidationError,
@@ -148,14 +152,27 @@ async def test_token(request: web.Request) -> web.Response:
 
 
 async def health_check(request: web.Request) -> web.Response:
-    """Health check endpoint."""
-    return web.json_response({"status": "healthy", "service": "auth"})
+    """Enhanced health check endpoint."""
+    return await enhanced_health_check(request)
 
 
 def create_app(config: dict) -> web.Application:
     """Create and configure the auth service application."""
     app = web.Application()
     app["config"] = config
+    app["service_name"] = "auth-service"
+    
+    # Setup health checker (no dependencies for auth service)
+    health_checker = create_health_checker("auth-service")
+    app["health_checker"] = health_checker
+    
+    # Setup metrics collection
+    setup_metrics_middleware(app, "auth-service")
+    
+    # Add middleware (order matters!)
+    app.middlewares.append(request_logging_middleware)  # First - for request tracing
+    app.middlewares.append(metrics_middleware)          # Second - for metrics
+    # Note: No JWT middleware for auth service (it handles authentication)
 
     # Add routes
     app.router.add_post("/auth/validate", validate_telegram_init_data)
