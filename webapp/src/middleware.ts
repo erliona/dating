@@ -15,56 +15,11 @@ const PROTECTED_ROUTES = ["/profile", "/matches", "/chat"];
 const PUBLIC_ROUTES = ["/", "/login"];
 
 export default async function middleware(request: NextRequest) {
-  // First, apply i18n middleware
+  // TEMPORARILY DISABLED - Only apply i18n middleware
   const response = intlMiddleware(request);
-
-  // Check if route requires authentication
-  const pathname = request.nextUrl.pathname;
   
-  // Debug logging
-  console.log(`[Middleware] Processing pathname: ${pathname}`);
-  
-  // Check if it's a public route first (including home page)
-  const isPublicRoute = PUBLIC_ROUTES.some(
-    (route) => pathname === route || pathname.match(/^\/(ru|en)$/)?.[0] === pathname
-  );
-  
-  console.log(`[Middleware] isPublicRoute: ${isPublicRoute}`);
-  
-  // Only check for protected routes if it's not a public route
-  const isProtectedRoute = !isPublicRoute && PROTECTED_ROUTES.some((route) => pathname.includes(route));
-  
-  console.log(`[Middleware] isProtectedRoute: ${isProtectedRoute}`);
-
-  // Skip auth check for public routes and API routes
-  if (isPublicRoute || pathname.startsWith("/api/")) {
-    console.log(`[Middleware] Allowing public route: ${pathname}`);
-    return response;
-  }
-
-  // Check for auth token in cookies
-  if (isProtectedRoute) {
-    console.log(`[Middleware] Checking auth for protected route: ${pathname}`);
-    const accessToken = request.cookies.get("access_token");
-
-    if (!accessToken) {
-      console.log(`[Middleware] No access token, redirecting to login`);
-      // Redirect to login with the original URL
-      // Preserve locale from pathname
-      const locale = pathname.startsWith("/ru") ? "ru" : "en";
-      const loginUrl = new URL(`/${locale}/login`, request.url);
-
-      loginUrl.searchParams.set("reason", "unauthorized");
-
-      // Preserve full path with query params for redirect after login
-      const redirectPath = pathname + (request.nextUrl.search || "");
-      loginUrl.searchParams.set("redirect", redirectPath);
-
-      return NextResponse.redirect(loginUrl);
-    }
-  }
-
-  console.log(`[Middleware] Allowing request to: ${pathname}`);
+  // Skip all auth checks for debugging
+  console.log(`[Middleware] TEMPORARILY DISABLED - Allowing all requests to: ${request.nextUrl.pathname}`);
   return response;
 }
 
