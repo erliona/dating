@@ -10,7 +10,6 @@ The CI/CD pipeline is built using GitHub Actions and includes:
 2. **Code Quality Checks** - Linting, formatting, and security scanning
 3. **Docker Build Validation** - Ensure all services can be built
 4. **Automated Deployment** - Deploy to production on main branch
-5. **Health Monitoring** - Periodic health checks of production services
 
 ## Workflows
 
@@ -18,7 +17,7 @@ The CI/CD pipeline is built using GitHub Actions and includes:
 
 **Triggers:** Push to main/develop, Pull Requests
 
-**Purpose:** Run all unit and integration tests
+**Purpose:** Run all unit, integration, and e2e tests
 
 **Steps:**
 - Set up Python 3.12
@@ -26,7 +25,7 @@ The CI/CD pipeline is built using GitHub Actions and includes:
 - Run PostgreSQL test database
 - **Wait for PostgreSQL to be ready** (explicit health check)
 - **Apply database migrations** (alembic upgrade head)
-- Execute pytest with coverage
+- Execute pytest with coverage (unit, integration, e2e)
 - Upload coverage reports to Codecov
 
 **Configuration:**
@@ -39,7 +38,7 @@ env:
   API_GATEWAY_URL: http://localhost:8080
 ```
 
-**Important:** The workflow now includes explicit database readiness checks and applies migrations before running tests to prevent tests from hanging on database connection issues.
+**Important:** The workflow includes explicit database readiness checks and applies migrations before running tests to prevent tests from hanging on database connection issues.
 
 ### 2. Code Quality Workflow (`lint.yml`)
 
@@ -81,20 +80,7 @@ isort .
 - Docker layer caching for faster builds
 - docker-compose.yml validation
 
-### 4. PR Validation Workflow (`pr-validation.yml`)
-
-**Triggers:** Pull Request events (opened, synchronize, reopened)
-
-**Purpose:** Comprehensive validation before merging
-
-**Includes:**
-- All code quality checks
-- Full test suite
-- Docker configuration validation
-- Security vulnerability scanning
-- Automated summary in PR comments
-
-### 5. Deployment Workflow (`deploy-microservices.yml`)
+### 4. Deployment Workflow (`deploy-microservices.yml`)
 
 **Triggers:** 
 - Push to main branch
@@ -138,24 +124,6 @@ isort .
 - Health endpoint checks (ports 8080-8085)
 - Service running validation
 
-### 6. Health Check Workflow (`health-check.yml`)
-
-**Triggers:** 
-- Schedule (every 6 hours)
-- Manual trigger
-
-**Purpose:** Monitor production service health
-
-**Checks:**
-- Container status
-- Health endpoints availability
-- Service uptime
-- Resource usage
-
-**Features:**
-- Automatic issue creation on failure
-- Detailed health reports in job summary
-- SSH-based remote monitoring
 
 ## Setting Up CI/CD
 
