@@ -845,7 +845,7 @@ def create_app(config: dict) -> web.Application:
     app.router.add_get("/data/profiles/{user_id}", get_profile_handler)
     app.router.add_post("/data/profiles", create_profile_handler)
     app.router.add_put("/data/profiles/{user_id}", update_profile_handler)
-    app.router.add_get("/data/profiles/count", get_profiles_count_handler)
+    app.router.add_get("/data/profiles-count", get_profiles_count_handler)
     
     # User routes
     app.router.add_get("/data/users/{user_id}", get_user_handler)

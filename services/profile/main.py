@@ -96,7 +96,7 @@ async def sync_metrics(request: web.Request) -> web.Response:
         
         # Get total users count from Data Service
         async with aiohttp.ClientSession() as session:
-            async with session.get(f"{data_service_url}/data/profiles/count") as response:
+            async with session.get(f"{data_service_url}/data/profiles-count") as response:
                 if response.status == 200:
                     count_data = await response.json()
                     total_users = count_data.get("count", 0)
