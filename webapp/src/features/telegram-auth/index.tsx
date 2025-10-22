@@ -20,6 +20,14 @@ export function TelegramAuth({ children }: { children: React.ReactNode }) {
     setDebugInfo(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
   };
 
+  // Always show debug info for now
+  useEffect(() => {
+    addDebugInfo("TelegramAuth component loaded");
+    addDebugInfo(`window.Telegram: ${typeof window !== 'undefined' && window.Telegram ? 'present' : 'missing'}`);
+    addDebugInfo(`WebApp: ${typeof window !== 'undefined' && window.Telegram?.WebApp ? 'present' : 'missing'}`);
+    addDebugInfo(`initData: ${typeof window !== 'undefined' && window.Telegram?.WebApp?.initData ? 'present' : 'missing'}`);
+  }, []);
+
   useEffect(() => {
     const authenticateWithTelegram = async () => {
       try {
@@ -146,15 +154,17 @@ export function TelegramAuth({ children }: { children: React.ReactNode }) {
             Проверяем авторизацию и загружаем ваш профиль
           </p>
           
-          {/* Debug info */}
-          {debugInfo.length > 0 && (
-            <div className="mt-6 text-xs text-left bg-gray-100 p-3 rounded max-h-40 overflow-y-auto">
-              <div className="font-semibold mb-2">Debug Info:</div>
-              {debugInfo.map((info, index) => (
+          {/* Debug info - Always show */}
+          <div className="mt-6 text-xs text-left bg-gray-100 p-3 rounded max-h-40 overflow-y-auto">
+            <div className="font-semibold mb-2">Debug Info:</div>
+            {debugInfo.length > 0 ? (
+              debugInfo.map((info, index) => (
                 <div key={index} className="mb-1 text-gray-600">{info}</div>
-              ))}
-            </div>
-          )}
+              ))
+            ) : (
+              <div className="text-gray-500">Loading debug info...</div>
+            )}
+          </div>
         </div>
       </div>
     );
