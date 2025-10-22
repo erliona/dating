@@ -3,6 +3,7 @@ import { getMessages } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import { QueryProvider } from "@/shared/providers/query-provider";
+import { TelegramAuth } from "@/features/telegram-auth";
 import "../globals.css";
 
 export default async function LocaleLayout({
@@ -26,7 +27,7 @@ export default async function LocaleLayout({
       <body className="antialiased">
         <QueryProvider>
           <NextIntlClientProvider messages={messages}>
-            {children}
+            <TelegramAuth>{children}</TelegramAuth>
           </NextIntlClientProvider>
         </QueryProvider>
       </body>

@@ -15,6 +15,8 @@ from typing import Any, Dict
 
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import Message
+from aiogram.filters import CommandStart
 from aiohttp import web
 
 from core.utils.logging import configure_logging
@@ -23,6 +25,41 @@ from .config import load_config
 
 # Bot instance for notifications (set during initialization)
 _bot_instance: Bot = None
+_dp_instance: Dispatcher = None
+
+
+# Command handlers
+async def start_command_handler(message: Message) -> None:
+    """Handle /start command."""
+    logger = logging.getLogger(__name__)
+    
+    # Get WebApp URL from config
+    webapp_url = os.getenv("WEBAPP_URL", "https://dating.serge.cc")
+    
+    # Create inline keyboard with WebApp button
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="🚀 Открыть Mini App",
+            web_app=WebAppInfo(url=f"{webapp_url}/ru")
+        )]
+    ])
+    
+    welcome_text = (
+        "👋 Добро пожаловать в Dating App!\n\n"
+        "🎯 Найди свою половинку\n"
+        "💕 Общайся с интересными людьми\n"
+        "📍 Встречайся рядом с тобой\n\n"
+        "Нажми кнопку ниже, чтобы начать:"
+    )
+    
+    await message.answer(welcome_text, reply_markup=keyboard)
+    
+    logger.info(
+        f"Start command handled for user {message.from_user.id}",
+        extra={"event_type": "start_command", "user_id": message.from_user.id}
+    )
 
 
 # HTTP handlers for receiving notification requests from notification service
@@ -298,6 +335,36 @@ async def run_notification_server(host: str = "0.0.0.0", port: int = 8080):
         await runner.cleanup()
 
 
+async def run_bot_with_commands(host: str = "0.0.0.0", port: int = 8080):
+    """Run both HTTP server for notifications and polling for commands."""
+    logger = logging.getLogger(__name__)
+
+    # Start HTTP server for notifications
+    app = create_notification_app()
+    runner = web.AppRunner(app)
+    await runner.setup()
+
+    site = web.TCPSite(runner, host, port)
+    await site.start()
+
+    logger.info(
+        f"Notification HTTP server started on {host}:{port}",
+        extra={"event_type": "notification_server_started", "host": host, "port": port},
+    )
+
+    # Start polling for commands
+    logger.info("Starting polling for commands", extra={"event_type": "polling_start"})
+    
+    try:
+        # Run both HTTP server and polling concurrently
+        await asyncio.gather(
+            _dp_instance.start_polling(_bot_instance),
+            asyncio.Event().wait()  # Keep HTTP server running
+        )
+    finally:
+        await runner.cleanup()
+
+
 async def main() -> None:
     """Bootstrap the bot notification server."""
     configure_logging("telegram-bot", os.getenv("LOG_LEVEL", "INFO"))
@@ -356,9 +423,16 @@ async def main() -> None:
 
         logger.info("Bot instance created", extra={"event_type": "bot_created"})
 
-        # Store bot instance globally for notification handlers
-        global _bot_instance
+        # Create dispatcher and register command handlers
+        dp = Dispatcher(storage=MemoryStorage())
+        dp.message.register(start_command_handler, CommandStart())
+        
+        # Store instances globally
+        global _bot_instance, _dp_instance
         _bot_instance = bot
+        _dp_instance = dp
+        
+        logger.info("Dispatcher created and handlers registered", extra={"event_type": "dispatcher_created"})
 
         # Start notification HTTP server
         notification_host = os.getenv("API_HOST", "0.0.0.0")
@@ -369,8 +443,8 @@ async def main() -> None:
             extra={"event_type": "server_start"},
         )
 
-        # Run notification server (no polling needed - bot only sends notifications)
-        await run_notification_server(notification_host, notification_port)
+        # Run both notification server and polling for commands
+        await run_bot_with_commands(notification_host, notification_port)
 
     except Exception as exc:
         logger.error(

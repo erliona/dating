@@ -22,10 +22,10 @@ const nextConfig: NextConfig = {
 
     // Configure script-src based on environment
     // Dev: Allow unsafe-eval and unsafe-inline for Next.js hot reload
-    // Prod: NO unsafe directives - strict allowlist only
+    // Prod: Allow unsafe-inline for Next.js inline scripts (required for SSR)
     const scriptSrc = isDev
       ? "'self' 'unsafe-eval' 'unsafe-inline' https://telegram.org https://*.telegram.org"
-      : "'self' https://telegram.org https://oauth.telegram.org";
+      : "'self' 'unsafe-inline' https://telegram.org https://oauth.telegram.org";
 
     // Style-src: unsafe-inline needed for Tailwind in both dev and prod
     const styleSrc = "'self' 'unsafe-inline'";
@@ -48,13 +48,10 @@ const nextConfig: NextConfig = {
               "font-src 'self' data:",
               `connect-src ${connectSrc}`,
               `frame-src ${frameSrc}`,
-              "frame-ancestors 'self'", // Allow same-origin framing
+              "frame-ancestors *", // TEMPORARY: Allow all domains for testing
             ].join("; "),
           },
-          {
-            key: "X-Frame-Options",
-            value: "DENY",
-          },
+          // X-Frame-Options removed to allow Telegram WebApp embedding (CSP frame-ancestors is used instead)
           {
             key: "X-Content-Type-Options",
             value: "nosniff",
