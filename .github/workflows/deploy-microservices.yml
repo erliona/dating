@@ -11,17 +11,18 @@ on:
         options:
           - production
           - staging
-  push:
-    branches:
-      - main
-    paths:
-      - 'services/**'
-      - 'gateway/**'
-      - 'core/**'
-      - 'adapters/**'
-      - 'bot/**'
-      - 'docker-compose.yml'
-      - '.github/workflows/deploy-microservices.yml'
+  # DISABLED: Automatic deployment on push to main
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - 'services/**'
+  #     - 'gateway/**'
+  #     - 'core/**'
+  #     - 'adapters/**'
+  #     - 'bot/**'
+  #     - 'docker-compose.yml'
+  #     - '.github/workflows/deploy-microservices.yml'
 
 concurrency:
   group: deploy-${{ github.ref }}
