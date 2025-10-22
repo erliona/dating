@@ -143,9 +143,6 @@ class TestMatchingService:
 class TestUserService:
     """Test user service functionality."""
 
-    @pytest.mark.xfail(
-        reason="validate_profile_data returns different format - needs investigation"
-    )
     def test_user_profile_validation(self):
         """Test that user profile data is validated correctly."""
         from bot.validation import validate_profile_data
@@ -202,16 +199,14 @@ class TestUserService:
         assert not is_valid
         assert "2 символа" in error or "2 characters" in error.lower()
 
-    @pytest.mark.xfail(
-        reason="validate_name may allow longer names - needs investigation"
-    )
     def test_user_profile_validation_name_too_long(self):
         """Test validation fails for names that are too long."""
-        from bot.validation import validate_name
+        from bot.validation import validate_name, NAME_MAX_LEN
 
-        long_name = "A" * 51  # Over 50 character limit
+        long_name = "A" * (NAME_MAX_LEN + 1)  # Over NAME_MAX_LEN (100) character limit
         is_valid, error = validate_name(long_name)
         assert not is_valid
+        assert "превышать" in error or "длин" in error.lower()
 
     def test_user_profile_validation_bio_length(self):
         """Test bio validation respects length limits."""
@@ -245,9 +240,6 @@ class TestUserService:
 class TestLocationService:
     """Test location-based services."""
 
-    @pytest.mark.xfail(
-        reason="validate_location signature differs - needs latitude, longitude, city as separate args"
-    )
     def test_location_validation(self):
         """Test location data validation."""
         from bot.validation import validate_location
@@ -257,9 +249,6 @@ class TestLocationService:
         is_valid, error = validate_location(valid_location)
         assert is_valid
 
-    @pytest.mark.xfail(
-        reason="validate_location signature differs - needs latitude, longitude, city as separate args"
-    )
     def test_location_invalid_coordinates(self):
         """Test validation fails for invalid coordinates."""
         from bot.validation import validate_location
@@ -273,7 +262,6 @@ class TestLocationService:
         is_valid, error = validate_location(invalid_location)
         assert not is_valid
 
-    @pytest.mark.xfail(reason="validate_city function does not exist in bot.validation")
     def test_city_name_validation(self):
         """Test city name validation."""
         from bot.validation import validate_city
@@ -415,9 +403,6 @@ class TestCacheService:
 class TestRateLimiting:
     """Test rate limiting functionality."""
 
-    @pytest.mark.xfail(
-        reason="RateLimiter uses check() method not check_rate_limit() - API mismatch"
-    )
     def test_rate_limiter_allows_within_limit(self):
         """Test that requests within rate limit are allowed."""
         from bot.security import RateLimiter
@@ -428,9 +413,6 @@ class TestRateLimiting:
             allowed = limiter.check_rate_limit("user_123")
             assert allowed
 
-    @pytest.mark.xfail(
-        reason="RateLimiter uses check() method not check_rate_limit() - API mismatch"
-    )
     def test_rate_limiter_blocks_over_limit(self):
         """Test that requests over rate limit are blocked."""
         from bot.security import RateLimiter
@@ -444,9 +426,6 @@ class TestRateLimiting:
         # 6th should be blocked
         assert not limiter.check_rate_limit("user_123")
 
-    @pytest.mark.xfail(
-        reason="RateLimiter uses check() method not check_rate_limit() - API mismatch"
-    )
     def test_rate_limiter_resets_after_window(self):
         """Test that rate limit resets after time window."""
         import time
