@@ -11,6 +11,7 @@ from typing import Any, Dict
 from aiohttp import ClientError, ClientSession, ClientTimeout, web
 
 from core.utils.logging import configure_logging
+from core.middleware.jwt_middleware import jwt_middleware
 
 logger = logging.getLogger(__name__)
 
@@ -242,6 +243,9 @@ async def health_check(request: web.Request) -> web.Response:
 def create_app() -> web.Application:
     """Create and configure the aiohttp application."""
     app = web.Application()
+    
+    # Add JWT middleware
+    app.middlewares.append(jwt_middleware)
 
     # Register routes
     app.router.add_post("/api/notifications/send_match", send_match_notification)

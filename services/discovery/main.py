@@ -8,6 +8,7 @@ import aiohttp
 
 from aiohttp import web
 from core.utils.logging import configure_logging
+from core.middleware.jwt_middleware import jwt_middleware
 
 logger = logging.getLogger(__name__)
 
@@ -152,6 +153,9 @@ def create_app(config: dict) -> web.Application:
     app = web.Application()
     app["config"] = config
     app["data_service_url"] = config["data_service_url"]
+    
+    # Add JWT middleware
+    app.middlewares.append(jwt_middleware)
 
     # Add routes
     app.router.add_get("/discovery/candidates", get_candidates)
@@ -169,6 +173,7 @@ if __name__ == "__main__":
     configure_logging("discovery-service", os.getenv("LOG_LEVEL", "INFO"))
 
     config = {
+        "jwt_secret": os.getenv("JWT_SECRET", "your-secret-key"),
         "data_service_url": os.getenv("DATA_SERVICE_URL", "http://data-service:8088"),
         "host": os.getenv("DISCOVERY_SERVICE_HOST", "0.0.0.0"),
         "port": int(os.getenv("DISCOVERY_SERVICE_PORT", 8083)),

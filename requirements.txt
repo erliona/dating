@@ -9,3 +9,4 @@ Pillow>=10.0  # Image processing and optimization
 aiohttp-cors>=0.7  # CORS support for API
 nudenet>=2.0,<3.0  # NSFW content detection ML model (v2.x has NudeClassifier)
 onnxruntime>=1.16  # Runtime for NudeNet model
+bcrypt>=4.0  # Secure password hashing

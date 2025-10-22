@@ -10,6 +10,7 @@ from pathlib import Path
 from aiohttp import web
 
 from core.utils.logging import configure_logging
+from core.middleware.jwt_middleware import jwt_middleware
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +124,9 @@ def create_app(config: dict) -> web.Application:
     """Create and configure the media service application."""
     app = web.Application()
     app["config"] = config
+    
+    # Add JWT middleware
+    app.middlewares.append(jwt_middleware)
 
     # Add routes
     app.router.add_post("/media/upload", upload_media)
@@ -138,6 +142,7 @@ if __name__ == "__main__":
     configure_logging("media-service", os.getenv("LOG_LEVEL", "INFO"))
 
     config = {
+        "jwt_secret": os.getenv("JWT_SECRET", "your-secret-key"),
         "storage_path": os.getenv("PHOTO_STORAGE_PATH", "/app/photos"),
         "host": os.getenv("MEDIA_SERVICE_HOST", "0.0.0.0"),
         "port": int(os.getenv("MEDIA_SERVICE_PORT", 8084)),
