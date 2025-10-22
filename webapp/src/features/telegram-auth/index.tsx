@@ -13,52 +13,52 @@ export function TelegramAuth({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string[]>([]);
+
+  const addDebugInfo = (message: string) => {
+    console.log(message);
+    setDebugInfo(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
+  };
 
   useEffect(() => {
     const authenticateWithTelegram = async () => {
       try {
-        console.log("[TelegramAuth] Starting authentication...");
-        console.log("[TelegramAuth] window.Telegram:", window.Telegram);
+        addDebugInfo("Starting authentication...");
+        addDebugInfo(`window.Telegram: ${window.Telegram ? 'present' : 'missing'}`);
         
         // Check if we're inside Telegram WebApp
         if (typeof window === "undefined" || !window.Telegram?.WebApp) {
-          console.log("[TelegramAuth] Not running inside Telegram WebApp");
+          addDebugInfo("Not running inside Telegram WebApp");
           setIsLoading(false);
           return;
         }
 
         const tg = window.Telegram.WebApp;
-            console.log("[TelegramAuth] Telegram WebApp found:", {
-              initData: tg.initData ? "present" : "missing",
-              initDataUnsafe: tg.initDataUnsafe,
-              themeParams: tg.themeParams,
-            });
-            
-            // Debug: Check if we're in Telegram environment
-            console.log("[TelegramAuth] User Agent:", navigator.userAgent);
-            console.log("[TelegramAuth] Referrer:", document.referrer);
-            console.log("[TelegramAuth] Window location:", window.location.href);
+        addDebugInfo(`Telegram WebApp found: initData=${tg.initData ? 'present' : 'missing'}`);
+        addDebugInfo(`User Agent: ${navigator.userAgent.substring(0, 50)}...`);
+        addDebugInfo(`Referrer: ${document.referrer || 'none'}`);
+        addDebugInfo(`Location: ${window.location.href}`);
         
         // Expand the WebApp to full height
         tg.expand();
-        console.log("[TelegramAuth] WebApp expanded");
+        addDebugInfo("WebApp expanded");
         
         // Set header color to match theme
         tg.setHeaderColor(tg.themeParams.bg_color || "#ffffff");
-        console.log("[TelegramAuth] Header color set");
+        addDebugInfo("Header color set");
 
         // Get initData from Telegram
         const initData = tg.initData;
 
         if (!initData) {
-          console.warn("[TelegramAuth] No initData from Telegram WebApp");
-          console.warn("[TelegramAuth] This usually means the app is not opened from Telegram");
+          addDebugInfo("No initData from Telegram WebApp");
+          addDebugInfo("This usually means the app is not opened from Telegram");
           setIsLoading(false);
           return;
         }
         
-            console.log("[TelegramAuth] initData received (length):", initData.length);
-            console.log("[TelegramAuth] initData content:", initData);
+        addDebugInfo(`initData received (length): ${initData.length}`);
+        addDebugInfo(`initData content: ${initData.substring(0, 100)}...`);
 
         // Check if already authenticated
         const accessToken = document.cookie
@@ -67,20 +67,20 @@ export function TelegramAuth({ children }: { children: React.ReactNode }) {
           ?.split("=")[1];
 
         if (accessToken) {
-          console.log("Already authenticated");
+          addDebugInfo("Already authenticated");
           setIsLoading(false);
           return;
         }
 
-            // Authenticate with backend
-            console.log("[TelegramAuth] Authenticating with backend...");
-            console.log("[TelegramAuth] Sending POST to /api/auth/validate");
-            
-            const requestBody = { 
-              init_data: initData,
-              bot_token: "8302871321:AAGDRnSDYdYHeEOqtEoKZVYLCbBlI2GBYMM"
-            };
-            console.log("[TelegramAuth] Request body:", requestBody);
+        // Authenticate with backend
+        addDebugInfo("Authenticating with backend...");
+        addDebugInfo("Sending POST to /api/auth/validate");
+        
+        const requestBody = { 
+          init_data: initData,
+          bot_token: "8302871321:AAGDRnSDYdYHeEOqtEoKZVYLCbBlI2GBYMM"
+        };
+        addDebugInfo(`Request body: ${JSON.stringify(requestBody).substring(0, 100)}...`);
             
             const response = await fetch("/api/auth/validate", {
           method: "POST",
@@ -90,19 +90,19 @@ export function TelegramAuth({ children }: { children: React.ReactNode }) {
           body: JSON.stringify(requestBody),
         });
 
-        console.log("[TelegramAuth] Response status:", response.status);
-        console.log("[TelegramAuth] Response headers:", Object.fromEntries(response.headers.entries()));
+        addDebugInfo(`Response status: ${response.status}`);
+        addDebugInfo(`Response headers: ${JSON.stringify(Object.fromEntries(response.headers.entries())).substring(0, 100)}...`);
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          console.error("[TelegramAuth] Authentication failed:", errorData);
+          addDebugInfo(`Authentication failed: ${JSON.stringify(errorData)}`);
           throw new Error(
             errorData.error || `Authentication failed: ${response.status}`
           );
         }
 
         const data = await response.json();
-        console.log("[TelegramAuth] Authentication successful:", data);
+        addDebugInfo(`Authentication successful: ${JSON.stringify(data).substring(0, 100)}...`);
 
         // Show success feedback
         tg.HapticFeedback.notificationOccurred("success");
@@ -110,7 +110,7 @@ export function TelegramAuth({ children }: { children: React.ReactNode }) {
         // Redirect to profile or home
         router.push("/ru/profile");
       } catch (err) {
-        console.error("Telegram authentication error:", err);
+        addDebugInfo(`Telegram authentication error: ${err instanceof Error ? err.message : "Authentication failed"}`);
         setError(err instanceof Error ? err.message : "Authentication failed");
         
         // Show error feedback
@@ -146,6 +146,16 @@ export function TelegramAuth({ children }: { children: React.ReactNode }) {
           <p className="text-gray-600 text-sm">
             Проверяем авторизацию и загружаем ваш профиль
           </p>
+          
+          {/* Debug info */}
+          {debugInfo.length > 0 && (
+            <div className="mt-6 text-xs text-left bg-gray-100 p-3 rounded max-h-40 overflow-y-auto">
+              <div className="font-semibold mb-2">Debug Info:</div>
+              {debugInfo.map((info, index) => (
+                <div key={index} className="mb-1 text-gray-600">{info}</div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
