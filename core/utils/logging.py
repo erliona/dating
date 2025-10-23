@@ -32,6 +32,7 @@ class JsonFormatter(logging.Formatter):
             "event_type",
             "service_name",
             "request_id",
+            "correlation_id",
             "duration_ms",
             "status_code",
             "method",

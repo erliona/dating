@@ -14,11 +14,87 @@ from core.utils.logging import configure_logging
 from core.middleware.jwt_middleware import jwt_middleware
 from core.middleware.request_logging import request_logging_middleware, user_context_middleware
 from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
+from core.resilience.circuit_breaker import bot_service_breaker
+from core.resilience.retry import retry_notification
+from core.messaging.subscriber import EventSubscriber
 
 logger = logging.getLogger(__name__)
 
 # Bot service URL for sending notifications
 BOT_URL = os.getenv("BOT_URL", "http://telegram-bot:8080")
+
+# Initialize event subscriber
+event_subscriber = None
+
+
+@retry_notification()
+async def _call_bot(url: str, data: dict):
+    """Call Bot with retry."""
+    async with ClientSession(timeout=ClientTimeout(total=10)) as session:
+        async with session.post(url, json=data) as resp:
+            resp.raise_for_status()
+            return await resp.json()
+
+
+async def handle_match_event(data: dict, correlation_id: str = None):
+    """Handle match.created event."""
+    logger.info(
+        "Processing match event",
+        extra={"correlation_id": correlation_id, "data": data}
+    )
+    
+    user_id_1 = data.get("user_id_1")
+    user_id_2 = data.get("user_id_2")
+    
+    if not user_id_1 or not user_id_2:
+        logger.error("Invalid match event data: missing user IDs")
+        return
+    
+    # Send notifications to both users
+    await send_match_notification(user_id_1, {"matched_user_id": user_id_2})
+    await send_match_notification(user_id_2, {"matched_user_id": user_id_1})
+
+
+async def handle_message_event(data: dict, correlation_id: str = None):
+    """Handle message.sent event."""
+    logger.info(
+        "Processing message event",
+        extra={"correlation_id": correlation_id, "data": data}
+    )
+    
+    conversation_id = data.get("conversation_id")
+    sender_id = data.get("sender_id")
+    text = data.get("text")
+    
+    if not conversation_id or not sender_id:
+        logger.error("Invalid message event data: missing required fields")
+        return
+    
+    # For now, just log the message event
+    # In a real implementation, you would:
+    # 1. Get the recipient user ID from the conversation
+    # 2. Send a push notification to the recipient
+    logger.info(f"Message sent in conversation {conversation_id} by user {sender_id}")
+
+
+async def send_match_notification(user_id: int, match_data: dict):
+    """Send match notification to user."""
+    try:
+        # Use circuit breaker + retry
+        result = await bot_service_breaker.call(
+            _call_bot,
+            f"{BOT_URL}/notifications/match",
+            {"user_id": user_id, "match_data": match_data},
+            fallback=lambda *args: {"status": "queued"}
+        )
+        
+        if result.get("status") == "queued":
+            logger.warning(f"Match notification queued for user {user_id}")
+        else:
+            logger.info(f"Match notification sent to user {user_id}")
+            
+    except Exception as e:
+        logger.error(f"Error sending match notification to user {user_id}: {e}")
 
 
 async def send_match_notification(request: web.Request) -> web.Response:
@@ -242,6 +318,32 @@ async def health_check(request: web.Request) -> web.Response:
     return web.json_response({"status": "healthy"})
 
 
+async def on_startup(app):
+    """Startup handler."""
+    global event_subscriber
+    rabbitmq_url = os.getenv("RABBITMQ_URL", "amqp://dating:dating@rabbitmq:5672/")
+    
+    if rabbitmq_url:
+        event_subscriber = EventSubscriber(rabbitmq_url, "notification-service")
+        await event_subscriber.connect()
+        
+        # Register event handlers
+        event_subscriber.register_handler("match.created", handle_match_event)
+        event_subscriber.register_handler("message.sent", handle_message_event)
+        
+        # Start consuming
+        await event_subscriber.start_consuming()
+        logger.info("Notification service started consuming events")
+
+
+async def on_shutdown(app):
+    """Shutdown handler."""
+    global event_subscriber
+    if event_subscriber:
+        await event_subscriber.close()
+        logger.info("Event subscriber closed")
+
+
 def create_app() -> web.Application:
     """Create and configure the aiohttp application."""
     app = web.Application()
@@ -260,6 +362,10 @@ def create_app() -> web.Application:
     app.router.add_post("/api/notifications/send_message", send_message_notification)
     app.router.add_post("/api/notifications/send_like", send_like_notification)
     app.router.add_get("/health", health_check)
+    
+    # Add startup/shutdown handlers
+    app.on_startup.append(on_startup)
+    app.on_shutdown.append(on_shutdown)
 
     return app
 

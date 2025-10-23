@@ -12,11 +12,26 @@ from core.utils.logging import configure_logging
 from core.middleware.jwt_middleware import jwt_middleware
 from core.middleware.request_logging import request_logging_middleware, user_context_middleware
 from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
+from core.resilience.circuit_breaker import data_service_breaker
+from core.resilience.retry import retry_data_service
+from core.messaging.publisher import EventPublisher
 
 # Business metrics
 matches_total = Counter('matches_total', 'Total number of matches')
 
 logger = logging.getLogger(__name__)
+
+# Initialize event publisher
+event_publisher = None
+
+
+@retry_data_service()
+async def _call_data_service(url: str, method: str = "GET", data: dict = None, params: dict = None):
+    """Helper to call Data Service with retry logic."""
+    async with aiohttp.ClientSession() as session:
+        async with session.request(method, url, json=data, params=params) as resp:
+            resp.raise_for_status()
+            return await resp.json()
 
 
 async def get_candidates(request: web.Request) -> web.Response:
@@ -53,14 +68,20 @@ async def get_candidates(request: web.Request) -> web.Response:
             if request.query.get(param):
                 params[param] = request.query.get(param)
         
-        async with aiohttp.ClientSession() as session:
-            async with session.get(f"{data_service_url}/data/candidates", params=params) as response:
-                if response.status == 200:
-                    result = await response.json()
-                    return web.json_response(result)
-                else:
-                    logger.error(f"Data service returned status {response.status}")
-                    return web.json_response({"error": "Failed to get candidates"}, status=500)
+        # Use circuit breaker + retry
+        result = await data_service_breaker.call(
+            _call_data_service,
+            f"{data_service_url}/data/candidates",
+            "GET",
+            None,
+            params,
+            fallback=lambda *args: {"candidates": [], "cursor": None}
+        )
+        
+        if "error" in result:
+            return web.json_response(result, status=500)
+        
+        return web.json_response(result)
 
     except ValueError as e:
         return web.json_response({"error": "Invalid parameters"}, status=400)
@@ -94,14 +115,35 @@ async def like_profile(request: web.Request) -> web.Response:
             "interaction_type": interaction_type,
         }
         
-        async with aiohttp.ClientSession() as session:
-            async with session.post(f"{data_service_url}/data/interactions", json=interaction_data) as response:
-                if response.status == 200:
-                    result = await response.json()
-                    return web.json_response(result)
-                else:
-                    logger.error(f"Data service returned status {response.status}")
-                    return web.json_response({"error": "Failed to create interaction"}, status=500)
+        # Use circuit breaker + retry
+        result = await data_service_breaker.call(
+            _call_data_service,
+            f"{data_service_url}/data/interactions",
+            "POST",
+            interaction_data,
+            fallback=lambda *args: {"error": "Service temporarily unavailable"}
+        )
+        
+        if "error" in result:
+            if result["error"] == "Service temporarily unavailable":
+                return web.json_response(result, status=503)
+            return web.json_response(result, status=500)
+        
+        # Check if it's a match and publish event
+        if result.get("is_match") and event_publisher:
+            correlation_id = request.get("correlation_id")
+            await event_publisher.publish_event(
+                "match.created",
+                {
+                    "user_id_1": user_id,
+                    "user_id_2": target_id,
+                    "matched_at": result.get("created_at"),
+                    "interaction_type": interaction_type
+                },
+                correlation_id=correlation_id
+            )
+        
+        return web.json_response(result)
 
     except Exception as e:
         logger.error(f"Error liking profile: {e}", exc_info=True)
@@ -133,17 +175,24 @@ async def get_matches(request: web.Request) -> web.Response:
         if request.query.get("cursor"):
             params["cursor"] = request.query.get("cursor")
         
-        async with aiohttp.ClientSession() as session:
-            async with session.get(f"{data_service_url}/data/matches", params=params) as response:
-                if response.status == 200:
-                    result = await response.json()
-                    # Increment business metrics for each match
-                    if result and "matches" in result:
-                        matches_total.inc(len(result["matches"]))
-                    return web.json_response(result)
-                else:
-                    logger.error(f"Data service returned status {response.status}")
-                    return web.json_response({"error": "Failed to get matches"}, status=500)
+        # Use circuit breaker + retry
+        result = await data_service_breaker.call(
+            _call_data_service,
+            f"{data_service_url}/data/matches",
+            "GET",
+            None,
+            params,
+            fallback=lambda *args: {"matches": [], "cursor": None}
+        )
+        
+        if "error" in result:
+            return web.json_response(result, status=500)
+        
+        # Increment business metrics for each match
+        if result and "matches" in result:
+            matches_total.inc(len(result["matches"]))
+        
+        return web.json_response(result)
 
     except ValueError as e:
         return web.json_response({"error": "Invalid parameters"}, status=400)
@@ -155,6 +204,24 @@ async def get_matches(request: web.Request) -> web.Response:
 async def health_check(request: web.Request) -> web.Response:
     """Health check endpoint."""
     return web.json_response({"status": "healthy", "service": "discovery"})
+
+
+async def on_startup(app):
+    """Startup handler."""
+    global event_publisher
+    rabbitmq_url = app["config"].get("rabbitmq_url")
+    if rabbitmq_url:
+        event_publisher = EventPublisher(rabbitmq_url)
+        await event_publisher.connect()
+        logger.info("Event publisher initialized")
+
+
+async def on_shutdown(app):
+    """Shutdown handler."""
+    global event_publisher
+    if event_publisher:
+        await event_publisher.close()
+        logger.info("Event publisher closed")
 
 
 def create_app(config: dict) -> web.Application:
@@ -177,6 +244,10 @@ def create_app(config: dict) -> web.Application:
     app.router.add_post("/discovery/like", like_profile)
     app.router.add_get("/discovery/matches", get_matches)
     app.router.add_get("/health", health_check)
+    
+    # Add startup/shutdown handlers
+    app.on_startup.append(on_startup)
+    app.on_shutdown.append(on_shutdown)
 
     return app
 
@@ -190,6 +261,7 @@ if __name__ == "__main__":
     config = {
         "jwt_secret": os.getenv("JWT_SECRET", "your-secret-key"),
         "data_service_url": os.getenv("DATA_SERVICE_URL", "http://data-service:8088"),
+        "rabbitmq_url": os.getenv("RABBITMQ_URL", "amqp://dating:dating@rabbitmq:5672/"),
         "host": os.getenv("DISCOVERY_SERVICE_HOST", "0.0.0.0"),
         "port": int(os.getenv("DISCOVERY_SERVICE_PORT", 8083)),
     }

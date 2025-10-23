@@ -13,6 +13,9 @@ from core.utils.logging import configure_logging
 from core.middleware.jwt_middleware import jwt_middleware
 from core.middleware.request_logging import request_logging_middleware, user_context_middleware
 from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route, USERS_TOTAL, MATCHES_TOTAL, MESSAGES_TOTAL
+from core.middleware.correlation import correlation_middleware
+from core.resilience.circuit_breaker import data_service_breaker
+from core.resilience.retry import retry_data_service
 
 # Business metrics - imported from middleware
 users_total = USERS_TOTAL
@@ -20,6 +23,19 @@ matches_total = MATCHES_TOTAL
 messages_total = MESSAGES_TOTAL
 
 logger = logging.getLogger(__name__)
+
+
+@retry_data_service()
+async def _call_data_service(url: str, method: str = "GET", data: dict = None, correlation_id: str = None):
+    """Helper to call Data Service with retry logic."""
+    headers = {}
+    if correlation_id:
+        headers["X-Correlation-ID"] = correlation_id
+    
+    async with aiohttp.ClientSession() as session:
+        async with session.request(method, url, json=data, headers=headers) as resp:
+            resp.raise_for_status()
+            return await resp.json()
 
 
 async def get_profile(request: web.Request) -> web.Response:
@@ -31,17 +47,23 @@ async def get_profile(request: web.Request) -> web.Response:
         user_id = int(request.match_info["user_id"])
         data_service_url = request.app["data_service_url"]
         
-        # Forward request to Data Service
-        async with aiohttp.ClientSession() as session:
-            async with session.get(f"{data_service_url}/data/profiles/{user_id}") as response:
-                if response.status == 404:
-                    return web.json_response({"error": "Profile not found"}, status=404)
-                
-                if response.status != 200:
-                    return web.json_response({"error": "Data service error"}, status=response.status)
-                
-                profile_data = await response.json()
-                return web.json_response(profile_data)
+        # Use circuit breaker + retry
+        correlation_id = request.get("correlation_id")
+        result = await data_service_breaker.call(
+            _call_data_service,
+            f"{data_service_url}/data/profiles/{user_id}",
+            "GET",
+            None,
+            correlation_id,
+            fallback=lambda *args: {"error": "Service temporarily unavailable"}
+        )
+        
+        if "error" in result:
+            if result["error"] == "Service temporarily unavailable":
+                return web.json_response(result, status=503)
+            return web.json_response(result, status=404)
+        
+        return web.json_response(result)
                 
     except ValueError:
         return web.json_response({"error": "Invalid user_id"}, status=400)
@@ -61,23 +83,25 @@ async def create_profile(request: web.Request) -> web.Response:
         profile_data = await request.json()
         data_service_url = request.app["data_service_url"]
         
-        # Forward request to Data Service
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                f"{data_service_url}/data/profiles",
-                json=profile_data
-            ) as response:
-                if response.status == 409:
-                    return web.json_response({"error": "Profile already exists for this user"}, status=409)
-                
-                if response.status != 201:
-                    error_data = await response.json()
-                    return web.json_response(error_data, status=response.status)
-                
-                result = await response.json()
-                # Increment business metrics
-                users_total.labels(service='profile-service').inc()
-                return web.json_response(result, status=201)
+        # Use circuit breaker + retry
+        result = await data_service_breaker.call(
+            _call_data_service,
+            f"{data_service_url}/data/profiles",
+            "POST",
+            profile_data,
+            fallback=lambda *args: {"error": "Service temporarily unavailable"}
+        )
+        
+        if "error" in result:
+            if result["error"] == "Service temporarily unavailable":
+                return web.json_response(result, status=503)
+            if "already exists" in result.get("error", ""):
+                return web.json_response(result, status=409)
+            return web.json_response(result, status=400)
+        
+        # Increment business metrics
+        users_total.labels(service='profile-service').inc()
+        return web.json_response(result, status=201)
                 
     except Exception as e:
         logger.error(f"Error creating profile: {e}")
@@ -94,23 +118,23 @@ async def sync_metrics(request: web.Request) -> web.Response:
     try:
         data_service_url = request.app["data_service_url"]
         
-        # Get total users count from Data Service
-        async with aiohttp.ClientSession() as session:
-            async with session.get(f"{data_service_url}/data/profiles-count") as response:
-                if response.status == 200:
-                    count_data = await response.json()
-                    total_users = count_data.get("count", 0)
-                    
-                    # Set the metric to the current count
-                    users_total.labels(service='profile-service').set(total_users)
-                    
-                    return web.json_response({
-                        "status": "success",
-                        "users_total": total_users,
-                        "message": "Metrics synchronized"
-                    })
-                else:
-                    return web.json_response({"error": "Failed to get user count"}, status=500)
+        # Use circuit breaker + retry
+        result = await data_service_breaker.call(
+            _call_data_service,
+            f"{data_service_url}/data/profiles-count",
+            fallback=lambda *args: {"count": 0}
+        )
+        
+        total_users = result.get("count", 0)
+        
+        # Set the metric to the current count
+        users_total.labels(service='profile-service').set(total_users)
+        
+        return web.json_response({
+            "status": "success",
+            "users_total": total_users,
+            "message": "Metrics synchronized"
+        })
                     
     except Exception as e:
         logger.error(f"Error syncing metrics: {e}")
@@ -122,19 +146,19 @@ async def sync_metrics_on_startup(app):
     try:
         data_service_url = app["data_service_url"]
         
-        # Get total users count from Data Service
-        async with aiohttp.ClientSession() as session:
-            async with session.get(f"{data_service_url}/data/profiles-count") as response:
-                if response.status == 200:
-                    count_data = await response.json()
-                    total_users = count_data.get("count", 0)
-                    
-                    # Set the metric to the current count
-                    users_total.labels(service='profile-service').set(total_users)
-                    
-                    logger.info(f"Metrics synchronized on startup: users_total={total_users}")
-                else:
-                    logger.warning(f"Failed to sync metrics on startup: status={response.status}")
+        # Use circuit breaker + retry
+        result = await data_service_breaker.call(
+            _call_data_service,
+            f"{data_service_url}/data/profiles-count",
+            fallback=lambda *args: {"count": 0}
+        )
+        
+        total_users = result.get("count", 0)
+        
+        # Set the metric to the current count
+        users_total.labels(service='profile-service').set(total_users)
+        
+        logger.info(f"Metrics synchronized on startup: users_total={total_users}")
                     
     except Exception as e:
         logger.error(f"Error syncing metrics on startup: {e}")
@@ -151,6 +175,7 @@ def create_app(config: dict) -> web.Application:
     # Business metrics are imported from middleware
     
     # Add middleware
+    app.middlewares.append(correlation_middleware)
     app.middlewares.append(user_context_middleware)
     app.middlewares.append(request_logging_middleware)
     app.middlewares.append(metrics_middleware)

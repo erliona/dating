@@ -13,6 +13,8 @@ from aiohttp_cors import setup as cors_setup
 from core.utils.logging import configure_logging
 from core.middleware.request_logging import request_logging_middleware, user_context_middleware
 from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
+from core.middleware.versioning import versioning_middleware
+from core.middleware.correlation import correlation_middleware
 
 logger = logging.getLogger(__name__)
 
@@ -39,15 +41,23 @@ async def proxy_request(
             if query_string:
                 full_url = f"{full_url}?{query_string}"
 
+            # Prepare headers
+            headers = {
+                k: v
+                for k, v in request.headers.items()
+                if k.lower() not in ["host", "connection"]
+            }
+            
+            # Add correlation ID if present
+            correlation_id = request.get("correlation_id")
+            if correlation_id:
+                headers["X-Correlation-ID"] = correlation_id
+            
             # Forward request
             async with session.request(
                 method=request.method,
                 url=full_url,
-                headers={
-                    k: v
-                    for k, v in request.headers.items()
-                    if k.lower() not in ["host", "connection"]
-                },
+                headers=headers,
                 data=(
                     await request.read()
                     if request.method in ["POST", "PUT", "PATCH"]
@@ -197,6 +207,8 @@ def create_app(config: dict) -> web.Application:
     app["config"] = config
     
     # Add middleware for request logging and user context
+    app.middlewares.append(correlation_middleware)
+    app.middlewares.append(versioning_middleware)
     app.middlewares.append(user_context_middleware)
     app.middlewares.append(request_logging_middleware)
     app.middlewares.append(metrics_middleware)
@@ -229,41 +241,94 @@ def create_app(config: dict) -> web.Application:
             cors.add(app.router.add_route(method, path, handler))
 
     # Add routing rules for direct service access (internal/microservice-to-microservice)
-    app.router.add_route("*", "/auth/{tail:.*}", route_auth)
-    app.router.add_route("*", "/profiles/{tail:.*}", route_profile)
-    app.router.add_route("*", "/discovery/{tail:.*}", route_discovery)
-    app.router.add_route("*", "/media/{tail:.*}", route_media)
-    app.router.add_route("*", "/chat/{tail:.*}", route_chat)
-    app.router.add_route("*", "/admin/{tail:.*}", route_admin)
-    app.router.add_route("*", "/admin-panel/{tail:.*}", route_admin)
-    app.router.add_route("*", "/notifications/{tail:.*}", route_notifications)
+    # Versioned routes (v1)
+    app.router.add_route("*", "/v1/auth/{tail:.*}", route_auth)
+    app.router.add_route("*", "/v1/profiles/{tail:.*}", route_profile)
+    app.router.add_route("*", "/v1/discovery/{tail:.*}", route_discovery)
+    app.router.add_route("*", "/v1/media/{tail:.*}", route_media)
+    app.router.add_route("*", "/v1/chat/{tail:.*}", route_chat)
+    app.router.add_route("*", "/v1/admin/{tail:.*}", route_admin)
+    app.router.add_route("*", "/v1/notifications/{tail:.*}", route_notifications)
+    
+    # Legacy routes (redirect to v1)
+    async def redirect_to_v1(request: web.Request) -> web.Response:
+        """Redirect legacy routes to v1."""
+        new_path = f"/v1{request.path}"
+        logger.warning(
+            f"Legacy route redirected: {request.path} -> {new_path}",
+            extra={"event_type": "legacy_redirect"}
+        )
+        return web.HTTPMovedPermanently(location=new_path)
+    
+    app.router.add_route("*", "/auth/{tail:.*}", redirect_to_v1)
+    app.router.add_route("*", "/profiles/{tail:.*}", redirect_to_v1)
+    app.router.add_route("*", "/discovery/{tail:.*}", redirect_to_v1)
+    app.router.add_route("*", "/media/{tail:.*}", redirect_to_v1)
+    app.router.add_route("*", "/chat/{tail:.*}", redirect_to_v1)
+    app.router.add_route("*", "/admin/{tail:.*}", redirect_to_v1)
+    app.router.add_route("*", "/admin-panel/{tail:.*}", route_admin)  # Keep admin-panel as is
+    app.router.add_route("*", "/notifications/{tail:.*}", redirect_to_v1)
 
     # Add unified /api/* routes for frontend/WebApp (public API)
     # These provide a consistent API prefix for all public endpoints
     # Routes are ordered from most specific to least specific
 
+    # Versioned API routes (v1)
     # Auth endpoints
-    add_cors_route("/api/auth/token", route_api_auth)
-    add_cors_route("/api/auth/{tail:.*}", route_api_auth)
+    add_cors_route("/api/v1/auth/token", route_api_auth)
+    add_cors_route("/api/v1/auth/{tail:.*}", route_api_auth)
 
     # Profile endpoints
-    add_cors_route("/api/profile/check", route_api_profile)
-    add_cors_route("/api/profile/{tail:.*}", route_api_profile)
-    add_cors_route("/api/profile", route_api_profile)
-    add_cors_route("/api/profiles/{tail:.*}", route_api_profiles)
-    add_cors_route("/api/profiles", route_api_profiles)
+    add_cors_route("/api/v1/profile/check", route_api_profile)
+    add_cors_route("/api/v1/profile/{tail:.*}", route_api_profile)
+    add_cors_route("/api/v1/profile", route_api_profile)
+    add_cors_route("/api/v1/profiles/{tail:.*}", route_api_profiles)
+    add_cors_route("/api/v1/profiles", route_api_profiles)
 
     # Discovery endpoints (like, pass, matches, favorites, discover)
-    add_cors_route("/api/discover", route_api_discovery)
-    add_cors_route("/api/like", route_api_discovery)
-    add_cors_route("/api/pass", route_api_discovery)
-    add_cors_route("/api/matches", route_api_discovery)
-    add_cors_route("/api/favorites/{tail:.*}", route_api_discovery)
-    add_cors_route("/api/favorites", route_api_discovery)
+    add_cors_route("/api/v1/discover", route_api_discovery)
+    add_cors_route("/api/v1/like", route_api_discovery)
+    add_cors_route("/api/v1/pass", route_api_discovery)
+    add_cors_route("/api/v1/matches", route_api_discovery)
+    add_cors_route("/api/v1/favorites/{tail:.*}", route_api_discovery)
+    add_cors_route("/api/v1/favorites", route_api_discovery)
 
     # Media/photos endpoints
-    add_cors_route("/api/photos/upload", route_api_media)
-    add_cors_route("/api/photos/{tail:.*}", route_api_media)
+    add_cors_route("/api/v1/photos/upload", route_api_media)
+    add_cors_route("/api/v1/photos/{tail:.*}", route_api_media)
+
+    # Legacy API routes (redirect to v1)
+    async def redirect_api_to_v1(request: web.Request) -> web.Response:
+        """Redirect legacy API routes to v1."""
+        new_path = f"/api/v1{request.path[4:]}"  # Remove /api and add /api/v1
+        logger.warning(
+            f"Legacy API route redirected: {request.path} -> {new_path}",
+            extra={"event_type": "legacy_api_redirect"}
+        )
+        return web.HTTPMovedPermanently(location=new_path)
+    
+    # Legacy auth endpoints
+    add_cors_route("/api/auth/token", redirect_api_to_v1)
+    add_cors_route("/api/auth/{tail:.*}", redirect_api_to_v1)
+
+    # Legacy profile endpoints
+    add_cors_route("/api/profile/check", redirect_api_to_v1)
+    add_cors_route("/api/profile/{tail:.*}", redirect_api_to_v1)
+    add_cors_route("/api/profile", redirect_api_to_v1)
+    add_cors_route("/api/profiles/{tail:.*}", redirect_api_to_v1)
+    add_cors_route("/api/profiles", redirect_api_to_v1)
+
+    # Legacy discovery endpoints
+    add_cors_route("/api/discover", redirect_api_to_v1)
+    add_cors_route("/api/like", redirect_api_to_v1)
+    add_cors_route("/api/pass", redirect_api_to_v1)
+    add_cors_route("/api/matches", redirect_api_to_v1)
+    add_cors_route("/api/favorites/{tail:.*}", redirect_api_to_v1)
+    add_cors_route("/api/favorites", redirect_api_to_v1)
+
+    # Legacy media/photos endpoints
+    add_cors_route("/api/photos/upload", redirect_api_to_v1)
+    add_cors_route("/api/photos/{tail:.*}", redirect_api_to_v1)
 
     # Notification endpoints
     add_cors_route("/api/notifications/{tail:.*}", route_api_notifications)

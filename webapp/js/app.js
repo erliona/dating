@@ -177,7 +177,7 @@ class DatingApp {
 
     async checkUserProfile() {
         try {
-            const response = await fetch('/api/profiles/me', {
+            const response = await fetch('/api/v1/profiles/me', {
                 headers: {
                     'Authorization': `Bearer ${this.getAuthToken()}`
                 }
@@ -190,7 +190,7 @@ class DatingApp {
 
     async loadUserProfile() {
         try {
-            const response = await fetch('/api/profiles/me', {
+            const response = await fetch('/api/v1/profiles/me', {
                 headers: {
                     'Authorization': `Bearer ${this.getAuthToken()}`
                 }
@@ -227,7 +227,7 @@ class DatingApp {
             profileData.first_name = this.user.first_name;
             profileData.last_name = this.user.last_name;
             
-            const response = await fetch('/api/profiles', {
+            const response = await fetch('/api/v1/profiles', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -280,7 +280,7 @@ class DatingApp {
         if (!this.currentProfile) return;
         
         try {
-            const response = await fetch(`/api/discovery/like/${this.currentProfile.id}`, {
+            const response = await fetch(`/api/v1/discovery/like/${this.currentProfile.id}`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${this.getAuthToken()}`
@@ -301,7 +301,7 @@ class DatingApp {
         if (!this.currentProfile) return;
         
         try {
-            const response = await fetch(`/api/discovery/dislike/${this.currentProfile.id}`, {
+            const response = await fetch(`/api/v1/discovery/dislike/${this.currentProfile.id}`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${this.getAuthToken()}`
@@ -321,7 +321,7 @@ class DatingApp {
         if (!this.currentProfile) return;
         
         try {
-            const response = await fetch(`/api/discovery/superlike/${this.currentProfile.id}`, {
+            const response = await fetch(`/api/v1/discovery/superlike/${this.currentProfile.id}`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${this.getAuthToken()}`
@@ -340,7 +340,7 @@ class DatingApp {
 
     async loadNextProfile() {
         try {
-            const response = await fetch('/api/discovery/next', {
+            const response = await fetch('/api/v1/discovery/next', {
                 headers: {
                     'Authorization': `Bearer ${this.getAuthToken()}`
                 }
@@ -493,7 +493,7 @@ class DatingApp {
 
     async loadMatches() {
         try {
-            const response = await fetch('/api/matches', {
+            const response = await fetch('/api/v1/matches', {
                 headers: {
                     'Authorization': `Bearer ${this.getAuthToken()}`
                 }

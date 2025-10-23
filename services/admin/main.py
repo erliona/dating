@@ -21,8 +21,19 @@ from core.utils.logging import configure_logging
 from core.middleware.jwt_middleware import admin_jwt_middleware
 from core.middleware.request_logging import request_logging_middleware, user_context_middleware
 from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
+from core.resilience.circuit_breaker import data_service_breaker
+from core.resilience.retry import retry_data_service
 
 logger = logging.getLogger(__name__)
+
+
+@retry_data_service()
+async def _call_data_service(url: str, method: str = "GET", data: dict = None, params: dict = None):
+    """Helper to call Data Service with retry logic."""
+    async with aiohttp.ClientSession() as session:
+        async with session.request(method, url, json=data, params=params) as resp:
+            resp.raise_for_status()
+            return await resp.json()
 
 
 def hash_password(password: str) -> str:
@@ -90,14 +101,19 @@ async def get_stats_handler(request: web.Request) -> web.Response:
     try:
         data_service_url = request.app["data_service_url"]
         
-        async with aiohttp.ClientSession() as session:
-            async with session.get(f"{data_service_url}/data/stats") as response:
-                if response.status == 200:
-                    stats = await response.json()
-                    return web.json_response(stats)
-                else:
-                    logger.error(f"Data service returned status {response.status}")
-                    return web.json_response({"error": "Failed to get stats"}, status=500)
+        # Use circuit breaker + retry
+        result = await data_service_breaker.call(
+            _call_data_service,
+            f"{data_service_url}/data/stats",
+            fallback=lambda *args: {"error": "Service temporarily unavailable"}
+        )
+        
+        if "error" in result:
+            if result["error"] == "Service temporarily unavailable":
+                return web.json_response(result, status=503)
+            return web.json_response(result, status=500)
+        
+        return web.json_response(result)
 
     except Exception as e:
         logger.error(f"Error getting stats: {e}", exc_info=True)
@@ -121,14 +137,20 @@ async def list_users_handler(request: web.Request) -> web.Response:
         if search:
             params["search"] = search
         
-        async with aiohttp.ClientSession() as session:
-            async with session.get(f"{data_service_url}/data/users", params=params) as response:
-                if response.status == 200:
-                    result = await response.json()
-                    return web.json_response(result)
-                else:
-                    logger.error(f"Data service returned status {response.status}")
-                    return web.json_response({"error": "Failed to list users"}, status=500)
+        # Use circuit breaker + retry
+        result = await data_service_breaker.call(
+            _call_data_service,
+            f"{data_service_url}/data/users",
+            "GET",
+            None,
+            params,
+            fallback=lambda *args: {"users": [], "total": 0, "page": page, "per_page": per_page}
+        )
+        
+        if "error" in result:
+            return web.json_response(result, status=500)
+        
+        return web.json_response(result)
 
     except Exception as e:
         logger.error(f"Error listing users: {e}", exc_info=True)
@@ -142,16 +164,21 @@ async def get_user_handler(request: web.Request) -> web.Response:
 
         data_service_url = request.app["data_service_url"]
         
-        async with aiohttp.ClientSession() as session:
-            async with session.get(f"{data_service_url}/data/users/{user_id}") as response:
-                if response.status == 200:
-                    user_data = await response.json()
-                    return web.json_response(user_data)
-                elif response.status == 404:
-                    return web.json_response({"error": "User not found"}, status=404)
-                else:
-                    logger.error(f"Data service returned status {response.status}")
-                    return web.json_response({"error": "Failed to get user"}, status=500)
+        # Use circuit breaker + retry
+        result = await data_service_breaker.call(
+            _call_data_service,
+            f"{data_service_url}/data/users/{user_id}",
+            fallback=lambda *args: {"error": "Service temporarily unavailable"}
+        )
+        
+        if "error" in result:
+            if result["error"] == "Service temporarily unavailable":
+                return web.json_response(result, status=503)
+            if "not found" in result.get("error", "").lower():
+                return web.json_response(result, status=404)
+            return web.json_response(result, status=500)
+        
+        return web.json_response(result)
 
     except ValueError:
         return web.json_response({"error": "Invalid user ID"}, status=400)

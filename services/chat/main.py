@@ -12,11 +12,15 @@ from core.utils.logging import configure_logging
 from core.middleware.jwt_middleware import jwt_middleware
 from core.middleware.request_logging import request_logging_middleware, user_context_middleware
 from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
+from core.messaging.publisher import EventPublisher
 
 # Business metrics
 messages_total = Counter('messages_total', 'Total number of messages')
 
 logger = logging.getLogger(__name__)
+
+# Initialize event publisher
+event_publisher = None
 
 
 async def websocket_handler(request: web.Request):
@@ -97,6 +101,21 @@ async def send_message(request: web.Request) -> web.Response:
 
         # Increment business metrics
         messages_total.inc()
+        
+        # Publish message.sent event
+        if event_publisher:
+            correlation_id = request.get("correlation_id")
+            await event_publisher.publish_event(
+                "message.sent",
+                {
+                    "conversation_id": conversation_id,
+                    "sender_id": user_id,
+                    "text": text,
+                    "sent_at": "2024-01-01T00:00:00Z"
+                },
+                correlation_id=correlation_id
+            )
+        
         return web.json_response(
             {"message_id": 1, "sent_at": "2024-01-01T00:00:00Z"}, status=201
         )
@@ -109,6 +128,24 @@ async def send_message(request: web.Request) -> web.Response:
 async def health_check(request: web.Request) -> web.Response:
     """Health check endpoint."""
     return web.json_response({"status": "healthy", "service": "chat"})
+
+
+async def on_startup(app):
+    """Startup handler."""
+    global event_publisher
+    rabbitmq_url = app["config"].get("rabbitmq_url")
+    if rabbitmq_url:
+        event_publisher = EventPublisher(rabbitmq_url)
+        await event_publisher.connect()
+        logger.info("Event publisher initialized")
+
+
+async def on_shutdown(app):
+    """Shutdown handler."""
+    global event_publisher
+    if event_publisher:
+        await event_publisher.close()
+        logger.info("Event publisher closed")
 
 
 def create_app(config: dict) -> web.Application:
@@ -131,6 +168,10 @@ def create_app(config: dict) -> web.Application:
     app.router.add_get("/chat/messages/{conversation_id}", get_messages)
     app.router.add_post("/chat/messages", send_message)
     app.router.add_get("/health", health_check)
+    
+    # Add startup/shutdown handlers
+    app.on_startup.append(on_startup)
+    app.on_shutdown.append(on_shutdown)
 
     return app
 
@@ -143,6 +184,7 @@ if __name__ == "__main__":
 
     config = {
         "jwt_secret": os.getenv("JWT_SECRET", "your-secret-key"),
+        "rabbitmq_url": os.getenv("RABBITMQ_URL", "amqp://dating:dating@rabbitmq:5672/"),
         "host": os.getenv("CHAT_SERVICE_HOST", "0.0.0.0"),
         "port": int(os.getenv("CHAT_SERVICE_PORT", 8085)),
     }
