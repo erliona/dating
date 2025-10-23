@@ -256,23 +256,14 @@ def create_app(config: dict) -> web.Application:
             cors.add(app.router.add_route(method, path, handler))
 
     # Add routing rules for direct service access (internal/microservice-to-microservice)
-    # Versioned routes (v1) - specific routes first
-    app.router.add_route("*", "/v1/auth/health", route_auth)
-    app.router.add_route("*", "/v1/profiles/health", route_profile)
-    app.router.add_route("*", "/v1/discovery/health", route_discovery)
-    app.router.add_route("*", "/v1/media/health", route_media)
-    app.router.add_route("*", "/v1/chat/health", route_chat)
-    app.router.add_route("*", "/v1/admin/health", route_admin)
-    app.router.add_route("*", "/v1/notifications/health", route_notifications)
-    
-    # Versioned routes (v1) - catch-all routes
-    app.router.add_route("*", "/v1/auth/{tail:.*}", route_auth)
-    app.router.add_route("*", "/v1/profiles/{tail:.*}", route_profile)
-    app.router.add_route("*", "/v1/discovery/{tail:.*}", route_discovery)
-    app.router.add_route("*", "/v1/media/{tail:.*}", route_media)
-    app.router.add_route("*", "/v1/chat/{tail:.*}", route_chat)
-    app.router.add_route("*", "/v1/admin/{tail:.*}", route_admin)
-    app.router.add_route("*", "/v1/notifications/{tail:.*}", route_notifications)
+    # Versioned routes (v1) - use proper route syntax
+    app.router.add_route("*", r"/v1/auth{tail:.*}", route_auth)
+    app.router.add_route("*", r"/v1/profiles{tail:.*}", route_profile)
+    app.router.add_route("*", r"/v1/discovery{tail:.*}", route_discovery)
+    app.router.add_route("*", r"/v1/media{tail:.*}", route_media)
+    app.router.add_route("*", r"/v1/chat{tail:.*}", route_chat)
+    app.router.add_route("*", r"/v1/admin{tail:.*}", route_admin)
+    app.router.add_route("*", r"/v1/notifications{tail:.*}", route_notifications)
     
     # Legacy routes (redirect to v1)
     async def redirect_to_v1(request: web.Request) -> web.Response:
