@@ -7,11 +7,10 @@ from .security import (
     validate_jwt_token,
     validate_telegram_webapp_init_data,
 )
-from .validation import validate_age, validate_name
+from .validation import validate_age
 
 __all__ = [
     "validate_age",
-    "validate_name",
     "ValidationError",
     "validate_telegram_webapp_init_data",
     "generate_jwt_token",
