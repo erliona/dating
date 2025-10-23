@@ -85,6 +85,7 @@ async def route_auth(request: web.Request) -> web.Response:
     auth_url = request.app["config"]["auth_service_url"]
     # Strip /v1 prefix from path for internal routing
     new_path = request.path.replace("/v1/auth", "/auth", 1)
+    logger.info(f"Routing auth request: {request.path} -> {new_path} (target: {auth_url})")
     return await proxy_request(request, auth_url, path_override=new_path)
 
 
