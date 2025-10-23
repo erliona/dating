@@ -18,7 +18,8 @@ logger = logging.getLogger(__name__)
 
 # JWT Configuration
 JWT_ALGORITHM = "HS256"
-JWT_TTL_HOURS = 24  # JWT expires after 24 hours
+JWT_ACCESS_TTL_HOURS = 1  # Access token expires after 1 hour
+JWT_REFRESH_TTL_DAYS = 7  # Refresh token expires after 7 days
 
 
 class ValidationError(Exception):
@@ -179,7 +180,8 @@ def validate_telegram_webapp_init_data(
 
 
 def generate_jwt_token(
-    user_id: int, secret_key: str, additional_claims: Optional[dict[str, Any]] = None
+    user_id: int, secret_key: str, additional_claims: Optional[dict[str, Any]] = None,
+    token_type: str = "access"
 ) -> str:
     """Generate a JWT token for authenticated user.
 
@@ -187,6 +189,7 @@ def generate_jwt_token(
         user_id: User ID
         secret_key: Secret key for signing the JWT
         additional_claims: Optional additional claims to include in the token
+        token_type: Type of token ("access" or "refresh")
 
     Returns:
         JWT token string
@@ -195,10 +198,18 @@ def generate_jwt_token(
         >>> token = generate_jwt_token(123456, "secret", {"role": "user"})
     """
     now = datetime.now(timezone.utc)
-    expiration = now + timedelta(hours=JWT_TTL_HOURS)
+    
+    # Set expiration based on token type
+    if token_type == "refresh":
+        expiration = now + timedelta(days=JWT_REFRESH_TTL_DAYS)
+        ttl_description = f"{JWT_REFRESH_TTL_DAYS} days"
+    else:  # access token
+        expiration = now + timedelta(hours=JWT_ACCESS_TTL_HOURS)
+        ttl_description = f"{JWT_ACCESS_TTL_HOURS} hours"
 
     payload = {
         "user_id": user_id,
+        "token_type": token_type,
         "iat": int(now.timestamp()),  # Issued at
         "exp": int(expiration.timestamp()),  # Expiration time
         "nbf": int(now.timestamp()),  # Not before
@@ -215,20 +226,49 @@ def generate_jwt_token(
         extra={
             "event_type": "jwt_generated",
             "user_id": user_id,
+            "token_type": token_type,
             "expires_at": expiration.isoformat(),
-            "ttl_hours": JWT_TTL_HOURS,
+            "ttl": ttl_description,
         },
     )
 
     return token
 
 
-def validate_jwt_token(token: str, secret_key: str) -> dict[str, Any]:
+def generate_token_pair(
+    user_id: int, secret_key: str, additional_claims: Optional[dict[str, Any]] = None
+) -> dict[str, str]:
+    """Generate both access and refresh tokens.
+
+    Args:
+        user_id: User ID
+        secret_key: Secret key for signing the JWT
+        additional_claims: Optional additional claims to include in the tokens
+
+    Returns:
+        Dictionary with "access_token" and "refresh_token"
+
+    Example:
+        >>> tokens = generate_token_pair(123456, "secret")
+        >>> access_token = tokens["access_token"]
+        >>> refresh_token = tokens["refresh_token"]
+    """
+    access_token = generate_jwt_token(user_id, secret_key, additional_claims, "access")
+    refresh_token = generate_jwt_token(user_id, secret_key, additional_claims, "refresh")
+    
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token
+    }
+
+
+def validate_jwt_token(token: str, secret_key: str, expected_type: str = "access") -> dict[str, Any]:
     """Validate and decode a JWT token.
 
     Args:
         token: JWT token string
         secret_key: Secret key used for signing
+        expected_type: Expected token type ("access" or "refresh")
 
     Returns:
         Decoded token payload
@@ -237,7 +277,7 @@ def validate_jwt_token(token: str, secret_key: str) -> dict[str, Any]:
         ValidationError: If token is invalid or expired
 
     Example:
-        >>> payload = validate_jwt_token(token, "secret")
+        >>> payload = validate_jwt_token(token, "secret", "access")
         >>> user_id = payload["user_id"]
     """
     try:
@@ -250,13 +290,31 @@ def validate_jwt_token(token: str, secret_key: str) -> dict[str, Any]:
                 "verify_exp": True,
                 "verify_nbf": True,
                 "verify_iat": True,
-                "require": ["user_id", "iat", "exp"],
+                "require": ["user_id", "iat", "exp", "token_type"],
             },
         )
 
+        # Check token type
+        token_type = payload.get("token_type")
+        if token_type != expected_type:
+            logger.warning(
+                f"JWT token type mismatch: expected {expected_type}, got {token_type}",
+                extra={
+                    "event_type": "jwt_validation_failed", 
+                    "reason": "wrong_type",
+                    "expected_type": expected_type,
+                    "actual_type": token_type
+                },
+            )
+            raise ValidationError(f"Invalid token type: expected {expected_type}")
+
         logger.info(
             "JWT token validated",
-            extra={"event_type": "jwt_validated", "user_id": payload.get("user_id")},
+            extra={
+                "event_type": "jwt_validated", 
+                "user_id": payload.get("user_id"),
+                "token_type": token_type
+            },
         )
 
         return payload

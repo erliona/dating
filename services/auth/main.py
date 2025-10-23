@@ -15,6 +15,7 @@ from core.utils.security import (
     RateLimiter,
     ValidationError,
     generate_jwt_token,
+    generate_token_pair,
     validate_jwt_token,
     validate_telegram_webapp_init_data,
 )
@@ -44,16 +45,18 @@ async def validate_telegram_init_data(request: web.Request) -> web.Response:
         # Validate initData
         user_data = validate_telegram_webapp_init_data(init_data, bot_token)
 
-        # Generate JWT token
+        # Generate JWT token pair (access + refresh)
         user_id = user_data.get("user", {}).get("id")
         jwt_secret = request.app["config"].get("jwt_secret")
-        token = generate_jwt_token(user_id, jwt_secret)
+        tokens = generate_token_pair(user_id, jwt_secret)
 
         return web.json_response(
             {
-                "token": token,
+                "access_token": tokens["access_token"],
+                "refresh_token": tokens["refresh_token"],
                 "user_id": user_id,
                 "username": user_data.get("user", {}).get("username"),
+                "expires_in": 3600,  # 1 hour in seconds
             }
         )
 
@@ -96,29 +99,34 @@ async def verify_token(request: web.Request) -> web.Response:
 
 
 async def refresh_token(request: web.Request) -> web.Response:
-    """Refresh JWT token.
+    """Refresh JWT access token using refresh token.
 
     POST /auth/refresh
-    Header: Authorization: Bearer <old_token>
+    Body: {"refresh_token": "refresh_token_string"}
     """
     try:
-        auth_header = request.headers.get("Authorization")
-        if not auth_header or not auth_header.startswith("Bearer "):
+        data = await request.json()
+        refresh_token_str = data.get("refresh_token")
+
+        if not refresh_token_str:
             return web.json_response(
-                {"error": "Missing or invalid Authorization header"}, status=401
+                {"error": "refresh_token is required"}, status=400
             )
 
-        old_token = auth_header.split(" ")[1]
         jwt_secret = request.app["config"].get("jwt_secret")
 
-        # Verify old token
-        payload = validate_jwt_token(old_token, jwt_secret)
+        # Verify refresh token
+        payload = validate_jwt_token(refresh_token_str, jwt_secret, "refresh")
 
-        # Generate new token
+        # Generate new access token
         user_id = payload.get("user_id")
-        new_token = generate_jwt_token(user_id, jwt_secret)
+        new_access_token = generate_jwt_token(user_id, jwt_secret, token_type="access")
 
-        return web.json_response({"token": new_token, "user_id": user_id})
+        return web.json_response({
+            "access_token": new_access_token,
+            "user_id": user_id,
+            "expires_in": 3600,  # 1 hour in seconds
+        })
 
     except ValidationError as e:
         logger.warning(f"Token refresh failed: {e}")
