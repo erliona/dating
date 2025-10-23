@@ -24,47 +24,17 @@ from core.middleware.security_metrics import (
     record_auth_failure,
     record_security_event
 )
-from prometheus_client import Counter
 from core.middleware.audit_logging import audit_log, log_security_event
+from core.metrics.business_metrics import (
+    JWT_TOKENS_CREATED,
+    JWT_TOKENS_VALIDATED,
+    JWT_TOKENS_EXPIRED,
+    TELEGRAM_AUTH_SUCCESS,
+    TELEGRAM_AUTH_FAILED,
+    JWT_VALIDATION_FAILED
+)
 
 logger = logging.getLogger(__name__)
-
-# JWT Token metrics
-JWT_TOKENS_CREATED = Counter(
-    'jwt_tokens_created_total',
-    'Total JWT tokens created',
-    ['service', 'token_type']
-)
-
-JWT_TOKENS_VALIDATED = Counter(
-    'jwt_tokens_validated_total',
-    'Total JWT token validations',
-    ['service', 'result']
-)
-
-JWT_TOKENS_EXPIRED = Counter(
-    'jwt_tokens_expired_total',
-    'Total expired JWT tokens',
-    ['service']
-)
-
-TELEGRAM_AUTH_SUCCESS = Counter(
-    'telegram_auth_success_total',
-    'Successful Telegram authentications',
-    ['service']
-)
-
-TELEGRAM_AUTH_FAILED = Counter(
-    'telegram_auth_failed_total',
-    'Failed Telegram authentications',
-    ['service', 'reason']
-)
-
-JWT_VALIDATION_FAILED = Counter(
-    'jwt_validation_failed_total',
-    'Failed JWT validations',
-    ['service', 'reason']
-)
 
 
 async def validate_telegram_init_data(request: web.Request) -> web.Response:

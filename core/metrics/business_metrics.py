@@ -91,6 +91,56 @@ MESSAGES_TOTAL = Gauge(
     ['service']
 )
 
+# JWT and Authentication metrics
+JWT_TOKENS_CREATED = Counter(
+    'jwt_tokens_created_total',
+    'Total JWT tokens created',
+    ['service', 'token_type']
+)
+
+JWT_TOKENS_VALIDATED = Counter(
+    'jwt_tokens_validated_total',
+    'Total JWT token validations',
+    ['service', 'result']
+)
+
+JWT_TOKENS_EXPIRED = Counter(
+    'jwt_tokens_expired_total',
+    'Total expired JWT tokens',
+    ['service']
+)
+
+JWT_VALIDATION_FAILED = Counter(
+    'jwt_validation_failed_total',
+    'Failed JWT validations',
+    ['service', 'reason']
+)
+
+TELEGRAM_AUTH_SUCCESS = Counter(
+    'telegram_auth_success_total',
+    'Successful Telegram authentications',
+    ['service']
+)
+
+TELEGRAM_AUTH_FAILED = Counter(
+    'telegram_auth_failed_total',
+    'Failed Telegram authentications',
+    ['service', 'reason']
+)
+
+# NSFW Detection metrics
+NSFW_DETECTION_TOTAL = Counter(
+    'nsfw_detection_total',
+    'Total NSFW detections',
+    ['service', 'result']
+)
+
+NSFW_BLOCKED_TOTAL = Counter(
+    'nsfw_blocked_total',
+    'Total NSFW blocked uploads',
+    ['service']
+)
+
 
 def record_profile_created(service: str):
     """Record a profile creation event."""

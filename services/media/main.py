@@ -18,22 +18,9 @@ from core.middleware.request_logging import request_logging_middleware, user_con
 from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
 from core.middleware.security_metrics import record_file_upload, record_suspicious_activity
 from core.middleware.audit_logging import audit_log, log_security_event
-from prometheus_client import Counter
+from core.metrics.business_metrics import NSFW_DETECTION_TOTAL, NSFW_BLOCKED_TOTAL
 
 logger = logging.getLogger(__name__)
-
-# NSFW Detection metrics
-NSFW_DETECTION_TOTAL = Counter(
-    'nsfw_detection_total',
-    'Total NSFW detections',
-    ['service', 'result']
-)
-
-NSFW_BLOCKED_TOTAL = Counter(
-    'nsfw_blocked_total',
-    'Total NSFW blocked uploads',
-    ['service']
-)
 
 # Security configuration
 ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
