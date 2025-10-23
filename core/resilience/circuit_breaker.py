@@ -29,7 +29,6 @@ class ServiceCircuitBreaker:
         self.breaker = CircuitBreaker(
             fail_max=fail_max,
             timeout_duration=timeout_duration,
-            expected_exception=expected_exception,
             name=service_name
         )
         
@@ -79,14 +78,19 @@ class ServiceCircuitBreaker:
         """
         try:
             return await self.breaker.call(func, *args, **kwargs)
-        except CircuitBreakerError as e:
-            logger.warning(
-                f"Circuit open for {self.service_name}, using fallback",
-                extra={"event_type": "circuit_fallback", "service": self.service_name}
-            )
-            if fallback:
-                return await fallback(*args, **kwargs)
-            raise
+        except Exception as e:
+            # Check if it's a circuit breaker error or the expected exception
+            if isinstance(e, CircuitBreakerError) or isinstance(e, expected_exception):
+                logger.warning(
+                    f"Circuit open for {self.service_name}, using fallback",
+                    extra={"event_type": "circuit_fallback", "service": self.service_name}
+                )
+                if fallback:
+                    return await fallback(*args, **kwargs)
+                raise
+            else:
+                # Re-raise unexpected exceptions
+                raise
 
 
 # Global circuit breakers for each service
