@@ -66,7 +66,7 @@ scrape_configs:
   # PostgreSQL metrics
   - job_name: 'postgres'
     static_configs:
-      - targets: ['172.18.0.6:9187']  # postgres-exporter
+      - targets: ['172.18.0.8:9187']  # postgres-exporter
         labels:
           service: 'postgres'
           component: 'database'
@@ -76,7 +76,7 @@ scrape_configs:
   # Traefik metrics
   - job_name: 'traefik'
     static_configs:
-      - targets: ['172.18.0.7:8080']  # traefik
+      - targets: ['172.18.0.6:8080']  # traefik
         labels:
           service: 'traefik'
           component: 'proxy'
@@ -86,43 +86,43 @@ scrape_configs:
   - job_name: 'application-services'
     static_configs:
       - targets:
-          - '172.18.0.8:8080'  # api-gateway
-          - '172.18.0.12:8081' # auth-service
-          - '172.18.0.13:8082' # profile-service
-          - '172.18.0.14:8083' # discovery-service
-          - '172.18.0.15:8084' # media-service
-          - '172.18.0.16:8085' # chat-service
-          - '172.18.0.9:8086'  # admin-service
+          - '172.18.0.16:8080' # api-gateway
+          - '172.18.0.15:8081' # auth-service
+          - '172.18.0.11:8082' # profile-service
+          - '172.18.0.12:8083' # discovery-service
+          - '172.18.0.13:8084' # media-service
+          - '172.18.0.14:8085' # chat-service
+          - '172.18.0.17:8086' # admin-service
         labels:
           component: 'application'
     metrics_path: '/metrics'
     # Relabel to add service names
     relabel_configs:
       - source_labels: [__address__]
-        regex: '172\.18\.0\.8:.*'
+        regex: '172\.18\.0\.16:.*'
         target_label: service
         replacement: 'api-gateway'
       - source_labels: [__address__]
-        regex: '172\.18\.0\.12:.*'
+        regex: '172\.18\.0\.15:.*'
         target_label: service
         replacement: 'auth-service'
       - source_labels: [__address__]
-        regex: '172\.18\.0\.13:.*'
+        regex: '172\.18\.0\.11:.*'
         target_label: service
         replacement: 'profile-service'
       - source_labels: [__address__]
-        regex: '172\.18\.0\.14:.*'
+        regex: '172\.18\.0\.12:.*'
         target_label: service
         replacement: 'discovery-service'
       - source_labels: [__address__]
-        regex: '172\.18\.0\.15:.*'
+        regex: '172\.18\.0\.13:.*'
         target_label: service
         replacement: 'media-service'
       - source_labels: [__address__]
-        regex: '172\.18\.0\.16:.*'
+        regex: '172\.18\.0\.14:.*'
         target_label: service
         replacement: 'chat-service'
       - source_labels: [__address__]
-        regex: '172\.18\.0\.9:.*'
+        regex: '172\.18\.0\.17:.*'
         target_label: service
         replacement: 'admin-service'
