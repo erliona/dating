@@ -220,25 +220,25 @@ async def sync_metrics_on_startup(app):
     try:
         data_service_url = app["data_service_url"]
         
-        # Use circuit breaker + retry
-        result = await data_service_breaker.call(
-            _call_data_service,
-            f"{data_service_url}/data/profiles-count",
-            "GET",
-            None,
-            None,  # No request context for startup
-            fallback=lambda *args: {"count": 0}
-        )
-        
-        total_users = result.get("count", 0)
-        
-        # Set the metric to the current count
-        update_users_total('profile-service', total_users)
-        
-        logger.info(f"Metrics synchronized on startup: users_total={total_users}")
+        # Direct call without circuit breaker for now
+        async with aiohttp.ClientSession() as session:
+            async with session.get(f"{data_service_url}/data/profiles-count") as resp:
+                if resp.status == 200:
+                    result = await resp.json()
+                    total_users = result.get("count", 0)
+                    
+                    # Set the metric to the current count
+                    update_users_total('profile-service', total_users)
+                    
+                    logger.info(f"Metrics synchronized on startup: users_total={total_users}")
+                else:
+                    logger.warning(f"Failed to get profiles count: {resp.status}")
+                    update_users_total('profile-service', 0)
                     
     except Exception as e:
         logger.error(f"Error syncing metrics on startup: {e}")
+        # Set to 0 as fallback
+        update_users_total('profile-service', 0)
 
 
 def create_app(config: dict) -> web.Application:
