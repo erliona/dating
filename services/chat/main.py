@@ -14,8 +14,13 @@ from core.middleware.request_logging import request_logging_middleware, user_con
 from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
 from core.messaging.publisher import EventPublisher
 
-# Business metrics
-messages_total = Counter('messages_total', 'Total number of messages')
+# Business metrics - create only if not already registered
+try:
+    messages_total = Counter('messages_total', 'Total number of messages')
+except ValueError:
+    # Metric already exists, get it from registry
+    from prometheus_client import REGISTRY
+    messages_total = REGISTRY._names_to_collectors['messages_total']
 
 logger = logging.getLogger(__name__)
 

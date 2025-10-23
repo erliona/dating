@@ -16,8 +16,13 @@ from core.resilience.circuit_breaker import data_service_breaker
 from core.resilience.retry import retry_data_service
 from core.messaging.publisher import EventPublisher
 
-# Business metrics
-matches_total = Counter('matches_total', 'Total number of matches')
+# Business metrics - create only if not already registered
+try:
+    matches_total = Counter('matches_total', 'Total number of matches')
+except ValueError:
+    # Metric already exists, get it from registry
+    from prometheus_client import REGISTRY
+    matches_total = REGISTRY._names_to_collectors['matches_total']
 
 logger = logging.getLogger(__name__)
 
