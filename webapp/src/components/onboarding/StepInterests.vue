@@ -2,52 +2,74 @@
   <div class="step-interests">
     <div class="step-header">
       <h2>Ваши интересы</h2>
-      <p>Выберите до 10 интересов (необязательно)</p>
+      <p>Выберите до 10 интересов, которые вас описывают</p>
     </div>
 
     <div class="step-content">
       <div class="interests-grid">
         <label 
-          v-for="interest in interests" 
+          v-for="interest in interestOptions" 
           :key="interest.value"
-          class="interest-item"
-          :class="{ 'selected': localData.interests.includes(interest.value) }"
+          class="interest-option"
+          :class="{ 
+            'selected': formData.interests?.includes(interest.value),
+            'disabled': formData.interests?.length >= 10 && !formData.interests?.includes(interest.value)
+          }"
         >
-          <input
-            v-model="localData.interests"
-            type="checkbox"
+          <input 
+            v-model="formData.interests" 
+            type="checkbox" 
             :value="interest.value"
-            :disabled="!localData.interests.includes(interest.value) && localData.interests.length >= 10"
+            :disabled="formData.interests?.length >= 10 && !formData.interests?.includes(interest.value)"
           />
-          <span class="interest-label">
-            <span class="interest-icon">{{ interest.icon }}</span>
-            {{ interest.label }}
-          </span>
+          <span class="interest-icon">{{ interest.icon }}</span>
+          <span class="interest-label">{{ interest.label }}</span>
         </label>
       </div>
 
       <div class="selection-info">
-        Выбрано: {{ localData.interests.length }}/10
+        <p class="selection-count">
+          Выбрано: {{ formData.interests?.length || 0 }}/10
+        </p>
+        <p v-if="formData.interests?.length < 5" class="selection-hint">
+          💡 Добавьте больше интересов для лучших совпадений
+        </p>
       </div>
+    </div>
+
+    <div class="step-actions">
+      <Button 
+        variant="outline" 
+        size="lg" 
+        @click="handleBack"
+        fullWidth
+      >
+        Назад
+      </Button>
+      <Button 
+        variant="primary" 
+        size="lg" 
+        @click="handleNext"
+        :disabled="!isValid"
+        fullWidth
+      >
+        Продолжить
+      </Button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
+import Button from '../common/Button.vue'
 
-const props = defineProps({
-  modelValue: {
-    type: Object,
-    required: true
-  }
+const emit = defineEmits(['next', 'back', 'update-data'])
+
+const formData = ref({
+  interests: []
 })
 
-const emit = defineEmits(['update:modelValue'])
-
-const localData = ref({ ...props.modelValue })
-
-const interests = [
+const interestOptions = [
   { value: 'music', label: 'Музыка', icon: '🎵' },
   { value: 'movies', label: 'Кино', icon: '🎬' },
   { value: 'books', label: 'Книги', icon: '📚' },
@@ -76,18 +98,37 @@ const interests = [
   { value: 'running', label: 'Бег', icon: '🏃' },
   { value: 'painting', label: 'Живопись', icon: '🖌️' },
   { value: 'gardening', label: 'Садоводство', icon: '🌱' },
-  { value: 'wine', label: 'Вино', icon: '🍷' }
+  { value: 'wine', label: 'Вино', icon: '🍷' },
+  { value: 'coffee', label: 'Кофе', icon: '☕' }
 ]
 
-watch(localData, (newValue) => {
-  emit('update:modelValue', newValue)
+const isValid = computed(() => {
+  return formData.value.interests && formData.value.interests.length > 0
+})
+
+const handleNext = () => {
+  if (isValid.value) {
+    emit('update-data', formData.value)
+    emit('next')
+  }
+}
+
+const handleBack = () => {
+  emit('back')
+}
+
+// Watch for changes and emit updates
+watch(formData, (newData) => {
+  emit('update-data', newData)
 }, { deep: true })
 </script>
 
 <style scoped>
 .step-interests {
-  max-width: 400px;
-  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: var(--spacing-lg);
 }
 
 .step-header {
@@ -96,71 +137,104 @@ watch(localData, (newValue) => {
 }
 
 .step-header h2 {
-  font-size: var(--font-size-xxl);
+  font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-bold);
+  margin: 0 0 var(--spacing-sm) 0;
   color: var(--text-primary);
-  margin-bottom: var(--spacing-sm);
 }
 
 .step-header p {
+  font-size: var(--font-size-md);
   color: var(--text-secondary);
-  margin-bottom: 0;
+  margin: 0;
+}
+
+.step-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
 }
 
 .interests-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--spacing-md);
+}
+
+.interest-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-lg);
-}
-
-.interest-item {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-}
-
-.interest-item input[type="checkbox"] {
-  display: none;
-}
-
-.interest-label {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: var(--spacing-md);
   border: 2px solid var(--border-color);
-  border-radius: var(--border-radius-small);
-  background-color: var(--bg-primary);
-  transition: all var(--transition-fast);
+  border-radius: var(--border-radius);
   cursor: pointer;
-  font-size: var(--font-size-sm);
+  transition: all 0.2s ease;
+  background-color: white;
 }
 
-.interest-item.selected .interest-label {
+.interest-option:hover:not(.disabled) {
   border-color: var(--primary-color);
-  background-color: rgba(255, 107, 107, 0.05);
+  background-color: rgba(var(--primary-rgb), 0.05);
 }
 
-.interest-item:not(.selected) .interest-label:hover {
+.interest-option.selected {
+  background-color: var(--primary-color);
   border-color: var(--primary-color);
-  transform: translateY(-1px);
+  color: white;
 }
 
-.interest-item input[type="checkbox"]:disabled + .interest-label {
+.interest-option.disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
+.interest-option input[type="checkbox"] {
+  display: none;
+}
+
 .interest-icon {
-  font-size: var(--font-size-md);
-  margin-right: var(--spacing-sm);
+  font-size: var(--font-size-xl);
+  margin-bottom: var(--spacing-xs);
+}
+
+.interest-label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-align: center;
 }
 
 .selection-info {
   text-align: center;
+  padding: var(--spacing-lg);
+  background-color: var(--bg-secondary);
+  border-radius: var(--border-radius);
+}
+
+.selection-count {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin: 0 0 var(--spacing-sm) 0;
+}
+
+.selection-hint {
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
-  font-weight: var(--font-weight-medium);
+  margin: 0;
+}
+
+.step-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-xl);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--border-color);
+}
+
+.step-actions .btn {
+  flex: 1;
 }
 </style>
