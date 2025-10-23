@@ -86,43 +86,43 @@ scrape_configs:
   - job_name: 'application-services'
     static_configs:
       - targets:
-          - 'api-gateway:8080'
-          - 'auth-service:8081'
-          - 'profile-service:8082'
-          - 'discovery-service:8083'
-          - 'media-service:8084'
-          - 'chat-service:8085'
-          - 'admin-service:8086'
+          - 'dating-microservices-api-gateway-1:8080'
+          - 'dating-microservices-auth-service-1:8081'
+          - 'dating-microservices-profile-service-1:8082'
+          - 'dating-microservices-discovery-service-1:8083'
+          - 'dating-microservices-media-service-1:8084'
+          - 'dating-microservices-chat-service-1:8085'
+          - 'dating-microservices-admin-service-1:8086'
         labels:
           component: 'application'
     metrics_path: '/metrics'
     # Relabel to add service names
     relabel_configs:
       - source_labels: [__address__]
-        regex: 'api-gateway:.*'
+        regex: 'dating-microservices-api-gateway-1:.*'
         target_label: service
         replacement: 'api-gateway'
       - source_labels: [__address__]
-        regex: 'auth-service:.*'
+        regex: 'dating-microservices-auth-service-1:.*'
         target_label: service
         replacement: 'auth-service'
       - source_labels: [__address__]
-        regex: 'profile-service:.*'
+        regex: 'dating-microservices-profile-service-1:.*'
         target_label: service
         replacement: 'profile-service'
       - source_labels: [__address__]
-        regex: 'discovery-service:.*'
+        regex: 'dating-microservices-discovery-service-1:.*'
         target_label: service
         replacement: 'discovery-service'
       - source_labels: [__address__]
-        regex: 'media-service:.*'
+        regex: 'dating-microservices-media-service-1:.*'
         target_label: service
         replacement: 'media-service'
       - source_labels: [__address__]
-        regex: 'chat-service:.*'
+        regex: 'dating-microservices-chat-service-1:.*'
         target_label: service
         replacement: 'chat-service'
       - source_labels: [__address__]
-        regex: 'admin-service:.*'
+        regex: 'dating-microservices-admin-service-1:.*'
         target_label: service
         replacement: 'admin-service'
