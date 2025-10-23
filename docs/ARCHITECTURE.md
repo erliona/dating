@@ -44,7 +44,9 @@ Dating is a modern Telegram Mini App for dating with a microservices architectur
 - `POST /auth/validate` - Validate Telegram WebApp initData and generate JWT
 - `GET /auth/verify` - Verify JWT token
 - `POST /auth/refresh` - Refresh JWT token
+- `GET /auth/test_token` - Generate test JWT token (development)
 - `GET /health` - Health check
+- `GET /metrics` - Prometheus metrics
 
 **Key Features**:
 - Telegram WebApp initData validation
@@ -126,12 +128,25 @@ Dating is a modern Telegram Mini App for dating with a microservices architectur
 - Error handling and retries
 - Structured logging
 
-#### 👨‍💼 Admin Service (`admin-service:8087`)
+#### 👨‍💼 Admin Service (`admin-service:8086`)
 **Responsibility**: Administrative panel and system management
 
 **Endpoints**:
 - `POST /admin/login` - Admin authentication
 - `GET /admin/stats` - System statistics
+- `GET /health` - Health check
+- `GET /metrics` - Prometheus metrics
+
+#### 🗄️ Data Service (`data-service:8088`)
+**Responsibility**: Centralized database access for all services
+
+**Endpoints**:
+- `GET /data/profiles/{user_id}` - Get user profile
+- `POST /data/profiles` - Create user profile
+- `PUT /data/profiles/{user_id}` - Update user profile
+- `GET /data/profiles-count` - Get total profiles count
+- `GET /health` - Health check
+- `GET /metrics` - Prometheus metrics
 - `GET /admin/users` - User management
 - `GET /admin/photos` - Photo moderation
 - `GET /health` - Health check

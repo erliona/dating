@@ -41,13 +41,13 @@ Dating - это современное приложение для знаком�
 
 ### Технологические особенности
 
-- 🏗️ **Микросервисная архитектура** - 7 независимых микросервисов, масштабируемость
+- 🏗️ **Микросервисная архитектура** - 8 независимых микросервисов, масштабируемость
 - 🐳 **Docker** - полная контейнеризация, простое развертывание
 - 🔐 **Безопасность** - JWT токены, HTTPS, валидация данных, NSFW детектор
 - 📊 **Мониторинг v3.0** - Prometheus v2.51.0, Grafana 10.4.0, Loki v3.0.0 с TSDB
-- 🧪 **Тестирование** - 381 тестов, 362 passed (95.0% success rate)
+- 🧪 **Тестирование** - 18 тестовых файлов, ~3,600 строк кода
 - 🚀 **CI/CD** - полный pipeline: тесты, линтинг, сборка, деплой и мониторинг
-- 🌐 **Modern Stack** - Python 3.11+, Next.js 15, TypeScript, Tailwind CSS v4
+- 🌐 **Modern Stack** - Python 3.11+, HTML/CSS/JS (webapp), Next.js 15 (legacy)
 
 ---
 
@@ -157,8 +157,8 @@ Dating - это современное приложение для знаком�
     │ • Discovery Service (8083)    │ ← Поиск, матчинг
     │ • Media Service     (8084)    │ ← Фото, NSFW детектор
     │ • Chat Service      (8085)    │ ← Сообщения, real-time
-    │ • Notification Svc  (8086)    │ ← Push-уведомления
-    │ • Admin Service     (8087)    │ ← Административная панель
+    │ • Admin Service     (8086)    │ ← Административная панель
+    │ • Notification Svc  (8087)    │ ← Push-уведомления
     │ • Data Service      (8088)    │ ← Централизованный доступ к БД
     └───────────────────────────────┘
               │
@@ -187,25 +187,35 @@ dating/
 │   └── repository.py   # Data access layer
 │
 ├── core/                # Shared utilities
+│   ├── middleware/     # Middleware components
+│   │   ├── jwt_middleware.py      # JWT authentication
+│   │   ├── metrics_middleware.py  # Prometheus metrics
+│   │   └── request_logging.py    # Request logging
 │   └── utils/          # Common utilities
 │       ├── logging.py  # Logging configuration
 │       ├── security.py # Security utilities
 │       └── validation.py # Data validation
 │
 ├── services/            # Microservices
-│   ├── auth/           # Authentication service
-│   ├── profile/        # Profile management
-│   ├── discovery/      # Matching algorithm
-│   ├── media/          # File handling
-│   ├── chat/           # Real-time messaging
-│   ├── admin/          # Admin panel
-│   ├── notification/   # Push notifications
-│   └── data/           # Centralized data access
+│   ├── auth/           # Authentication service (8081)
+│   ├── profile/        # Profile management (8082)
+│   ├── discovery/      # Matching algorithm (8083)
+│   ├── media/          # File handling (8084)
+│   ├── chat/           # Real-time messaging (8085)
+│   ├── admin/          # Admin panel (8086)
+│   ├── notification/   # Push notifications (8087)
+│   └── data/           # Centralized data access (8088)
 │
 ├── gateway/             # API Gateway
 │   └── main.py         # Request routing
 │
-├── webapp/              # Frontend (Next.js WebApp)
+├── webapp/              # Frontend (HTML/CSS/JS)
+│   ├── index.html      # Main app page
+│   ├── admin.html       # Admin panel page
+│   ├── css/            # Stylesheets
+│   ├── js/             # JavaScript files
+│   └── nginx.conf       # Nginx configuration
+├── webapp_old/          # Legacy Next.js WebApp
 │   ├── src/            # React components
 │   ├── messages/       # i18n translations
 │   └── public/         # Static assets
@@ -227,15 +237,20 @@ dating/
 
 **Frontend (WebApp):**
 
-*Основная реализация (Next.js):*
+*Основная реализация (HTML/CSS/JS):*
+- Vanilla HTML/CSS/JavaScript
+- Nginx для статического контента
+- Telegram WebApp SDK интеграция
+- Адаптивный дизайн
+- Простая и быстрая загрузка
+
+*Legacy Next.js (webapp_old/):*
 - Next.js 15.5.4 (App Router) с React 19
 - TypeScript (strict mode)
 - Tailwind CSS v4 (PostCSS plugin)
 - shadcn/ui + lucide-react компоненты
 - TanStack Query v5 (state management)
 - next-intl (i18n: русский/английский)
-- Progressive Web App (PWA) готовность
-- Полностью адаптивный дизайн
 
 *Telegram Mini App интеграция:*
 - Telegram WebApp API v6.9+
@@ -485,8 +500,8 @@ new-service:
 
 ### Запуск тестов
 
-**Статус**: 381 комплексных тестов, организованных по типам  
-**Pass Rate**: 362 passed (95.0%), 19 skipped (устаревшие после рефакторинга)
+**Статус**: 18 тестовых файлов, ~3,600 строк кода  
+**Покрытие**: Unit, Integration, E2E тесты
 
 ```bash
 # Все тесты
@@ -1477,6 +1492,6 @@ docker compose up -d
 
 ---
 
-**Версия документации:** 2.1  
-**Последнее обновление:** 2025-01-06  
+**Версия документации:** 2.2  
+**Последнее обновление:** 2025-01-27  
 **Автор:** erliona
