@@ -45,6 +45,7 @@
 - Expose Prometheus metrics via middleware; names like `service_operation_total`, `request_duration_seconds`.
 - Structured logs must include service name, request path, correlation/request ID when available.
 - Provide `/health` and `/ready` endpoints per service.
+- See .cursor/rules-mdc/deployment-and-monitoring.mdc for deployment and monitoring best practices.
 
 # ==== Frontend (webapp/) ====
 - Vanilla JS + Telegram WebApp SDK: small modules, responsive CSS, minimal bundle size.

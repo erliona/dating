@@ -1,0 +1,43 @@
+---
+alwaysApply: true
+---
+# Deployment & Monitoring Best Practices
+
+## Docker Network & DNS
+- **НИКОГДА не использовать IP адреса** в конфигурациях (Prometheus, service URLs, etc.)
+- Использовать только доменные имена или имена сервисов Docker
+- Формат для inter-service calls: `<service-name>:<port>` или `dating-microservices-<service>-1:<port>`
+- Перед деплоем проверять подключение сервисов к необходимым Docker сетям (особенно `monitoring`)
+- Команда проверки: `docker network inspect <network> | jq '.[0].Containers'`
+
+## Post-Deployment Verification
+- После деплоя всегда проверять статус контейнеров: `docker compose ps`
+- Проверять health status всех сервисов: должны быть `healthy`, не `starting` или `unhealthy`
+- Проверять логи каждого измененного сервиса: `docker compose logs <service> --tail=20`
+- Проверять эндпоинты `/health` и `/metrics` через curl для каждого сервиса
+- Для критических изменений использовать `--no-cache` при пересборке
+
+## Prometheus & Metrics Validation
+- После изменений в `prometheus.yml` проверять статус всех targets:
+  `curl http://localhost:9090/api/v1/targets | jq '.data.activeTargets[] | select(.health != "up")'`
+- Проверять, что все Grafana дашборды отображают данные (нет "No data")
+- Проверять синхронизацию бизнес-метрик с базой данных
+- При проблемах с DNS resolution проверять подключение к сети `monitoring`
+
+## Debugging & Diagnostics
+- При ошибках запуска сервиса проверять полные логи с самого начала
+- Обращать внимание на HTTP server startup messages: "Running on http://..."
+- Проверять, не блокируют ли фоновые задачи (`on_startup`) запуск основного сервера
+- При circuit breaker ошибках в startup использовать прямые HTTP вызовы вместо обёрнутых
+
+## Architecture Patterns
+- Избегать circuit breaker в `on_startup` функциях - может блокировать старт
+- Использовать `app.on_startup.append()` для асинхронных задач
+- Централизовать определение Prometheus метрик в `core/metrics/business_metrics.py`
+- Не дублировать метрики в разных модулях (проверять перед добавлением)
+
+## Documentation Sync
+- При значимых изменениях в архитектуре обновлять `docs/ARCHITECTURE.md`
+- При изменении портов/сервисов обновлять `README.md` и `.env.example`
+- При добавлении метрик обновлять `docs/METRICS_GUIDE.md`
+- Проверять актуальность дат в документации (должны быть текущие)
