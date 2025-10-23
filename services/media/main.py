@@ -177,8 +177,6 @@ async def upload_media(request: web.Request) -> web.Response:
                 file_size=size
             )
             return web.json_response({"error": "File too large"}, status=413)
-                
-                f.write(chunk)
 
         # SECURITY: Additional validation after upload
         if not validate_file_size(size):

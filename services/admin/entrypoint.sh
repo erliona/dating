@@ -98,6 +98,12 @@ echo ""
 # Skip migrations - Admin Service now works through Data Service
 log_info "Skipping database migrations - Admin Service works through Data Service"
 
+# Create nginx directories and set permissions
+log_info "Creating nginx directories..."
+mkdir -p /var/lib/nginx/body /var/lib/nginx/fastcgi /var/lib/nginx/proxy /var/lib/nginx/scgi /var/lib/nginx/uwsgi
+chown -R appuser:appuser /var/lib/nginx
+chmod -R 755 /var/lib/nginx
+
 # Start nginx in background
 log_info "Starting nginx for static files..."
 nginx -g "daemon on;"
