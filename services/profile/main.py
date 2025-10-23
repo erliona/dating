@@ -224,7 +224,7 @@ async def sync_metrics_on_startup(app):
         result = await data_service_breaker.call(
             _call_data_service,
             f"{data_service_url}/data/profiles-count",
-            None,
+            "GET",
             None,
             None,  # No request context for startup
             fallback=lambda *args: {"count": 0}
