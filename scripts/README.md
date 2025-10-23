@@ -1,176 +1,165 @@
-# Deployment Scripts
+# Database and Admin Scripts
 
-Этот набор скриптов решает проблему с кешированием Docker и обеспечивает надежный деплой изменений.
+Этот набор скриптов предназначен для работы с базой данных и администрированием системы.
 
-## Проблема
+## Доступные скрипты
 
-Docker часто кеширует слои и не пересобирает образы при изменениях в коде, что приводит к тому, что изменения не применяются на сервере.
+### 1. `backup_database.sh` - Резервное копирование БД
 
-## Решение
-
-### 1. `force-deploy.sh` - Принудительный деплой
-
-Полностью пересобирает сервисы без кеша:
+Создает полный бэкап базы данных PostgreSQL:
 
 ```bash
-# Деплой всех сервисов
-./scripts/force-deploy.sh
+# Создать бэкап
+./scripts/backup_database.sh
 
-# Деплой конкретных сервисов
-./scripts/force-deploy.sh webapp api-gateway profile-service
+# Создать бэкап с указанием имени файла
+./scripts/backup_database.sh my_backup.sql
 ```
 
 **Что делает:**
-- Останавливает сервисы
-- Удаляет контейнеры
-- Пересобирает образы без кеша (`--no-cache`)
-- Запускает новые контейнеры
-- Показывает статус и логи
+- Подключается к PostgreSQL
+- Создает полный дамп базы данных
+- Сохраняет в файл с временной меткой
+- Сжимает архив для экономии места
 
-### 2. `quick-deploy.sh` - Быстрый деплой одного сервиса
+### 2. `restore_database.sh` - Восстановление БД
 
-Для быстрого деплоя одного сервиса:
-
-```bash
-# Деплой только webapp
-./scripts/quick-deploy.sh webapp
-
-# Деплой только API Gateway
-./scripts/quick-deploy.sh api-gateway
-```
-
-### 3. `deploy-to-server.sh` - Деплой на сервер
-
-Автоматически копирует файлы на сервер и запускает force deploy:
+Восстанавливает базу данных из бэкапа:
 
 ```bash
-# Деплой webapp на сервер
-./scripts/deploy-to-server.sh webapp
+# Восстановить из последнего бэкапа
+./scripts/restore_database.sh
 
-# Деплой нескольких сервисов
-./scripts/deploy-to-server.sh webapp api-gateway profile-service
+# Восстановить из конкретного файла
+./scripts/restore_database.sh backup_2024-10-23.sql
 ```
 
 **Что делает:**
-- Копирует скрипты деплоя на сервер
-- Копирует измененные файлы (webapp/src, gateway/, services/*)
-- Запускает force deploy на сервере
+- Останавливает приложение
+- Очищает текущую БД
+- Восстанавливает данные из бэкапа
+- Запускает приложение
+
+### 3. `create_admin.py` - Создание администратора
+
+Создает нового администратора в системе:
+
+```bash
+# Создать админа интерактивно
+python scripts/create_admin.py
+
+# Создать админа с параметрами
+python scripts/create_admin.py --username admin --password secure123 --email admin@example.com
+```
+
+**Что делает:**
+- Создает нового пользователя в БД
+- Хеширует пароль с bcrypt
+- Назначает права администратора
+- Выводит информацию о созданном пользователе
 
 ## Использование
 
-### Локальная разработка
+### Резервное копирование
 
 ```bash
-# Быстрый деплой одного сервиса
-./scripts/quick-deploy.sh webapp
+# Ежедневный бэкап
+./scripts/backup_database.sh
 
-# Полный пересбор всех сервисов
-./scripts/force-deploy.sh
+# Проверить созданные бэкапы
+ls -la backups/
 ```
 
-### Деплой на продакшн
+### Восстановление
 
 ```bash
-# Деплой webapp на сервер
-./scripts/deploy-to-server.sh webapp
+# Восстановить из бэкапа
+./scripts/restore_database.sh backup_2024-10-23.sql
 
-# Деплой API Gateway на сервер
-./scripts/deploy-to-server.sh api-gateway
-
-# Деплой нескольких сервисов
-./scripts/deploy-to-server.sh webapp api-gateway profile-service
+# Проверить статус после восстановления
+docker compose ps
 ```
 
-## Доступные сервисы
+### Создание админа
 
-- `webapp` - Next.js приложение
-- `api-gateway` - API Gateway
-- `profile-service` - Profile Service
-- `auth-service` - Auth Service
-- `discovery-service` - Discovery Service
-- `media-service` - Media Service
-- `chat-service` - Chat Service
-- `admin-service` - Admin Service
-- `notification-service` - Notification Service
+```bash
+# Интерактивное создание
+python scripts/create_admin.py
+
+# Автоматическое создание
+python scripts/create_admin.py --username admin --password admin123
+```
+
+## Безопасность
+
+- Все пароли хешируются с bcrypt
+- Бэкапы содержат только данные, без паролей
+- Скрипты требуют правильных переменных окружения
+- Восстановление требует подтверждения
+
+## Переменные окружения
+
+Скрипты используют следующие переменные:
+
+- `POSTGRES_DB` - имя базы данных
+- `POSTGRES_USER` - пользователь БД
+- `POSTGRES_PASSWORD` - пароль БД
+- `POSTGRES_HOST` - хост БД (по умолчанию localhost)
+- `POSTGRES_PORT` - порт БД (по умолчанию 5432)
 
 ## Примеры
 
-### Изменения в webapp
+### Ежедневный бэкап
 
 ```bash
-# 1. Внесите изменения в webapp/src/
-# 2. Деплой на сервер
-./scripts/deploy-to-server.sh webapp
+# Добавить в crontab для ежедневного бэкапа в 2:00
+0 2 * * * /path/to/dating/scripts/backup_database.sh
 ```
 
-### Изменения в API Gateway
+### Восстановление после сбоя
 
 ```bash
-# 1. Внесите изменения в gateway/
-# 2. Деплой на сервер
-./scripts/deploy-to-server.sh api-gateway
+# 1. Остановить сервисы
+docker compose down
+
+# 2. Восстановить БД
+./scripts/restore_database.sh backup_2024-10-23.sql
+
+# 3. Запустить сервисы
+docker compose up -d
 ```
 
-### Изменения в нескольких сервисах
+### Создание админа для продакшна
 
 ```bash
-# 1. Внесите изменения в несколько сервисов
-# 2. Деплой всех измененных сервисов
-./scripts/deploy-to-server.sh webapp api-gateway profile-service
+# Создать админа с безопасным паролем
+python scripts/create_admin.py --username admin --password $(openssl rand -base64 32)
 ```
-
-## Проверка деплоя
-
-После деплоя проверьте:
-
-1. **Статус сервисов:**
-   ```bash
-   ssh root@dating.serge.cc "cd /opt/dating-microservices && docker compose ps"
-   ```
-
-2. **Логи сервисов:**
-   ```bash
-   ssh root@dating.serge.cc "cd /opt/dating-microservices && docker compose logs webapp --tail=20"
-   ```
-
-3. **Функциональность:**
-   - Откройте приложение в браузере
-   - Проверьте API endpoints
-   - Убедитесь, что изменения применились
 
 ## Устранение проблем
 
-### Если изменения не применились
+### Ошибка подключения к БД
 
-1. **Проверьте, что скрипт выполнился без ошибок**
-2. **Проверьте логи сервиса:**
-   ```bash
-   ssh root@dating.serge.cc "cd /opt/dating-microservices && docker compose logs webapp --tail=50"
-   ```
-3. **Попробуйте полный пересбор:**
-   ```bash
-   ./scripts/deploy-to-server.sh webapp
-   ```
+1. Проверьте переменные окружения
+2. Убедитесь, что PostgreSQL запущен
+3. Проверьте сетевую доступность
 
-### Если сервис не запускается
+### Ошибка восстановления
 
-1. **Проверьте статус:**
-   ```bash
-   ssh root@dating.serge.cc "cd /opt/dating-microservices && docker compose ps webapp"
-   ```
-2. **Проверьте логи ошибок:**
-   ```bash
-   ssh root@dating.serge.cc "cd /opt/dating-microservices && docker compose logs webapp"
-   ```
+1. Проверьте права доступа к файлу бэкапа
+2. Убедитесь, что БД пуста
+3. Проверьте формат файла бэкапа
+
+### Ошибка создания админа
+
+1. Проверьте подключение к БД
+2. Убедитесь, что таблица users существует
+3. Проверьте уникальность username
 
 ## Преимущества
 
-✅ **Надежность** - принудительная пересборка без кеша  
-✅ **Автоматизация** - один скрипт для полного деплоя  
-✅ **Быстрота** - деплой только измененных сервисов  
-✅ **Отладка** - автоматический показ логов и статуса  
-✅ **Безопасность** - проверка статуса после деплоя  
-
-## История
-
-Эти скрипты были созданы для решения проблемы с кешированием Docker, когда изменения в коде не применялись на сервере из-за того, что Docker использовал кешированные слои образов.
+✅ **Надежность** - полные бэкапы с проверкой целостности  
+✅ **Безопасность** - хеширование паролей и проверка прав  
+✅ **Автоматизация** - готовые скрипты для всех операций  
+✅ **Восстановление** - быстрое восстановление после сбоев  
+✅ **Мониторинг** - логирование всех операций

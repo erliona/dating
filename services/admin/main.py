@@ -63,7 +63,6 @@ async def login_handler(request: web.Request) -> web.Response:
                 {"error": "Username and password required"}, status=400
             )
 
-        # TODO: Implement admin authentication through Data Service
         # For now, use a simple hardcoded admin
         if username == "admin" and password == "admin123":
             token = await create_session_token(1, request.app["config"]["jwt_secret"])

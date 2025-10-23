@@ -125,7 +125,6 @@ dating/
 │   ├── js/             # JavaScript
 │   └── nginx.conf      # Конфигурация Nginx
 │
-├── webapp_old/          # Legacy Next.js (не используется)
 │   ├── src/            # React компоненты
 │   ├── package.json    # Next.js 15.5.4, React 19
 │   └── ...
@@ -169,12 +168,6 @@ dating/
 - **Nginx** - веб-сервер
 - **Telegram WebApp SDK** - интеграция с Telegram
 
-**Legacy (webapp_old/):**
-- **Next.js 15.5.4** - React фреймворк
-- **React 19.1.0** - UI библиотека
-- **TypeScript 5** - типизация
-- **Tailwind CSS 4** - стили
-- **TanStack Query 5.90** - состояние
 
 ### Инфраструктура
 
@@ -595,7 +588,7 @@ GET /data/profiles-count        # Количество профилей
 - **Язык**: Python 3.11+
 - **Архитектура**: 8 микросервисов
 - **Тесты**: 18 файлов, ~3,600 строк
-- **Frontend**: HTML/CSS/JS + Next.js (legacy)
+- **Frontend**: HTML/CSS/JS
 - **Мониторинг**: Prometheus + Grafana + Loki
 - **CI/CD**: 4 GitHub Actions workflows
 
@@ -607,6 +600,6 @@ GET /data/profiles-count        # Количество профилей
 
 ---
 
-**Версия документации:** 3.0  
+**Версия документации:** 3.1  
 **Последнее обновление:** 2025-10-23  
 **Автор:** erliona

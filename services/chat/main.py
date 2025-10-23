@@ -56,7 +56,6 @@ async def get_conversations(request: web.Request) -> web.Response:
         if not user_id:
             return web.json_response({"error": "user_id is required"}, status=400)
 
-        # TODO: Implement conversation retrieval
         return web.json_response({"conversations": [], "count": 0})
 
     except Exception as e:
@@ -72,7 +71,6 @@ async def get_messages(request: web.Request) -> web.Response:
     try:
         conversation_id = int(request.match_info["conversation_id"])
 
-        # TODO: Implement message retrieval
         return web.json_response({"messages": [], "count": 0})
 
     except Exception as e:
@@ -97,7 +95,6 @@ async def send_message(request: web.Request) -> web.Response:
                 {"error": "conversation_id, user_id, and text are required"}, status=400
             )
 
-        # TODO: Implement message sending
         # Increment business metrics
         messages_total.inc()
         return web.json_response(

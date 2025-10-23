@@ -13,30 +13,6 @@ pytestmark = pytest.mark.e2e
 class TestOnboardingFlow:
     """Test complete user onboarding flow."""
 
-    @pytest.mark.skip(
-        reason="Bot no longer has command handlers - all user interactions happen in WebApp"
-    )
-    @pytest.mark.asyncio
-    async def test_new_user_onboarding(self):
-        """Test complete flow for new user from /start to profile creation.
-        
-        DEPRECATED: After refactoring, the bot only receives notifications from the notification service.
-        All user onboarding happens directly in the WebApp which communicates with API Gateway.
-        The bot has no /start command or WebApp button anymore.
-        """
-        pass  # Test is obsolete after bot refactoring to notification-only mode
-
-    @pytest.mark.skip(
-        reason="Bot no longer handles WebApp data - WebApp communicates directly with API Gateway (minimalist refactoring)"
-    )
-    @pytest.mark.asyncio
-    async def test_profile_creation_flow(self):
-        """Test profile creation through WebApp.
-
-        DEPRECATED: This test is for the old architecture where bot handled WebApp data.
-        Profile creation now happens directly: WebApp -> API Gateway -> Profile Service
-        """
-        pass  # Test is obsolete after minimalist bot refactoring
 
 
 class TestDiscoveryFlow:
@@ -122,17 +98,6 @@ class TestChatFlow:
 class TestProfileManagementFlow:
     """Test profile editing and management."""
 
-    @pytest.mark.skip(
-        reason="Bot no longer handles WebApp data - WebApp communicates directly with API Gateway (minimalist refactoring)"
-    )
-    @pytest.mark.asyncio
-    async def test_profile_edit_flow(self):
-        """Test editing profile information.
-
-        DEPRECATED: This test is for the old architecture where bot handled WebApp data.
-        Profile editing now happens directly: WebApp -> API Gateway -> Profile Service
-        """
-        pass  # Test is obsolete after minimalist bot refactoring
 
     @pytest.mark.asyncio
     async def test_profile_deletion_flow(self):
@@ -149,17 +114,6 @@ class TestProfileManagementFlow:
 class TestLocationFlow:
     """Test location-based features."""
 
-    @pytest.mark.skip(
-        reason="Bot no longer handles location updates - WebApp communicates directly with API Gateway (minimalist refactoring)"
-    )
-    @pytest.mark.asyncio
-    async def test_location_update_flow(self):
-        """Test updating user location.
-
-        DEPRECATED: This test is for the old architecture where bot handled location updates.
-        Location updates now happen directly: WebApp -> API Gateway -> Profile Service
-        """
-        pass  # Test is obsolete after minimalist bot refactoring
 
     @pytest.mark.asyncio
     async def test_distance_filtering_flow(self):
@@ -196,29 +150,6 @@ class TestNotificationFlow:
 class TestErrorHandlingFlow:
     """Test error handling in user flows."""
 
-    @pytest.mark.skip(
-        reason="Bot no longer handles WebApp data validation - validation happens in microservices (minimalist refactoring)"
-    )
-    @pytest.mark.asyncio
-    async def test_invalid_profile_data_handling(self):
-        """Test handling of invalid profile data.
-
-        DEPRECATED: This test is for the old architecture where bot validated WebApp data.
-        Validation now happens in microservices: WebApp -> API Gateway -> Profile Service (with validation)
-        """
-        pass  # Test is obsolete after minimalist bot refactoring
-
-    @pytest.mark.skip(
-        reason="Bot no longer handles WebApp data - error handling happens in WebApp/microservices (minimalist refactoring)"
-    )
-    @pytest.mark.asyncio
-    async def test_network_error_handling(self):
-        """Test handling of network errors.
-
-        DEPRECATED: This test is for the old architecture where bot handled WebApp errors.
-        Error handling now happens in WebApp: WebApp handles API Gateway errors directly
-        """
-        pass  # Test is obsolete after minimalist bot refactoring
 
 
 class TestAdminFlow:
