@@ -14,10 +14,10 @@ from core.middleware.jwt_middleware import jwt_middleware
 from core.middleware.request_logging import request_logging_middleware, user_context_middleware
 from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
 
-# Business metrics
-users_total = Counter('users_total', 'Total number of users')
-matches_total = Counter('matches_total', 'Total number of matches')
-messages_total = Counter('messages_total', 'Total number of messages')
+# Business metrics - defined in functions to avoid duplication
+users_total = None
+matches_total = None
+messages_total = None
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +76,8 @@ async def create_profile(request: web.Request) -> web.Response:
                 
                 result = await response.json()
                 # Increment business metrics
-                users_total.inc()
+                if users_total:
+                    users_total.inc()
                 return web.json_response(result, status=201)
                 
     except Exception as e:
@@ -102,7 +103,8 @@ async def sync_metrics(request: web.Request) -> web.Response:
                     total_users = count_data.get("count", 0)
                     
                     # Set the metric to the current count
-                    users_total._value._value = total_users
+                    if users_total:
+                        users_total._value._value = total_users
                     
                     return web.json_response({
                         "status": "success",
@@ -130,7 +132,8 @@ async def sync_metrics_on_startup(app):
                     total_users = count_data.get("count", 0)
                     
                     # Set the metric to the current count
-                    users_total._value._value = total_users
+                    if users_total:
+                        users_total._value._value = total_users
                     
                     logger.info(f"Metrics synchronized on startup: users_total={total_users}")
                 else:
@@ -147,6 +150,12 @@ def create_app(config: dict) -> web.Application:
     
     # Store Data Service URL
     app["data_service_url"] = config["data_service_url"]
+    
+    # Initialize business metrics
+    global users_total, matches_total, messages_total
+    users_total = Counter('users_total', 'Total number of users')
+    matches_total = Counter('matches_total', 'Total number of matches')
+    messages_total = Counter('messages_total', 'Total number of messages')
     
     # Add middleware
     app.middlewares.append(user_context_middleware)
