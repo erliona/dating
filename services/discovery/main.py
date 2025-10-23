@@ -264,7 +264,7 @@ if __name__ == "__main__":
     configure_logging("discovery-service", os.getenv("LOG_LEVEL", "INFO"))
 
     config = {
-        "jwt_secret": os.getenv("JWT_SECRET", "your-secret-key"),
+        "jwt_secret": os.getenv("JWT_SECRET"),  # SECURITY: No default value
         "data_service_url": os.getenv("DATA_SERVICE_URL", "http://data-service:8088"),
         "rabbitmq_url": os.getenv("RABBITMQ_URL", "amqp://dating:dating@rabbitmq:5672/"),
         "host": os.getenv("DISCOVERY_SERVICE_HOST", "0.0.0.0"),

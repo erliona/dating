@@ -188,7 +188,7 @@ if __name__ == "__main__":
     configure_logging("chat-service", os.getenv("LOG_LEVEL", "INFO"))
 
     config = {
-        "jwt_secret": os.getenv("JWT_SECRET", "your-secret-key"),
+        "jwt_secret": os.getenv("JWT_SECRET"),  # SECURITY: No default value
         "rabbitmq_url": os.getenv("RABBITMQ_URL", "amqp://dating:dating@rabbitmq:5672/"),
         "host": os.getenv("CHAT_SERVICE_HOST", "0.0.0.0"),
         "port": int(os.getenv("CHAT_SERVICE_PORT", 8085)),

@@ -10,6 +10,7 @@ from aiohttp import web
 
 from core.utils.logging import configure_logging
 from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
+from core.middleware.rate_limiting import auth_rate_limiting_middleware
 from core.utils.security import (
     RateLimiter,
     ValidationError,
@@ -128,24 +129,9 @@ async def refresh_token(request: web.Request) -> web.Response:
         return web.json_response({"error": "Internal server error"}, status=500)
 
 
-async def test_token(request: web.Request) -> web.Response:
-    """Generate test JWT token for development.
-    
-    GET /auth/test
-    """
-    try:
-        user_id = request.query.get("user_id", "123")
-        jwt_secret = request.app["config"].get("jwt_secret")
-        token = generate_jwt_token(int(user_id), jwt_secret)
-        
-        return web.json_response({
-            "token": token,
-            "user_id": user_id,
-            "message": "Test token generated (development only)"
-        })
-    except Exception as e:
-        logger.error(f"Error generating test token: {e}")
-        return web.json_response({"error": "Internal server error"}, status=500)
+# SECURITY: Test endpoint removed for production security
+# This endpoint was a critical security vulnerability allowing anyone
+# to generate valid JWT tokens for any user_id without authentication
 
 
 async def health_check(request: web.Request) -> web.Response:
@@ -159,13 +145,14 @@ def create_app(config: dict) -> web.Application:
     app["config"] = config
 
     # Add middleware
+    app.middlewares.append(auth_rate_limiting_middleware)  # Rate limiting for auth endpoints
     app.middlewares.append(metrics_middleware)
 
     # Add routes
     app.router.add_post("/auth/validate", validate_telegram_init_data)
     app.router.add_get("/auth/verify", verify_token)
     app.router.add_post("/auth/refresh", refresh_token)
-    app.router.add_get("/auth/test", test_token)
+    # SECURITY: Removed /auth/test endpoint - was a critical vulnerability
     app.router.add_get("/health", health_check)
     
     # Add metrics endpoint
@@ -180,8 +167,17 @@ if __name__ == "__main__":
     # Configure structured logging
     configure_logging("auth-service", os.getenv("LOG_LEVEL", "INFO"))
 
+    # SECURITY: JWT_SECRET is required - no default value for security
+    jwt_secret = os.getenv("JWT_SECRET")
+    if not jwt_secret:
+        logger.error("JWT_SECRET environment variable is required for security")
+        raise RuntimeError(
+            "JWT_SECRET environment variable is required. "
+            "Generate a strong secret with: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+        )
+    
     config = {
-        "jwt_secret": os.getenv("JWT_SECRET", "your-secret-key"),
+        "jwt_secret": jwt_secret,
         "host": os.getenv("AUTH_SERVICE_HOST", "0.0.0.0"),
         "port": int(os.getenv("AUTH_SERVICE_PORT", 8081)),
     }

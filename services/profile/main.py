@@ -10,6 +10,7 @@ from prometheus_client import Counter, Histogram
 
 from aiohttp import web
 from core.utils.logging import configure_logging
+from core.utils.validation import validate_profile_data, ValidationError
 from core.middleware.jwt_middleware import jwt_middleware
 from core.middleware.request_logging import request_logging_middleware, user_context_middleware
 from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route, USERS_TOTAL, MATCHES_TOTAL, MESSAGES_TOTAL
@@ -80,7 +81,15 @@ async def create_profile(request: web.Request) -> web.Response:
     Accepts comprehensive profile data from bot or other clients.
     """
     try:
-        profile_data = await request.json()
+        raw_data = await request.json()
+        
+        # SECURITY: Validate and sanitize input data
+        try:
+            profile_data = validate_profile_data(raw_data)
+        except ValidationError as e:
+            logger.warning(f"Profile validation failed: {e}")
+            return web.json_response({"error": str(e)}, status=400)
+        
         data_service_url = request.app["data_service_url"]
         
         # Use circuit breaker + retry
@@ -203,7 +212,7 @@ if __name__ == "__main__":
     configure_logging("profile-service", os.getenv("LOG_LEVEL", "INFO"))
 
     config = {
-        "jwt_secret": os.getenv("JWT_SECRET", "your-secret-key"),
+        "jwt_secret": os.getenv("JWT_SECRET"),  # SECURITY: No default value
         "data_service_url": os.getenv("DATA_SERVICE_URL", "http://data-service:8088"),
         "host": os.getenv("PROFILE_SERVICE_HOST", "0.0.0.0"),
         "port": int(os.getenv("PROFILE_SERVICE_PORT", 8082)),

@@ -235,14 +235,20 @@ def create_app(config: dict) -> web.Application:
     add_metrics_route(app, "api-gateway")
 
     # Setup CORS for WebApp/frontend access
-    # Allow requests from the configured WebApp domain
-    webapp_domain = config.get("webapp_domain", "*")
+    # SECURITY: Restrict CORS to specific domains only
+    webapp_domain = config.get("webapp_domain")
+    if not webapp_domain:
+        logger.error("webapp_domain not configured - CORS will be disabled for security")
+        # In production, we should fail if webapp_domain is not set
+        # For now, we'll use a restrictive default
+        webapp_domain = "https://localhost:3000"  # Development only
+    
     cors = cors_setup(
         app,
         defaults={
             webapp_domain: ResourceOptions(
                 allow_credentials=True,
-                expose_headers="*",
+                expose_headers=("Content-Type", "Authorization", "X-Requested-With"),
                 allow_headers=("Content-Type", "Authorization", "X-Requested-With"),
                 allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
             )
@@ -388,8 +394,8 @@ if __name__ == "__main__":
             "NOTIFICATION_SERVICE_URL", "http://notification-service:8087"
         ),
         "webapp_domain": os.getenv(
-            "WEBAPP_DOMAIN", "*"
-        ),  # CORS: Allow all origins by default
+            "WEBAPP_DOMAIN"
+        ),  # SECURITY: No default - must be explicitly configured
         "host": os.getenv("GATEWAY_HOST", "0.0.0.0"),
         "port": int(os.getenv("GATEWAY_PORT", 8080)),
     }

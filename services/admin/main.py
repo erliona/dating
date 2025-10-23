@@ -75,7 +75,17 @@ async def login_handler(request: web.Request) -> web.Response:
             )
 
         # For now, use a simple hardcoded admin
-        if username == "admin" and password == "admin123":
+        # SECURITY: Use environment variables for admin credentials
+        admin_username = os.getenv("ADMIN_USERNAME", "admin")
+        admin_password = os.getenv("ADMIN_PASSWORD")
+        
+        if not admin_password:
+            logger.error("ADMIN_PASSWORD environment variable is required")
+            return web.json_response(
+                {"error": "Admin authentication not configured"}, status=500
+            )
+        
+        if username == admin_username and password == admin_password:
             token = await create_session_token(1, request.app["config"]["jwt_secret"])
             return web.json_response(
                 {
@@ -344,7 +354,7 @@ if __name__ == "__main__":
     configure_logging("admin-service", os.getenv("LOG_LEVEL", "INFO"))
 
     config = {
-        "jwt_secret": os.getenv("JWT_SECRET", "your-secret-key"),
+        "jwt_secret": os.getenv("JWT_SECRET"),  # SECURITY: No default value
         "data_service_url": os.getenv("DATA_SERVICE_URL", "http://data-service:8088"),
         "host": os.getenv("ADMIN_SERVICE_HOST", "0.0.0.0"),
         "port": int(os.getenv("ADMIN_SERVICE_PORT", 8086)),
