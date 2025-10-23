@@ -61,6 +61,43 @@ const routes = [
     name: 'Settings',
     component: () => import('../views/SettingsView.vue'),
     meta: { requiresAuth: true }
+  },
+  // Admin routes
+  {
+    path: '/admin/login',
+    name: 'AdminLogin',
+    component: () => import('../views/AdminLogin.vue'),
+    meta: { requiresAuth: false }
+  },
+  {
+    path: '/admin',
+    name: 'AdminDashboard',
+    component: () => import('../views/AdminDashboard.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/admin/users',
+    name: 'AdminUsers',
+    component: () => import('../views/AdminUsers.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/admin/photos',
+    name: 'AdminPhotos',
+    component: () => import('../views/AdminPhotos.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/admin/verifications',
+    name: 'AdminVerifications',
+    component: () => import('../views/AdminVerifications.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/admin/reports',
+    name: 'AdminReports',
+    component: () => import('../views/AdminReports.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
   }
 ]
 
@@ -72,8 +109,18 @@ const router = createRouter({
 // Navigation guard
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore()
+  const adminToken = localStorage.getItem('admin_token')
   
-  if (to.meta.requiresAuth && !userStore.isAuthenticated) {
+  // Admin routes
+  if (to.meta.requiresAdmin) {
+    if (!adminToken) {
+      next('/admin/login')
+    } else {
+      next()
+    }
+  }
+  // Regular auth routes
+  else if (to.meta.requiresAuth && !userStore.isAuthenticated) {
     next('/')
   } else if (to.name === 'Welcome' && userStore.isAuthenticated) {
     next('/discovery')
