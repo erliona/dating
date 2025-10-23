@@ -265,7 +265,8 @@ def create_app(config: dict) -> web.Application:
     
     # Sync metrics on startup and start background task
     app.on_startup.append(sync_metrics_on_startup)
-    app.on_startup.append(lambda app: asyncio.create_task(sync_metrics_periodically()))
+    # Temporarily disabled background task to debug HTTP server issue
+    # app.on_startup.append(lambda app: asyncio.create_task(sync_metrics_periodically()))
 
     return app
 
