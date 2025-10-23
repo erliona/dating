@@ -16,6 +16,7 @@ from core.utils.logging import configure_logging
 from core.middleware.jwt_middleware import jwt_middleware
 from core.middleware.request_logging import request_logging_middleware, user_context_middleware
 from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
+from core.middleware.security_metrics import record_file_upload, record_suspicious_activity
 
 logger = logging.getLogger(__name__)
 
@@ -110,12 +111,26 @@ async def upload_media(request: web.Request) -> web.Response:
         original_filename = field.filename or "upload"
         if not validate_file_extension(original_filename):
             logger.warning(f"Invalid file extension: {original_filename}")
+            record_file_upload(
+                service="media-service",
+                result="blocked",
+                file_type=Path(original_filename).suffix.lower(),
+                reason="invalid_extension",
+                user_id=str(request.get("user_id", "unknown"))
+            )
             return web.json_response({"error": "Invalid file type"}, status=400)
 
         # SECURITY: Validate MIME type
         content_type = field.headers.get('Content-Type', '')
         if not validate_mime_type(content_type):
             logger.warning(f"Invalid MIME type: {content_type}")
+            record_file_upload(
+                service="media-service",
+                result="blocked",
+                file_type=Path(original_filename).suffix.lower(),
+                reason="invalid_mime_type",
+                user_id=str(request.get("user_id", "unknown"))
+            )
             return web.json_response({"error": "Invalid file type"}, status=400)
 
         # Get storage path from config
@@ -147,12 +162,20 @@ async def upload_media(request: web.Request) -> web.Response:
                 
                 size += len(chunk)
                 
-                # SECURITY: Check file size during upload
-                if not validate_file_size(size):
-                    f.close()
-                    filepath.unlink(missing_ok=True)  # Clean up partial file
-                    logger.warning(f"File too large: {size} bytes")
-                    return web.json_response({"error": "File too large"}, status=413)
+        # SECURITY: Check file size during upload
+        if not validate_file_size(size):
+            f.close()
+            filepath.unlink(missing_ok=True)  # Clean up partial file
+            logger.warning(f"File too large: {size} bytes")
+            record_file_upload(
+                service="media-service",
+                result="blocked",
+                file_type=ext,
+                reason="file_too_large",
+                user_id=str(request.get("user_id", "unknown")),
+                file_size=size
+            )
+            return web.json_response({"error": "File too large"}, status=413)
                 
                 f.write(chunk)
 
@@ -165,10 +188,34 @@ async def upload_media(request: web.Request) -> web.Response:
         if detect_nsfw_content(filepath):
             filepath.unlink(missing_ok=True)
             logger.warning(f"NSFW content detected in file: {file_id}")
+            record_file_upload(
+                service="media-service",
+                result="blocked",
+                file_type=ext,
+                reason="nsfw_content",
+                user_id=str(request.get("user_id", "unknown"))
+            )
+            record_suspicious_activity(
+                service="media-service",
+                activity_type="nsfw_upload_attempt",
+                severity="high",
+                user_id=str(request.get("user_id", "unknown")),
+                file_id=file_id
+            )
             return web.json_response({"error": "Content not allowed"}, status=400)
 
         # Calculate file hash for deduplication
         file_hash = calculate_file_hash(filepath)
+
+        # Record successful file upload
+        record_file_upload(
+            service="media-service",
+            result="success",
+            file_type=ext,
+            user_id=str(request.get("user_id", "unknown")),
+            file_size=size,
+            file_id=file_id
+        )
 
         logger.info(
             f"File uploaded successfully",

@@ -1,0 +1,15 @@
+aiogram~=3.3
+SQLAlchemy>=2.0
+asyncpg>=0.29
+alembic>=1.13
+python-dotenv>=1.0  # Secure environment variable loading
+PyJWT>=2.8  # JWT token generation and validation
+aiohttp>=3.9  # HTTP server for photo upload API
+Pillow>=10.0  # Image processing and optimization
+aiohttp-cors>=0.7  # CORS support for API
+nudenet>=2.0,<3.0  # NSFW content detection ML model (v2.x has NudeClassifier)
+bcrypt>=4.0  # Secure password hashing
+prometheus-client>=0.19.0  # Prometheus metrics collection
+aiobreaker==1.2.0  # Circuit breaker pattern implementation
+tenacity==9.0.0  # Retry logic with exponential backoff
+aio-pika==9.4.0  # RabbitMQ async client

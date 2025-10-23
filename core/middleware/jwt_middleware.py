@@ -4,6 +4,7 @@ import logging
 from typing import Optional
 from aiohttp import web
 from core.utils.security import validate_jwt_token, ValidationError
+from core.middleware.security_metrics import record_jwt_validation, record_auth_failure
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,12 @@ async def jwt_middleware(request: web.Request, handler) -> web.Response:
     auth_header = request.headers.get('Authorization')
     if not auth_header or not auth_header.startswith('Bearer '):
         logger.warning(f"Missing Authorization header for {request.path}")
+        record_auth_failure(
+            service=request.app.get('service_name', 'unknown'),
+            reason='missing_auth_header',
+            user_id='unknown',
+            path=request.path
+        )
         return web.json_response(
             {'error': 'Missing or invalid Authorization header'}, 
             status=401
@@ -51,9 +58,17 @@ async def jwt_middleware(request: web.Request, handler) -> web.Response:
     try:
         payload = validate_jwt_token(token, jwt_secret)
         user_id = payload.get('user_id')
+        token_type = payload.get('token_type', 'access')
         
         if not user_id:
             logger.warning("JWT token missing user_id")
+            record_jwt_validation(
+                service=request.app.get('service_name', 'unknown'),
+                result='failure',
+                token_type=token_type,
+                reason='missing_user_id',
+                user_id='unknown'
+            )
             return web.json_response(
                 {'error': 'Invalid token: missing user_id'}, 
                 status=401
@@ -63,17 +78,39 @@ async def jwt_middleware(request: web.Request, handler) -> web.Response:
         request['user_id'] = user_id
         request['jwt_payload'] = payload
         
+        # Record successful validation
+        record_jwt_validation(
+            service=request.app.get('service_name', 'unknown'),
+            result='success',
+            token_type=token_type,
+            user_id=str(user_id)
+        )
+        
         logger.debug(f"Authenticated user {user_id} for {request.path}")
         return await handler(request)
         
     except ValidationError as e:
         logger.warning(f"JWT validation failed: {e}")
+        record_jwt_validation(
+            service=request.app.get('service_name', 'unknown'),
+            result='failure',
+            token_type='unknown',
+            reason=str(e),
+            user_id='unknown'
+        )
         return web.json_response(
             {'error': f'Invalid token: {e}'}, 
             status=401
         )
     except Exception as e:
         logger.error(f"JWT middleware error: {e}")
+        record_jwt_validation(
+            service=request.app.get('service_name', 'unknown'),
+            result='error',
+            token_type='unknown',
+            reason='middleware_error',
+            user_id='unknown'
+        )
         return web.json_response(
             {'error': 'Authentication error'}, 
             status=500

@@ -5,6 +5,7 @@ import time
 from typing import Dict, Tuple
 from aiohttp import web
 from core.utils.security import RateLimiter
+from core.middleware.security_metrics import record_rate_limit_hit
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,15 @@ async def rate_limiting_middleware(request: web.Request, handler) -> web.Respons
                 "ip": request.remote
             }
         )
+        
+        # Record rate limit hit
+        record_rate_limit_hit(
+            service=request.app.get('service_name', 'unknown'),
+            endpoint=request.path,
+            user_id=str(user_id),
+            method=request.method
+        )
+        
         return web.json_response(
             {
                 "error": "Rate limit exceeded. Please try again later.",

@@ -19,6 +19,11 @@ from core.utils.security import (
     validate_jwt_token,
     validate_telegram_webapp_init_data,
 )
+from core.middleware.security_metrics import (
+    record_auth_attempt,
+    record_auth_failure,
+    record_security_event
+)
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +55,22 @@ async def validate_telegram_init_data(request: web.Request) -> web.Response:
         jwt_secret = request.app["config"].get("jwt_secret")
         tokens = generate_token_pair(user_id, jwt_secret)
 
+        # Record successful authentication
+        record_auth_attempt(
+            service="auth-service",
+            result="success",
+            method="telegram_webapp",
+            user_id=str(user_id)
+        )
+        
+        record_security_event(
+            event_type="user_login",
+            service="auth-service",
+            severity="info",
+            user_id=str(user_id),
+            method="telegram_webapp"
+        )
+
         return web.json_response(
             {
                 "access_token": tokens["access_token"],
@@ -62,10 +83,35 @@ async def validate_telegram_init_data(request: web.Request) -> web.Response:
 
     except ValidationError as e:
         logger.warning(f"Validation failed: {e}")
+        
+        # Record failed authentication
+        record_auth_attempt(
+            service="auth-service",
+            result="failure",
+            method="telegram_webapp",
+            reason=str(e)
+        )
+        
+        record_auth_failure(
+            service="auth-service",
+            reason="validation_failed",
+            user_id="unknown",
+            error=str(e)
+        )
+        
         return web.json_response({"error": str(e)}, status=401)
 
     except Exception as e:
         logger.error(f"Error validating init_data: {e}")
+        
+        # Record authentication error
+        record_auth_attempt(
+            service="auth-service",
+            result="error",
+            method="telegram_webapp",
+            reason="internal_error"
+        )
+        
         return web.json_response({"error": "Internal server error"}, status=500)
 
 
