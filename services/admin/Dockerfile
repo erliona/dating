@@ -1,11 +1,15 @@
 FROM python:3.11-slim
 
+# SECURITY: Create non-root user
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
 # Install runtime dependencies
 RUN apt-get update \
     && apt-get install --no-install-recommends -y \
         netcat-traditional \
         nginx \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 WORKDIR /app
 
@@ -26,11 +30,18 @@ COPY webapp/ /usr/share/nginx/html/
 # Copy nginx configuration
 COPY webapp/nginx.conf /etc/nginx/conf.d/default.conf
 
-# Make entrypoint executable
-RUN chmod +x services/admin/entrypoint.sh
+# SECURITY: Set proper permissions
+RUN chmod +x services/admin/entrypoint.sh \
+    && chown -R appuser:appuser /app \
+    && chown -R appuser:appuser /usr/share/nginx/html
+
+# SECURITY: Switch to non-root user
+USER appuser
 
 # Set PYTHONPATH to find modules
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 # Expose port
 EXPOSE 8086

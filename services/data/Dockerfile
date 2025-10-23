@@ -1,11 +1,15 @@
 FROM python:3.11-slim
 
+# SECURITY: Create non-root user
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
 WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     gcc \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # Copy requirements
 COPY requirements.txt .
@@ -18,9 +22,16 @@ COPY core/ core/
 COPY bot/ bot/
 COPY services/data/ services/data/
 
+# SECURITY: Set proper permissions
+RUN chown -R appuser:appuser /app
+
+# SECURITY: Switch to non-root user
+USER appuser
+
 # Set environment variables
-ENV PYTHONPATH=/app
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
 # Expose port
 EXPOSE 8088

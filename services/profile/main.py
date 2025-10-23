@@ -13,7 +13,8 @@ from core.utils.logging import configure_logging
 from core.utils.validation import validate_profile_data, ValidationError
 from core.middleware.jwt_middleware import jwt_middleware
 from core.middleware.request_logging import request_logging_middleware, user_context_middleware
-from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route, USERS_TOTAL, MATCHES_TOTAL, MESSAGES_TOTAL
+from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
+from core.middleware.audit_logging import audit_log, log_data_access
 from core.middleware.correlation import correlation_middleware
 from core.resilience.circuit_breaker import data_service_breaker
 from core.resilience.retry import retry_data_service
@@ -64,6 +65,16 @@ async def get_profile(request: web.Request) -> web.Response:
                 return web.json_response(result, status=503)
             return web.json_response(result, status=404)
         
+        # Audit log profile access
+        log_data_access(
+            operation="read",
+            resource_type="profile",
+            resource_id=str(user_id),
+            user_id=str(user_id),
+            service="profile-service",
+            details={"profile_found": True}
+        )
+        
         return web.json_response(result)
                 
     except ValueError:
@@ -110,6 +121,22 @@ async def create_profile(request: web.Request) -> web.Response:
         
         # Increment business metrics
         users_total.labels(service='profile-service').inc()
+        
+        # Audit log profile creation
+        audit_log(
+            operation="profile_create",
+            user_id=str(user_id),
+            service="profile-service",
+            details={
+                "profile_data": {
+                    "name": profile_data.get("name"),
+                    "age": profile_data.get("age"),
+                    "bio": profile_data.get("bio", "")[:100] + "..." if len(profile_data.get("bio", "")) > 100 else profile_data.get("bio", "")
+                }
+            },
+            request=request
+        )
+        
         return web.json_response(result, status=201)
                 
     except Exception as e:

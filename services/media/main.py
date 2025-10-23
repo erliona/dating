@@ -17,6 +17,7 @@ from core.middleware.jwt_middleware import jwt_middleware
 from core.middleware.request_logging import request_logging_middleware, user_context_middleware
 from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
 from core.middleware.security_metrics import record_file_upload, record_suspicious_activity
+from core.middleware.audit_logging import audit_log, log_security_event
 
 logger = logging.getLogger(__name__)
 
@@ -202,6 +203,21 @@ async def upload_media(request: web.Request) -> web.Response:
                 user_id=str(request.get("user_id", "unknown")),
                 file_id=file_id
             )
+            
+            # Audit log NSFW detection
+            log_security_event(
+                event_type="nsfw_content_detected",
+                user_id=str(request.get("user_id", "unknown")),
+                service="media-service",
+                severity="WARNING",
+                details={
+                    "file_id": file_id,
+                    "file_type": ext,
+                    "file_size": size,
+                    "action": "blocked"
+                },
+                request=request
+            )
             return web.json_response({"error": "Content not allowed"}, status=400)
 
         # Calculate file hash for deduplication
@@ -215,6 +231,22 @@ async def upload_media(request: web.Request) -> web.Response:
             user_id=str(request.get("user_id", "unknown")),
             file_size=size,
             file_id=file_id
+        )
+        
+        # Audit log file upload
+        audit_log(
+            operation="file_upload",
+            user_id=str(request.get("user_id", "unknown")),
+            service="media-service",
+            details={
+                "file_id": file_id,
+                "filename": sanitized_filename,
+                "file_size": size,
+                "file_type": ext,
+                "file_hash": file_hash,
+                "content_type": content_type
+            },
+            request=request
         )
 
         logger.info(

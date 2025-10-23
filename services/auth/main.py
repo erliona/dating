@@ -24,6 +24,7 @@ from core.middleware.security_metrics import (
     record_auth_failure,
     record_security_event
 )
+from core.middleware.audit_logging import audit_log, log_security_event
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,23 @@ async def validate_telegram_init_data(request: web.Request) -> web.Response:
             user_id=str(user_id),
             method="telegram_webapp"
         )
+        
+        # Audit log successful login
+        audit_log(
+            operation="user_login",
+            user_id=str(user_id),
+            service="auth-service",
+            details={
+                "method": "telegram_webapp",
+                "username": user_data.get("user", {}).get("username"),
+                "user_data": {
+                    "id": user_data.get("user", {}).get("id"),
+                    "first_name": user_data.get("user", {}).get("first_name"),
+                    "last_name": user_data.get("user", {}).get("last_name"),
+                }
+            },
+            request=request
+        )
 
         return web.json_response(
             {
@@ -97,6 +115,20 @@ async def validate_telegram_init_data(request: web.Request) -> web.Response:
             reason="validation_failed",
             user_id="unknown",
             error=str(e)
+        )
+        
+        # Audit log failed authentication attempt
+        log_security_event(
+            event_type="authentication_failure",
+            user_id="unknown",
+            service="auth-service",
+            severity="WARNING",
+            details={
+                "method": "telegram_webapp",
+                "error": str(e),
+                "reason": "validation_failed"
+            },
+            request=request
         )
         
         return web.json_response({"error": str(e)}, status=401)
@@ -167,6 +199,18 @@ async def refresh_token(request: web.Request) -> web.Response:
         # Generate new access token
         user_id = payload.get("user_id")
         new_access_token = generate_jwt_token(user_id, jwt_secret, token_type="access")
+
+        # Audit log token refresh
+        audit_log(
+            operation="token_refresh",
+            user_id=str(user_id),
+            service="auth-service",
+            details={
+                "token_type": "refresh_to_access",
+                "expires_in": 3600
+            },
+            request=request
+        )
 
         return web.json_response({
             "access_token": new_access_token,
