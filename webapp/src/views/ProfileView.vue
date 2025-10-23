@@ -176,6 +176,11 @@
           </label>
         </div>
       </div>
+
+      <!-- Verification Flow -->
+      <div class="verification-section">
+        <VerificationFlow :verification-data="userStore.profile?.verification_data || {}" />
+      </div>
     </div>
 
     <!-- Photo Modal -->
@@ -206,6 +211,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { useTelegram } from '../composables/useTelegram'
+import VerificationFlow from '../components/profile/VerificationFlow.vue'
 
 const router = useRouter()
 const userStore = useUserStore()

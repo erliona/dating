@@ -12,7 +12,7 @@ export const useChatStore = defineStore('chat', () => {
   const typingUsers = ref({}) // conversationId -> userId[]
 
   const { api } = useApi()
-  const { connect, disconnect, sendMessage, onMessage } = useWebSocket()
+  const { connect, disconnect, sendMessage, onMessage, isConnected } = useWebSocket()
 
   const activeMessages = computed(() => {
     if (!activeConversation.value) return []
