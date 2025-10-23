@@ -88,7 +88,7 @@ scrape_configs:
       - targets:
           - 'dating-microservices-api-gateway-1:8080'
           - 'dating-microservices-auth-service-1:8081'
-          - 'dating-microservices-profile-service-1:8082'
+          - '172.19.0.11:8082'  # profile-service (IP address due to DNS issues)
           - 'dating-microservices-discovery-service-1:8083'
           - 'dating-microservices-media-service-1:8084'
           - 'dating-microservices-chat-service-1:8085'
@@ -107,7 +107,7 @@ scrape_configs:
         target_label: service
         replacement: 'auth-service'
       - source_labels: [__address__]
-        regex: 'dating-microservices-profile-service-1:.*'
+        regex: '172\.19\.0\.11:.*'
         target_label: service
         replacement: 'profile-service'
       - source_labels: [__address__]
