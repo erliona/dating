@@ -354,6 +354,11 @@ def create_app(config: dict) -> web.Application:
     app.router.add_get("/health", health_check)
     app.router.add_get("/api/health", health_check)
 
+    # Debug: Log all registered routes
+    logger.info("Registered routes:")
+    for route in app.router.routes():
+        logger.info(f"  {route.method} {route.resource.canonical}")
+
     return app
 
 
