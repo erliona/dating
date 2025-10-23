@@ -15,6 +15,8 @@ from sqlalchemy.orm import sessionmaker
 
 from core.utils.logging import configure_logging
 # from core.middleware.jwt_middleware import jwt_middleware
+from core.middleware.request_logging import request_logging_middleware, user_context_middleware
+from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
 
 logger = logging.getLogger(__name__)
 
@@ -835,8 +837,13 @@ def create_app(config: dict) -> web.Application:
     # Store session maker for creating data service instances
     app["session_maker"] = async_session_maker
     
-    # Add JWT middleware - temporarily disabled for data-service
-    # app.middlewares.append(jwt_middleware)
+    # Add middleware
+    app.middlewares.append(user_context_middleware)
+    app.middlewares.append(request_logging_middleware)
+    app.middlewares.append(metrics_middleware)
+    
+    # Add metrics endpoint
+    add_metrics_route(app, "data-service")
     
     # Add routes
     app.router.add_get("/health", health_handler)

@@ -17,8 +17,8 @@ async def jwt_middleware(request: web.Request, handler) -> web.Response:
     Adds user_id to request context for authenticated requests.
     """
     
-    # Пропустить health checks и metrics
-    if request.path.startswith('/health') or request.path.startswith('/metrics'):
+    # Пропустить health checks, metrics и sync-metrics
+    if request.path.startswith('/health') or request.path.startswith('/metrics') or request.path.startswith('/sync-metrics'):
         return await handler(request)
     
     # Пропустить auth endpoints (кроме verify)
