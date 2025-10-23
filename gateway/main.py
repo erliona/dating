@@ -257,13 +257,13 @@ def create_app(config: dict) -> web.Application:
 
     # Add routing rules for direct service access (internal/microservice-to-microservice)
     # Versioned routes (v1) - use proper route syntax
-    app.router.add_route("*", r"/v1/auth{tail:.*}", route_auth)
-    app.router.add_route("*", r"/v1/profiles{tail:.*}", route_profile)
-    app.router.add_route("*", r"/v1/discovery{tail:.*}", route_discovery)
-    app.router.add_route("*", r"/v1/media{tail:.*}", route_media)
-    app.router.add_route("*", r"/v1/chat{tail:.*}", route_chat)
-    app.router.add_route("*", r"/v1/admin{tail:.*}", route_admin)
-    app.router.add_route("*", r"/v1/notifications{tail:.*}", route_notifications)
+    app.router.add_route("*", r"/v1/auth/{tail:.*}", route_auth)
+    app.router.add_route("*", r"/v1/profiles/{tail:.*}", route_profile)
+    app.router.add_route("*", r"/v1/discovery/{tail:.*}", route_discovery)
+    app.router.add_route("*", r"/v1/media/{tail:.*}", route_media)
+    app.router.add_route("*", r"/v1/chat/{tail:.*}", route_chat)
+    app.router.add_route("*", r"/v1/admin/{tail:.*}", route_admin)
+    app.router.add_route("*", r"/v1/notifications/{tail:.*}", route_notifications)
     
     # Legacy routes (redirect to v1)
     async def redirect_to_v1(request: web.Request) -> web.Response:
