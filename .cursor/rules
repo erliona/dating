@@ -1,0 +1,131 @@
+# ==== Project identity ====
+- This is a Telegram Mini App with an API Gateway and multiple Python microservices.
+- Stack: Python 3.11+, aiogram 3.x, aiohttp 3.9+, SQLAlchemy 2.x (async), asyncpg, Alembic, PyJWT, bcrypt.
+- Infra: Docker + Docker Compose, Traefik 2.x, PostgreSQL 15, Prometheus/Grafana/Loki.
+- Frontend: vanilla JS + Telegram WebApp SDK behind Nginx.
+- Always respect the existing folder layout: bot/, core/, gateway/, services/*, webapp/, monitoring/, migrations/, scripts/.
+- Never hardcode ports. Use envs from .env/.env.example and docker-compose.
+
+# ==== Coding style (Python) ====
+- Use modern Python with full type hints and `from __future__ import annotations`.
+- Async first: prefer async/await everywhere; no blocking calls in event loops.
+- Use SQLAlchemy 2.0 ORM (async) with explicit `select()` API; avoid legacy 1.x patterns.
+- Keep functions focused (< ~50 LOC when reasonable). Prefer pure functions; minimize side effects.
+- Logging only via project utilities in core; no `print`.
+- Validate inputs at all edges (bot handlers, HTTP handlers); sanitize user text before storage/render.
+
+# ==== Architecture & boundaries ====
+- Gateway is the single public entrypoint. Services talk via gateway/API contracts only.
+- Each service owns its DB schema and Alembic migrations; do not mutate other services’ tables.
+- JWT: verification/refresh only via Auth Service; do not reimplement JWT in other services.
+- Media through Media Service; Chat through Chat Service; Discovery encapsulates matching; Admin isolated; Notification handles outbound messages.
+- Share code only through core utilities or well-defined client modules; avoid cross-imports between services.
+
+# ==== Bot (aiogram) ====
+- Handlers must be thin; move business logic to service layer.
+- Use middlewares from `core/middleware` (jwt, metrics, request logging) consistently.
+- Never block the bot loop; offload heavy work to background jobs/workers if present.
+
+# ==== HTTP (aiohttp) & errors ====
+- Handlers return typed JSON with a consistent error envelope:
+  { "error": { "code": string, "message": string, "details": object? } }
+- Map exceptions to sensible 4xx/5xx; do not leak stack traces to clients (log them).
+
+# ==== Database & migrations ====
+- Use explicit transactions with async sessions (one per request when needed).
+- Every schema change → Alembic migration; keep migrations reversible and idempotent.
+- Prevent N+1 via joined eager loads or batching; confirm with test data and logs.
+
+# ==== Security ====
+- No secrets in code. Use env vars; keep `.env.example` in sync.
+- Passwords: bcrypt; tokens: PyJWT; follow existing expirations/rotation.
+- Validate and sanitize uploaded media metadata and user-generated text.
+
+# ==== Observability ====
+- Expose Prometheus metrics via middleware; names like `service_operation_total`, `request_duration_seconds`.
+- Structured logs must include service name, request path, correlation/request ID when available.
+- Provide `/health` and `/ready` endpoints per service.
+
+# ==== Frontend (webapp/) ====
+- Vanilla JS + Telegram WebApp SDK: small modules, responsive CSS, minimal bundle size.
+- Respect Telegram theme/background; avoid blocking calls; use gateway APIs only; attach JWT when required.
+
+# ==== Docker/Compose/Traefik ====
+- All services must build & run under `docker-compose` without manual steps.
+- Do not change service names/labels without updating Traefik routes.
+- Use slim, pinned base images; multi-stage builds; avoid running as root where possible.
+
+# ==== Testing ====
+- Use pytest. For new logic add unit tests; for endpoints add integration tests with test DB.
+- Keep tests deterministic and fast; use fixtures/factories; mock network calls.
+- Maintain/raise coverage thresholds defined in repo configs; add regression tests for fixed bugs.
+
+# ==== Performance & reliability ====
+- Add DB indexes for hot queries via migrations; consider back-pressure friendly designs.
+- Timeouts/retries/circuit breakers on inter-service calls where appropriate.
+- Paginate list endpoints; cap payload sizes; stream large media via Media Service.
+
+# ==== API design ====
+- Public APIs versioned under `/api/v1/...`. Use nouns for resources; verbs only for RPC-like actions.
+- Keep OpenAPI/markdown snippets in `docs/` (or service-local); include request/response examples.
+
+# ==== PR & docs conventions ====
+- Commits: `<type>(scope): summary` (e.g., `feat(discovery): add mutual likes`).
+- PRs must include context, changes, testing notes, rollout/backout plan.
+- Update README/TECH_STACK/ROADMAP when adding notable features/services.
+
+# ==== Cursor-specific guidance ====
+- When generating code, match existing folders/imports; never create new top-level dirs without instruction.
+- When adding a new endpoint/handler, generate **all** of:
+  1) route/handler (aiohttp),
+  2) service-layer function,
+  3) repository call (SQLAlchemy),
+  4) schema/DTO,
+  5) tests,
+  6) logging + metrics,
+  7) docs snippet.
+- When touching DB models, also create an Alembic migration stub and a covering test.
+- Prefer incremental edits to existing files; preserve maintainers’ comments and structure.
+
+# ==== Git workflow enforcement ====
+- Never modify files directly in live containers or local bind mounts outside a proper git branch.
+- All code changes must be done through git:
+  1) create a feature branch (`feat/...`, `fix/...`, etc.),
+  2) commit changes with clear messages,
+  3) open a pull request for review and merge.
+- Do not hot-patch or write to the filesystem from within the AI session.
+- Assume CI/CD handles container rebuilds and deployments after merge.
+- If new dependencies or env vars are introduced, update:
+  - `requirements*.txt` or `pyproject.toml`
+  - `.env.example`
+  - `docker-compose.yml` (only via PR)
+- When suggesting code that requires rebuild, include a reminder:
+  "Rebuild affected services with `docker compose build <service>` and restart containers."
+
+# ==== Docker / container awareness ====
+- Code runs inside Docker containers orchestrated by docker-compose and Traefik.
+- Never run or suggest `docker exec` edits inside containers — changes won’t persist.
+- Dev may use bind mounts, but production images require rebuilds.
+- Adding Python deps → update requirements and rebuild image.
+- Infra edits (compose, Dockerfile, Traefik labels) must be followed by
+  `docker compose up --build -d` and verified logs.
+- Never rely on local state; persistent changes must flow through version control.
+- Ensure generated code is deterministic and reproducible across clean container builds.
+
+# ==== Safe defaults & guardrails ====
+- Never hardcode ports, URLs, or secrets; read from env/config.
+- Avoid adding dependencies unless necessary; justify additions in PR description.
+- For exploratory chats, do **not** modify files unless explicitly asked (describe steps instead).
+
+# ==== Example patterns (for the AI to copy) ====
+- aiohttp route skeleton:
+  ```py
+  from aiohttp import web
+  from .schemas import MatchRequest, MatchResponse
+  from .service import make_match
+
+  async def post_match(request: web.Request) -> web.Response:
+      body = await request.json()
+      req = MatchRequest.model_validate(body)
+      result = await make_match(req, request.app['db'])
+      return web.json_response(MatchResponse.model_validate(result).model_dump())

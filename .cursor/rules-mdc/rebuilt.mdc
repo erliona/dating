@@ -1,0 +1,9 @@
+---
+alwaysApply: true
+---
+# Docker Rebuild Hint
+- Whenever suggesting code that changes dependencies, Dockerfiles, compose, or entrypoints, append a rebuild note:
+  "Run: docker compose build <service> && docker compose up -d <service>"
+- For Python deps: also remind to update requirements/pyproject and .env.example if needed.
+- Never assume live containers pick up changes automatically.
+- Never apply edits inside running containers; persistent changes must flow through git → PR → CI/CD.

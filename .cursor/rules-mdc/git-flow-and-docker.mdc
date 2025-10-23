@@ -1,0 +1,26 @@
+---
+alwaysApply: true
+---
+
+# Git Flow & Docker Awareness
+- All code changes must go through git: feature branch → commits → PR → review → merge → CI/CD rebuild.
+- Never modify files inside running containers or rely on manual hot-patches.
+- When suggesting changes that touch code, configs, envs, or infra, include this reminder:
+  "Rebuild affected services: docker compose build <service> && docker compose up -d <service>"
+- If new deps are added:
+  - Update requirements*.txt or pyproject.toml,
+  - Update .env.example,
+  - Commit these changes in the same PR.
+- Do not edit generated/compiled artifacts (migrations/versions/*.py, build/, dist/, node_modules/, static/ bundles) by hand.
+- Prefer small, reviewable PRs; include testing notes and rollout plan.
+# Git Flow & Docker Awareness
+- All code changes must go through git: feature branch → commits → PR → review → merge → CI/CD rebuild.
+- Never modify files inside running containers or rely on manual hot-patches.
+- When suggesting changes that touch code, configs, envs, or infra, include this reminder:
+  "Rebuild affected services: docker compose build <service> && docker compose up -d <service>"
+- If new deps are added:
+  - Update requirements*.txt or pyproject.toml,
+  - Update .env.example,
+  - Commit these changes in the same PR.
+- Do not edit generated/compiled artifacts (migrations/versions/*.py, build/, dist/, node_modules/, static/ bundles) by hand.
+- Prefer small, reviewable PRs; include testing notes and rollout plan.
