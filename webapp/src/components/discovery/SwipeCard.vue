@@ -4,7 +4,7 @@
     :style="cardStyle"
     @touchstart="onTouchStart"
     @touchmove="onTouchMove"
-    @touchend="onTouchEnd"
+    @touchend="handleTouchEnd"
   >
     <!-- Photo Carousel -->
     <div class="photo-container">
@@ -183,10 +183,9 @@ const handleSwipeEnd = (result) => {
   }
 }
 
-// Override onTouchEnd to handle swipe result
-const originalOnTouchEnd = onTouchEnd
-onTouchEnd = (event) => {
-  const result = originalOnTouchEnd(event)
+// Handle touch end with swipe result
+const handleTouchEnd = (event) => {
+  const result = onTouchEnd(event)
   handleSwipeEnd(result)
 }
 </script>
