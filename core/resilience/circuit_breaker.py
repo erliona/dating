@@ -3,8 +3,22 @@ import logging
 from typing import Callable, Any, Optional
 from aiobreaker import CircuitBreaker, CircuitBreakerError
 from aiohttp import ClientError, ClientTimeout
+from prometheus_client import Counter, Gauge
 
 logger = logging.getLogger(__name__)
+
+# Circuit breaker metrics
+CIRCUIT_BREAKER_CALLS = Counter(
+    'circuit_breaker_calls_total',
+    'Total circuit breaker calls',
+    ['service', 'target', 'state', 'result']
+)
+
+CIRCUIT_BREAKER_STATE = Gauge(
+    'circuit_breaker_state',
+    'Circuit breaker state (0=closed, 1=open, 2=half_open)',
+    ['service', 'target']
+)
 
 
 class ServiceCircuitBreaker:
@@ -76,11 +90,34 @@ class ServiceCircuitBreaker:
         Raises:
             CircuitBreakerError: If circuit is open and no fallback provided
         """
+        # Get current state for metrics
+        current_state = self.breaker.current_state
+        state_name = current_state.name.lower()
+        
         try:
-            return await self.breaker.call(func, *args, **kwargs)
+            result = await self.breaker.call(func, *args, **kwargs)
+            
+            # Record successful call
+            CIRCUIT_BREAKER_CALLS.labels(
+                service=self.service_name,
+                target=self.service_name,
+                state=state_name,
+                result='success'
+            ).inc()
+            
+            return result
+            
         except Exception as e:
+            # Record failed call
+            CIRCUIT_BREAKER_CALLS.labels(
+                service=self.service_name,
+                target=self.service_name,
+                state=state_name,
+                result='failure'
+            ).inc()
+            
             # Check if it's a circuit breaker error or the expected exception
-            if isinstance(e, CircuitBreakerError) or isinstance(e, expected_exception):
+            if isinstance(e, CircuitBreakerError) or isinstance(e, self.expected_exception):
                 logger.warning(
                     f"Circuit open for {self.service_name}, using fallback",
                     extra={"event_type": "circuit_fallback", "service": self.service_name}
@@ -91,6 +128,12 @@ class ServiceCircuitBreaker:
             else:
                 # Re-raise unexpected exceptions
                 raise
+        finally:
+            # Update state metric
+            CIRCUIT_BREAKER_STATE.labels(
+                service=self.service_name,
+                target=self.service_name
+            ).set(current_state.value)
 
 
 # Global circuit breakers for each service

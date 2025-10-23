@@ -18,8 +18,22 @@ from core.middleware.request_logging import request_logging_middleware, user_con
 from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
 from core.middleware.security_metrics import record_file_upload, record_suspicious_activity
 from core.middleware.audit_logging import audit_log, log_security_event
+from prometheus_client import Counter
 
 logger = logging.getLogger(__name__)
+
+# NSFW Detection metrics
+NSFW_DETECTION_TOTAL = Counter(
+    'nsfw_detection_total',
+    'Total NSFW detections',
+    ['service', 'result']
+)
+
+NSFW_BLOCKED_TOTAL = Counter(
+    'nsfw_blocked_total',
+    'Total NSFW blocked uploads',
+    ['service']
+)
 
 # Security configuration
 ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
@@ -187,6 +201,17 @@ async def upload_media(request: web.Request) -> web.Response:
         if detect_nsfw_content(filepath):
             filepath.unlink(missing_ok=True)
             logger.warning(f"NSFW content detected in file: {file_id}")
+            
+            # Record NSFW detection metrics
+            NSFW_DETECTION_TOTAL.labels(
+                service='media-service',
+                result='nsfw'
+            ).inc()
+            
+            NSFW_BLOCKED_TOTAL.labels(
+                service='media-service'
+            ).inc()
+            
             record_file_upload(
                 service="media-service",
                 result="blocked",
@@ -221,6 +246,12 @@ async def upload_media(request: web.Request) -> web.Response:
         # Calculate file hash for deduplication
         file_hash = calculate_file_hash(filepath)
 
+        # Record NSFW detection for safe files
+        NSFW_DETECTION_TOTAL.labels(
+            service='media-service',
+            result='safe'
+        ).inc()
+        
         # Record successful file upload
         record_file_upload(
             service="media-service",
@@ -386,10 +417,9 @@ def create_app(config: dict) -> web.Application:
     app["config"] = config
     
     # Add middleware
-    app.middlewares.append(user_context_middleware)
-    app.middlewares.append(request_logging_middleware)
-    app.middlewares.append(metrics_middleware)
-    app.middlewares.append(jwt_middleware)
+    # Setup standard middleware stack
+    from core.middleware.standard_stack import setup_standard_middleware_stack
+    setup_standard_middleware_stack(app, "media-service", use_auth=True, use_audit=True)
     
     # Add metrics endpoint
     add_metrics_route(app, "media-service")

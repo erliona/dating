@@ -26,24 +26,9 @@ ACTIVE_REQUESTS = Gauge(
     ['service']
 )
 
-# Business metrics
-USERS_TOTAL = Gauge(
-    'users_total',
-    'Total number of users',
-    ['service']
-)
-
-MATCHES_TOTAL = Gauge(
-    'matches_total', 
-    'Total number of matches',
-    ['service']
-)
-
-MESSAGES_TOTAL = Gauge(
-    'messages_total',
-    'Total number of messages',
-    ['service']
-)
+# Business metrics moved to core.metrics.business_metrics
+# Import them if needed for backward compatibility
+from core.metrics.business_metrics import USERS_TOTAL, MATCHES_TOTAL, MESSAGES_TOTAL
 
 
 @web.middleware

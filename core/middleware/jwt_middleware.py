@@ -5,8 +5,22 @@ from typing import Optional
 from aiohttp import web
 from core.utils.security import validate_jwt_token, ValidationError
 from core.middleware.security_metrics import record_jwt_validation, record_auth_failure
+from prometheus_client import Counter
 
 logger = logging.getLogger(__name__)
+
+# JWT validation metrics
+JWT_TOKENS_EXPIRED = Counter(
+    'jwt_tokens_expired_total',
+    'Total expired JWT tokens',
+    ['service']
+)
+
+JWT_VALIDATION_FAILED = Counter(
+    'jwt_validation_failed_total',
+    'Failed JWT validations',
+    ['service', 'reason']
+)
 
 
 @web.middleware
@@ -91,6 +105,19 @@ async def jwt_middleware(request: web.Request, handler) -> web.Response:
         
     except ValidationError as e:
         logger.warning(f"JWT validation failed: {e}")
+        
+        # Record JWT validation failure
+        JWT_VALIDATION_FAILED.labels(
+            service=request.app.get('service_name', 'unknown'),
+            reason=str(e.code) if hasattr(e, 'code') else 'validation_error'
+        ).inc()
+        
+        # Check if it's an expired token
+        if 'expired' in str(e).lower():
+            JWT_TOKENS_EXPIRED.labels(
+                service=request.app.get('service_name', 'unknown')
+            ).inc()
+        
         record_jwt_validation(
             service=request.app.get('service_name', 'unknown'),
             result='failure',

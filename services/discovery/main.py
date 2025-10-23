@@ -5,24 +5,21 @@ This microservice handles matching algorithm and candidate discovery.
 
 import logging
 import aiohttp
-from prometheus_client import Counter
+import asyncio
 
 from aiohttp import web
 from core.utils.logging import configure_logging
-from core.middleware.jwt_middleware import jwt_middleware
-from core.middleware.request_logging import request_logging_middleware, user_context_middleware
-from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
+from core.middleware.standard_stack import setup_standard_middleware_stack
+from core.middleware.metrics_middleware import add_metrics_route
 from core.resilience.circuit_breaker import data_service_breaker
 from core.resilience.retry import retry_data_service
 from core.messaging.publisher import EventPublisher
-
-# Business metrics - create only if not already registered
-try:
-    matches_total = Counter('matches_total', 'Total number of matches')
-except ValueError:
-    # Metric already exists, get it from registry
-    from prometheus_client import REGISTRY
-    matches_total = REGISTRY._names_to_collectors['matches_total']
+from core.metrics.business_metrics import (
+    record_interaction, record_swipe, update_active_users, 
+    update_users_by_region, update_matches_current
+)
+from core.middleware.correlation import create_headers_with_correlation, log_correlation_propagation
+from core.exceptions import ValidationError, CircuitBreakerError, ExternalServiceError
 
 logger = logging.getLogger(__name__)
 
@@ -31,11 +28,29 @@ event_publisher = None
 
 
 @retry_data_service()
-async def _call_data_service(url: str, method: str = "GET", data: dict = None, params: dict = None):
-    """Helper to call Data Service with retry logic."""
+async def _call_data_service(url: str, method: str = "GET", data: dict = None, params: dict = None, request: web.Request = None):
+    """Helper to call Data Service with retry logic and correlation ID propagation."""
+    headers = {}
+    
+    # Add correlation headers if request is provided
+    if request:
+        headers = create_headers_with_correlation(request)
+        log_correlation_propagation(
+            correlation_id=request.get('correlation_id', 'unknown'),
+            from_service='discovery-service',
+            to_service='data-service',
+            operation=f"{method} {url}",
+            request=request
+        )
+    
     async with aiohttp.ClientSession() as session:
-        async with session.request(method, url, json=data, params=params) as resp:
-            resp.raise_for_status()
+        async with session.request(method, url, json=data, params=params, headers=headers) as resp:
+            if resp.status >= 400:
+                raise ExternalServiceError(
+                    service='data-service',
+                    message=f"HTTP {resp.status}: {await resp.text()}",
+                    details={'url': url, 'method': method, 'status': resp.status}
+                )
             return await resp.json()
 
 
@@ -50,7 +65,7 @@ async def get_candidates(request: web.Request) -> web.Response:
         limit = int(request.query.get("limit", 10))
 
         if not user_id:
-            return web.json_response({"error": "user_id is required"}, status=400)
+            raise ValidationError("user_id is required")
 
         data_service_url = request.app["data_service_url"]
         
@@ -73,26 +88,31 @@ async def get_candidates(request: web.Request) -> web.Response:
             if request.query.get(param):
                 params[param] = request.query.get(param)
         
-        # Use circuit breaker + retry
+        # Use circuit breaker + retry with correlation ID propagation
         result = await data_service_breaker.call(
             _call_data_service,
             f"{data_service_url}/data/candidates",
             "GET",
             None,
             params,
+            request,  # Pass request for correlation ID
             fallback=lambda *args: {"candidates": [], "cursor": None}
         )
         
         if "error" in result:
-            return web.json_response(result, status=500)
+            raise ExternalServiceError(
+                service='data-service',
+                message=result.get("error", "Unknown error"),
+                details=result
+            )
         
         return web.json_response(result)
 
     except ValueError as e:
-        return web.json_response({"error": "Invalid parameters"}, status=400)
+        raise ValidationError("Invalid parameters", details={"error": str(e)})
     except Exception as e:
         logger.error(f"Error getting candidates: {e}", exc_info=True)
-        return web.json_response({"error": "Internal server error"}, status=500)
+        raise
 
 
 async def like_profile(request: web.Request) -> web.Response:
@@ -108,9 +128,7 @@ async def like_profile(request: web.Request) -> web.Response:
         interaction_type = data.get("interaction_type", "like")
 
         if not user_id or not target_id:
-            return web.json_response(
-                {"error": "user_id and target_id are required"}, status=400
-            )
+            raise ValidationError("user_id and target_id are required")
 
         data_service_url = request.app["data_service_url"]
         
@@ -120,19 +138,29 @@ async def like_profile(request: web.Request) -> web.Response:
             "interaction_type": interaction_type,
         }
         
-        # Use circuit breaker + retry
+        # Use circuit breaker + retry with correlation ID propagation
         result = await data_service_breaker.call(
             _call_data_service,
             f"{data_service_url}/data/interactions",
             "POST",
             interaction_data,
+            None,
+            request,  # Pass request for correlation ID
             fallback=lambda *args: {"error": "Service temporarily unavailable"}
         )
         
         if "error" in result:
             if result["error"] == "Service temporarily unavailable":
-                return web.json_response(result, status=503)
-            return web.json_response(result, status=500)
+                raise CircuitBreakerError("data-service")
+            raise ExternalServiceError(
+                service='data-service',
+                message=result.get("error", "Unknown error"),
+                details=result
+            )
+        
+        # Record metrics
+        record_interaction('discovery-service', interaction_type)
+        record_swipe('discovery-service', interaction_type)
         
         # Check if it's a match and publish event
         if result.get("is_match") and event_publisher:
@@ -147,12 +175,15 @@ async def like_profile(request: web.Request) -> web.Response:
                 },
                 correlation_id=correlation_id
             )
+            
+            # Record match metric
+            record_interaction('discovery-service', 'match')
         
         return web.json_response(result)
 
     except Exception as e:
         logger.error(f"Error liking profile: {e}", exc_info=True)
-        return web.json_response({"error": "Internal server error"}, status=500)
+        raise
 
 
 async def get_matches(request: web.Request) -> web.Response:
@@ -211,6 +242,26 @@ async def health_check(request: web.Request) -> web.Response:
     return web.json_response({"status": "healthy", "service": "discovery"})
 
 
+async def sync_discovery_metrics():
+    """Background task to sync discovery metrics with database."""
+    while True:
+        try:
+            # This would typically call data-service to get current stats
+            # For now, we'll just log that the sync is running
+            logger.debug("Syncing discovery metrics...")
+            
+            # TODO: Implement actual metrics sync with data-service
+            # stats = await get_discovery_stats()
+            # update_active_users('discovery-service', stats['active_users_24h'])
+            # for region, count in stats['users_by_region'].items():
+            #     update_users_by_region('discovery-service', region, count)
+            
+            await asyncio.sleep(300)  # Update every 5 minutes
+        except Exception as e:
+            logger.error(f"Failed to sync discovery metrics: {e}")
+            await asyncio.sleep(60)
+
+
 async def on_startup(app):
     """Startup handler."""
     global event_publisher
@@ -219,11 +270,25 @@ async def on_startup(app):
         event_publisher = EventPublisher(rabbitmq_url)
         await event_publisher.connect()
         logger.info("Event publisher initialized")
+    
+    # Start metrics sync background task
+    app['metrics_sync_task'] = asyncio.create_task(sync_discovery_metrics())
+    logger.info("Metrics sync task started")
 
 
 async def on_shutdown(app):
     """Shutdown handler."""
     global event_publisher
+    
+    # Cancel metrics sync task
+    if 'metrics_sync_task' in app:
+        app['metrics_sync_task'].cancel()
+        try:
+            await app['metrics_sync_task']
+        except asyncio.CancelledError:
+            pass
+        logger.info("Metrics sync task cancelled")
+    
     if event_publisher:
         await event_publisher.close()
         logger.info("Event publisher closed")
@@ -235,11 +300,8 @@ def create_app(config: dict) -> web.Application:
     app["config"] = config
     app["data_service_url"] = config["data_service_url"]
     
-    # Add middleware
-    app.middlewares.append(user_context_middleware)
-    app.middlewares.append(request_logging_middleware)
-    app.middlewares.append(metrics_middleware)
-    app.middlewares.append(jwt_middleware)
+    # Setup standard middleware stack
+    setup_standard_middleware_stack(app, "discovery-service", use_auth=True, use_audit=True)
     
     # Add metrics endpoint
     add_metrics_route(app, "discovery-service")

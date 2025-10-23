@@ -6,37 +6,50 @@ No direct database connections - all data operations go through Data Service.
 
 import logging
 import aiohttp
-from prometheus_client import Counter, Histogram
+import asyncio
 
 from aiohttp import web
 from core.utils.logging import configure_logging
-from core.utils.validation import validate_profile_data, ValidationError
-from core.middleware.jwt_middleware import jwt_middleware
-from core.middleware.request_logging import request_logging_middleware, user_context_middleware
-from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route, USERS_TOTAL, MATCHES_TOTAL, MESSAGES_TOTAL
+from core.utils.validation import validate_profile_data
+from core.middleware.standard_stack import setup_standard_middleware_stack
+from core.middleware.metrics_middleware import add_metrics_route
 from core.middleware.audit_logging import audit_log, log_data_access
-from core.middleware.correlation import correlation_middleware
+from core.middleware.correlation import create_headers_with_correlation, log_correlation_propagation
 from core.resilience.circuit_breaker import data_service_breaker
 from core.resilience.retry import retry_data_service
-
-# Business metrics - imported from middleware
-users_total = USERS_TOTAL
-matches_total = MATCHES_TOTAL
-messages_total = MESSAGES_TOTAL
+from core.metrics.business_metrics import (
+    record_profile_created, record_profile_updated, record_profile_deleted,
+    update_users_total, update_matches_total, update_messages_total
+)
+from core.exceptions import ValidationError, CircuitBreakerError, ExternalServiceError, NotFoundError
 
 logger = logging.getLogger(__name__)
 
 
 @retry_data_service()
-async def _call_data_service(url: str, method: str = "GET", data: dict = None, correlation_id: str = None):
-    """Helper to call Data Service with retry logic."""
+async def _call_data_service(url: str, method: str = "GET", data: dict = None, request: web.Request = None):
+    """Helper to call Data Service with retry logic and correlation ID propagation."""
     headers = {}
-    if correlation_id:
-        headers["X-Correlation-ID"] = correlation_id
+    
+    # Add correlation headers if request is provided
+    if request:
+        headers = create_headers_with_correlation(request)
+        log_correlation_propagation(
+            correlation_id=request.get('correlation_id', 'unknown'),
+            from_service='profile-service',
+            to_service='data-service',
+            operation=f"{method} {url}",
+            request=request
+        )
     
     async with aiohttp.ClientSession() as session:
         async with session.request(method, url, json=data, headers=headers) as resp:
-            resp.raise_for_status()
+            if resp.status >= 400:
+                raise ExternalServiceError(
+                    service='data-service',
+                    message=f"HTTP {resp.status}: {await resp.text()}",
+                    details={'url': url, 'method': method, 'status': resp.status}
+                )
             return await resp.json()
 
 
@@ -103,24 +116,30 @@ async def create_profile(request: web.Request) -> web.Response:
         
         data_service_url = request.app["data_service_url"]
         
-        # Use circuit breaker + retry
+        # Use circuit breaker + retry with correlation ID propagation
         result = await data_service_breaker.call(
             _call_data_service,
             f"{data_service_url}/data/profiles",
             "POST",
             profile_data,
+            request,  # Pass request for correlation ID
             fallback=lambda *args: {"error": "Service temporarily unavailable"}
         )
         
         if "error" in result:
             if result["error"] == "Service temporarily unavailable":
-                return web.json_response(result, status=503)
+                raise CircuitBreakerError("data-service")
             if "already exists" in result.get("error", ""):
-                return web.json_response(result, status=409)
-            return web.json_response(result, status=400)
+                from core.exceptions import ConflictError
+                raise ConflictError("Profile already exists", details=result)
+            raise ExternalServiceError(
+                service='data-service',
+                message=result.get("error", "Unknown error"),
+                details=result
+            )
         
-        # Increment business metrics
-        users_total.labels(service='profile-service').inc()
+        # Record business metrics
+        record_profile_created('profile-service')
         
         # Audit log profile creation
         audit_log(
@@ -177,6 +196,25 @@ async def sync_metrics(request: web.Request) -> web.Response:
         return web.json_response({"error": "Internal server error"}, status=500)
 
 
+async def sync_metrics_periodically():
+    """Background task to sync business metrics with database."""
+    while True:
+        try:
+            # This would typically call data-service to get current stats
+            # For now, we'll just log that the sync is running
+            logger.debug("Syncing profile metrics...")
+            
+            # TODO: Implement actual metrics sync with data-service
+            # result = await _call_data_service(f"{data_service_url}/data/profiles-count")
+            # total_users = result.get("count", 0)
+            # update_users_total('profile-service', total_users)
+            
+            await asyncio.sleep(300)  # Update every 5 minutes
+        except Exception as e:
+            logger.error(f"Failed to sync profile metrics: {e}")
+            await asyncio.sleep(60)
+
+
 async def sync_metrics_on_startup(app):
     """Sync business metrics with database on application startup."""
     try:
@@ -186,13 +224,16 @@ async def sync_metrics_on_startup(app):
         result = await data_service_breaker.call(
             _call_data_service,
             f"{data_service_url}/data/profiles-count",
+            None,
+            None,
+            None,  # No request context for startup
             fallback=lambda *args: {"count": 0}
         )
         
         total_users = result.get("count", 0)
         
         # Set the metric to the current count
-        users_total.labels(service='profile-service').set(total_users)
+        update_users_total('profile-service', total_users)
         
         logger.info(f"Metrics synchronized on startup: users_total={total_users}")
                     
@@ -210,12 +251,8 @@ def create_app(config: dict) -> web.Application:
     
     # Business metrics are imported from middleware
     
-    # Add middleware
-    app.middlewares.append(correlation_middleware)
-    app.middlewares.append(user_context_middleware)
-    app.middlewares.append(request_logging_middleware)
-    app.middlewares.append(metrics_middleware)
-    app.middlewares.append(jwt_middleware)
+    # Setup standard middleware stack
+    setup_standard_middleware_stack(app, "profile-service", use_auth=True, use_audit=True)
     
     # Add metrics endpoint
     add_metrics_route(app, "profile-service")
@@ -226,8 +263,9 @@ def create_app(config: dict) -> web.Application:
     app.router.add_get("/health", health_check)
     app.router.add_post("/sync-metrics", sync_metrics)
     
-    # Sync metrics on startup
+    # Sync metrics on startup and start background task
     app.on_startup.append(sync_metrics_on_startup)
+    app.on_startup.append(lambda app: asyncio.create_task(sync_metrics_periodically()))
 
     return app
 

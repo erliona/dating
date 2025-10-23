@@ -4,23 +4,16 @@ This microservice handles real-time messaging between matched users.
 """
 
 import logging
-from prometheus_client import Counter
+import asyncio
 
 from aiohttp import web
 
 from core.utils.logging import configure_logging
-from core.middleware.jwt_middleware import jwt_middleware
-from core.middleware.request_logging import request_logging_middleware, user_context_middleware
-from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
+from core.middleware.standard_stack import setup_standard_middleware_stack
+from core.middleware.metrics_middleware import add_metrics_route
 from core.messaging.publisher import EventPublisher
-
-# Business metrics - create only if not already registered
-try:
-    messages_total = Counter('messages_total', 'Total number of messages')
-except ValueError:
-    # Metric already exists, get it from registry
-    from prometheus_client import REGISTRY
-    messages_total = REGISTRY._names_to_collectors['messages_total']
+from core.metrics.business_metrics import record_message_sent, record_conversation_started
+from core.exceptions import ValidationError, ExternalServiceError
 
 logger = logging.getLogger(__name__)
 
@@ -100,12 +93,10 @@ async def send_message(request: web.Request) -> web.Response:
         text = data.get("text")
 
         if not all([conversation_id, user_id, text]):
-            return web.json_response(
-                {"error": "conversation_id, user_id, and text are required"}, status=400
-            )
+            raise ValidationError("conversation_id, user_id, and text are required")
 
-        # Increment business metrics
-        messages_total.inc()
+        # Record business metrics
+        record_message_sent('chat-service')
         
         # Publish message.sent event
         if event_publisher:
@@ -158,11 +149,8 @@ def create_app(config: dict) -> web.Application:
     app = web.Application()
     app["config"] = config
     
-    # Add middleware
-    app.middlewares.append(user_context_middleware)
-    app.middlewares.append(request_logging_middleware)
-    app.middlewares.append(metrics_middleware)
-    app.middlewares.append(jwt_middleware)
+    # Setup standard middleware stack
+    setup_standard_middleware_stack(app, "chat-service", use_auth=True, use_audit=True)
     
     # Add metrics endpoint
     add_metrics_route(app, "chat-service")

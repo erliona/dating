@@ -19,7 +19,7 @@
       },
       "targets": [
         {
-          "expr": "users_total",
+          "expr": "sum(profile_created_total)",
           "refId": "A"
         }
       ],
@@ -48,7 +48,7 @@
       },
       "targets": [
         {
-          "expr": "matches_total",
+          "expr": "sum(interaction_created_total{type=\"match\"})",
           "refId": "A"
         }
       ],
@@ -77,7 +77,7 @@
       },
       "targets": [
         {
-          "expr": "messages_total",
+          "expr": "sum(message_sent_total)",
           "refId": "A"
         }
       ],
@@ -135,7 +135,7 @@
       },
       "targets": [
         {
-          "expr": "rate(users_total[1h])",
+          "expr": "rate(profile_created_total[1h])",
           "refId": "A",
           "legendFormat": "New Users/hour"
         }
@@ -157,7 +157,7 @@
       },
       "targets": [
         {
-          "expr": "rate(matches_total[1h]) / rate(swipes_total[1h]) * 100",
+          "expr": "rate(interaction_created_total{type=\"match\"}[1h]) / rate(swipes_total[1h]) * 100",
           "refId": "A",
           "legendFormat": "Match Rate %"
         }
@@ -179,7 +179,7 @@
       },
       "targets": [
         {
-          "expr": "rate(messages_total[1h])",
+          "expr": "rate(message_sent_total[1h])",
           "refId": "A",
           "legendFormat": "Messages/hour"
         }

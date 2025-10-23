@@ -838,9 +838,9 @@ def create_app(config: dict) -> web.Application:
     app["session_maker"] = async_session_maker
     
     # Add middleware
-    app.middlewares.append(user_context_middleware)
-    app.middlewares.append(request_logging_middleware)
-    app.middlewares.append(metrics_middleware)
+    # Setup standard middleware stack (no auth for data service)
+    from core.middleware.standard_stack import setup_standard_middleware_stack
+    setup_standard_middleware_stack(app, "data-service", use_auth=False, use_audit=True)
     
     # Add metrics endpoint
     add_metrics_route(app, "data-service")

@@ -24,16 +24,21 @@ async def request_logging_middleware(request: web.Request, handler: Callable) ->
     # Start timing
     start_time = time.time()
     
+    # Get correlation_id from request (set by correlation_middleware)
+    correlation_id = request.get('correlation_id', '')
+    
     # Log request
     logger.info(
         f"Request started: {request.method} {request.path}",
         extra={
             "event_type": "request_started",
             "request_id": request_id,
+            "correlation_id": correlation_id,
             "method": request.method,
             "path": request.path,
             "user_agent": request.headers.get("User-Agent", ""),
             "remote_addr": request.remote,
+            "service": request.app.get('service_name', 'unknown'),
         }
     )
     
@@ -50,15 +55,20 @@ async def request_logging_middleware(request: web.Request, handler: Callable) ->
             extra={
                 "event_type": "request_completed",
                 "request_id": request_id,
+                "correlation_id": correlation_id,
                 "method": request.method,
                 "path": request.path,
                 "status_code": response.status,
                 "duration_ms": duration_ms,
+                "user_id": request.get('user_id'),
+                "service": request.app.get('service_name', 'unknown'),
             }
         )
         
-        # Add request_id to response headers
+        # Add request_id and correlation_id to response headers
         response.headers['X-Request-ID'] = request_id
+        if correlation_id:
+            response.headers['X-Correlation-ID'] = correlation_id
         
         return response
         
@@ -73,11 +83,14 @@ async def request_logging_middleware(request: web.Request, handler: Callable) ->
             extra={
                 "event_type": "request_failed",
                 "request_id": request_id,
+                "correlation_id": correlation_id,
                 "method": request.method,
                 "path": request.path,
                 "duration_ms": duration_ms,
                 "error_type": type(e).__name__,
                 "error_message": str(e),
+                "user_id": request.get('user_id'),
+                "service": request.app.get('service_name', 'unknown'),
             }
         )
         

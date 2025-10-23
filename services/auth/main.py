@@ -24,9 +24,47 @@ from core.middleware.security_metrics import (
     record_auth_failure,
     record_security_event
 )
+from prometheus_client import Counter
 from core.middleware.audit_logging import audit_log, log_security_event
 
 logger = logging.getLogger(__name__)
+
+# JWT Token metrics
+JWT_TOKENS_CREATED = Counter(
+    'jwt_tokens_created_total',
+    'Total JWT tokens created',
+    ['service', 'token_type']
+)
+
+JWT_TOKENS_VALIDATED = Counter(
+    'jwt_tokens_validated_total',
+    'Total JWT token validations',
+    ['service', 'result']
+)
+
+JWT_TOKENS_EXPIRED = Counter(
+    'jwt_tokens_expired_total',
+    'Total expired JWT tokens',
+    ['service']
+)
+
+TELEGRAM_AUTH_SUCCESS = Counter(
+    'telegram_auth_success_total',
+    'Successful Telegram authentications',
+    ['service']
+)
+
+TELEGRAM_AUTH_FAILED = Counter(
+    'telegram_auth_failed_total',
+    'Failed Telegram authentications',
+    ['service', 'reason']
+)
+
+JWT_VALIDATION_FAILED = Counter(
+    'jwt_validation_failed_total',
+    'Failed JWT validations',
+    ['service', 'reason']
+)
 
 
 async def validate_telegram_init_data(request: web.Request) -> web.Response:
@@ -63,6 +101,22 @@ async def validate_telegram_init_data(request: web.Request) -> web.Response:
             method="telegram_webapp",
             user_id=str(user_id)
         )
+        
+        # Record JWT token creation
+        JWT_TOKENS_CREATED.labels(
+            service='auth-service',
+            token_type='access'
+        ).inc()
+        
+        JWT_TOKENS_CREATED.labels(
+            service='auth-service',
+            token_type='refresh'
+        ).inc()
+        
+        # Record Telegram auth success
+        TELEGRAM_AUTH_SUCCESS.labels(
+            service='auth-service'
+        ).inc()
         
         record_security_event(
             event_type="user_login",
@@ -109,6 +163,12 @@ async def validate_telegram_init_data(request: web.Request) -> web.Response:
             method="telegram_webapp",
             reason=str(e)
         )
+        
+        # Record Telegram auth failure
+        TELEGRAM_AUTH_FAILED.labels(
+            service='auth-service',
+            reason=str(e.code) if hasattr(e, 'code') else 'validation_error'
+        ).inc()
         
         record_auth_failure(
             service="auth-service",
@@ -243,8 +303,12 @@ def create_app(config: dict) -> web.Application:
     app["config"] = config
 
     # Add middleware
-    app.middlewares.append(auth_rate_limiting_middleware)  # Rate limiting for auth endpoints
-    app.middlewares.append(metrics_middleware)
+    # Setup auth service middleware stack (no JWT middleware needed)
+    from core.middleware.standard_stack import setup_auth_service_middleware_stack
+    setup_auth_service_middleware_stack(app, "auth-service")
+    
+    # Add rate limiting for auth endpoints
+    app.middlewares.append(auth_rate_limiting_middleware)
 
     # Add routes
     app.router.add_post("/auth/validate", validate_telegram_init_data)

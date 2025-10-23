@@ -349,10 +349,9 @@ def create_app() -> web.Application:
     app = web.Application()
     
     # Add middleware
-    app.middlewares.append(user_context_middleware)
-    app.middlewares.append(request_logging_middleware)
-    app.middlewares.append(metrics_middleware)
-    app.middlewares.append(jwt_middleware)
+    # Setup standard middleware stack
+    from core.middleware.standard_stack import setup_standard_middleware_stack
+    setup_standard_middleware_stack(app, "notification-service", use_auth=True, use_audit=True)
     
     # Add metrics endpoint
     add_metrics_route(app, "notification-service")

@@ -320,10 +320,9 @@ def create_app(config: dict) -> web.Application:
     app["data_service_url"] = config["data_service_url"]
     
     # Add middleware
-    app.middlewares.append(user_context_middleware)
-    app.middlewares.append(request_logging_middleware)
-    app.middlewares.append(metrics_middleware)
-    app.middlewares.append(admin_jwt_middleware)
+    # Setup admin middleware stack
+    from core.middleware.standard_stack import setup_admin_middleware_stack
+    setup_admin_middleware_stack(app, "admin-service")
     
     # Add metrics endpoint
     add_metrics_route(app, "admin-service")
