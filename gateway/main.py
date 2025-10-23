@@ -83,86 +83,100 @@ async def proxy_request(
 async def route_auth(request: web.Request) -> web.Response:
     """Route to auth service."""
     auth_url = request.app["config"]["auth_service_url"]
-    return await proxy_request(request, auth_url)
+    # Strip /v1 prefix from path for internal routing
+    new_path = request.path.replace("/v1/auth", "/auth", 1)
+    return await proxy_request(request, auth_url, path_override=new_path)
 
 
 async def route_profile(request: web.Request) -> web.Response:
     """Route to profile service."""
     profile_url = request.app["config"]["profile_service_url"]
-    return await proxy_request(request, profile_url)
+    # Strip /v1 prefix from path for internal routing
+    new_path = request.path.replace("/v1/profiles", "/profiles", 1)
+    return await proxy_request(request, profile_url, path_override=new_path)
 
 
 async def route_discovery(request: web.Request) -> web.Response:
     """Route to discovery service."""
     discovery_url = request.app["config"]["discovery_service_url"]
-    return await proxy_request(request, discovery_url)
+    # Strip /v1 prefix from path for internal routing
+    new_path = request.path.replace("/v1/discovery", "/discovery", 1)
+    return await proxy_request(request, discovery_url, path_override=new_path)
 
 
 async def route_media(request: web.Request) -> web.Response:
     """Route to media service."""
     media_url = request.app["config"]["media_service_url"]
-    return await proxy_request(request, media_url)
+    # Strip /v1 prefix from path for internal routing
+    new_path = request.path.replace("/v1/media", "/media", 1)
+    return await proxy_request(request, media_url, path_override=new_path)
 
 
 async def route_chat(request: web.Request) -> web.Response:
     """Route to chat service."""
     chat_url = request.app["config"]["chat_service_url"]
-    return await proxy_request(request, chat_url)
+    # Strip /v1 prefix from path for internal routing
+    new_path = request.path.replace("/v1/chat", "/chat", 1)
+    return await proxy_request(request, chat_url, path_override=new_path)
 
 
 async def route_admin(request: web.Request) -> web.Response:
     """Route to admin service."""
     admin_url = request.app["config"]["admin_service_url"]
-    return await proxy_request(request, admin_url)
+    # Strip /v1 prefix from path for internal routing
+    new_path = request.path.replace("/v1/admin", "/admin", 1)
+    return await proxy_request(request, admin_url, path_override=new_path)
 
 
 async def route_notifications(request: web.Request) -> web.Response:
     """Route to notification service."""
     notification_url = request.app["config"]["notification_service_url"]
-    return await proxy_request(request, notification_url)
+    # Strip /v1 prefix from path for internal routing
+    new_path = request.path.replace("/v1/notifications", "/notifications", 1)
+    return await proxy_request(request, notification_url, path_override=new_path)
 
 
 async def route_api_auth(request: web.Request) -> web.Response:
     """Route /api/auth/* to auth service, stripping /api prefix."""
     auth_url = request.app["config"]["auth_service_url"]
-    # Strip /api prefix from path
-    new_path = request.path.replace("/api/auth", "/auth", 1)
+    # Strip /api/v1 prefix from path
+    new_path = request.path.replace("/api/v1/auth", "/auth", 1)
     return await proxy_request(request, auth_url, path_override=new_path)
 
 
 async def route_api_profile(request: web.Request) -> web.Response:
     """Route /api/profile/* to profile service, mapping to /profiles/*."""
     profile_url = request.app["config"]["profile_service_url"]
-    # Map /api/profile to /profiles
-    new_path = request.path.replace("/api/profile", "/profiles", 1)
+    # Map /api/v1/profile to /profiles
+    new_path = request.path.replace("/api/v1/profile", "/profiles", 1)
     return await proxy_request(request, profile_url, path_override=new_path)
 
 
 async def route_api_profiles(request: web.Request) -> web.Response:
     """Route /api/profiles/* to profile service, mapping to /profiles/*."""
     profile_url = request.app["config"]["profile_service_url"]
-    # Map /api/profiles to /profiles
-    new_path = request.path.replace("/api/profiles", "/profiles", 1)
+    # Map /api/v1/profiles to /profiles
+    new_path = request.path.replace("/api/v1/profiles", "/profiles", 1)
     return await proxy_request(request, profile_url, path_override=new_path)
 
 
 async def route_api_discovery(request: web.Request) -> web.Response:
     """Route /api/discover, /api/like, /api/pass, /api/matches, /api/favorites to discovery service."""
     discovery_url = request.app["config"]["discovery_service_url"]
-    # Map /api/* to /discovery/*
+    # Map /api/v1/* to /discovery/*
     path = request.path
-    if path.startswith("/api/discover"):
-        new_path = path.replace("/api/discover", "/discovery/discover", 1)
-    elif path.startswith("/api/like"):
-        new_path = path.replace("/api/like", "/discovery/like", 1)
-    elif path.startswith("/api/pass"):
-        new_path = path.replace("/api/pass", "/discovery/pass", 1)
-    elif path.startswith("/api/matches"):
-        new_path = path.replace("/api/matches", "/discovery/matches", 1)
-    elif path.startswith("/api/favorites"):
-        new_path = path.replace("/api/favorites", "/discovery/favorites", 1)
+    if path.startswith("/api/v1/discover"):
+        new_path = path.replace("/api/v1/discover", "/discovery/discover", 1)
+    elif path.startswith("/api/v1/like"):
+        new_path = path.replace("/api/v1/like", "/discovery/like", 1)
+    elif path.startswith("/api/v1/pass"):
+        new_path = path.replace("/api/v1/pass", "/discovery/pass", 1)
+    elif path.startswith("/api/v1/matches"):
+        new_path = path.replace("/api/v1/matches", "/discovery/matches", 1)
+    elif path.startswith("/api/v1/favorites"):
+        new_path = path.replace("/api/v1/favorites", "/discovery/favorites", 1)
     else:
-        new_path = path.replace("/api/", "/discovery/", 1)
+        new_path = path.replace("/api/v1/", "/discovery/", 1)
 
     return await proxy_request(request, discovery_url, path_override=new_path)
 
@@ -170,16 +184,17 @@ async def route_api_discovery(request: web.Request) -> web.Response:
 async def route_api_media(request: web.Request) -> web.Response:
     """Route /api/photos/* to media service, mapping to /media/*."""
     media_url = request.app["config"]["media_service_url"]
-    # Map /api/photos to /media
-    new_path = request.path.replace("/api/photos", "/media", 1)
+    # Map /api/v1/photos to /media
+    new_path = request.path.replace("/api/v1/photos", "/media", 1)
     return await proxy_request(request, media_url, path_override=new_path)
 
 
 async def route_api_notifications(request: web.Request) -> web.Response:
     """Route /api/notifications/* to notification service."""
     notification_url = request.app["config"]["notification_service_url"]
-    # Keep the /api/notifications path as-is
-    return await proxy_request(request, notification_url)
+    # Map /api/v1/notifications to /notifications
+    new_path = request.path.replace("/api/v1/notifications", "/notifications", 1)
+    return await proxy_request(request, notification_url, path_override=new_path)
 
 
 async def health_check(request: web.Request) -> web.Response:
