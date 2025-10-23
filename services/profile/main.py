@@ -13,7 +13,7 @@ from core.utils.logging import configure_logging
 from core.utils.validation import validate_profile_data, ValidationError
 from core.middleware.jwt_middleware import jwt_middleware
 from core.middleware.request_logging import request_logging_middleware, user_context_middleware
-from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
+from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route, USERS_TOTAL, MATCHES_TOTAL, MESSAGES_TOTAL
 from core.middleware.audit_logging import audit_log, log_data_access
 from core.middleware.correlation import correlation_middleware
 from core.resilience.circuit_breaker import data_service_breaker
