@@ -257,6 +257,8 @@ def create_app(config: dict) -> web.Application:
 
     # Add routing rules for direct service access (internal/microservice-to-microservice)
     # Versioned routes (v1) - use proper route syntax
+    # Add specific routes first, then catch-all routes
+    app.router.add_route("*", r"/v1/auth/health", route_auth)
     app.router.add_route("*", r"/v1/auth/{tail:.*}", route_auth)
     app.router.add_route("*", r"/v1/profiles/{tail:.*}", route_profile)
     app.router.add_route("*", r"/v1/discovery/{tail:.*}", route_discovery)
