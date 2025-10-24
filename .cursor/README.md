@@ -1,79 +1,88 @@
-# Cursor AI Rules Documentation
+# 🎯 Cursor AI Rules & Standards
 
-## Overview
+**Централизованное хранилище всех правил разработки, стандартов и документации для проекта Dating App.**
 
-This directory contains the unified rules and guidelines for the Cursor AI assistant working on the dating application project. All rules have been consolidated into a single, comprehensive file to eliminate contradictions and duplications.
+## 📁 **СТРУКТУРА ПРАВИЛ**
 
-## File Structure
+### 🚀 **Основные правила**
+- **[RULES.md](./RULES.md)** - Главные правила разработки и стандарты
 
-- **`RULES.md`** - Main unified rules file containing all guidelines, standards, and best practices
-- **`naming-conventions.md`** - Comprehensive naming standards for all project components
-- **`rule-audit-report.md`** - Detailed audit report of rule consolidation process
-- **`validation-report.md`** - Validation results for unified rules
-- **`archive/`** - Contains archived rule files from the previous multi-file structure
+### 💻 **Разработка (development/)**
+- **[code-quality.md](./development/code-quality.md)** - Стандарты качества кода
+- **[frontend-development.md](./development/frontend-development.md)** - Vue 3 + Vite + Pinia
+- **[api-documentation.md](./development/api-documentation.md)** - API документация
+- **[error-handling.md](./development/error-handling.md)** - Обработка ошибок
 
-## Rule Categories
+### 🏗️ **Инфраструктура (infrastructure/)**
+- **[docker-security.md](./infrastructure/docker-security.md)** - Безопасность Docker
+- **[docker-user-standards.md](./infrastructure/docker-user-standards.md)** - Пользователи Docker
+- **[environments.md](./infrastructure/environments.md)** - Управление окружениями
+- **[traefik-routes.md](./infrastructure/traefik-routes.md)** - Маршрутизация Traefik
 
-The unified rules cover:
+### 🚀 **Деплой (deployment/)**
+- **[ci-cd-guide.md](./deployment/ci-cd-guide.md)** - CI/CD процессы
+- **[deployment-guide.md](./deployment/deployment-guide.md)** - Руководство по деплою
+- **[versioning-releases.md](./deployment/versioning-releases.md)** - Версионирование и релизы
+- **[jwt-security-policy.md](./deployment/jwt-security-policy.md)** - Политика безопасности JWT
 
-1. **Critical Workflows** - Code synchronization, Git workflow
-2. **Project Identity & Stack** - Technology stack and architecture
-3. **Naming Conventions & Standards** - Migrations, routes, services, networks, environment variables
-4. **Coding Standards** - Python style, async patterns, type hints, database patterns
-5. **Architecture & Boundaries** - Microservices separation, service communication
-6. **Security & Configuration** - Secrets management, JWT authentication
-7. **Docker & Infrastructure** - Container management, networking, Traefik routing
-8. **Database & Migrations** - Alembic best practices, migration naming
-9. **Testing & Quality** - pytest patterns, coverage requirements
-10. **Deployment & Operations** - Deployment checklist, health checks, monitoring
-11. **Troubleshooting & Diagnostics** - Systematic diagnostic approach, common problems
-12. **Observability** - Logging standards, metrics patterns, tracing
-13. **Example Patterns** - Code skeletons and templates
+### 📊 **Мониторинг (monitoring/)**
+- **[metrics-guide.md](./monitoring/metrics-guide.md)** - Руководство по метрикам
+- **[observability.md](./monitoring/observability.md)** - Наблюдаемость системы
+- **[architecture.md](./monitoring/architecture.md)** - Архитектура системы
 
-## Key Standards
+### 📋 **Стандарты (standards/)**
+- **[naming-conventions.md](./standards/naming-conventions.md)** - Соглашения по именованию
+- **[validation-report.md](./standards/validation-report.md)** - Отчет о валидации
 
-### Migration Naming
-- Use full filename as revision ID: `"007_create_chat_tables"`
-- Never use short IDs like `"007"`
-- Always update `down_revision` to full filename of previous migration
+### 📦 **Архив (archive/)**
+- **[rule-audit-report.md](./archive/rule-audit-report.md)** - Аудит правил
+- **[deployment-and-monitoring.rules](./archive/deployment-and-monitoring.rules)** - Архивные правила
+- **[git-flow-and-docker.rules](./archive/git-flow-and-docker.rules)** - Git и Docker правила
+- **[production.rules](./archive/production.rules)** - Продакшн правила
+- **[troubleshooting.rules](./archive/troubleshooting.rules)** - Диагностика
 
-### API Route Naming
-- Pattern: `/api/v1/<resource>/<action>`
-- Public routes: No JWT required (e.g., `/admin/auth/login`)
-- Protected routes: JWT required via sub-applications
+## 🎯 **БЫСТРЫЙ ДОСТУП**
 
-### Docker Service Naming
-- Services: Use kebab-case (e.g., `api-gateway`, `admin-service`)
-- Networks: `default`, `monitoring`
-- Never use IP addresses in configurations
+### 🔧 **Для разработчиков**
+- [Основные правила](./RULES.md)
+- [Качество кода](./development/code-quality.md)
+- [Frontend разработка](./development/frontend-development.md)
+- [API документация](./development/api-documentation.md)
 
-### Environment Variables
-- Format: `SCREAMING_SNAKE_CASE`
-- Must be in `.env`, never hardcoded
-- Document in `.env.example`
-- No duplicates
+### 🏗️ **Для DevOps**
+- [Docker безопасность](./infrastructure/docker-security.md)
+- [Пользователи Docker](./infrastructure/docker-user-standards.md)
+- [CI/CD процессы](./deployment/ci-cd-guide.md)
+- [Деплой](./deployment/deployment-guide.md)
 
-## Usage
+### 📊 **Для мониторинга**
+- [Метрики](./monitoring/metrics-guide.md)
+- [Наблюдаемость](./monitoring/observability.md)
+- [Архитектура](./monitoring/architecture.md)
 
-The Cursor AI assistant should follow these rules when:
-- Writing or modifying code
-- Creating new features
-- Debugging issues
-- Deploying changes
-- Troubleshooting problems
+## 📝 **КАК ИСПОЛЬЗОВАТЬ**
 
-## Migration from Old Structure
+1. **Начните с [RULES.md](./RULES.md)** - основные правила
+2. **Выберите нужную категорию** - development, infrastructure, deployment, monitoring
+3. **Изучите соответствующие документы** - детальные инструкции
+4. **Следуйте стандартам** - для единообразия кода
 
-The previous multi-file structure has been consolidated into a single `RULES.md` file. Old rule files are preserved in the `archive/` directory for reference.
+## 🔄 **ОБНОВЛЕНИЕ ПРАВИЛ**
 
-## Updates
+- Все изменения в правилах должны быть зафиксированы в Git
+- Обновления должны проходить через PR
+- Документация должна быть актуальной
+- Старые версии сохраняются в `archive/`
 
-When updating rules:
-1. Modify `RULES.md` directly
-2. Test changes in development
-3. Commit and sync across Local → GitHub → Server
-4. Update this README if structure changes
+## 📊 **СТАТИСТИКА**
 
-## Contact
+- **Всего документов**: 25+
+- **Категорий**: 5
+- **Основных правил**: 1
+- **Архивных файлов**: 6
 
-For questions about these rules or suggestions for improvements, refer to the project documentation or create an issue in the repository.
+---
+
+**Последнее обновление**: $(date)
+**Версия**: 2.0
+**Статус**: Активная поддержка
