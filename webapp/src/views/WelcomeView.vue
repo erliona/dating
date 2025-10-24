@@ -155,75 +155,93 @@ const handleLogin = async () => {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
+  max-height: 100vh;
   background: linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 100%);
-  padding: var(--spacing-lg);
+  padding: 10px;
+  overflow: hidden;
 }
 
 .welcome-container {
-  max-width: 400px;
+  max-width: 100%;
   width: 100%;
   text-align: center;
   color: white;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
 }
 
 .welcome-header {
-  margin-bottom: var(--spacing-xxl);
+  margin-bottom: 15px;
+  flex-shrink: 0;
 }
 
 .welcome-title {
-  font-size: var(--font-size-xxxl);
-  font-weight: var(--font-weight-bold);
-  margin-bottom: var(--spacing-sm);
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 5px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .welcome-subtitle {
-  font-size: var(--font-size-lg);
+  font-size: 16px;
   opacity: 0.9;
   margin-bottom: 0;
 }
 
 .welcome-features {
-  margin-bottom: var(--spacing-xxl);
+  margin-bottom: 15px;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .feature-item {
-  margin-bottom: var(--spacing-xl);
-  padding: var(--spacing-lg);
+  margin-bottom: 0;
+  padding: 12px;
   background: rgba(255, 255, 255, 0.1);
-  border-radius: var(--border-radius);
+  border-radius: 8px;
   backdrop-filter: blur(10px);
+  flex-shrink: 0;
 }
 
 .feature-icon {
-  font-size: var(--font-size-xxxl);
-  margin-bottom: var(--spacing-md);
+  font-size: 24px;
+  margin-bottom: 8px;
 }
 
 .feature-item h3 {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-  margin-bottom: var(--spacing-sm);
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
 }
 
 .feature-item p {
-  font-size: var(--font-size-sm);
+  font-size: 12px;
   opacity: 0.9;
   margin-bottom: 0;
 }
 
 .welcome-actions {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: 10px;
+  flex-shrink: 0;
 }
 
 .welcome-btn {
   width: 100%;
-  margin-bottom: var(--spacing-md);
+  margin-bottom: 8px;
   background: rgba(255, 255, 255, 0.2);
   border: 2px solid rgba(255, 255, 255, 0.3);
   color: white;
-  font-weight: var(--font-weight-semibold);
+  font-weight: 600;
   backdrop-filter: blur(10px);
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 16px;
 }
 
 .welcome-btn:hover:not(:disabled) {
@@ -237,12 +255,13 @@ const handleLogin = async () => {
 }
 
 .welcome-note {
-  font-size: var(--font-size-sm);
+  font-size: 12px;
   opacity: 0.8;
   margin-bottom: 0;
+  flex-shrink: 0;
 }
 
 .spinner {
-  margin-right: var(--spacing-sm);
+  margin-right: 8px;
 }
 </style>
