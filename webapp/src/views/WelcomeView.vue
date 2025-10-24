@@ -32,6 +32,7 @@
           class="btn btn-primary btn-large welcome-btn"
           @click="handleLogin"
           @click.prevent="handleLogin"
+          onclick="console.log('Inline click on main button!'); window.handleLogin && window.handleLogin();"
           :disabled="loading"
         >
           <span v-if="loading" class="spinner"></span>
@@ -45,6 +46,14 @@
           style="margin-top: 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: white;"
         >
           🧪 Тест кнопки
+        </button>
+        
+        <!-- Simple test button -->
+        <button 
+          onclick="alert('Inline click works!')"
+          style="margin-top: 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 10px; border-radius: 5px;"
+        >
+          🔥 Inline Test
         </button>
         
         <p class="welcome-note">
@@ -93,6 +102,9 @@ onMounted(() => {
       console.log('Button clicked directly!', e)
     })
   }
+  
+  // Make handleLogin available globally for inline calls
+  window.handleLogin = handleLogin
 })
 
 const handleLogin = async () => {
