@@ -53,6 +53,9 @@ jobs:
       - name: Run YAML linting
         run: yamllint .github/ docker-compose.yml
 
+      - name: Validate Docker Security
+        run: ./scripts/validate-docker-security.sh
+
       - name: Upload security report
         uses: actions/upload-artifact@v4
         if: always()

@@ -216,6 +216,18 @@ alembic history
 - Environment changes: `docker compose up -d <service>` (recreate container)
 - Infrastructure changes: `docker compose up --build -d` (rebuild all affected services)
 
+## Docker Security Standards
+- **Base images**: MUST be pinned with specific versions (e.g., `python:3.11.7-slim`, not `python:3.11-slim`)
+- **Distroless/Slim**: Prefer distroless or slim variants to minimize attack surface
+- **Non-root user**: ALL services MUST run as non-root user (USER app)
+- **Security options**: Add to docker-compose.yml for each service:
+  - `security_opt: [no-new-privileges:true]`
+  - `cap_drop: [ALL]`
+  - `cap_add:` only specific capabilities if needed
+- **Read-only root**: Use `read_only: true` where possible, with tmpfs for writable dirs
+- **Health checks**: MANDATORY HTTP health check on `/health` endpoint for all services
+- **Restart policy**: Use `restart: unless-stopped` for all production services
+
 ## Nginx Configuration
 - In `/etc/nginx/conf.d/*.conf` NEVER include `events {}` or `http {}` blocks
 - Only `server {}` blocks in conf.d files
