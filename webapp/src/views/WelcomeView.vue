@@ -70,15 +70,8 @@ const handleLogin = async () => {
 
     // Prepare data for authentication
     const authData = {
-      id: telegramData.user.id,
-      first_name: telegramData.user.first_name,
-      last_name: telegramData.user.last_name,
-      username: telegramData.user.username,
-      language_code: telegramData.user.language_code,
-      is_premium: telegramData.user.is_premium || false,
-      photo_url: telegramData.user.photo_url,
-      auth_date: telegramData.user.auth_date,
-      hash: telegramData.user.hash
+      init_data: telegramData.raw_data || telegramData.initData,
+      bot_token: telegramData.bot_token || '8302871321:AAGDRnSDYdYHeEOqtEoKZVYLCbBlI2GBYMM'
     }
 
     await userStore.login(authData)
