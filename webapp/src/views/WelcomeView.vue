@@ -31,30 +31,12 @@
         <button 
           class="btn btn-primary btn-large welcome-btn"
           @click="handleLogin"
-          @click.prevent="handleLogin"
-          onclick="console.log('Inline click on main button!'); window.handleLogin && window.handleLogin();"
           :disabled="loading"
         >
           <span v-if="loading" class="spinner"></span>
           <span v-else>🚀 Начать знакомства</span>
         </button>
         
-        <!-- Test button -->
-        <button 
-          class="btn btn-secondary btn-large"
-          @click="testClick"
-          style="margin-top: 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: white;"
-        >
-          🧪 Тест кнопки
-        </button>
-        
-        <!-- Simple test button -->
-        <button 
-          onclick="alert('Inline click works!')"
-          style="margin-top: 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 10px; border-radius: 5px;"
-        >
-          🔥 Inline Test
-        </button>
         
         <p class="welcome-note">
           Вход через Telegram - быстро и безопасно
@@ -76,43 +58,27 @@ const { getTelegramData, showAlert, initTelegram, isReady } = useTelegram()
 
 const loading = ref(false)
 
-const testClick = () => {
-  console.log('TEST BUTTON CLICKED!')
-  alert('Тест кнопка работает!')
-}
-
 onMounted(() => {
   console.log('WelcomeView mounted')
-  console.log('Telegram WebApp available:', !!window.Telegram?.WebApp)
-  console.log('isReady:', isReady.value)
   
   // Force initialization
   initTelegram()
   
-  // Check again after initialization
-  setTimeout(() => {
-    console.log('After init - isReady:', isReady.value)
-    console.log('Telegram data after init:', getTelegramData())
-  }, 100)
-  
-  // Add simple click test
-  const button = document.querySelector('.welcome-btn')
-  if (button) {
-    button.addEventListener('click', (e) => {
-      console.log('Button clicked directly!', e)
-    })
-  }
-  
-  // Make handleLogin available globally for inline calls
+  // Make handleLogin available globally
   window.handleLogin = handleLogin
+  
+  console.log('WelcomeView ready')
 })
 
 const handleLogin = async () => {
-  console.log('handleLogin called!')
-  console.log('loading before:', loading.value)
+  console.log('🚀 handleLogin called!')
+  
+  if (loading.value) {
+    console.log('Already loading, ignoring click')
+    return
+  }
   
   loading.value = true
-  console.log('loading after:', loading.value)
   
   try {
     const telegramData = getTelegramData()
