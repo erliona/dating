@@ -8,6 +8,7 @@ All database operations go through this service to maintain consistency.
 
 import logging
 import asyncio
+import os
 from typing import Dict, Any, Optional
 from datetime import date
 
@@ -16,6 +17,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
 from core.utils.logging import configure_logging
+from core.database import create_database_engine, create_session_factory, get_service_pool_config
 # from core.middleware.jwt_middleware import jwt_middleware
 from core.middleware.request_logging import request_logging_middleware, user_context_middleware
 from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
@@ -1138,7 +1140,21 @@ async def create_or_update_user_handler(request: web.Request) -> web.Response:
 
 async def health_handler(request: web.Request) -> web.Response:
     """Health check endpoint."""
-    return web.json_response({"status": "healthy", "service": "data-service"})
+    from core.health import comprehensive_health_check
+    
+    # Get database URL from environment
+    database_url = os.getenv("DATABASE_URL")
+    
+    # Perform comprehensive health check
+    health_data = await comprehensive_health_check(
+        service_name="data-service",
+        version="1.0.0",
+        database_url=database_url
+    )
+    
+    # Return appropriate status code
+    status_code = 200 if health_data["status"] == "healthy" else 503
+    return web.json_response(health_data, status=status_code)
 
 
 async def get_profiles_count_handler(request: web.Request) -> web.Response:
@@ -1165,11 +1181,14 @@ def create_app(config: dict) -> web.Application:
     app = web.Application()
     app["config"] = config
 
-    # Initialize database engine and session maker
-    engine = create_async_engine(config["database_url"])
-    async_session_maker = sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
+    # Initialize database engine with connection pooling
+    pool_config = get_service_pool_config("data-service")
+    engine = create_database_engine(
+        config["database_url"],
+        pool_size=pool_config["pool_size"],
+        max_overflow=pool_config["max_overflow"]
     )
+    async_session_maker = create_session_factory(engine)
     
     # Store session maker for creating data service instances
     app["session_maker"] = async_session_maker

@@ -282,6 +282,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
       DATA_SERVICE_HOST: 0.0.0.0
       DATA_SERVICE_PORT: ${DATA_SERVICE_PORT:-8088}
+      RUN_DB_MIGRATIONS: ${RUN_DB_MIGRATIONS:-true}
     # ports:
     #   - "${DATA_SERVICE_PORT:-8088}:${DATA_SERVICE_PORT:-8088}"
     healthcheck:
@@ -401,7 +402,6 @@ services:
       BOT_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
       API_GATEWAY_URL: http://api-gateway:8080
       WEBAPP_URL: ${WEBAPP_URL}
-      RUN_DB_MIGRATIONS: ${RUN_DB_MIGRATIONS:-true}
       JWT_SECRET: ${JWT_SECRET}
     healthcheck:
       test: ["CMD", "python", "./docker/healthcheck_bot.py"]
