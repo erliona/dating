@@ -1,5 +1,5 @@
 # Multi-stage build for optimal image size
-FROM python:3.11-slim AS builder
+FROM python:3.11.7-slim AS builder
 
 # Install build dependencies
 RUN apt-get update \
@@ -17,7 +17,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Runtime stage
-FROM python:3.11-slim AS runtime
+FROM python:3.11.7-slim AS runtime
 
 # SECURITY: Create non-root user
 RUN groupadd -r appuser && useradd -r -g appuser appuser

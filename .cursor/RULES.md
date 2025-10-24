@@ -23,7 +23,7 @@
 - This is a Telegram Mini App with an API Gateway and multiple Python microservices
 - Stack: Python 3.11+, aiogram 3.x, aiohttp 3.9+, SQLAlchemy 2.x (async), asyncpg, Alembic, PyJWT, bcrypt
 - Infra: Docker + Docker Compose, Traefik 2.x, PostgreSQL 15, Prometheus/Grafana/Loki
-- Frontend: vanilla JS + Telegram WebApp SDK behind Nginx
+- Frontend: Vue 3 + Vite + Pinia behind Nginx
 - Always respect the existing folder layout: bot/, core/, gateway/, services/*, webapp/, monitoring/, migrations/, scripts/
 - Never hardcode ports. Use envs from .env/.env.example and docker-compose
 

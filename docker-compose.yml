@@ -6,7 +6,7 @@
 services:
   # Traefik - Reverse proxy and SSL/TLS termination
   traefik:
-    image: traefik:v2.11
+    image: traefik:v2.11.0
     command:
       - "--api.dashboard=true"
       - "--api.insecure=true"
@@ -32,6 +32,15 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - traefik_certificates:/letsencrypt
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     networks:
       - default
       - monitoring
@@ -47,7 +56,7 @@ services:
   # Microservices connect internally via Docker network - no external port needed.
   # For local development with external tools: uncomment ports and set POSTGRES_EXTERNAL_PORT
   db:
-    image: postgres:15-alpine
+    image: postgres:15.4-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-dating}
       POSTGRES_USER: ${POSTGRES_USER:-dating}
@@ -63,6 +72,10 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
 
   # Auth Service - JWT and session management
   auth-service:
@@ -82,6 +95,10 @@ services:
       timeout: 10s
       retries: 3
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
 
   # Profile Service - User profiles and settings
   profile-service:
@@ -103,6 +120,10 @@ services:
       timeout: 10s
       retries: 3
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
 
   # Discovery Service - Matching and recommendations
   discovery-service:
@@ -126,6 +147,10 @@ services:
       timeout: 10s
       retries: 3
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
 
   # Media Service - Photo upload and processing
   media-service:
@@ -148,6 +173,10 @@ services:
       timeout: 10s
       retries: 3
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
 
   # Chat Service - Real-time messaging (WebSocket)
   chat-service:
@@ -167,6 +196,10 @@ services:
       timeout: 10s
       retries: 3
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
 
   # Notification Service - Push notifications to users
   notification-service:
@@ -188,6 +221,10 @@ services:
       timeout: 10s
       retries: 3
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
 
   # Data Service - Centralized database access
   data-service:
@@ -212,6 +249,10 @@ services:
       timeout: 10s
       retries: 3
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
 
   # Admin Service - Admin panel for managing the system
   admin-service:
@@ -234,6 +275,10 @@ services:
       timeout: 10s
       retries: 3
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     labels:
       - "traefik.enable=true"
       # HTTP router for admin panel
@@ -281,6 +326,10 @@ services:
       timeout: 10s
       retries: 3
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     labels:
       - "traefik.enable=true"
       # HTTP router - high priority for specific paths (excluding /api/profiles)
@@ -332,10 +381,14 @@ services:
       retries: 3
       start_period: 40s
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
 
   # RabbitMQ - Message broker for async communication
   rabbitmq:
-    image: rabbitmq:3.13-management-alpine
+    image: rabbitmq:3.12-management-alpine
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-dating}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-dating}
@@ -351,6 +404,10 @@ services:
       timeout: 10s
       retries: 3
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     networks:
       - default
       - monitoring
@@ -364,6 +421,10 @@ services:
       - traefik
       - api-gateway
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:80/health"]
       interval: 30s
@@ -403,6 +464,10 @@ services:
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     networks:
       - monitoring
       - default
@@ -435,6 +500,10 @@ services:
       loki:
         condition: service_healthy
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     networks:
       - monitoring
     healthcheck:
@@ -454,6 +523,10 @@ services:
     ports:
       - "${LOKI_PORT:-3100}:3100"
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     networks:
       - monitoring
     healthcheck:
@@ -476,6 +549,10 @@ services:
       loki:
         condition: service_healthy
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     networks:
       - monitoring
     healthcheck:
@@ -487,7 +564,7 @@ services:
   # cAdvisor - Container metrics
   cadvisor:
     profiles: ["production"]
-    image: gcr.io/cadvisor/cadvisor:latest
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -500,13 +577,17 @@ services:
     devices:
       - /dev/kmsg
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     networks:
       - monitoring
 
   # Node Exporter - System metrics
   node-exporter:
     profiles: ["production"]
-    image: prom/node-exporter:latest
+    image: prom/node-exporter:v1.7.0
     command:
       - '--path.procfs=/host/proc'
       - '--path.sysfs=/host/sys'
@@ -519,13 +600,17 @@ services:
     ports:
       - "${NODE_EXPORTER_PORT:-9100}:9100"
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     networks:
       - monitoring
 
   # Postgres Exporter - Database metrics
   postgres-exporter:
     profiles: ["production"]
-    image: prometheuscommunity/postgres-exporter:latest
+    image: prometheuscommunity/postgres-exporter:v0.15.0
     environment:
       DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}?sslmode=disable"
     ports:
@@ -533,6 +618,10 @@ services:
     depends_on:
       - db
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     networks:
       - monitoring
       - default

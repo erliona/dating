@@ -3,9 +3,6 @@
 **Современное приложение для знакомств**, полностью интегрированное в Telegram как Mini App с микросервисной архитектурой.
 
 [![Tests](https://github.com/erliona/dating/actions/workflows/test.yml/badge.svg)](https://github.com/erliona/dating/actions/workflows/test.yml)
-[![Code Quality](https://github.com/erliona/dating/actions/workflows/lint.yml/badge.svg)](https://github.com/erliona/dating/actions/workflows/lint.yml)
-[![Docker Build](https://github.com/erliona/dating/actions/workflows/docker-build.yml/badge.svg)](https://github.com/erliona/dating/actions/workflows/docker-build.yml)
-[![Deploy](https://github.com/erliona/dating/actions/workflows/deploy-microservices.yml/badge.svg)](https://github.com/erliona/dating/actions/workflows/deploy-microservices.yml)
 
 ---
 
@@ -119,16 +116,21 @@ dating/
 ├── gateway/             # API Gateway
 │   └── main.py         # Маршрутизация
 │
-├── webapp/              # Frontend (HTML/CSS/JS)
+├── webapp/              # Frontend (Vue 3 + Vite + Pinia)
 │   ├── index.html      # Главная страница
 │   ├── admin.html      # Админ панель
 │   ├── css/            # Стили
 │   ├── js/             # JavaScript
 │   └── nginx.conf      # Конфигурация Nginx
 │
-│   ├── src/            # React компоненты
-│   ├── package.json    # Next.js 15.5.4, React 19
-│   └── ...
+│   ├── src/            # Vue компоненты
+│   │   ├── components/ # Переиспользуемые компоненты
+│   │   ├── views/      # Страницы приложения
+│   │   ├── stores/     # Pinia stores
+│   │   ├── composables/# Композируемые функции
+│   │   └── router/     # Vue Router
+│   ├── package.json    # Vue 3.4.0, Vite 5.0.0, Pinia 2.1.0
+│   └── vite.config.js  # Конфигурация Vite
 │
 ├── tests/               # Тесты (18 файлов)
 │   ├── unit/           # Unit тесты

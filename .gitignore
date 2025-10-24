@@ -80,9 +80,7 @@ webapp/*_old.*
 =*
 coverage.xml
 
-# Next.js
-webapp/.next/
-webapp/out/
+# Vue 3 + Vite
 webapp/node_modules/
 webapp/.env*.local
 
