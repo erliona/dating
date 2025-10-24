@@ -96,6 +96,9 @@ const handleLogin = async () => {
     // Show what we got from Telegram
     showAlert(`Данные Telegram: ${telegramData ? 'получены' : 'не получены'}`)
     
+    // Show detailed Telegram data
+    showAlert(`User: ${telegramData?.user ? 'есть' : 'нет'}, initData: ${telegramData?.initData ? 'есть' : 'нет'}`)
+    
     if (!telegramData?.user) {
       console.error('No user data in telegramData:', telegramData)
       console.log('Telegram WebApp not properly initialized. This might be a development environment.')
@@ -134,6 +137,38 @@ const handleLogin = async () => {
       }
       
       showAlert('Ошибка: не удалось получить данные Telegram')
+      return
+    }
+    
+    // Check if we have user but no initData (should use mock data)
+    if (telegramData.user && !telegramData.initData) {
+      showAlert('🧪 Пользователь есть, но initData пустой. Используем тестовые данные...')
+      
+      const mockAuthData = {
+        init_data: 'user=%7B%22id%22%3A123456789%2C%22first_name%22%3A%22Test%22%2C%22last_name%22%3A%22User%22%2C%22username%22%3A%22testuser%22%2C%22language_code%22%3A%22en%22%7D&chat_instance=-123456789&chat_type=sender&auth_date=' + Math.floor(Date.now() / 1000) + '&hash=mock_hash',
+        bot_token: '8302871321:AAGDRnSDYdYHeEOqtEoKZVYLCbBlI2GBYMM'
+      }
+      
+      console.log('Mock auth data:', mockAuthData)
+      showAlert('📤 Отправляем запрос на сервер...')
+      
+      try {
+        await userStore.login(mockAuthData)
+        
+        showAlert('✅ Вход успешен! Переходим дальше...')
+        
+        // Redirect based on profile completion
+        if (userStore.isProfileComplete) {
+          router.push('/discovery')
+        } else {
+          router.push('/onboarding')
+        }
+      } catch (error) {
+        console.error('Mock login error:', error)
+        showAlert(`❌ Ошибка входа: ${error.response?.data?.error || error.message}`)
+      } finally {
+        loading.value = false
+      }
       return
     }
 
