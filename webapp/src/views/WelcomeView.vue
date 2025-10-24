@@ -109,8 +109,7 @@ const handleLogin = async () => {
         showAlert('🧪 Используем тестовые данные...')
         
         const mockAuthData = {
-          init_data: 'user=%7B%22id%22%3A123456789%2C%22first_name%22%3A%22Test%22%2C%22last_name%22%3A%22User%22%2C%22username%22%3A%22testuser%22%2C%22language_code%22%3A%22en%22%7D&chat_instance=-123456789&chat_type=sender&auth_date=' + Math.floor(Date.now() / 1000) + '&hash=mock_hash',
-          bot_token: process.env.VUE_APP_BOT_TOKEN || 'test_token'
+          init_data: 'user=%7B%22id%22%3A123456789%2C%22first_name%22%3A%22Test%22%2C%22last_name%22%3A%22User%22%2C%22username%22%3A%22testuser%22%2C%22language_code%22%3A%22en%22%7D&chat_instance=-123456789&chat_type=sender&auth_date=' + Math.floor(Date.now() / 1000) + '&hash=mock_hash'
         }
         
         console.log('Mock auth data:', mockAuthData)
@@ -145,8 +144,7 @@ const handleLogin = async () => {
       showAlert('🧪 Пользователь есть, но initData пустой. Используем тестовые данные...')
       
       const mockAuthData = {
-        init_data: 'user=%7B%22id%22%3A123456789%2C%22first_name%22%3A%22Test%22%2C%22last_name%22%3A%22User%22%2C%22username%22%3A%22testuser%22%2C%22language_code%22%3A%22en%22%7D&chat_instance=-123456789&chat_type=sender&auth_date=' + Math.floor(Date.now() / 1000) + '&hash=mock_hash',
-        bot_token: process.env.VUE_APP_BOT_TOKEN || 'test_token'
+        init_data: 'user=%7B%22id%22%3A123456789%2C%22first_name%22%3A%22Test%22%2C%22last_name%22%3A%22User%22%2C%22username%22%3A%22testuser%22%2C%22language_code%22%3A%22en%22%7D&chat_instance=-123456789&chat_type=sender&auth_date=' + Math.floor(Date.now() / 1000) + '&hash=mock_hash'
       }
       
       console.log('Mock auth data:', mockAuthData)
@@ -174,8 +172,7 @@ const handleLogin = async () => {
 
     // Prepare data for authentication
     const authData = {
-      init_data: telegramData.raw_data || telegramData.initData,
-      bot_token: telegramData.bot_token || process.env.VUE_APP_BOT_TOKEN || 'test_token'
+      init_data: telegramData.raw_data || telegramData.initData
     }
     
     console.log('Auth data:', authData)

@@ -44,21 +44,26 @@ async def validate_telegram_init_data(request: web.Request) -> web.Response:
 
     POST /auth/validate
     Body: {
-        "init_data": "telegram_init_data_string",
-        "bot_token": "bot_token"
+        "init_data": "telegram_init_data_string"
     }
     """
     try:
         data = await request.json()
         init_data = data.get("init_data")
-        bot_token = data.get("bot_token")
 
-        if not init_data or not bot_token:
+        if not init_data:
             return web.json_response(
-                {"error": "Missing init_data or bot_token"}, status=400
+                {"error": "Missing init_data"}, status=400
             )
 
-        # Validate initData
+        # Get bot token from server environment (not from client!)
+        bot_token = request.app["config"].get("bot_token")
+        if not bot_token:
+            return web.json_response(
+                {"error": "Bot token not configured"}, status=500
+            )
+
+        # Validate initData using server's bot token
         user_data = validate_telegram_webapp_init_data(init_data, bot_token)
 
         # Generate JWT token pair (access + refresh)
@@ -312,6 +317,7 @@ if __name__ == "__main__":
     
     config = {
         "jwt_secret": jwt_secret,
+        "bot_token": os.getenv("BOT_TOKEN"),
         "host": os.getenv("AUTH_SERVICE_HOST", "0.0.0.0"),
         "port": int(os.getenv("AUTH_SERVICE_PORT", 8081)),
     }
