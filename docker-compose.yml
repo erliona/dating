@@ -345,14 +345,22 @@ services:
       context: .
       dockerfile: gateway/Dockerfile
     depends_on:
-      - auth-service
-      - profile-service
-      - discovery-service
-      - media-service
-      - chat-service
-      - admin-service
-      - notification-service
-      - traefik
+      auth-service:
+        condition: service_healthy
+      profile-service:
+        condition: service_healthy
+      discovery-service:
+        condition: service_healthy
+      media-service:
+        condition: service_healthy
+      chat-service:
+        condition: service_healthy
+      admin-service:
+        condition: service_healthy
+      notification-service:
+        condition: service_healthy
+      traefik:
+        condition: service_healthy
     environment:
       GATEWAY_HOST: 0.0.0.0
       GATEWAY_PORT: ${GATEWAY_PORT:-8080}
@@ -395,8 +403,10 @@ services:
       context: .
       dockerfile: Dockerfile
     depends_on:
-      - api-gateway
-      - db
+      api-gateway:
+        condition: service_healthy
+      db:
+        condition: service_healthy
     environment:
       BOT_TOKEN: ${BOT_TOKEN}
       BOT_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}

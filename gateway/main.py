@@ -145,12 +145,27 @@ def create_app(config: dict) -> web.Application:
     app.middlewares.append(correlation_middleware)
     
     # Setup CORS
+    # Configure CORS with multiple origins
+    allowed_origins = [
+        "https://web.telegram.org",
+        "https://telegram.org",
+        f"https://{os.getenv('DOMAIN', 'localhost')}",
+        f"http://{os.getenv('DOMAIN', 'localhost')}",
+        "http://localhost:3000",  # Development
+        "http://localhost:5173",  # Vite dev server
+    ]
+    
+    # Add additional origins from environment
+    extra_origins = os.getenv('CORS_ORIGINS', '').split(',')
+    allowed_origins.extend([origin.strip() for origin in extra_origins if origin.strip()])
+    
     cors = cors_setup(app, defaults={
         "*": ResourceOptions(
             allow_credentials=True,
             expose_headers="*",
             allow_headers="*",
-            allow_methods="*"
+            allow_methods="*",
+            allow_origins=allowed_origins
         )
     })
     

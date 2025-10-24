@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import axios from 'axios'
+import { useNavigation } from './useNavigation'
 
 const api = axios.create({
   baseURL: '/v1',
@@ -47,9 +48,16 @@ api.interceptors.response.use(
         case 'AUTH_001':
         case 'AUTH_002':
         case 'AUTH_003':
-          // Authentication errors
+          // Authentication errors - use Vue Router for navigation
           localStorage.removeItem('jwt_token')
-          window.location.href = '/'
+          // Use navigation composable for proper routing
+          try {
+            const { handleAuthError } = useNavigation()
+            handleAuthError()
+          } catch {
+            // Fallback if composable not available
+            window.location.href = '/'
+          }
           break
           
         case 'RATE_001':

@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from aiohttp import web
 
-from core.middleware.error_handler import error_handler_middleware
+from core.middleware.error_handling import error_handling_middleware
 from core.middleware.tracing import tracing_middleware
 from core.middleware.correlation import correlation_middleware
 from core.middleware.request_logging import user_context_middleware, request_logging_middleware
 from core.middleware.metrics_middleware import metrics_middleware
 from core.middleware.audit_logging import audit_logging_middleware
 from core.middleware.jwt_middleware import jwt_middleware, admin_jwt_middleware
+from core.middleware.service_rate_limiters import service_rate_limiting_middleware
 
 
 def setup_standard_middleware_stack(app: web.Application, service_name: str, use_auth: bool = True, use_audit: bool = True) -> None:
@@ -29,7 +30,7 @@ def setup_standard_middleware_stack(app: web.Application, service_name: str, use
     # Standard middleware order (order matters!):
     
     # 1. Error handler - must be first to catch all exceptions
-    app.middlewares.append(error_handler_middleware)
+    app.middlewares.append(error_handling_middleware)
     
     # 2. Distributed tracing - extract/generate trace context
     app.middlewares.append(tracing_middleware)
@@ -43,14 +44,17 @@ def setup_standard_middleware_stack(app: web.Application, service_name: str, use
     # 5. Request logging - log all requests with context
     app.middlewares.append(request_logging_middleware)
     
-    # 6. Metrics collection - collect HTTP metrics
+    # 6. Rate limiting - protect against abuse
+    app.middlewares.append(service_rate_limiting_middleware)
+    
+    # 7. Metrics collection - collect HTTP metrics
     app.middlewares.append(metrics_middleware)
     
-    # 7. Audit logging - log critical operations (optional)
+    # 8. Audit logging - log critical operations (optional)
     if use_audit:
         app.middlewares.append(audit_logging_middleware)
     
-    # 8. JWT authentication - validate tokens (optional, must be last)
+    # 9. JWT authentication - validate tokens (optional, must be last)
     if use_auth:
         app.middlewares.append(jwt_middleware)
 
