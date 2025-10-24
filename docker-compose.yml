@@ -93,6 +93,7 @@ services:
       AUTH_SERVICE_HOST: 0.0.0.0
       AUTH_SERVICE_PORT: ${AUTH_SERVICE_PORT:-8081}
       BOT_TOKEN: ${BOT_TOKEN}
+      DATA_SERVICE_URL: http://data-service:${DATA_SERVICE_PORT:-8088}
     ports:
       - "${AUTH_SERVICE_PORT:-8081}:${AUTH_SERVICE_PORT:-8081}"
     healthcheck:

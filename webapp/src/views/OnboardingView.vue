@@ -49,6 +49,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { useTelegram } from '../composables/useTelegram'
+import { useApi } from '../composables/useApi'
 
 // Import step components
 import StepBasicInfo from '../components/onboarding/StepBasicInfo.vue'
@@ -61,6 +62,7 @@ import StepPhotos from '../components/onboarding/StepPhotos.vue'
 const router = useRouter()
 const userStore = useUserStore()
 const { hapticFeedback } = useTelegram()
+const { api } = useApi()
 
 const currentStep = ref(1)
 const totalSteps = 6
@@ -148,8 +150,15 @@ const completeOnboarding = async () => {
   loading.value = true
   
   try {
-    // Create profile
-    await userStore.updateProfile(formData.value)
+    // Prepare profile data with user_id
+    const profileData = {
+      ...formData.value,
+      user_id: userStore.user.id  // Use internal DB user ID
+    }
+    
+    // Create profile via API (POST, not PUT)
+    const response = await api.post('/profiles', profileData)
+    userStore.profile = response.data
     
     hapticFeedback('notification')
     

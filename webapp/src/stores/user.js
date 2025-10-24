@@ -50,9 +50,10 @@ export const useUserStore = defineStore('user', () => {
       profile.value = response.data.profile
       preferences.value = response.data.preferences
       
-      // Store JWT token
-      if (response.data.token) {
-        localStorage.setItem('jwt_token', response.data.token)
+      // Store JWT token (handle both field names for compatibility)
+      const token = response.data.token || response.data.access_token
+      if (token) {
+        localStorage.setItem('jwt_token', token)
       }
       
       return response.data

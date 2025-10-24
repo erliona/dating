@@ -1044,6 +1044,49 @@ async def get_matches_handler(request: web.Request) -> web.Response:
         return web.json_response({"error": "Internal server error"}, status=500)
 
 
+async def create_or_update_user_handler(request: web.Request) -> web.Response:
+    """Create or update user record.
+    
+    POST /data/users/create_or_update
+    Body: {
+        "tg_id": int,
+        "username": str (optional),
+        "first_name": str (optional),
+        "last_name": str (optional),
+        "language_code": str (optional),
+        "is_premium": bool (optional)
+    }
+    """
+    try:
+        data = await request.json()
+        session_maker = request.app["session_maker"]
+        
+        async with session_maker() as session:
+            from bot.repository import ProfileRepository
+            repository = ProfileRepository(session)
+            
+            user = await repository.create_or_update_user(
+                tg_id=data["tg_id"],
+                username=data.get("username"),
+                first_name=data.get("first_name"),
+                language_code=data.get("language_code"),
+                is_premium=data.get("is_premium", False)
+            )
+            
+            return web.json_response({
+                "id": user.id,
+                "tg_id": user.tg_id,
+                "username": user.username,
+                "first_name": user.first_name,
+                "last_name": data.get("last_name"),  # Store in user data if needed
+                "created_at": user.created_at.isoformat(),
+                "updated_at": user.updated_at.isoformat(),
+            })
+    except Exception as e:
+        logger.error(f"Error creating/updating user: {e}", exc_info=True)
+        return web.json_response({"error": str(e)}, status=500)
+
+
 async def health_handler(request: web.Request) -> web.Response:
     """Health check endpoint."""
     return web.json_response({"status": "healthy", "service": "data-service"})
@@ -1103,6 +1146,7 @@ def create_app(config: dict) -> web.Application:
     app.router.add_get("/data/users/{user_id}", get_user_handler)
     app.router.add_get("/data/users", list_users_handler)
     app.router.add_put("/data/users/{user_id}", update_user_handler)
+    app.router.add_post("/data/users/create_or_update", create_or_update_user_handler)
     
     # Statistics routes
     app.router.add_get("/data/stats", get_stats_handler)

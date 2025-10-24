@@ -58,171 +58,46 @@ const { getTelegramData, showAlert, initTelegram, isReady } = useTelegram()
 
 const loading = ref(false)
 
-onMounted(() => {
-  console.log('WelcomeView mounted')
-  
-  // Force initialization
-  initTelegram()
-  
-  // Make handleLogin available globally
-  window.handleLogin = handleLogin
-  
-  console.log('WelcomeView ready')
-  
-  // Test Vue reactivity
-  setTimeout(() => {
-    console.log('Vue test - loading value:', loading.value)
-    console.log('Vue test - button element:', document.querySelector('.welcome-btn'))
-  }, 1000)
-})
-
 const handleLogin = async () => {
-  console.log('🚀 handleLogin called!')
-  
-  // Show immediate feedback
-  showAlert('🚀 Начинаем вход...')
-  
-  if (loading.value) {
-    console.log('Already loading, ignoring click')
-    return
-  }
+  if (loading.value) return
   
   loading.value = true
   
   try {
     const telegramData = getTelegramData()
-    console.log('Telegram data:', telegramData)
     
-    // Show what we got from Telegram
-    showAlert(`Данные Telegram: ${telegramData ? 'получены' : 'не получены'}`)
-    
-    // Show detailed Telegram data
-    showAlert(`User: ${telegramData?.user ? 'есть' : 'нет'}, initData: ${telegramData?.initData ? 'есть' : 'нет'}`)
-    
-    if (!telegramData?.user) {
-      console.error('No user data in telegramData:', telegramData)
-      console.log('Telegram WebApp not properly initialized. This might be a development environment.')
-      
-      // For development/testing, create mock data
-      if (telegramData.initData === '') {
-        console.log('Using mock data for development')
-        showAlert('🧪 Используем тестовые данные...')
-        
-        const mockAuthData = {
-          init_data: 'user=%7B%22id%22%3A123456789%2C%22first_name%22%3A%22Test%22%2C%22last_name%22%3A%22User%22%2C%22username%22%3A%22testuser%22%2C%22language_code%22%3A%22en%22%7D&chat_instance=-123456789&chat_type=sender&auth_date=' + Math.floor(Date.now() / 1000) + '&hash=mock_hash'
-        }
-        
-        console.log('Mock auth data:', mockAuthData)
-        showAlert('📤 Отправляем запрос на сервер...')
-        
-        try {
-          await userStore.login(mockAuthData)
-          
-          showAlert('✅ Вход успешен! Переходим дальше...')
-          
-          // Redirect based on profile completion
-          if (userStore.isProfileComplete) {
-            router.push('/discovery')
-          } else {
-            router.push('/onboarding')
-          }
-        } catch (error) {
-          console.error('Mock login error:', error)
-          showAlert(`❌ Ошибка входа: ${error.response?.data?.error || error.message}`)
-        } finally {
-          loading.value = false
-        }
-        return
-      }
-      
+    // Validate Telegram data
+    if (!telegramData?.initData) {
       showAlert('Ошибка: не удалось получить данные Telegram')
-      return
-    }
-    
-    // Check if we have user but no initData (should use mock data)
-    if (telegramData.user && !telegramData.initData) {
-      showAlert('🧪 Пользователь есть, но initData пустой. Используем тестовые данные...')
-      
-      const mockAuthData = {
-        init_data: 'user=%7B%22id%22%3A123456789%2C%22first_name%22%3A%22Test%22%2C%22last_name%22%3A%22User%22%2C%22username%22%3A%22testuser%22%2C%22language_code%22%3A%22en%22%7D&chat_instance=-123456789&chat_type=sender&auth_date=' + Math.floor(Date.now() / 1000) + '&hash=mock_hash'
-      }
-      
-      console.log('Mock auth data:', mockAuthData)
-      showAlert('📤 Отправляем запрос на сервер...')
-      
-      try {
-        await userStore.login(mockAuthData)
-        
-        showAlert('✅ Вход успешен! Переходим дальше...')
-        
-        // Redirect based on profile completion
-        if (userStore.isProfileComplete) {
-          router.push('/discovery')
-        } else {
-          router.push('/onboarding')
-        }
-      } catch (error) {
-        console.error('Mock login error:', error)
-        showAlert(`❌ Ошибка входа: ${error.response?.data?.error || error.message}`)
-      } finally {
-        loading.value = false
-      }
+      loading.value = false
       return
     }
 
-    // Prepare data for authentication
+    // Prepare auth data
     const authData = {
-      init_data: telegramData.raw_data || telegramData.initData
+      init_data: telegramData.initData
     }
     
-    console.log('Auth data:', authData)
-    showAlert('📤 Отправляем запрос на сервер...')
+    // Login (sets user, profile, preferences in store)
+    await userStore.login(authData)
     
-    try {
-      await userStore.login(authData)
-      
-      showAlert('✅ Вход успешен! Переходим дальше...')
-      
-      // Show profile completion status
-      showAlert(`Профиль завершен: ${userStore.isProfileComplete ? 'да' : 'нет'}`)
-      
-      // Redirect based on profile completion
-      if (userStore.isProfileComplete) {
-        showAlert('Переходим в Discovery...')
-        // Try multiple redirect methods for Telegram Mini App
-        setTimeout(() => {
-          try {
-            window.location.href = '/discovery'
-          } catch (e) {
-            console.error('Redirect failed:', e)
-            showAlert('Ошибка перенаправления')
-          }
-        }, 1000)
-      } else {
-        showAlert('Переходим в Onboarding...')
-        // Try multiple redirect methods for Telegram Mini App
-        setTimeout(() => {
-          try {
-            window.location.href = '/onboarding'
-          } catch (e) {
-            console.error('Redirect failed:', e)
-            showAlert('Ошибка перенаправления')
-          }
-        }, 1000)
-      }
-    } catch (error) {
-      console.error('Login error:', error)
-      showAlert(`❌ Ошибка входа: ${error.response?.data?.error || error.message}`)
-    } finally {
-      loading.value = false
+    // Redirect based on profile completion
+    if (userStore.isProfileComplete) {
+      await router.push('/discovery')
+    } else {
+      await router.push('/onboarding')
     }
-    
   } catch (error) {
-    console.error('Unexpected error in handleLogin:', error)
-    showAlert(`❌ Неожиданная ошибка: ${error.message}`)
+    console.error('Login error:', error)
+    showAlert(`Ошибка входа: ${error.response?.data?.error || error.message}`)
     loading.value = false
   }
 }
+
+onMounted(() => {
+  // Initialize Telegram WebApp
+  initTelegram()
+})
 </script>
 
 <style scoped>

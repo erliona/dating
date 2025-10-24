@@ -65,18 +65,54 @@ async def validate_telegram_init_data(request: web.Request) -> web.Response:
 
         # Validate initData using server's bot token
         user_data = validate_telegram_webapp_init_data(init_data, bot_token)
+        telegram_id = user_data.get("user", {}).get("id")
 
         # Generate JWT token pair (access + refresh)
-        user_id = user_data.get("user", {}).get("id")
         jwt_secret = request.app["config"].get("jwt_secret")
-        tokens = generate_token_pair(user_id, jwt_secret)
+        tokens = generate_token_pair(telegram_id, jwt_secret)
+
+        # Create or update user in database via data-service
+        data_service_url = request.app["config"].get("data_service_url")
+        user_payload = {
+            "tg_id": telegram_id,
+            "username": user_data.get("user", {}).get("username"),
+            "first_name": user_data.get("user", {}).get("first_name"),
+            "last_name": user_data.get("user", {}).get("last_name"),
+            "language_code": user_data.get("user", {}).get("language_code"),
+            "is_premium": user_data.get("user", {}).get("is_premium", False)
+        }
+        
+        import aiohttp
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"{data_service_url}/data/users/create_or_update",
+                json=user_payload
+            ) as resp:
+                if resp.status != 200:
+                    logger.error(f"Failed to create/update user: {await resp.text()}")
+                    return web.json_response({"error": "Failed to create user"}, status=500)
+                db_user = await resp.json()
+        
+        # Try to get existing profile
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{data_service_url}/data/profiles/{db_user['id']}"
+            ) as resp:
+                profile = await resp.json() if resp.status == 200 else None
+        
+        # Try to get preferences
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                f"{data_service_url}/data/preferences/{db_user['id']}"
+            ) as resp:
+                preferences = await resp.json() if resp.status == 200 else None
 
         # Record successful authentication
         record_auth_attempt(
             service="auth-service",
             result="success",
             method="telegram_webapp",
-            user_id=str(user_id)
+            user_id=str(telegram_id)
         )
         
         # Record JWT token creation
@@ -99,14 +135,14 @@ async def validate_telegram_init_data(request: web.Request) -> web.Response:
             event_type="user_login",
             service="auth-service",
             severity="info",
-            user_id=str(user_id),
+            user_id=str(telegram_id),
             method="telegram_webapp"
         )
         
         # Audit log successful login
         audit_log(
             operation="user_login",
-            user_id=str(user_id),
+            user_id=str(telegram_id),
             service="auth-service",
             details={
                 "method": "telegram_webapp",
@@ -120,15 +156,21 @@ async def validate_telegram_init_data(request: web.Request) -> web.Response:
             request=request
         )
 
-        return web.json_response(
-            {
-                "access_token": tokens["access_token"],
-                "refresh_token": tokens["refresh_token"],
-                "user_id": user_id,
-                "username": user_data.get("user", {}).get("username"),
-                "expires_in": 3600,  # 1 hour in seconds
-            }
-        )
+        return web.json_response({
+            "token": tokens["access_token"],
+            "access_token": tokens["access_token"],
+            "refresh_token": tokens["refresh_token"],
+            "user": {
+                "id": db_user["id"],  # Internal DB ID
+                "telegram_id": telegram_id,
+                "username": db_user.get("username"),
+                "first_name": db_user.get("first_name"),
+                "last_name": db_user.get("last_name"),
+            },
+            "profile": profile,  # Will be None for new users
+            "preferences": preferences,  # Will be None for new users
+            "expires_in": 3600,
+        })
 
     except ValidationError as e:
         logger.warning(f"Validation failed: {e}")
@@ -318,6 +360,7 @@ if __name__ == "__main__":
     config = {
         "jwt_secret": jwt_secret,
         "bot_token": os.getenv("BOT_TOKEN"),
+        "data_service_url": os.getenv("DATA_SERVICE_URL", "http://data-service:8088"),
         "host": os.getenv("AUTH_SERVICE_HOST", "0.0.0.0"),
         "port": int(os.getenv("AUTH_SERVICE_PORT", 8081)),
     }
