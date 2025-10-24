@@ -88,6 +88,65 @@ async def get_candidates(request: web.Request) -> web.Response:
             if request.query.get(param):
                 params[param] = request.query.get(param)
         
+        # Get user profile and preferences for smart matching
+        profile_url = f"{data_service_url}/data/profiles/{user_id}"
+        profile_result = await data_service_breaker.call(
+            _call_data_service,
+            profile_url,
+            "GET",
+            None,
+            None,
+            request,
+            fallback=lambda *args: {}
+        )
+        
+        preferences_url = f"{data_service_url}/data/user-preferences/{user_id}"
+        preferences_result = await data_service_breaker.call(
+            _call_data_service,
+            preferences_url,
+            "GET",
+            None,
+            None,
+            request,
+            fallback=lambda *args: {}
+        )
+        
+        # Get user's previous interactions to avoid showing same people
+        interactions_url = f"{data_service_url}/data/interactions/{user_id}"
+        interactions_result = await data_service_breaker.call(
+            _call_data_service,
+            interactions_url,
+            "GET",
+            None,
+            None,
+            request,
+            fallback=lambda *args: {"interactions": []}
+        )
+        
+        seen_user_ids = [interaction['target_id'] for interaction in interactions_result.get('interactions', [])]
+        params['exclude_user_ids'] = seen_user_ids + [user_id]  # Exclude self and already seen
+        
+        # Add smart filters based on user preferences
+        profile = profile_result.get('profile', {})
+        preferences = preferences_result.get('preferences', {})
+        
+        if preferences.get('preferred_gender'):
+            params['gender'] = preferences['preferred_gender']
+        elif profile.get('orientation'):
+            params['gender'] = profile['orientation']
+            
+        if preferences.get('min_age'):
+            params['age_min'] = preferences['min_age']
+        if preferences.get('max_age'):
+            params['age_max'] = preferences['max_age']
+        if preferences.get('max_distance_km'):
+            params['max_distance_km'] = preferences['max_distance_km']
+        else:
+            params['max_distance_km'] = 50  # Default radius
+        
+        # Get more candidates for better filtering
+        params['limit'] = limit * 2
+        
         # Use circuit breaker + retry with correlation ID propagation
         result = await data_service_breaker.call(
             _call_data_service,
@@ -106,7 +165,64 @@ async def get_candidates(request: web.Request) -> web.Response:
                 details=result
             )
         
-        return web.json_response(result)
+        candidates = result.get("candidates", [])
+        
+        # If we have less than 5 candidates, expand search radius
+        if len(candidates) < 5:
+            expanded_params = params.copy()
+            expanded_params['max_distance_km'] = min(expanded_params.get('max_distance_km', 50) * 2, 200)
+            expanded_params['exclude_user_ids'] = seen_user_ids + [user_id]  # Don't include already fetched
+            
+            expanded_result = await data_service_breaker.call(
+                _call_data_service,
+                f"{data_service_url}/data/candidates",
+                "GET",
+                None,
+                expanded_params,
+                request,
+                fallback=lambda *args: {"candidates": []}
+            )
+            
+            additional_candidates = expanded_result.get("candidates", [])
+            
+            # Merge and deduplicate
+            existing_ids = {c['id'] for c in candidates}
+            for candidate in additional_candidates:
+                if candidate['id'] not in existing_ids:
+                    candidates.append(candidate)
+                    existing_ids.add(candidate['id'])
+        
+        # Smart sorting: verified first, then by distance, then by interests match, then random
+        def sort_key(candidate):
+            verified_bonus = 1000 if candidate.get('is_verified', False) else 0
+            distance_penalty = candidate.get('distance', 999) * 10
+            
+            # Interest matching bonus
+            interest_bonus = 0
+            if profile.get('interests') and candidate.get('interests'):
+                common_interests = set(profile['interests']) & set(candidate['interests'])
+                interest_bonus = len(common_interests) * 50
+            
+            # Random factor for variety
+            random_factor = hash(str(candidate['id'])) % 100
+            
+            return verified_bonus - distance_penalty + interest_bonus + random_factor
+        
+        candidates.sort(key=sort_key, reverse=True)
+        
+        # Limit to requested number
+        candidates = candidates[:limit]
+        
+        # Record metrics
+        record_interaction()
+        update_active_users()
+        
+        return web.json_response({
+            'candidates': candidates,
+            'total': len(candidates),
+            'cursor': result.get('cursor'),
+            'search_radius_km': params.get('max_distance_km', 50)
+        })
 
     except ValueError as e:
         raise ValidationError("Invalid parameters", details={"error": str(e)})

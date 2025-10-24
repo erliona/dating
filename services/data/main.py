@@ -65,6 +65,8 @@ class DataService:
             "allow_messages_from": profile.allow_messages_from,
             "is_visible": profile.is_visible,
             "is_complete": profile.is_complete,
+            "is_verified": getattr(profile, 'is_verified', False),
+            "verification_status": getattr(profile, 'verification_status', 'none'),
             "created_at": profile.created_at.isoformat() if profile.created_at else None,
             "updated_at": profile.updated_at.isoformat() if profile.updated_at else None,
         }
@@ -435,6 +437,247 @@ class DataService:
         count = await repository.get_profiles_count()
         
         return {"count": count}
+    
+    # Chat operations
+    async def get_conversations(self, user_id: int) -> list:
+        """Get user conversations."""
+        from sqlalchemy import select, or_
+        from bot.db import Conversation
+        
+        stmt = select(Conversation).where(
+            or_(Conversation.user1_id == user_id, Conversation.user2_id == user_id)
+        ).order_by(Conversation.last_message_at.desc())
+        
+        result = await self.session.execute(stmt)
+        conversations = result.scalars().all()
+        
+        return [
+            {
+                "id": conv.id,
+                "match_id": conv.match_id,
+                "user1_id": conv.user1_id,
+                "user2_id": conv.user2_id,
+                "last_message_at": conv.last_message_at.isoformat() if conv.last_message_at else None,
+                "unread_count": conv.unread_count_user1 if conv.user1_id == user_id else conv.unread_count_user2,
+                "is_blocked": conv.is_blocked,
+                "created_at": conv.created_at.isoformat(),
+            }
+            for conv in conversations
+        ]
+    
+    async def get_messages(self, conversation_id: int, limit: int = 50, offset: int = 0) -> list:
+        """Get messages for a conversation."""
+        from sqlalchemy import select
+        from bot.db import Message
+        
+        stmt = select(Message).where(
+            Message.conversation_id == conversation_id
+        ).order_by(Message.created_at.desc()).limit(limit).offset(offset)
+        
+        result = await self.session.execute(stmt)
+        messages = result.scalars().all()
+        
+        return [
+            {
+                "id": msg.id,
+                "conversation_id": msg.conversation_id,
+                "sender_id": msg.sender_id,
+                "content": msg.content,
+                "content_type": msg.content_type,
+                "media_url": msg.media_url,
+                "is_read": msg.is_read,
+                "created_at": msg.created_at.isoformat(),
+            }
+            for msg in messages
+        ]
+    
+    async def create_message(self, conversation_id: int, sender_id: int, content: str, content_type: str = "text") -> Dict[str, Any]:
+        """Create a new message."""
+        from bot.db import Message
+        from datetime import datetime
+        
+        message = Message(
+            conversation_id=conversation_id,
+            sender_id=sender_id,
+            content=content,
+            content_type=content_type,
+            created_at=datetime.utcnow()
+        )
+        
+        self.session.add(message)
+        await self.session.commit()
+        await self.session.refresh(message)
+        
+        return {
+            "id": message.id,
+            "conversation_id": message.conversation_id,
+            "sender_id": message.sender_id,
+            "content": message.content,
+            "content_type": message.content_type,
+            "created_at": message.created_at.isoformat(),
+        }
+    
+    # Notifications operations
+    async def create_notification(self, user_id: int, notification_type: str, title: str, body: str, data: Dict = None) -> Dict[str, Any]:
+        """Create a new notification."""
+        from bot.db import Notification
+        from datetime import datetime
+        
+        notification = Notification(
+            user_id=user_id,
+            notification_type=notification_type,
+            title=title,
+            body=body,
+            data=data or {},
+            created_at=datetime.utcnow()
+        )
+        
+        self.session.add(notification)
+        await self.session.commit()
+        await self.session.refresh(notification)
+        
+        return {
+            "id": notification.id,
+            "user_id": notification.user_id,
+            "notification_type": notification.notification_type,
+            "title": notification.title,
+            "body": notification.body,
+            "is_read": notification.is_read,
+            "created_at": notification.created_at.isoformat(),
+        }
+    
+    # Reports operations
+    async def create_report(self, reporter_id: int, reported_user_id: int, report_type: str, reason: str = None, context: str = "profile", context_id: int = None) -> Dict[str, Any]:
+        """Create a new report."""
+        from bot.db import Report
+        from datetime import datetime
+        
+        report = Report(
+            reporter_id=reporter_id,
+            reported_user_id=reported_user_id,
+            report_type=report_type,
+            reason=reason,
+            context=context,
+            context_id=context_id,
+            created_at=datetime.utcnow()
+        )
+        
+        self.session.add(report)
+        await self.session.commit()
+        await self.session.refresh(report)
+        
+        return {
+            "id": report.id,
+            "reporter_id": report.reporter_id,
+            "reported_user_id": report.reported_user_id,
+            "report_type": report.report_type,
+            "reason": report.reason,
+            "status": report.status,
+            "created_at": report.created_at.isoformat(),
+        }
+    
+    # User preferences operations
+    async def get_user_preferences(self, user_id: int) -> Optional[Dict[str, Any]]:
+        """Get user preferences."""
+        from sqlalchemy import select
+        from bot.db import UserPreferences
+        
+        stmt = select(UserPreferences).where(UserPreferences.user_id == user_id)
+        result = await self.session.execute(stmt)
+        preferences = result.scalar_one_or_none()
+        
+        if not preferences:
+            return None
+            
+        return {
+            "user_id": preferences.user_id,
+            "min_age": preferences.min_age,
+            "max_age": preferences.max_age,
+            "preferred_gender": preferences.preferred_gender,
+            "max_distance_km": preferences.max_distance_km,
+            "show_verified_only": preferences.show_verified_only,
+            "show_active_only": preferences.show_active_only,
+        }
+    
+    async def update_user_preferences(self, user_id: int, preferences_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update user preferences."""
+        from sqlalchemy import select
+        from bot.db import UserPreferences
+        from datetime import datetime
+        
+        stmt = select(UserPreferences).where(UserPreferences.user_id == user_id)
+        result = await self.session.execute(stmt)
+        preferences = result.scalar_one_or_none()
+        
+        if not preferences:
+            # Create new preferences
+            preferences = UserPreferences(
+                user_id=user_id,
+                min_age=preferences_data.get("min_age", 18),
+                max_age=preferences_data.get("max_age", 55),
+                preferred_gender=preferences_data.get("preferred_gender", "any"),
+                max_distance_km=preferences_data.get("max_distance_km", 50),
+                show_verified_only=preferences_data.get("show_verified_only", False),
+                show_active_only=preferences_data.get("show_active_only", False),
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow()
+            )
+            self.session.add(preferences)
+        else:
+            # Update existing preferences
+            for key, value in preferences_data.items():
+                if hasattr(preferences, key):
+                    setattr(preferences, key, value)
+            preferences.updated_at = datetime.utcnow()
+        
+        await self.session.commit()
+        await self.session.refresh(preferences)
+        
+        return {
+            "user_id": preferences.user_id,
+            "min_age": preferences.min_age,
+            "max_age": preferences.max_age,
+            "preferred_gender": preferences.preferred_gender,
+            "max_distance_km": preferences.max_distance_km,
+            "show_verified_only": preferences.show_verified_only,
+            "show_active_only": preferences.show_active_only,
+        }
+    
+    # Likes operations
+    async def get_user_likes(self, user_id: int) -> list:
+        """Get users who liked this user (for 'who liked you' feature)."""
+        from sqlalchemy import select
+        from bot.db import Like, User, Profile
+        
+        stmt = select(Like, User, Profile).join(
+            User, Like.liker_id == User.id
+        ).join(
+            Profile, User.id == Profile.user_id
+        ).where(
+            Like.liked_id == user_id
+        ).order_by(Like.created_at.desc())
+        
+        result = await self.session.execute(stmt)
+        likes = result.all()
+        
+        return [
+            {
+                "liker_id": like.liker_id,
+                "like_type": like.like_type,
+                "is_viewed": like.is_viewed,
+                "created_at": like.created_at.isoformat(),
+                "liker_name": profile.name,
+                "liker_age": self._calculate_age(profile.birth_date) if profile.birth_date else None,
+                "liker_photo": None,  # Will be populated by photo service
+            }
+            for like, user, profile in likes
+        ]
+    
+    def _calculate_age(self, birth_date) -> int:
+        """Calculate age from birth date."""
+        from datetime import date
+        today = date.today()
+        return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
 
 
 # API Handlers
