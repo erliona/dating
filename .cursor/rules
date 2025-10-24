@@ -130,3 +130,22 @@
       req = MatchRequest.model_validate(body)
       result = await make_match(req, request.app['db'])
       return web.json_response(MatchResponse.model_validate(result).model_dump())
+```
+
+# ==== Production Rules & Best Practices ====
+- **Migrations**: Always use full filename revision IDs (e.g., "007_create_chat_tables" not "007")
+- **Docker**: Always recreate containers when changing env vars (not just restart)
+- **Nginx**: Never include `events`/`http` blocks in `/etc/nginx/conf.d/` files - only `server` blocks
+- **Security**: Never commit secrets to git; use strong secrets: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
+- **Monitoring**: ALWAYS check Prometheus alerts after deployment: `./scripts/check_alerts.sh`
+- **Health**: Always run health checks after deployment: `./scripts/health_check.sh`
+- **Logs**: Check all service logs for errors: `docker compose logs --tail=20 | grep -E '(ERROR|WARN|Failed)'`
+- **Environment**: Verify env vars in containers: `docker compose exec service env | grep VARIABLE`
+- **Database**: Check migration status: `SELECT version_num FROM alembic_version;`
+- **Testing**: Test migrations locally before production deployment
+- **Documentation**: Update README/changelog for all significant changes
+- **Git**: Always commit changes with descriptive messages
+- **Performance**: Monitor resource usage and optimize queries
+- **Reliability**: Use health checks, retries, circuit breakers
+- **Alerts**: Investigate ContainerDown, HighMemoryUsage, HighCPUUsage alerts immediately
+- **Production**: Never deploy on Friday evening; always have rollback plan
