@@ -170,6 +170,104 @@ async def health_check(request: web.Request) -> web.Response:
     return web.json_response({"status": "healthy", "service": "profile"})
 
 
+async def get_current_profile(request: web.Request) -> web.Response:
+    """Get current user's profile (JWT-based).
+    
+    GET /profile
+    Headers: Authorization: Bearer <jwt_token>
+    """
+    try:
+        user_id = request.get("user_id")
+        if not user_id:
+            return web.json_response({"error": "Authentication required"}, status=401)
+        
+        # Call data service
+        result = await _call_data_service(
+            f"{DATA_SERVICE_URL}/data/profiles/{user_id}",
+            "GET",
+            request=request
+        )
+        
+        # Record metrics
+        record_profile_created(
+            service="profile-service",
+            result="success",
+            user_id=str(user_id)
+        )
+        
+        # Log audit
+        audit_log(
+            service="profile-service",
+            action="get_current_profile",
+            user_id=str(user_id),
+            request=request
+        )
+        
+        return web.json_response(result)
+        
+    except ExternalServiceError as e:
+        logger.error(f"Data service error in get_current_profile: {e}")
+        return web.json_response({"error": "Profile not found"}, status=404)
+    except Exception as e:
+        logger.error(f"Unexpected error in get_current_profile: {e}")
+        return web.json_response({"error": "Internal server error"}, status=500)
+
+
+async def update_current_profile(request: web.Request) -> web.Response:
+    """Update current user's profile (JWT-based).
+    
+    PUT /profile
+    Headers: Authorization: Bearer <jwt_token>
+    Body: { profile data }
+    """
+    try:
+        user_id = request.get("user_id")
+        if not user_id:
+            return web.json_response({"error": "Authentication required"}, status=401)
+        
+        data = await request.json()
+        
+        # Validate profile data
+        if not validate_profile_data(data):
+            return web.json_response({"error": "Invalid profile data"}, status=400)
+        
+        # Call data service
+        result = await _call_data_service(
+            f"{DATA_SERVICE_URL}/data/profiles/{user_id}",
+            "PUT",
+            data,
+            request
+        )
+        
+        # Record metrics
+        record_profile_updated(
+            service="profile-service",
+            result="success",
+            user_id=str(user_id)
+        )
+        
+        # Log audit
+        audit_log(
+            service="profile-service",
+            action="update_current_profile",
+            user_id=str(user_id),
+            details={"fields_updated": list(data.keys())},
+            request=request
+        )
+        
+        return web.json_response(result)
+        
+    except ValidationError as e:
+        logger.warning(f"Validation error in update_current_profile: {e}")
+        return web.json_response({"error": str(e)}, status=400)
+    except ExternalServiceError as e:
+        logger.error(f"Data service error in update_current_profile: {e}")
+        return web.json_response({"error": "Profile update failed"}, status=500)
+    except Exception as e:
+        logger.error(f"Unexpected error in update_current_profile: {e}")
+        return web.json_response({"error": "Internal server error"}, status=500)
+
+
 async def update_profile_progress(request: web.Request) -> web.Response:
     """Partial update of profile during onboarding.
     
@@ -323,8 +421,24 @@ def create_app(config: dict) -> web.Application:
 
     # Add routes
     app.router.add_get("/profiles/{user_id}", get_profile)
+    app.router.add_get("/profile", get_current_profile)  # JWT-based, no user_id in path
+    app.router.add_put("/profile", update_current_profile)  # JWT-based profile update
     app.router.add_post("/profiles", create_profile)
     app.router.add_patch("/profiles/progress", update_profile_progress)
+    
+    # Settings endpoints
+    from .settings import (
+        get_user_preferences, update_user_preferences,
+        get_notification_settings, update_notification_settings
+    )
+    app.router.add_get("/settings/preferences", get_user_preferences)
+    app.router.add_put("/settings/preferences", update_user_preferences)
+    app.router.add_get("/settings/notifications", get_notification_settings)
+    app.router.add_put("/settings/notifications", update_notification_settings)
+    
+    # Verification endpoints
+    from .verification import request_verification
+    app.router.add_post("/profile/verification/request", request_verification)
     app.router.add_get("/health", health_check)
     app.router.add_post("/sync-metrics", sync_metrics)
     
