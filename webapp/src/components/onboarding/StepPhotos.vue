@@ -78,16 +78,35 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import Button from '../common/Button.vue'
 
-const emit = defineEmits(['next', 'back', 'update-data'])
+const props = defineProps({
+  modelValue: {
+    type: Object,
+    required: true
+  }
+})
+
+const emit = defineEmits(['update:modelValue', 'next', 'back'])
+
+// Использовать computed для двусторонней привязки
+const formData = computed({
+  get: () => props.modelValue,
+  set: (value) => emit('update:modelValue', value)
+})
 
 const fileInput = ref(null)
-const photos = ref([null, null, null])
 const uploading = ref([false, false, false])
 const uploadProgress = ref([0, 0, 0])
 const currentPhotoIndex = ref(0)
+
+const photos = computed({
+  get: () => formData.value.photos || [null, null, null],
+  set: (value) => {
+    formData.value.photos = value
+  }
+})
 
 const isValid = computed(() => {
   return photos.value.every(photo => photo !== null)
@@ -99,7 +118,9 @@ const addPhoto = (index) => {
 }
 
 const removePhoto = (index) => {
-  photos.value[index] = null
+  const newPhotos = [...photos.value]
+  newPhotos[index] = null
+  photos.value = newPhotos
   uploadProgress.value[index] = 0
 }
 
@@ -134,11 +155,13 @@ const handleFileSelect = async (event) => {
     uploadProgress.value[index] = 100
 
     // Add photo to the slot
-    photos.value[index] = {
+    const newPhotos = [...photos.value]
+    newPhotos[index] = {
       url: photoUrl,
       id: Date.now() + index, // Temporary ID
       file: file
     }
+    photos.value = newPhotos
 
     uploading.value[index] = false
   } catch (error) {
@@ -169,7 +192,6 @@ const validateFile = (file) => {
 
 const handleNext = () => {
   if (isValid.value) {
-    emit('update-data', { photos: photos.value })
     emit('next')
   }
 }
@@ -177,11 +199,6 @@ const handleNext = () => {
 const handleBack = () => {
   emit('back')
 }
-
-// Watch for changes and emit updates
-watch(photos, (newPhotos) => {
-  emit('update-data', { photos: newPhotos })
-}, { deep: true })
 </script>
 
 <style scoped>

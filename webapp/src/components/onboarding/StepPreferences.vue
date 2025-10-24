@@ -105,34 +105,31 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { computed } from 'vue'
 import Button from '../common/Button.vue'
 
-const emit = defineEmits(['next', 'back', 'update-data'])
+const props = defineProps({
+  modelValue: {
+    type: Object,
+    required: true
+  }
+})
 
-const preferences = ref({
-  min_age: 18,
-  max_age: 35,
-  max_distance_km: 25,
-  verified_only: false,
-  online_only: false,
-  has_photos: true,
-  has_bio: false
+const emit = defineEmits(['update:modelValue', 'next', 'back'])
+
+// Использовать computed для двусторонней привязки
+const preferences = computed({
+  get: () => props.modelValue,
+  set: (value) => emit('update:modelValue', value)
 })
 
 const handleNext = () => {
-  emit('update-data', preferences.value)
   emit('next')
 }
 
 const handleBack = () => {
   emit('back')
 }
-
-// Watch for changes and emit updates
-watch(preferences, (newPreferences) => {
-  emit('update-data', newPreferences)
-}, { deep: true })
 </script>
 
 <style scoped>

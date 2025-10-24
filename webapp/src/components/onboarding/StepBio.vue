@@ -66,13 +66,22 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { computed } from 'vue'
 import Button from '../common/Button.vue'
 
-const emit = defineEmits(['next', 'back', 'update-data'])
+const props = defineProps({
+  modelValue: {
+    type: Object,
+    required: true
+  }
+})
 
-const formData = ref({
-  bio: ''
+const emit = defineEmits(['update:modelValue', 'next', 'back'])
+
+// Использовать computed для двусторонней привязки
+const formData = computed({
+  get: () => props.modelValue,
+  set: (value) => emit('update:modelValue', value)
 })
 
 const bioExamples = [
@@ -86,18 +95,12 @@ const useExample = (index) => {
 }
 
 const handleNext = () => {
-  emit('update-data', formData.value)
   emit('next')
 }
 
 const handleBack = () => {
   emit('back')
 }
-
-// Watch for changes and emit updates
-watch(formData, (newData) => {
-  emit('update-data', newData)
-}, { deep: true })
 </script>
 
 <style scoped>
