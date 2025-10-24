@@ -75,7 +75,7 @@ class TestImageProcessor:
     
     def test_validate_image_too_small(self):
         """Test validation of too small image."""
-        image_data = self.create_test_image(50, 50)
+        image_data = self.create_test_image(500, 500)
         assert self.processor.validate_image(image_data) is False
     
     def test_validate_image_too_large(self):

@@ -155,9 +155,9 @@ class ImageProcessor:
                 logger.warning(f"Unsupported format: {image.format}")
                 return False
             
-            # Check size (minimum 100x100, maximum 4000x4000)
+            # Check size (minimum 800x800, maximum 4000x4000)
             width, height = image.size
-            if width < 100 or height < 100:
+            if width < 800 or height < 800:
                 logger.warning(f"Image too small: {width}x{height}")
                 return False
             

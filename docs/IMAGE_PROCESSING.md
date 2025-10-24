@@ -8,7 +8,7 @@ The image processing pipeline provides comprehensive image optimization, securit
 
 ### 1. Image Validation
 - **Format Support**: JPEG, PNG, WEBP
-- **Size Limits**: 100x100 to 4000x4000 pixels
+- **Size Limits**: 800x800 to 4000x4000 pixels
 - **File Size**: Maximum 10MB
 - **Aspect Ratio**: Validates reasonable proportions
 
@@ -92,7 +92,7 @@ class ImageProcessor:
 
 ### Content Validation
 - **Format Verification**: Ensures valid image formats
-- **Size Validation**: Prevents oversized images
+- **Size Validation**: Prevents oversized images (800x800 minimum)
 - **Content Analysis**: Basic NSFW detection
 
 ### File Security
