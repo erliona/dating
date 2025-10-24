@@ -335,6 +335,11 @@ def create_app(config: dict) -> web.Application:
     # Serve admin panel static files
     app.router.add_static("/admin/", "services/admin/static/")
     
+    # Serve index.html for /admin/ root path
+    async def serve_admin_index(request):
+        return web.FileResponse("services/admin/static/index.html")
+    app.router.add_get("/admin/", serve_admin_index)
+    
     # Redirect /admin/login to /admin/ for browser compatibility
     async def redirect_login(request):
         return web.HTTPFound('/admin/')
@@ -354,12 +359,6 @@ def create_app(config: dict) -> web.Application:
     # Mount protected app under /admin/api
     app.add_subapp("/admin/api/", protected)
 
-    # Serve static files for admin panel
-    app.router.add_static(
-        "/admin-panel/",
-        path=os.path.join(os.path.dirname(__file__), "static"),
-        name="static",
-    )
 
     return app
 
