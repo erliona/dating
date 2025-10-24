@@ -85,8 +85,8 @@ async def proxy_request(
 async def route_auth(request: web.Request) -> web.Response:
     """Route to auth service."""
     auth_url = request.app["config"]["auth_service_url"]
-    # Strip /v1/auth prefix from path for internal routing
-    new_path = request.path.replace("/v1/auth", "", 1)
+    # Strip /v1 prefix and keep /auth prefix for internal routing
+    new_path = request.path.replace("/v1", "", 1)
     if not new_path:
         new_path = "/"
     logger.info(f"Routing auth request: {request.path} -> {new_path} (target: {auth_url})")
