@@ -98,6 +98,7 @@ async def route_profile(request: web.Request) -> web.Response:
     profile_url = request.app["config"]["profile_service_url"]
     # Strip /v1 prefix from path for internal routing
     new_path = request.path.replace("/v1/profile", "/profile", 1)
+    new_path = new_path.replace("/v1/profiles", "/profiles", 1)
     return await proxy_request(request, profile_url, path_override=new_path)
 
 
