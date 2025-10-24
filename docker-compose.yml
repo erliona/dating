@@ -344,12 +344,12 @@ services:
     labels:
       - "traefik.enable=true"
       # HTTP router - high priority for specific paths (excluding /api/profiles)
-      - "traefik.http.routers.api-gateway.rule=Host(`${DOMAIN:-localhost}`) && (PathPrefix(`/v1`) && !PathPrefix(`/v1/profiles`)) || Path(`/health`) || PathPrefix(`/admin-panel`) || PathPrefix(`/chat`)"
+      - "traefik.http.routers.api-gateway.rule=Host(`${DOMAIN:-localhost}`) && (PathPrefix(`/v1`) || Path(`/health`) || PathPrefix(`/admin-panel`) || PathPrefix(`/chat`))"
       - "traefik.http.routers.api-gateway.entrypoints=web"
       - "traefik.http.routers.api-gateway.priority=100"
       - "traefik.http.services.api-gateway.loadbalancer.server.port=${GATEWAY_PORT:-8080}"
       # HTTPS router - high priority for specific paths (excluding /api/profiles)
-      - "traefik.http.routers.api-gateway-secure.rule=Host(`${DOMAIN:-localhost}`) && (PathPrefix(`/v1`) && !PathPrefix(`/v1/profiles`)) || Path(`/health`) || PathPrefix(`/admin-panel`) || PathPrefix(`/chat`)"
+      - "traefik.http.routers.api-gateway-secure.rule=Host(`${DOMAIN:-localhost}`) && (PathPrefix(`/v1`) || Path(`/health`) || PathPrefix(`/admin-panel`) || PathPrefix(`/chat`))"
       - "traefik.http.routers.api-gateway-secure.entrypoints=websecure"
       - "traefik.http.routers.api-gateway-secure.priority=100"
       - "traefik.http.routers.api-gateway-secure.tls.certresolver=letsencrypt"
