@@ -181,8 +181,28 @@ alembic history
 - Never block the bot loop; offload heavy work to background jobs/workers if present
 
 ## Frontend (webapp/)
-- Vanilla JS + Telegram WebApp SDK: small modules, responsive CSS, minimal bundle size
-- Respect Telegram theme/background; avoid blocking calls; use gateway APIs only; attach JWT when required
+- **Vue 3 + Vite + Pinia**: Modern reactive framework with composition API and state management
+- **Component structure**: Single File Components (.vue) with `<script setup>`, `<template>`, `<style scoped>`
+- **State management**: Pinia stores for user, chat, discovery, matches with reactive state
+- **Routing**: Vue Router with lazy loading, route guards, and admin route protection
+- **Composables**: Reusable logic in `composables/` (useApi, useWebSocket, useTelegram, useSwipe)
+- **Telegram integration**: Telegram WebApp SDK for theme, user data, and platform features
+- **API communication**: Axios for HTTP requests, WebSocket for real-time chat
+- **Build optimization**: Vite for fast builds, tree-shaking, and code splitting
+- **Responsive design**: Mobile-first CSS with Telegram theme integration
+- **Performance**: Lazy loading, component caching, minimal bundle size
+
+### Vue 3 Development Standards
+- **Composition API**: Use `<script setup>` syntax, avoid Options API
+- **Reactivity**: Use `ref()`, `reactive()`, `computed()`, `watch()` for reactive state
+- **Component props**: Define with TypeScript-like syntax: `defineProps<{ prop: string }>()`
+- **Emits**: Use `defineEmits<{ event: [payload: any] }>()` for type-safe events
+- **Lifecycle**: Use `onMounted()`, `onUnmounted()`, `onUpdated()` instead of options
+- **Pinia stores**: Use `defineStore()` with composition API, avoid mutations
+- **Telegram WebApp**: Always check `window.Telegram?.WebApp` availability
+- **Error handling**: Use try/catch in async functions, show user-friendly messages
+- **Loading states**: Implement loading spinners and skeleton screens
+- **Accessibility**: Use semantic HTML, ARIA attributes, keyboard navigation
 
 # ==== SECURITY & CONFIGURATION ====
 

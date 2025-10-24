@@ -56,6 +56,9 @@ jobs:
       - name: Validate Docker Security
         run: ./scripts/validate-docker-security.sh
 
+      - name: Validate Frontend Structure
+        run: ./scripts/validate-frontend.sh
+
       - name: Upload security report
         uses: actions/upload-artifact@v4
         if: always()
