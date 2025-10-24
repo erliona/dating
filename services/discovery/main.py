@@ -90,6 +90,21 @@ async def get_candidates(request: web.Request) -> web.Response:
             if request.query.get(param):
                 params[param] = request.query.get(param)
         
+        # Add geocoding support
+        if request.query.get("lat") and request.query.get("lon"):
+            params["lat"] = request.query.get("lat")
+            params["lon"] = request.query.get("lon")
+            
+            # Get location info for user's coordinates
+            from .geocoding import reverse_geocode
+            location_info = await reverse_geocode(
+                float(request.query.get("lat")), 
+                float(request.query.get("lon"))
+            )
+            if location_info:
+                params["user_city"] = location_info.get("city", "")
+                params["user_country"] = location_info.get("country", "")
+        
         # Get user profile and preferences for smart matching
         profile_url = f"{data_service_url}/data/profiles/{user_id}"
         profile_result = await data_service_breaker.call(
@@ -304,6 +319,102 @@ async def like_profile(request: web.Request) -> web.Response:
         raise
 
 
+async def swipe_user(request: web.Request) -> web.Response:
+    """Unified swipe endpoint (like or pass).
+    
+    POST /discovery/swipe
+    Body: {
+        "user_id": 123,
+        "action": "like" | "pass"
+    }
+    """
+    try:
+        data = await request.json()
+        user_id = data.get("user_id")
+        action = data.get("action")
+        
+        if not user_id:
+            return web.json_response({"error": "user_id is required"}, status=400)
+        
+        if action not in ["like", "pass"]:
+            return web.json_response({"error": "action must be 'like' or 'pass'"}, status=400)
+        
+        # Call data service
+        result = await _call_data_service(
+            f"{DATA_SERVICE_URL}/data/discovery/swipe",
+            "POST",
+            data,
+            request
+        )
+        
+        # Record metrics
+        record_swipe(
+            service="discovery-service",
+            result="success",
+            user_id=str(user_id),
+            action=action
+        )
+        
+        # Publish event if it's a match
+        if action == "like" and result.get("is_match"):
+            await event_publisher.publish_match_event(
+                user_id=user_id,
+                target_user_id=data.get("target_user_id"),
+                match_id=result.get("match_id")
+            )
+        
+        return web.json_response(result)
+        
+    except ValidationError as e:
+        logger.warning(f"Validation error in swipe_user: {e}")
+        return web.json_response({"error": str(e)}, status=400)
+    except ExternalServiceError as e:
+        logger.error(f"Data service error in swipe_user: {e}")
+        return web.json_response({"error": "Swipe failed"}, status=500)
+    except Exception as e:
+        logger.error(f"Unexpected error in swipe_user: {e}")
+        return web.json_response({"error": "Internal server error"}, status=500)
+
+
+async def get_likes(request: web.Request) -> web.Response:
+    """Get users who liked me.
+    
+    GET /discovery/likes
+    Query params: user_id, limit, cursor
+    """
+    try:
+        user_id = int(request.query.get("user_id", 0))
+        limit = int(request.query.get("limit", 20))
+        
+        if not user_id:
+            return web.json_response({"error": "user_id is required"}, status=400)
+        
+        # Call data service
+        result = await _call_data_service(
+            f"{DATA_SERVICE_URL}/data/discovery/likes",
+            "GET",
+            params={"user_id": user_id, "limit": limit},
+            request=request
+        )
+        
+        # Record metrics
+        record_interaction(
+            service="discovery-service",
+            result="success",
+            user_id=str(user_id),
+            action="get_likes"
+        )
+        
+        return web.json_response(result)
+        
+    except ExternalServiceError as e:
+        logger.error(f"Data service error in get_likes: {e}")
+        return web.json_response({"error": "Failed to get likes"}, status=500)
+    except Exception as e:
+        logger.error(f"Unexpected error in get_likes: {e}")
+        return web.json_response({"error": "Internal server error"}, status=500)
+
+
 async def get_matches(request: web.Request) -> web.Response:
     """Get user matches.
 
@@ -426,8 +537,10 @@ def create_app(config: dict) -> web.Application:
 
     # Add routes
     app.router.add_get("/discovery/candidates", get_candidates)
-    app.router.add_post("/discovery/like", like_profile)
+    app.router.add_post("/discovery/swipe", swipe_user)  # Unified swipe endpoint
+    app.router.add_post("/discovery/like", like_profile)  # Legacy endpoint
     app.router.add_get("/discovery/matches", get_matches)
+    app.router.add_get("/discovery/likes", get_likes)  # Who liked me
     app.router.add_get("/health", health_check)
     
     # Add startup/shutdown handlers
