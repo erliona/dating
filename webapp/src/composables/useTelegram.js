@@ -19,12 +19,6 @@ export function useTelegram() {
       document.body.style.backgroundColor = tg.value.themeParams.bg_color || '#ffffff'
       document.body.style.color = tg.value.themeParams.text_color || '#000000'
       
-      console.log('Telegram WebApp initialized:', {
-        user: user.value,
-        theme: tg.value.themeParams
-      })
-    } else {
-      console.warn('Telegram WebApp not available')
     }
   }
 
@@ -47,7 +41,6 @@ export function useTelegram() {
       try {
         tg.value.showAlert(message)
       } catch (error) {
-        console.warn('Telegram showAlert failed:', error)
         alert(message)
       }
     } else {

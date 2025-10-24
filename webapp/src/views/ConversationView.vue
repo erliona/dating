@@ -166,7 +166,7 @@ const fetchMessages = async () => {
     await chatStore.fetchMessages(conversationId.value)
     scrollToBottom()
   } catch (error) {
-    console.error('Failed to fetch messages:', error)
+    // Handle error
   } finally {
     loading.value = false
   }
@@ -183,7 +183,7 @@ const sendMessage = async () => {
     newMessage.value = ''
     scrollToBottom()
   } catch (error) {
-    console.error('Failed to send message:', error)
+    // Handle error
     showAlert('Не удалось отправить сообщение')
   }
 }
@@ -232,7 +232,7 @@ const submitReport = async () => {
     showReportModal.value = false
     showAlert('Жалоба отправлена')
   } catch (error) {
-    console.error('Failed to submit report:', error)
+    // Handle error
     showAlert('Не удалось отправить жалобу')
   }
 }
@@ -244,7 +244,7 @@ const blockUser = async () => {
     showAlert('Пользователь заблокирован')
     router.back()
   } catch (error) {
-    console.error('Failed to block user:', error)
+    // Handle error
     showAlert('Не удалось заблокировать пользователя')
   }
 }

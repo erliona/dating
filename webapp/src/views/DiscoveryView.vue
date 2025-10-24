@@ -129,7 +129,7 @@ const handleSwipe = async (action) => {
     }
     
   } catch (error) {
-    console.error('Swipe error:', error)
+    // Handle error
   }
 }
 
@@ -157,7 +157,7 @@ onMounted(async () => {
   try {
     await fetchCandidates()
   } catch (error) {
-    console.error('Failed to fetch candidates:', error)
+    // Handle error
   } finally {
     loading.value = false
   }

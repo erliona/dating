@@ -166,7 +166,6 @@ const completeOnboarding = async () => {
     router.push('/discovery')
     
   } catch (error) {
-    console.error('Onboarding error:', error)
     // Handle error
   } finally {
     loading.value = false

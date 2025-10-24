@@ -88,7 +88,6 @@ const handleLogin = async () => {
       await router.push('/onboarding')
     }
   } catch (error) {
-    console.error('Login error:', error)
     showAlert(`Ошибка входа: ${error.response?.data?.error || error.message}`)
     loading.value = false
   }

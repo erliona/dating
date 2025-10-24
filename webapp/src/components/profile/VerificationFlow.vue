@@ -215,7 +215,7 @@ const submitVerification = async () => {
     selfiePreview.value = null
     selfieFile.value = null
   } catch (error) {
-    console.error('Failed to submit verification:', error)
+    // Handle error
   } finally {
     uploading.value = false
   }
@@ -232,7 +232,6 @@ const checkStatus = async () => {
 
 const contactSupport = () => {
   // TODO: Implement contact support
-  console.log('Contact support')
 }
 
 const closeSelfieModal = () => {

@@ -267,7 +267,7 @@ const fetchUsers = async () => {
     totalPages.value = response.data.total_pages
     totalUsers.value = response.data.total_users
   } catch (error) {
-    console.error('Failed to fetch users:', error)
+    // Handle error
   } finally {
     loading.value = false
   }
@@ -278,8 +278,7 @@ const refreshData = () => {
 }
 
 const exportUsers = () => {
-  // TODO: Implement export functionality
-  console.log('Export users')
+// TODO: Implement export functionality
 }
 
 const viewUser = (user) => {
@@ -301,7 +300,7 @@ const banUser = async (user) => {
     await put(`/admin/users/${user.id}/ban`, { reason: 'Admin action' })
     user.is_banned = true
   } catch (error) {
-    console.error('Failed to ban user:', error)
+    // Handle error
   }
 }
 
@@ -312,7 +311,7 @@ const unbanUser = async (user) => {
     await put(`/admin/users/${user.id}/unban`)
     user.is_banned = false
   } catch (error) {
-    console.error('Failed to unban user:', error)
+    // Handle error
   }
 }
 

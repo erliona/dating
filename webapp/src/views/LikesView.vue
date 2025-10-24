@@ -108,7 +108,7 @@ const fetchLikes = async () => {
     await matchesStore.fetchLikes()
     likes.value = matchesStore.likes
   } catch (error) {
-    console.error('Failed to fetch likes:', error)
+    // Handle error
   } finally {
     loading.value = false
   }
@@ -125,7 +125,7 @@ const viewLike = async (like) => {
       likes.value[likeIndex].is_viewed = true
     }
   } catch (error) {
-    console.error('Failed to view like:', error)
+    // Handle error
   }
 }
 
@@ -137,7 +137,7 @@ const likeBack = async (like) => {
     // Show success message or navigate to matches
     router.push('/matches')
   } catch (error) {
-    console.error('Failed to like back:', error)
+    // Handle error
   }
 }
 

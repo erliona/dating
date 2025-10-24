@@ -173,7 +173,7 @@ const fetchDashboardData = async () => {
     const activityResponse = await get('/admin/activity')
     recentActivity.value = activityResponse.data
   } catch (error) {
-    console.error('Failed to fetch dashboard data:', error)
+    // Handle error
   } finally {
     loading.value = false
   }

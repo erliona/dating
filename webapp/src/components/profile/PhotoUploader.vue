@@ -140,7 +140,7 @@ const handleFileSelect = async (event) => {
     emit('update:modelValue', photos.value)
     emit('upload-complete', { index, photo: photos.value[index] })
   } catch (error) {
-    console.error('Failed to upload photo:', error)
+    // Handle error
     emit('upload-error', { index, error })
   } finally {
     uploading.value[index] = false

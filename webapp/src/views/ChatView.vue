@@ -80,7 +80,7 @@ const fetchConversations = async () => {
     await chatStore.fetchConversations()
     conversations.value = chatStore.conversations
   } catch (error) {
-    console.error('Failed to fetch conversations:', error)
+    // Handle error
   } finally {
     loading.value = false
   }

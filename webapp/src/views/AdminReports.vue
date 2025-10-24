@@ -336,7 +336,7 @@ const fetchReports = async () => {
     reports.value = response.data.reports
     totalPages.value = response.data.total_pages
   } catch (error) {
-    console.error('Failed to fetch reports:', error)
+    // Handle error
   } finally {
     loading.value = false
   }
@@ -351,7 +351,7 @@ const startInvestigation = async (report) => {
     await put(`/admin/reports/${report.id}/investigate`)
     report.status = 'investigating'
   } catch (error) {
-    console.error('Failed to start investigation:', error)
+    // Handle error
   }
 }
 
@@ -362,7 +362,7 @@ const resolveReport = async (report) => {
     await put(`/admin/reports/${report.id}/resolve`)
     report.status = 'resolved'
   } catch (error) {
-    console.error('Failed to resolve report:', error)
+    // Handle error
   }
 }
 
@@ -392,7 +392,7 @@ const dismissReport = async () => {
     selectedReport.value.status = 'dismissed'
     closeDismissModal()
   } catch (error) {
-    console.error('Failed to dismiss report:', error)
+    // Handle error
   }
 }
 
@@ -407,7 +407,7 @@ const banReportedUser = async (report) => {
     await put(`/admin/reports/${report.id}/resolve`)
     report.status = 'resolved'
   } catch (error) {
-    console.error('Failed to ban user:', error)
+    // Handle error
   }
 }
 
@@ -416,7 +416,7 @@ const reopenReport = async (report) => {
     await put(`/admin/reports/${report.id}/reopen`)
     report.status = 'pending'
   } catch (error) {
-    console.error('Failed to reopen report:', error)
+    // Handle error
   }
 }
 

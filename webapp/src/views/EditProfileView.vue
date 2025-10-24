@@ -417,7 +417,7 @@ const saveProfile = async () => {
     showAlert('Профиль обновлен')
     router.back()
   } catch (error) {
-    console.error('Failed to save profile:', error)
+    // Handle error
     showAlert('Не удалось сохранить профиль')
   } finally {
     saving.value = false
@@ -463,7 +463,7 @@ const handlePhotoUpload = async (event) => {
     showPhotoModal.value = false
     showAlert('Фото загружено')
   } catch (error) {
-    console.error('Failed to upload photo:', error)
+    // Handle error
     showAlert('Не удалось загрузить фото')
   } finally {
     uploading.value = false

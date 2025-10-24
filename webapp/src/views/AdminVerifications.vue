@@ -291,7 +291,7 @@ const fetchVerifications = async () => {
     verifications.value = response.data.verifications
     totalPages.value = response.data.total_pages
   } catch (error) {
-    console.error('Failed to fetch verifications:', error)
+    // Handle error
   } finally {
     loading.value = false
   }
@@ -310,7 +310,7 @@ const approveVerification = async (verification) => {
     verification.processed_at = new Date().toISOString()
     verification.processed_by = 'Current Admin'
   } catch (error) {
-    console.error('Failed to approve verification:', error)
+    // Handle error
   }
 }
 
@@ -344,7 +344,7 @@ const rejectVerification = async () => {
     
     closeRejectModal()
   } catch (error) {
-    console.error('Failed to reject verification:', error)
+    // Handle error
   }
 }
 
@@ -356,7 +356,7 @@ const banUser = async (userId) => {
     // Refresh data to update user status
     fetchVerifications()
   } catch (error) {
-    console.error('Failed to ban user:', error)
+    // Handle error
   }
 }
 

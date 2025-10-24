@@ -23,7 +23,6 @@ export function useWebSocket() {
     ws.value.onopen = () => {
       isConnected.value = true
       error.value = null
-      console.log('WebSocket connected')
     }
 
     ws.value.onmessage = (event) => {
@@ -31,18 +30,16 @@ export function useWebSocket() {
         const data = JSON.parse(event.data)
         messageHandlers.value.forEach(handler => handler(data))
       } catch (err) {
-        console.error('Failed to parse WebSocket message:', err)
+        // Failed to parse message
       }
     }
 
     ws.value.onclose = () => {
       isConnected.value = false
-      console.log('WebSocket disconnected')
     }
 
     ws.value.onerror = (err) => {
       error.value = 'WebSocket connection error'
-      console.error('WebSocket error:', err)
     }
   }
 
@@ -57,8 +54,6 @@ export function useWebSocket() {
   const sendMessage = (data) => {
     if (ws.value?.readyState === WebSocket.OPEN) {
       ws.value.send(JSON.stringify(data))
-    } else {
-      console.warn('WebSocket not connected')
     }
   }
 

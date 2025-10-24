@@ -309,7 +309,7 @@ const updatePrivacy = async (field, value) => {
     await userStore.updateProfile({ [field]: value })
     showAlert('Настройки обновлены')
   } catch (error) {
-    console.error('Failed to update privacy settings:', error)
+    // Handle error
     showAlert('Не удалось обновить настройки')
   }
 }

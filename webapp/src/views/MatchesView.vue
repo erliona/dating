@@ -78,7 +78,7 @@ const fetchMatches = async () => {
     await matchesStore.fetchMatches()
     matches.value = matchesStore.matches
   } catch (error) {
-    console.error('Failed to fetch matches:', error)
+    // Handle error
   } finally {
     loading.value = false
   }

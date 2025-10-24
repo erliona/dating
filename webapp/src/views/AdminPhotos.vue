@@ -284,7 +284,7 @@ const fetchPhotos = async () => {
     photos.value = response.data.photos
     totalPages.value = response.data.total_pages
   } catch (error) {
-    console.error('Failed to fetch photos:', error)
+    // Handle error
   } finally {
     loading.value = false
   }
@@ -314,7 +314,7 @@ const approvePhoto = async (photo) => {
       }
     }
   } catch (error) {
-    console.error('Failed to approve photo:', error)
+    // Handle error
   }
 }
 
@@ -330,7 +330,7 @@ const rejectPhoto = async (photo) => {
       }
     }
   } catch (error) {
-    console.error('Failed to reject photo:', error)
+    // Handle error
   }
 }
 
@@ -342,7 +342,7 @@ const banUser = async (userId) => {
     // Refresh data to update user status
     fetchPhotos()
   } catch (error) {
-    console.error('Failed to ban user:', error)
+    // Handle error
   }
 }
 

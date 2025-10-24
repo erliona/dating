@@ -135,7 +135,7 @@ const sendMessage = async () => {
     message.value = ''
     adjustTextareaHeight()
   } catch (error) {
-    console.error('Failed to send message:', error)
+    // Handle error
   } finally {
     sending.value = false
   }

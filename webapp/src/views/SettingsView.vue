@@ -399,7 +399,7 @@ const loadSettings = async () => {
       }
     }
   } catch (error) {
-    console.error('Failed to load settings:', error)
+    // Handle error
   }
 }
 
@@ -409,7 +409,7 @@ const saveAgePreferences = async () => {
     showAgeModal.value = false
     showAlert('Настройки сохранены')
   } catch (error) {
-    console.error('Failed to save age preferences:', error)
+    // Handle error
     showAlert('Не удалось сохранить настройки')
   }
 }
@@ -420,7 +420,7 @@ const saveDistancePreferences = async () => {
     showDistanceModal.value = false
     showAlert('Настройки сохранены')
   } catch (error) {
-    console.error('Failed to save distance preferences:', error)
+    // Handle error
     showAlert('Не удалось сохранить настройки')
   }
 }
@@ -431,7 +431,7 @@ const saveGenderPreferences = async () => {
     showGenderModal.value = false
     showAlert('Настройки сохранены')
   } catch (error) {
-    console.error('Failed to save gender preferences:', error)
+    // Handle error
     showAlert('Не удалось сохранить настройки')
   }
 }
@@ -441,7 +441,7 @@ const updateNotificationSettings = async () => {
     await userStore.updateNotificationSettings(notificationSettings.value)
     showAlert('Настройки уведомлений обновлены')
   } catch (error) {
-    console.error('Failed to update notification settings:', error)
+    // Handle error
     showAlert('Не удалось обновить настройки')
   }
 }
@@ -451,7 +451,7 @@ const updatePrivacySettings = async () => {
     await userStore.updateProfile(privacySettings.value)
     showAlert('Настройки приватности обновлены')
   } catch (error) {
-    console.error('Failed to update privacy settings:', error)
+    // Handle error
     showAlert('Не удалось обновить настройки')
   }
 }
@@ -461,7 +461,7 @@ const requestVerification = async () => {
     await userStore.requestVerification()
     showAlert('Запрос на верификацию отправлен')
   } catch (error) {
-    console.error('Failed to request verification:', error)
+    // Handle error
     showAlert('Не удалось отправить запрос')
   }
 }
@@ -474,7 +474,7 @@ const deleteAccount = async () => {
     showAlert('Аккаунт удален')
     closeApp()
   } catch (error) {
-    console.error('Failed to delete account:', error)
+    // Handle error
     showAlert('Не удалось удалить аккаунт')
   }
 }
@@ -484,7 +484,7 @@ const logout = async () => {
     await userStore.logout()
     router.push('/')
   } catch (error) {
-    console.error('Failed to logout:', error)
+    // Handle error
     showAlert('Не удалось выйти из аккаунта')
   }
 }

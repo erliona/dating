@@ -142,7 +142,7 @@ const handleFileSelect = async (event) => {
 
     uploading.value[index] = false
   } catch (error) {
-    console.error('Failed to upload photo:', error)
+    // Handle error
     uploading.value[index] = false
     uploadProgress.value[index] = 0
   }
