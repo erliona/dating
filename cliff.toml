@@ -1,0 +1,50 @@
+# Git Cliff configuration for changelog generation
+[changelog]
+header = "## Changelog"
+body = """
+## [{{ version }}] - {{ date | date(format="%Y-%m-%d") }}
+{% for group, commits in commits | group_by(scope) %}
+### {{ group | upper_first }}
+{% for commit in commits %}
+- {{ commit.message | upper_first }}
+{% endfor %}
+{% endfor %}
+"""
+footer = "Full Changelog: https://github.com/erliona/dating/compare/{{ previous_tag }}...{{ tag }}"
+
+[git]
+conventional_commits = true
+filter_unconventional = true
+split_commits = true
+commit_parsers = [
+    { message = "^feat", group = "Features" },
+    { message = "^fix", group = "Bug Fixes" },
+    { message = "^docs", group = "Documentation" },
+    { message = "^style", group = "Styling" },
+    { message = "^refactor", group = "Code Refactoring" },
+    { message = "^perf", group = "Performance" },
+    { message = "^test", group = "Tests" },
+    { message = "^build", group = "Build System" },
+    { message = "^ci", group = "Continuous Integration" },
+    { message = "^chore", group = "Chores" },
+    { message = "^revert", group = "Reverts" },
+    { message = "^security", group = "Security" },
+    { message = "^deps", group = "Dependencies" },
+    { message = "^config", group = "Configuration" },
+    { message = "^migration", group = "Database Migrations" },
+    { message = "^deployment", group = "Deployment" },
+    { message = "^monitoring", group = "Monitoring" },
+    { message = "^troubleshooting", group = "Troubleshooting" },
+]
+
+[git.conventional_commits]
+types = [
+    "feat", "fix", "docs", "style", "refactor", "perf", "test", 
+    "build", "ci", "chore", "revert", "security", "deps", "config",
+    "migration", "deployment", "monitoring", "troubleshooting"
+]
+scopes = [
+    "bot", "core", "gateway", "auth", "profile", "discovery", "media", 
+    "chat", "admin", "webapp", "monitoring", "database", "docker", 
+    "security", "config", "scripts", "rules", "traefik", "jwt"
+]

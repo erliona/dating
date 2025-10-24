@@ -328,6 +328,16 @@ echo "✅ Migration smoke check passed"
 - **Conventional Commits**: Use `cz commit` or follow pattern: `type(scope): description`
 - **CI enforcement**: Static checks job fails on any quality violations
 - **Coverage threshold**: Minimum 80% code coverage, enforced in CI
+
+## Versioning & Releases
+- **Semantic Versioning**: Use `vMAJOR.MINOR.PATCH` format (e.g., `v1.2.0`)
+- **Release process**: Use `./scripts/release.sh patch|minor|major` for automated releases
+- **Changelog generation**: Auto-generated with git-cliff from conventional commits
+- **Docker images**: Tagged with version and pushed to `ghcr.io/erliona/dating`
+- **Production deployment**: Deploy from specific version tags, not `latest`
+- **Registry locations**: All images stored in GitHub Container Registry
+- **Release automation**: GitHub Actions workflow for CI/CD releases
+- **Rollback procedures**: Use `./scripts/release.sh rollback <version>` for emergency rollback
 - Use pytest. For new logic add unit tests; for endpoints add integration tests with test DB
 - Keep tests deterministic and fast; use fixtures/factories; mock network calls
 - Maintain/raise coverage thresholds defined in repo configs; add regression tests for fixed bugs
