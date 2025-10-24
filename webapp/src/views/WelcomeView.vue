@@ -38,6 +38,15 @@
           <span v-else>🚀 Начать знакомства</span>
         </button>
         
+        <!-- Test button -->
+        <button 
+          class="btn btn-secondary btn-large"
+          @click="testClick"
+          style="margin-top: 10px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: white;"
+        >
+          🧪 Тест кнопки
+        </button>
+        
         <p class="welcome-note">
           Вход через Telegram - быстро и безопасно
         </p>
@@ -57,6 +66,11 @@ const userStore = useUserStore()
 const { getTelegramData, showAlert, initTelegram, isReady } = useTelegram()
 
 const loading = ref(false)
+
+const testClick = () => {
+  console.log('TEST BUTTON CLICKED!')
+  alert('Тест кнопка работает!')
+}
 
 onMounted(() => {
   console.log('WelcomeView mounted')
