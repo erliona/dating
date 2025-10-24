@@ -333,6 +333,11 @@ def create_app(config: dict) -> web.Application:
     # Serve admin panel static files
     app.router.add_static("/admin/", "services/admin/static/")
     
+    # Redirect /admin/login to /admin/ for browser compatibility
+    async def redirect_login(request):
+        return web.HTTPFound('/admin/')
+    app.router.add_get("/admin/login", redirect_login)
+    
     # PROTECTED sub-application WITH JWT middleware
     from core.middleware.jwt_middleware import admin_jwt_middleware
     protected = web.Application(middlewares=[admin_jwt_middleware])
