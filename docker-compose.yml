@@ -83,6 +83,35 @@ services:
       - SETGID
       - SETUID
 
+  # Database Replica - Read replica for scaling
+  db-replica:
+    image: postgres:15.4-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dating}
+      POSTGRES_USER: ${POSTGRES_USER:-dating}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dating}
+      PGUSER: ${POSTGRES_USER:-dating}
+    volumes:
+      - postgres_replica_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dating}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    depends_on:
+      - db
+
   # Auth Service - JWT and session management
   auth-service:
     build:
@@ -164,12 +193,17 @@ services:
     build:
       context: .
       dockerfile: services/media/Dockerfile
+    depends_on:
+      - minio
     environment:
       MEDIA_SERVICE_HOST: 0.0.0.0
       MEDIA_SERVICE_PORT: ${MEDIA_SERVICE_PORT:-8084}
       PHOTO_STORAGE_PATH: /app/photos
       NSFW_THRESHOLD: ${NSFW_THRESHOLD:-0.7}
       JWT_SECRET: ${JWT_SECRET}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-dating}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-dating123}
     # ports:
     #   - "${MEDIA_SERVICE_PORT:-8084}:${MEDIA_SERVICE_PORT:-8084}"
     volumes:
@@ -426,6 +460,50 @@ services:
       - default
       - monitoring
 
+  # MinIO - S3-compatible object storage
+  minio:
+    image: minio/minio:RELEASE.2024-01-16T16-07-38Z
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-dating}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-dating123}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - default
+
+  # Nominatim - OpenStreetMap geocoding service
+  nominatim:
+    image: mediagis/nominatim:4.2
+    environment:
+      PBF_URL: https://download.geofabrik.de/europe/monaco-latest.osm.pbf
+      REPLICATION_URL: https://download.geofabrik.de/europe/monaco-updates/
+      FREEZE: "true"
+    volumes:
+      - nominatim_data:/var/lib/postgresql/14/main
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - default
+
   # WebApp (Next.js)
   webapp:
     build:
@@ -650,9 +728,12 @@ networks:
 
 volumes:
   postgres_data:
+  postgres_replica_data:
   media_storage:
   traefik_certificates:
   prometheus_data:
   grafana_data:
   loki_data:
   rabbitmq_data:
+  minio_data:
+  nominatim_data:

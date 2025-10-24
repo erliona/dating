@@ -87,7 +87,7 @@ limits_config:
   max_global_streams_per_user: 0  # No limit
   
   # Retention
-  retention_period: 720h  # 30 days
+  retention_period: 168h  # 7 days
   
   # Sample limits
   reject_old_samples: true
@@ -109,7 +109,7 @@ compactor:
 # Table manager (for index management)
 table_manager:
   retention_deletes_enabled: true
-  retention_period: 720h  # 30 days
+  retention_period: 168h  # 7 days
 
 # Ruler configuration (for alerts)
 ruler:

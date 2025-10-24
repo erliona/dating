@@ -9,6 +9,7 @@ import logging
 import os
 import mimetypes
 import hashlib
+import uuid
 from pathlib import Path
 from typing import Optional
 
@@ -21,6 +22,8 @@ from core.middleware.metrics_middleware import metrics_middleware, add_metrics_r
 from core.middleware.security_metrics import record_file_upload, record_suspicious_activity
 from core.middleware.audit_logging import audit_log, log_security_event
 from core.metrics.business_metrics import NSFW_DETECTION_TOTAL, NSFW_BLOCKED_TOTAL
+from .minio_client import minio_client
+from .image_processor import image_processor
 
 logger = logging.getLogger(__name__)
 
@@ -137,39 +140,24 @@ async def upload_media(request: web.Request) -> web.Response:
             )
             return web.json_response({"error": "Invalid file type"}, status=400)
 
-        # Get storage path from config
-        storage_path = request.app["config"].get("storage_path", "/app/photos")
-        storage_path = Path(storage_path).resolve()  # SECURITY: Resolve to absolute path
-        storage_path.mkdir(parents=True, exist_ok=True)
-
         # SECURITY: Generate secure filename
-        import uuid
         file_id = str(uuid.uuid4())
         sanitized_filename = sanitize_filename(original_filename)
         ext = Path(sanitized_filename).suffix or ".jpg"
-        filepath = storage_path / f"{file_id}{ext}"
+        object_name = f"{file_id}{ext}"
 
-        # SECURITY: Validate filepath is within storage directory
-        try:
-            filepath.resolve().relative_to(storage_path.resolve())
-        except ValueError:
-            logger.error(f"Path traversal attempt: {filepath}")
-            return web.json_response({"error": "Invalid file path"}, status=400)
-
-        # Save file with size validation
+        # Read file data
+        file_data = b""
         size = 0
-        with open(filepath, "wb") as f:
-            while True:
-                chunk = await field.read_chunk()
-                if not chunk:
-                    break
-                
-                size += len(chunk)
-                
+        while True:
+            chunk = await field.read_chunk()
+            if not chunk:
+                break
+            file_data += chunk
+            size += len(chunk)
+            
         # SECURITY: Check file size during upload
         if not validate_file_size(size):
-            f.close()
-            filepath.unlink(missing_ok=True)  # Clean up partial file
             logger.warning(f"File too large: {size} bytes")
             record_file_upload(
                 service="media-service",
@@ -181,59 +169,34 @@ async def upload_media(request: web.Request) -> web.Response:
             )
             return web.json_response({"error": "File too large"}, status=413)
 
-        # SECURITY: Additional validation after upload
-        if not validate_file_size(size):
-            filepath.unlink(missing_ok=True)
-            return web.json_response({"error": "File too large"}, status=413)
-
-        # SECURITY: NSFW detection
-        if detect_nsfw_content(filepath):
-            filepath.unlink(missing_ok=True)
-            logger.warning(f"NSFW content detected in file: {file_id}")
+        # Process image with pipeline
+        try:
+            processed_data, thumbnail_data = image_processor.process_image(file_data)
             
-            # Record NSFW detection metrics
-            NSFW_DETECTION_TOTAL.labels(
-                service='media-service',
-                result='nsfw'
-            ).inc()
-            
-            NSFW_BLOCKED_TOTAL.labels(
-                service='media-service'
-            ).inc()
-            
-            record_file_upload(
-                service="media-service",
-                result="blocked",
-                file_type=ext,
-                reason="nsfw_content",
-                user_id=str(request.get("user_id", "unknown"))
-            )
-            record_suspicious_activity(
-                service="media-service",
-                activity_type="nsfw_upload_attempt",
-                severity="high",
-                user_id=str(request.get("user_id", "unknown")),
-                file_id=file_id
+            # Upload to MinIO
+            await minio_client.upload_file(
+                bucket="photos",
+                object_name=object_name,
+                file_data=processed_data,
+                content_type=content_type
             )
             
-            # Audit log NSFW detection
-            log_security_event(
-                event_type="nsfw_content_detected",
-                user_id=str(request.get("user_id", "unknown")),
-                service="media-service",
-                severity="WARNING",
-                details={
-                    "file_id": file_id,
-                    "file_type": ext,
-                    "file_size": size,
-                    "action": "blocked"
-                },
-                request=request
-            )
-            return web.json_response({"error": "Content not allowed"}, status=400)
+            # Upload thumbnail if created
+            if thumbnail_data:
+                thumbnail_name = f"thumb_{file_id}{ext}"
+                await minio_client.upload_file(
+                    bucket="thumbnails",
+                    object_name=thumbnail_name,
+                    file_data=thumbnail_data,
+                    content_type=content_type
+                )
+            
+        except Exception as e:
+            logger.error(f"Image processing failed: {e}")
+            return web.json_response({"error": "Image processing failed"}, status=500)
 
         # Calculate file hash for deduplication
-        file_hash = calculate_file_hash(filepath)
+        file_hash = hashlib.sha256(processed_data).hexdigest()
 
         # Record NSFW detection for safe files
         NSFW_DETECTION_TOTAL.labels(
@@ -303,35 +266,34 @@ async def get_media(request: web.Request) -> web.Response:
         file_id = request.match_info["file_id"]
         
         # SECURITY: Validate file_id format (UUID)
-        import uuid
         try:
             uuid.UUID(file_id)
         except ValueError:
             logger.warning(f"Invalid file_id format: {file_id}")
             return web.json_response({"error": "Invalid file ID"}, status=400)
 
-        storage_path = request.app["config"].get("storage_path", "/app/photos")
-        storage_path = Path(storage_path).resolve()  # SECURITY: Resolve to absolute path
-
         # Find file with allowed extensions only
         for ext in ALLOWED_EXTENSIONS:
-            filepath = storage_path / f"{file_id}{ext}"
+            object_name = f"{file_id}{ext}"
             
-            # SECURITY: Validate filepath is within storage directory
-            try:
-                filepath.resolve().relative_to(storage_path.resolve())
-            except ValueError:
-                logger.error(f"Path traversal attempt: {filepath}")
-                return web.json_response({"error": "Invalid file path"}, status=400)
-            
-            if filepath.exists() and filepath.is_file():
-                # SECURITY: Set appropriate headers
-                headers = {
-                    'Content-Type': mimetypes.guess_type(str(filepath))[0] or 'application/octet-stream',
-                    'Cache-Control': 'public, max-age=3600',  # Cache for 1 hour
-                    'X-Content-Type-Options': 'nosniff',
-                }
-                return web.FileResponse(filepath, headers=headers)
+            # Check if file exists in MinIO
+            if await minio_client.file_exists("photos", object_name):
+                try:
+                    # Download file from MinIO
+                    file_data = await minio_client.download_file("photos", object_name)
+                    
+                    # Set appropriate headers
+                    headers = {
+                        'Content-Type': mimetypes.guess_type(object_name)[0] or 'application/octet-stream',
+                        'Cache-Control': 'public, max-age=3600',  # Cache for 1 hour
+                        'X-Content-Type-Options': 'nosniff',
+                    }
+                    
+                    return web.Response(body=file_data, headers=headers)
+                    
+                except Exception as e:
+                    logger.error(f"Error downloading from MinIO: {e}")
+                    return web.json_response({"error": "Failed to retrieve file"}, status=500)
 
         return web.json_response({"error": "File not found"}, status=404)
 
@@ -349,32 +311,28 @@ async def delete_media(request: web.Request) -> web.Response:
         file_id = request.match_info["file_id"]
         
         # SECURITY: Validate file_id format (UUID)
-        import uuid
         try:
             uuid.UUID(file_id)
         except ValueError:
             logger.warning(f"Invalid file_id format: {file_id}")
             return web.json_response({"error": "Invalid file ID"}, status=400)
 
-        storage_path = request.app["config"].get("storage_path", "/app/photos")
-        storage_path = Path(storage_path).resolve()  # SECURITY: Resolve to absolute path
-
         # Find and delete file with allowed extensions only
         deleted = False
         for ext in ALLOWED_EXTENSIONS:
-            filepath = storage_path / f"{file_id}{ext}"
+            object_name = f"{file_id}{ext}"
+            thumbnail_name = f"thumb_{file_id}{ext}"
             
-            # SECURITY: Validate filepath is within storage directory
-            try:
-                filepath.resolve().relative_to(storage_path.resolve())
-            except ValueError:
-                logger.error(f"Path traversal attempt: {filepath}")
-                return web.json_response({"error": "Invalid file path"}, status=400)
-            
-            if filepath.exists() and filepath.is_file():
-                filepath.unlink()
+            # Delete main file from MinIO
+            if await minio_client.file_exists("photos", object_name):
+                await minio_client.delete_file("photos", object_name)
                 deleted = True
                 
+            # Delete thumbnail from MinIO
+            if await minio_client.file_exists("thumbnails", thumbnail_name):
+                await minio_client.delete_file("thumbnails", thumbnail_name)
+                
+            if deleted:
                 logger.info(
                     f"File deleted successfully",
                     extra={
