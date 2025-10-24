@@ -179,24 +179,25 @@ const handleLogin = async () => {
     }
     
     console.log('Auth data:', authData)
-    console.log('Sending login request...')
-
-    await userStore.login(authData)
+    showAlert('📤 Отправляем запрос на сервер...')
     
-    // Redirect based on profile completion
-    if (userStore.isProfileComplete) {
-      router.push('/discovery')
-    } else {
-      router.push('/onboarding')
+    try {
+      await userStore.login(authData)
+      
+      showAlert('✅ Вход успешен! Переходим дальше...')
+      
+      // Redirect based on profile completion
+      if (userStore.isProfileComplete) {
+        router.push('/discovery')
+      } else {
+        router.push('/onboarding')
+      }
+    } catch (error) {
+      console.error('Login error:', error)
+      showAlert(`❌ Ошибка входа: ${error.response?.data?.error || error.message}`)
+    } finally {
+      loading.value = false
     }
-    
-  } catch (error) {
-    console.error('Login error:', error)
-    console.error('Error details:', error.response?.data || error.message)
-    showAlert(`Ошибка входа: ${error.response?.data?.error || error.message}`)
-  } finally {
-    loading.value = false
-  }
 }
 </script>
 
