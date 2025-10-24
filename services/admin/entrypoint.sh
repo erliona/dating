@@ -115,4 +115,5 @@ echo "========================================"
 echo ""
 
 # SECURITY: Switch to non-root user for the application
-exec su -s /bin/sh appuser -c "python -m services.admin.main"
+# Use exec to avoid su permission issues with security restrictions
+exec python -m services.admin.main
