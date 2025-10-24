@@ -6,6 +6,14 @@
 - Always respect the existing folder layout: bot/, core/, gateway/, services/*, webapp/, monitoring/, migrations/, scripts/.
 - Never hardcode ports. Use envs from .env/.env.example and docker-compose.
 
+# ==== Code Synchronization (CRITICAL) ====
+- ALWAYS keep code synchronized between: Local Machine ↔ GitHub ↔ Server
+- After ANY code changes: 1) Commit locally 2) Push to GitHub 3) Update server
+- Server update: `ssh root@dating.serge.cc "cd /root/dating-microservices && git pull origin main && docker compose restart [affected-services]"`
+- Never make changes directly on server - always go through Git workflow
+- If server changes are needed, commit them locally first, then sync
+- Verify synchronization: check git status, commit hashes, and service health on all three points
+
 # ==== Coding Style (Python) ====
 - Use modern Python with full type hints and `from __future__ import annotations`.
 - Async first: prefer async/await everywhere; no blocking calls in event loops.
