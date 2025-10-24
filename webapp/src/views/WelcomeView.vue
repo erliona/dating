@@ -198,6 +198,12 @@ const handleLogin = async () => {
     } finally {
       loading.value = false
     }
+    
+  } catch (error) {
+    console.error('Unexpected error in handleLogin:', error)
+    showAlert(`❌ Неожиданная ошибка: ${error.message}`)
+    loading.value = false
+  }
 }
 </script>
 
