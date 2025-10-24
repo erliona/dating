@@ -288,6 +288,7 @@ services:
     cap_add:
       - CHOWN
       - FOWNER
+      - DAC_OVERRIDE
     labels:
       - "traefik.enable=true"
       # HTTP router for admin panel
