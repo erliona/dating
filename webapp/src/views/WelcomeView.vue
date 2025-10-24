@@ -62,8 +62,10 @@ const handleLogin = async () => {
   
   try {
     const telegramData = getTelegramData()
+    console.log('Telegram data:', telegramData)
     
     if (!telegramData?.user) {
+      console.error('No user data in telegramData:', telegramData)
       showAlert('Ошибка: не удалось получить данные Telegram')
       return
     }
@@ -73,6 +75,9 @@ const handleLogin = async () => {
       init_data: telegramData.raw_data || telegramData.initData,
       bot_token: telegramData.bot_token || '8302871321:AAGDRnSDYdYHeEOqtEoKZVYLCbBlI2GBYMM'
     }
+    
+    console.log('Auth data:', authData)
+    console.log('Sending login request...')
 
     await userStore.login(authData)
     
@@ -85,7 +90,8 @@ const handleLogin = async () => {
     
   } catch (error) {
     console.error('Login error:', error)
-    showAlert('Ошибка входа. Попробуйте еще раз.')
+    console.error('Error details:', error.response?.data || error.message)
+    showAlert(`Ошибка входа: ${error.response?.data?.error || error.message}`)
   } finally {
     loading.value = false
   }
