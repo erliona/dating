@@ -104,30 +104,32 @@
         size="lg" 
         :disabled="!isValid"
         @click="handleNext"
-        @mousedown="console.log('Button mousedown')"
-        @mouseup="console.log('Button mouseup')"
-        @touchstart="console.log('Button touchstart')"
-        @touchend="console.log('Button touchend')"
         fullWidth
       >
-        Продолжить ({{ isValid ? 'активна' : 'неактивна' }})
+        Продолжить
       </Button>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import Input from '../common/Input.vue'
 import Button from '../common/Button.vue'
 
-const emit = defineEmits(['next', 'update-data'])
+const props = defineProps({
+  modelValue: {
+    type: Object,
+    required: true
+  }
+})
 
-const formData = ref({
-  name: '',
-  birth_date: '',
-  gender: '',
-  orientation: ''
+const emit = defineEmits(['update:modelValue', 'next'])
+
+// Использовать computed для двусторонней привязки
+const formData = computed({
+  get: () => props.modelValue,
+  set: (value) => emit('update:modelValue', value)
 })
 
 const errors = ref({})
@@ -183,28 +185,11 @@ const validateForm = () => {
 }
 
 const handleNext = () => {
-  console.log('🔥 handleNext called!')
-  console.log('Form data:', formData.value)
-  console.log('Is valid:', isValid.value)
   validateForm()
-  console.log('Errors after validation:', errors.value)
   if (Object.keys(errors.value).length === 0) {
-    console.log('✅ No errors, proceeding to next step')
-    emit('update-data', formData.value)
     emit('next')
-  } else {
-    console.log('❌ Has errors, not proceeding')
   }
 }
-
-// Watch for changes and emit updates
-watch(formData, (newData) => {
-  emit('update-data', newData)
-  // Clear errors when user starts typing
-  if (Object.keys(errors.value).length > 0) {
-    errors.value = {}
-  }
-}, { deep: true })
 </script>
 
 <style scoped>
@@ -328,4 +313,5 @@ watch(formData, (newData) => {
   padding-top: var(--spacing-md);
   border-top: 1px solid var(--border-color);
 }
+</style>
 </style>

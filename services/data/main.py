@@ -175,6 +175,30 @@ class DataService:
             "updated": True,
         }
     
+    async def update_profile_progress(self, user_id: int, progress_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update profile progress during onboarding (partial update)."""
+        from bot.repository import ProfileRepository
+        
+        repository = ProfileRepository(self.session)
+        profile = await repository.get_profile_by_user_id(user_id)
+        
+        if not profile:
+            # Create new profile if it doesn't exist
+            profile = await repository.create_profile(user_id, progress_data)
+        else:
+            # Update only provided fields (partial update)
+            for field, value in progress_data.items():
+                if field != 'user_id' and hasattr(profile, field):
+                    setattr(profile, field, value)
+        
+        await self.session.commit()
+        
+        return {
+            "user_id": profile.user_id,
+            "current_step": progress_data.get('current_step'),
+            "updated": True,
+        }
+    
     async def delete_profile(self, user_id: int) -> bool:
         """Delete user profile."""
         from bot.repository import ProfileRepository
@@ -753,6 +777,31 @@ async def update_profile_handler(request: web.Request) -> web.Response:
         return web.json_response({"error": "Internal server error"}, status=500)
 
 
+async def update_profile_progress_handler(request: web.Request) -> web.Response:
+    """Update profile progress during onboarding.
+    
+    PATCH /data/profiles/progress
+    """
+    try:
+        progress_data = await request.json()
+        user_id = progress_data.get('user_id')
+        
+        if not user_id:
+            return web.json_response({"error": "user_id required"}, status=400)
+        
+        session_maker = request.app["session_maker"]
+        
+        async with session_maker() as session:
+            data_service = DataService(session)
+            result = await data_service.update_profile_progress(user_id, progress_data)
+        
+        return web.json_response(result)
+        
+    except Exception as e:
+        logger.error(f"Error updating profile progress: {e}")
+        return web.json_response({"error": "Internal server error"}, status=500)
+
+
 # User API Handlers
 async def get_user_handler(request: web.Request) -> web.Response:
     """Get user by ID.
@@ -1140,6 +1189,7 @@ def create_app(config: dict) -> web.Application:
     app.router.add_get("/data/profiles/{user_id}", get_profile_handler)
     app.router.add_post("/data/profiles", create_profile_handler)
     app.router.add_put("/data/profiles/{user_id}", update_profile_handler)
+    app.router.add_patch("/data/profiles/progress", update_profile_progress_handler)
     app.router.add_get("/data/profiles-count", get_profiles_count_handler)
     
     # User routes

@@ -170,6 +170,68 @@ async def health_check(request: web.Request) -> web.Response:
     return web.json_response({"status": "healthy", "service": "profile"})
 
 
+async def update_profile_progress(request: web.Request) -> web.Response:
+    """Partial update of profile during onboarding.
+    
+    PATCH /profiles/progress
+    """
+    try:
+        data = await request.json()
+        user_id = request.get('user_id')
+        
+        if not user_id:
+            return web.json_response({"error": "User ID required"}, status=400)
+        
+        # Validate required fields for progress update
+        if not data.get('user_id'):
+            return web.json_response({"error": "user_id required"}, status=400)
+        
+        data_service_url = request.app["data_service_url"]
+        
+        # Use circuit breaker + retry with correlation ID propagation
+        result = await data_service_breaker.call(
+            _call_data_service,
+            f"{data_service_url}/data/profiles/progress",
+            "PATCH",
+            data,
+            request,  # Pass request for correlation ID
+            fallback=lambda *args: {"error": "Service temporarily unavailable"}
+        )
+        
+        if "error" in result:
+            if result["error"] == "Service temporarily unavailable":
+                raise CircuitBreakerError("data-service")
+            raise ExternalServiceError(
+                service='data-service',
+                message=result.get("error", "Unknown error"),
+                details=result
+            )
+        
+        # Record business metrics
+        record_profile_updated('profile-service')
+        
+        # Audit log profile progress update
+        audit_log(
+            operation="profile_progress_update",
+            user_id=str(user_id),
+            service="profile-service",
+            details={
+                "current_step": data.get('current_step'),
+                "fields_updated": list(data.keys())
+            },
+            request=request
+        )
+        
+        return web.json_response({
+            "status": "success",
+            "current_step": data.get('current_step')
+        })
+        
+    except Exception as e:
+        logger.error(f"Error updating profile progress: {e}")
+        return web.json_response({"error": "Internal server error"}, status=500)
+
+
 async def sync_metrics(request: web.Request) -> web.Response:
     """Sync business metrics with database data."""
     try:
@@ -262,6 +324,7 @@ def create_app(config: dict) -> web.Application:
     # Add routes
     app.router.add_get("/profiles/{user_id}", get_profile)
     app.router.add_post("/profiles", create_profile)
+    app.router.add_patch("/profiles/progress", update_profile_progress)
     app.router.add_get("/health", health_check)
     app.router.add_post("/sync-metrics", sync_metrics)
     

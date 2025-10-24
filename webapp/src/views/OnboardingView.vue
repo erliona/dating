@@ -125,9 +125,29 @@ const canProceed = computed(() => {
   }
 })
 
-const nextStep = () => {
+const saveProgress = async () => {
+  try {
+    const profileData = {
+      ...formData.value,
+      user_id: userStore.user.id,
+      current_step: currentStep.value
+    }
+    
+    // PATCH endpoint для частичного обновления
+    await api.patch('/profiles/progress', profileData)
+  } catch (error) {
+    console.error('Failed to save progress:', error)
+    // Не блокируем переход, только логируем ошибку
+  }
+}
+
+const nextStep = async () => {
   if (currentStep.value < totalSteps && canProceed.value) {
     hapticFeedback('impact')
+    
+    // Автосохранение перед переходом
+    await saveProgress()
+    
     currentStep.value++
   }
 }
@@ -165,10 +185,15 @@ const completeOnboarding = async () => {
   }
 }
 
-onMounted(() => {
-  // Initialize form with existing profile data if available
+onMounted(async () => {
+  // Загрузить сохраненный прогресс
   if (userStore.profile) {
     Object.assign(formData.value, userStore.profile)
+    
+    // Восстановить текущий шаг
+    if (userStore.profile.current_step) {
+      currentStep.value = userStore.profile.current_step
+    }
   }
 })
 </script>
