@@ -1,49 +1,76 @@
-# Cursor AI Rules Structure
+# Cursor AI Rules Documentation
 
-This directory contains all Cursor AI rules organized for maximum effectiveness in development, production deployment, and troubleshooting.
+## Overview
+
+This directory contains the unified rules and guidelines for the Cursor AI assistant working on the dating application project. All rules have been consolidated into a single, comprehensive file to eliminate contradictions and duplications.
 
 ## File Structure
 
-### Core Rules
-- **`rules`** - Main development rules (coding style, architecture, testing, etc.)
-- **`production.rules`** - Production deployment, configuration, and post-deploy validation
-- **`troubleshooting.rules`** - Systematic debugging approach and diagnostic commands
+- **`RULES.md`** - Main unified rules file containing all guidelines, standards, and best practices
+- **`archive/`** - Contains archived rule files from the previous multi-file structure
 
-### Specialized Rules
-- **`deployment-and-monitoring.rules`** - Integration-specific monitoring and deployment patterns
-- **`git-flow-and-docker.rules`** - Git workflow and Docker container management
-- **`readonly-state.rules`** - Rules for read-only operations
-- **`rebuilt.rules`** - Rules for rebuild operations
+## Rule Categories
 
-## Usage Guidelines
+The unified rules cover:
 
-### For Development
-- Start with `rules` for coding standards and architecture
-- Reference `production.rules` when making deployment-related changes
-- Use `troubleshooting.rules` when debugging issues
+1. **Critical Workflows** - Code synchronization, Git workflow
+2. **Project Identity & Stack** - Technology stack and architecture
+3. **Naming Conventions & Standards** - Migrations, routes, services, networks, environment variables
+4. **Coding Standards** - Python style, async patterns, type hints, database patterns
+5. **Architecture & Boundaries** - Microservices separation, service communication
+6. **Security & Configuration** - Secrets management, JWT authentication
+7. **Docker & Infrastructure** - Container management, networking, Traefik routing
+8. **Database & Migrations** - Alembic best practices, migration naming
+9. **Testing & Quality** - pytest patterns, coverage requirements
+10. **Deployment & Operations** - Deployment checklist, health checks, monitoring
+11. **Troubleshooting & Diagnostics** - Systematic diagnostic approach, common problems
+12. **Observability** - Logging standards, metrics patterns, tracing
+13. **Example Patterns** - Code skeletons and templates
 
-### For Production Issues
-1. Check `troubleshooting.rules` for systematic diagnostic approach
-2. Follow patterns in "Common Problem Patterns" section
-3. Use diagnostic commands library for quick checks
-4. Apply fixes from `production.rules` best practices
+## Key Standards
 
-### For New Team Members
-1. Read `rules` for project understanding
-2. Study `production.rules` for deployment procedures
-3. Bookmark `troubleshooting.rules` for emergency situations
+### Migration Naming
+- Use full filename as revision ID: `"007_create_chat_tables"`
+- Never use short IDs like `"007"`
+- Always update `down_revision` to full filename of previous migration
 
-## Key Improvements
+### API Route Naming
+- Pattern: `/api/v1/<resource>/<action>`
+- Public routes: No JWT required (e.g., `/admin/auth/login`)
+- Protected routes: JWT required via sub-applications
 
-- **Structured Approach**: Clear separation between development, production, and troubleshooting
-- **Pattern Recognition**: Common problems with proven solutions
-- **Command Library**: Ready-to-use diagnostic commands
-- **Prevention Focus**: Rules to avoid problems before they occur
-- **Quick Recovery**: Fast path from symptoms to solutions
+### Docker Service Naming
+- Services: Use kebab-case (e.g., `api-gateway`, `admin-service`)
+- Networks: `default`, `monitoring`
+- Never use IP addresses in configurations
 
-## Metrics
+### Environment Variables
+- Format: `SCREAMING_SNAKE_CASE`
+- Must be in `.env`, never hardcoded
+- Document in `.env.example`
+- No duplicates
 
-- **MTTR (Mean Time To Recovery)**: Target < 30 minutes
-- **Prevention Rate**: 80% of issues should be prevented by following rules
-- **Onboarding Time**: New developers productive within 1 day
-- **Consistency**: All deployments follow same checklist
+## Usage
+
+The Cursor AI assistant should follow these rules when:
+- Writing or modifying code
+- Creating new features
+- Debugging issues
+- Deploying changes
+- Troubleshooting problems
+
+## Migration from Old Structure
+
+The previous multi-file structure has been consolidated into a single `RULES.md` file. Old rule files are preserved in the `archive/` directory for reference.
+
+## Updates
+
+When updating rules:
+1. Modify `RULES.md` directly
+2. Test changes in development
+3. Commit and sync across Local → GitHub → Server
+4. Update this README if structure changes
+
+## Contact
+
+For questions about these rules or suggestions for improvements, refer to the project documentation or create an issue in the repository.
