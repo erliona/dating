@@ -648,7 +648,7 @@ GET /data/profiles-count        # Количество профилей
 - **Язык**: Python 3.11+
 - **Архитектура**: 8 микросервисов
 - **Тесты**: 18 файлов, ~3,600 строк
-- **Frontend**: HTML/CSS/JS
+- **Frontend**: Vue 3 + Vite + Pinia
 - **Мониторинг**: Prometheus + Grafana + Loki
 - **CI/CD**: 4 GitHub Actions workflows
 

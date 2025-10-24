@@ -1,5 +1,7 @@
 # ==== CRITICAL WORKFLOWS ====
 
+> 📚 **Полная документация**: См. [.cursor/README.md](./README.md) для навигации по всем правилам
+
 ## Code Synchronization (CRITICAL)
 - ALWAYS keep code synchronized between: Local Machine ↔ GitHub ↔ Server
 - After ANY code changes: 1) Commit locally 2) Push to GitHub 3) Update server
@@ -181,6 +183,9 @@ alembic history
 - Never block the bot loop; offload heavy work to background jobs/workers if present
 
 ## Frontend (webapp/)
+
+> 📚 **Подробная документация**: [development/frontend-development.md](./development/frontend-development.md)
+
 - **Vue 3 + Vite + Pinia**: Modern reactive framework with composition API and state management
 - **Component structure**: Single File Components (.vue) with `<script setup>`, `<template>`, `<style scoped>`
 - **State management**: Pinia stores for user, chat, discovery, matches with reactive state
@@ -254,6 +259,9 @@ alembic history
 - Infrastructure changes: `docker compose up --build -d` (rebuild all affected services)
 
 ## Docker Security Standards
+
+> 📚 **Подробная документация**: [infrastructure/docker-security.md](./infrastructure/docker-security.md)
+> 👥 **Пользователи Docker**: [infrastructure/docker-user-standards.md](./infrastructure/docker-user-standards.md)
 - **Base images**: MUST be pinned with specific versions (e.g., `python:3.11.7-slim`, not `python:3.11-slim`)
 - **Distroless/Slim**: Prefer distroless or slim variants to minimize attack surface
 - **Non-root user**: ALL services MUST run as non-root user (USER app)
@@ -367,6 +375,9 @@ echo "✅ Migration smoke check passed"
 - Maintain/raise coverage thresholds defined in repo configs; add regression tests for fixed bugs
 
 ## Code Quality & Standards
+
+> 📚 **Подробная документация**: [development/code-quality.md](./development/code-quality.md)
+
 - **Pre-commit hooks**: Install with `./scripts/setup-code-quality.sh` - enforces formatting, linting, type checking
 - **Black formatting**: Line length 88, Python 3.11+ target, auto-format on commit
 - **Ruff linting**: Fast Python linter with auto-fix, comprehensive rule set
@@ -389,6 +400,10 @@ echo "✅ Migration smoke check passed"
 - **Rollback procedures**: Use `./scripts/release.sh rollback <version>` for emergency rollback
 
 # ==== DEPLOYMENT & OPERATIONS ====
+
+> 📚 **Подробная документация**: 
+> - [deployment/ci-cd-guide.md](./deployment/ci-cd-guide.md) - CI/CD процессы
+> - [deployment/deployment-guide.md](./deployment/deployment-guide.md) - Руководство по деплою
 
 ## Pre-Deployment Checklist
 - Check .gitignore before committing (ensure no secrets, build artifacts, or temporary files)
@@ -516,6 +531,11 @@ echo "✅ Migration smoke check passed"
 - Update service URLs
 
 # ==== OBSERVABILITY ====
+
+> 📚 **Подробная документация**: 
+> - [monitoring/metrics-guide.md](./monitoring/metrics-guide.md) - Руководство по метрикам
+> - [monitoring/observability.md](./monitoring/observability.md) - Наблюдаемость системы
+> - [monitoring/architecture.md](./monitoring/architecture.md) - Архитектура системы
 
 ## Logging Standards
 - Structured logs must include service name, request path, correlation/request ID when available
