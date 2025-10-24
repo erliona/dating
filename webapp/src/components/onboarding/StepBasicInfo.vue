@@ -180,9 +180,6 @@ const validateForm = () => {
 
 const handleNext = () => {
   validateForm()
-  console.log('Form data:', formData.value)
-  console.log('Errors:', errors.value)
-  console.log('Is valid:', isValid.value)
   if (Object.keys(errors.value).length === 0) {
     emit('update-data', formData.value)
     emit('next')
