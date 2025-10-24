@@ -1,9 +1,0 @@
-# Docker Compose overrides for local development
-#
-# This file is used to override settings from docker-compose.yml
-# for local development and testing purposes.
-
-services:
-  promtail:
-    healthcheck:
-      disable: true

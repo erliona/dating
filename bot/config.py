@@ -24,6 +24,9 @@ class BotConfig:
     photo_storage_path: str = "/app/photos"  # Path for local photo storage
     photo_cdn_url: str | None = None  # Optional CDN URL for serving photos
     nsfw_threshold: float = 0.7  # NSFW detection threshold (0.0-1.0, higher = stricter)
+    environment: str = "development"  # Environment: development|production
+    is_production: bool = False  # Production flag
+    is_development: bool = True  # Development flag
 
 
 def load_config() -> BotConfig:
@@ -171,6 +174,11 @@ def load_config() -> BotConfig:
         logging.warning("Invalid NSFW_THRESHOLD format, using default 0.7")
         nsfw_threshold = 0.7
 
+    # Environment detection
+    environment = os.getenv("ENVIRONMENT", "development")
+    is_production = environment == "production"
+    is_development = environment == "development"
+
     return BotConfig(
         token=token,
         api_gateway_url=api_gateway_url,
@@ -180,4 +188,7 @@ def load_config() -> BotConfig:
         photo_storage_path=photo_storage_path,
         photo_cdn_url=photo_cdn_url,
         nsfw_threshold=nsfw_threshold,
+        environment=environment,
+        is_production=is_production,
+        is_development=is_development,
     )

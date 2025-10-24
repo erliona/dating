@@ -225,6 +225,23 @@ alembic history
 - NEVER duplicate JWT_SECRET in .env file
 - Test login endpoints after middleware changes
 
+# ==== ENVIRONMENT MANAGEMENT ====
+
+## Two Environments Only
+- **TWO environments ONLY**: development (local) and production (server)
+- **Environment detection**: Use `ENVIRONMENT=development|production` to distinguish
+- **Monitoring stack**: Prometheus, Grafana, Loki ONLY on production
+- **Development**: `docker compose up -d` (no monitoring)
+- **Production**: `docker compose --profile production up -d` (with monitoring)
+- **Always test locally** before deploying to production
+
+## Environment Configuration
+- **Local development**: Use `.env` file with `ENVIRONMENT=development`
+- **Production server**: Use `.env` file with `ENVIRONMENT=production`
+- **Required variables**: `BOT_TOKEN`, `JWT_SECRET`, `POSTGRES_PASSWORD`
+- **Environment-specific**: Different domains, SSL, monitoring
+- **Never commit**: `.env` files to git
+
 # ==== DOCKER & INFRASTRUCTURE ====
 
 ## Container Management

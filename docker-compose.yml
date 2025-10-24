@@ -387,6 +387,7 @@ services:
   
   # Prometheus - Metrics collection and storage
   prometheus:
+    profiles: ["production"]
     image: prom/prometheus:v2.51.0
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
@@ -413,6 +414,7 @@ services:
 
   # Grafana - Visualization and dashboards
   grafana:
+    profiles: ["production"]
     image: grafana/grafana:10.4.0
     volumes:
       - grafana_data:/var/lib/grafana
@@ -443,6 +445,7 @@ services:
 
   # Loki - Log aggregation
   loki:
+    profiles: ["production"]
     image: grafana/loki:3.0.0
     volumes:
       - ./monitoring/loki/loki-config.yml:/etc/loki/loki-config.yml
@@ -461,6 +464,7 @@ services:
 
   # Promtail - Log shipper
   promtail:
+    profiles: ["production"]
     image: grafana/promtail:3.0.0
     volumes:
       - ./monitoring/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml
@@ -482,6 +486,7 @@ services:
 
   # cAdvisor - Container metrics
   cadvisor:
+    profiles: ["production"]
     image: gcr.io/cadvisor/cadvisor:latest
     volumes:
       - /:/rootfs:ro
@@ -500,6 +505,7 @@ services:
 
   # Node Exporter - System metrics
   node-exporter:
+    profiles: ["production"]
     image: prom/node-exporter:latest
     command:
       - '--path.procfs=/host/proc'
@@ -518,6 +524,7 @@ services:
 
   # Postgres Exporter - Database metrics
   postgres-exporter:
+    profiles: ["production"]
     image: prometheuscommunity/postgres-exporter:latest
     environment:
       DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}?sslmode=disable"
