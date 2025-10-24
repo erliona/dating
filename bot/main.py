@@ -44,7 +44,7 @@ async def start_command_handler(message: Message) -> None:
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
             text="🚀 Открыть Mini App",
-            web_app=WebAppInfo(url=f"{webapp_url}/ru")
+            web_app=WebAppInfo(url=webapp_url)
         )]
     ])
     
