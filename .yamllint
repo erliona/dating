@@ -1,0 +1,49 @@
+# YAML linting configuration
+extends: default
+
+rules:
+  # Relax some rules for docker-compose files
+  line-length:
+    max: 120
+    level: warning
+  
+  # Allow comments in YAML
+  comments:
+    min-spaces-from-content: 1
+  
+  # Allow multiple documents
+  document-start:
+    present: false
+  
+  # Allow flow style for short lists
+  brackets:
+    min-spaces-inside: 0
+    max-spaces-inside: 1
+  
+  # Allow trailing spaces in some contexts
+  trailing-spaces:
+    level: warning
+  
+  # Allow empty lines
+  empty-lines:
+    max: 2
+    max-start: 0
+    max-end: 1
+  
+  # Allow indentation with spaces
+  indentation:
+    spaces: 2
+    indent-sequences: true
+    check-multi-line-strings: false
+  
+  # Allow truthy values
+  truthy:
+    allowed-values: ['true', 'false', 'yes', 'no', 'on', 'off']
+  
+  # Allow key ordering
+  key-ordering:
+    level: warning
+  
+  # Allow duplicate keys (for docker-compose overrides)
+  key-duplicates:
+    level: warning

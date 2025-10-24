@@ -316,6 +316,18 @@ echo "✅ Migration smoke check passed"
 - Use pytest. For new logic add unit tests; for endpoints add integration tests with test DB
 - Keep tests deterministic and fast; use fixtures/factories; mock network calls
 - Maintain/raise coverage thresholds defined in repo configs; add regression tests for fixed bugs
+
+## Code Quality & Standards
+- **Pre-commit hooks**: Install with `./scripts/setup-code-quality.sh` - enforces formatting, linting, type checking
+- **Black formatting**: Line length 88, Python 3.11+ target, auto-format on commit
+- **Ruff linting**: Fast Python linter with auto-fix, comprehensive rule set
+- **MyPy type checking**: Strict mode for core/, services/, gateway/ - catches type errors early
+- **isort imports**: Black-compatible import sorting, consistent import organization
+- **Bandit security**: Security vulnerability scanning, excludes tests and migrations
+- **YAML linting**: Docker-compose and CI configuration validation
+- **Conventional Commits**: Use `cz commit` or follow pattern: `type(scope): description`
+- **CI enforcement**: Static checks job fails on any quality violations
+- **Coverage threshold**: Minimum 80% code coverage, enforced in CI
 - Use pytest. For new logic add unit tests; for endpoints add integration tests with test DB
 - Keep tests deterministic and fast; use fixtures/factories; mock network calls
 - Maintain/raise coverage thresholds defined in repo configs; add regression tests for fixed bugs
