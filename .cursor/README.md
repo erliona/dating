@@ -1,6 +1,6 @@
 # Cursor AI Rules Structure
 
-This directory contains the Cursor AI rules organized for maximum effectiveness in development, production deployment, and troubleshooting.
+This directory contains all Cursor AI rules organized for maximum effectiveness in development, production deployment, and troubleshooting.
 
 ## File Structure
 
@@ -9,11 +9,11 @@ This directory contains the Cursor AI rules organized for maximum effectiveness 
 - **`production.rules`** - Production deployment, configuration, and post-deploy validation
 - **`troubleshooting.rules`** - Systematic debugging approach and diagnostic commands
 
-### Specialized Rules (MDC)
-- **`rules-mdc/deployment-and-monitoring.mdc`** - Integration-specific monitoring and deployment patterns
-- **`rules-mdc/git-flow-and-docker.mdc`** - Git workflow and Docker container management
-- **`rules-mdc/readonly-state.mdc`** - Rules for read-only operations
-- **`rules-mdc/rebuilt.mdc`** - Rules for rebuild operations
+### Specialized Rules
+- **`deployment-and-monitoring.rules`** - Integration-specific monitoring and deployment patterns
+- **`git-flow-and-docker.rules`** - Git workflow and Docker container management
+- **`readonly-state.rules`** - Rules for read-only operations
+- **`rebuilt.rules`** - Rules for rebuild operations
 
 ## Usage Guidelines
 
