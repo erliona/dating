@@ -29,16 +29,73 @@
 
 # ==== NAMING CONVENTIONS & STANDARDS ====
 
-## Migration Naming
-- ✅ Standard: `revision = "NNN_descriptive_name"` (e.g., `"007_create_chat_tables"`)
-- ❌ Anti-pattern: Short IDs like `"007"`
-- Rule: Always use full filename as revision ID
-- Rule: Always update `down_revision` to full filename of previous migration
-- Check VARCHAR column length: `ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(255)` for long revision names
-- Test migrations locally before production deployment
-- NEVER rename migrations to .bak - Alembic won't see them and won't apply them
-- Check current DB version: `SELECT version_num FROM alembic_version;`
-- RUN_DB_MIGRATIONS: set to `true` only for one service (usually telegram-bot)
+## Migration Naming & Management
+- ✅ **Standard approach**: Use Alembic's auto-generated 12-char hashes (e.g., `"abc123def456"`)
+- ✅ **File naming**: Use descriptive filenames like `007_create_chat_tables.py` for readability
+- ❌ **Anti-pattern**: Manual revision ID changes after migration is in main branch
+- ❌ **Anti-pattern**: Short numeric IDs like `"007"` (causes conflicts)
+- ❌ **Anti-pattern**: Renaming migrations to `.bak` - Alembic won't see them
+
+### Migration Workflow Rules
+- **New migrations**: Use `alembic revision -m "descriptive message"` (auto-generates hash)
+- **File naming**: Keep descriptive filenames for human readability
+- **Never manually edit revision IDs** after migration is committed to main
+- **Merge conflicts**: Use `alembic merge` command, never manual editing
+- **Database version**: Check with `SELECT version_num FROM alembic_version;`
+- **RUN_DB_MIGRATIONS**: Set to `true` only for one service (usually telegram-bot)
+
+### Migration Conflict Resolution
+- **Before merging**: Always run `alembic check` to verify migration chain
+- **Merge conflicts**: Use `alembic merge -m "merge message"` to create merge migration
+- **Never manually edit** `down_revision` in existing migrations
+- **PR checklist**: Verify migration chain integrity before approval
+- **Rollback safety**: Test `alembic downgrade` before production deployment
+
+### PR Checklist for Migrations
+- [ ] Migration file has descriptive name (e.g., `007_create_chat_tables.py`)
+- [ ] Revision ID is auto-generated hash (not manually edited)
+- [ ] `down_revision` points to correct previous migration
+- [ ] Run `alembic check` - no errors
+- [ ] Test migration locally: `alembic upgrade head`
+- [ ] Test rollback: `alembic downgrade -1` then `alembic upgrade head`
+- [ ] No `.bak` files in migrations/versions/
+- [ ] Migration is reversible (has both `upgrade()` and `downgrade()`)
+
+### Emergency Migration Procedures
+- **Broken migration chain**: Use `alembic stamp <revision>` to reset to known good state
+- **Missing migrations**: Never skip migrations - always create proper merge migration
+- **Production issues**: Have rollback plan ready before applying migrations
+- **Database corruption**: Restore from backup, then reapply migrations in order
+
+### Common Migration Commands
+```bash
+# Create new migration
+alembic revision -m "descriptive message"
+
+# Check migration chain integrity
+alembic check
+
+# Apply migrations
+alembic upgrade head
+
+# Rollback one migration
+alembic downgrade -1
+
+# Rollback to specific revision
+alembic downgrade <revision>
+
+# Merge conflicting migrations
+alembic merge -m "merge message" <revision1> <revision2>
+
+# Reset to specific revision (emergency only)
+alembic stamp <revision>
+
+# Show current revision
+alembic current
+
+# Show migration history
+alembic history
+```
 
 ## API Route Naming
 - Pattern: `/api/v1/<resource>/<action>`
@@ -172,13 +229,15 @@
 # ==== DATABASE & MIGRATIONS ====
 
 ## Alembic Best Practices
-- Use explicit transactions with async sessions (one per request when needed)
-- Every schema change → Alembic migration; keep migrations reversible and idempotent
-- Prevent N+1 via joined eager loads or batching; confirm with test data and logs
-- Test migrations locally before production deployment
-- NEVER rename migrations to .bak - Alembic won't see them and won't apply them
-- Check current DB version: `SELECT version_num FROM alembic_version;`
-- RUN_DB_MIGRATIONS: set to `true` only for one service (usually telegram-bot)
+- **Use auto-generated revision IDs**: Let Alembic create 12-char hashes automatically
+- **Descriptive filenames**: Use meaningful names like `007_create_chat_tables.py`
+- **Never edit revision IDs**: Once in main branch, never manually change revision IDs
+- **Reversible migrations**: Always implement both `upgrade()` and `downgrade()`
+- **Test locally first**: Always test migrations before production deployment
+- **Merge conflicts**: Use `alembic merge` command, never manual editing
+- **Chain integrity**: Run `alembic check` before merging PRs
+- **Single migration service**: Set `RUN_DB_MIGRATIONS=true` only for one service (usually telegram-bot)
+- **Emergency procedures**: Know how to use `alembic stamp` for recovery
 
 # ==== TESTING & QUALITY ====
 
