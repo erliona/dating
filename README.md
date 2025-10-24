@@ -167,7 +167,7 @@ dating/
 ### Frontend
 
 **Основной (webapp/):**
-- **HTML/CSS/JavaScript** - vanilla
+- **Vue 3 + Vite + Pinia** - современный фронтенд стек
 - **Nginx** - веб-сервер
 - **Telegram WebApp SDK** - интеграция с Telegram
 
