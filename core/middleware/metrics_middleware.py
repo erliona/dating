@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Prometheus metrics middleware for application services."""
 
 import time

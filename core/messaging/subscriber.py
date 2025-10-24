@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Event subscriber for RabbitMQ."""
 import logging
 import json

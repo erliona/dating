@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Standard middleware stack configuration for all microservices."""
 
 from aiohttp import web

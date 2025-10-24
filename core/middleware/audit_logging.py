@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Audit logging middleware for critical operations tracking."""
 
 import logging

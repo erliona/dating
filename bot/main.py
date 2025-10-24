@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Minimal bot entry point - notifications only.
 
 Bot role:

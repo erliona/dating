@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Media service main entry point.
 
 This microservice handles photo/video upload, validation, and optimization.

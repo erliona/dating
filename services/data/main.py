@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Data Service main entry point.
 
 This service provides centralized database access for all other microservices.

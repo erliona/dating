@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Distributed tracing middleware for W3C Trace Context support."""
 
 import logging

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Database repository for profile operations.
 
 Epic B1: Profile CRUD operations with PostgreSQL.

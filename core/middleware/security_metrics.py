@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Security-specific metrics for monitoring authentication and security events."""
 
 import logging

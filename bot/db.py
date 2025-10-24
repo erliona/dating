@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Database models for Dating Mini App."""
 
 from datetime import date, datetime

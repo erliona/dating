@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Rate limiting middleware for protecting endpoints from abuse."""
 
 import logging

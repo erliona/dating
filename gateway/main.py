@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """API Gateway main entry point.
 
 This service routes requests to appropriate microservices.

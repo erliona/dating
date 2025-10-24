@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Chat service main entry point.
 
 This microservice handles real-time messaging between matched users.

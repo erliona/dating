@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Circuit breaker implementation for service-to-service calls."""
 import logging
 from typing import Callable, Any, Optional

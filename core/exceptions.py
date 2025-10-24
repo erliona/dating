@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Custom exceptions for the dating application microservices."""
 
 from typing import Dict, Any, Optional

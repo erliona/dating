@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Core utility functions - platform independent."""
 
 from .security import (

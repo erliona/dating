@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Input validation utilities for security and data integrity."""
 
 import re

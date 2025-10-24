@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Centralized business metrics for the dating application."""
 
 from prometheus_client import Counter, Gauge

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Notification service main entry point.
 
 This microservice handles push notifications to users via the Telegram bot.

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Unified error handler middleware for consistent error responses."""
 
 import logging

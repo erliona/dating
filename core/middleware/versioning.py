@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """API versioning middleware."""
 import logging
 from aiohttp import web

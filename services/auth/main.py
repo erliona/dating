@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Auth service main entry point.
 
 This microservice handles authentication and JWT token management,

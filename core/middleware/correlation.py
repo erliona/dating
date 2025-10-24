@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Correlation ID middleware for request tracing and propagation."""
 import uuid
 import logging

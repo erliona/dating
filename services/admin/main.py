@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Admin service main entry point.
 
 This microservice handles admin panel functionality including:

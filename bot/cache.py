@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """In-memory cache system with TTL and statistics.
 
 Provides a simple in-memory cache for profile recommendations, matches, and settings.

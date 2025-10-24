@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Shared structured JSON logging configuration for all services."""
 
 import json

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Retry logic with exponential backoff."""
 import logging
 from typing import Callable, Any

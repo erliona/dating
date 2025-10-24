@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Security utilities for authentication and authorization.
 
 Platform-independent security functions for JWT tokens, rate limiting, and validation.

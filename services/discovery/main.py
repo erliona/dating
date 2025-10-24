@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Discovery service main entry point.
 
 This microservice handles matching algorithm and candidate discovery.

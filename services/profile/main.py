@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Profile service main entry point.
 
 This microservice handles user profile management by communicating with Data Service.
