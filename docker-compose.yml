@@ -437,6 +437,9 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    cap_add:
+      - CHOWN
+      - FOWNER
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:80/health"]
       interval: 30s
