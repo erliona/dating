@@ -36,8 +36,8 @@ RUN chmod +x services/admin/entrypoint.sh \
     && chown -R appuser:appuser /app \
     && chown -R appuser:appuser /usr/share/nginx/html
 
-# Note: Keep as root for entrypoint to create nginx directories
-# USER appuser
+# Switch to non-root user
+USER appuser
 
 # Set PYTHONPATH to find modules
 ENV PYTHONPATH=/app \

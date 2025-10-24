@@ -94,8 +94,8 @@ services:
       AUTH_SERVICE_PORT: ${AUTH_SERVICE_PORT:-8081}
       BOT_TOKEN: ${BOT_TOKEN}
       DATA_SERVICE_URL: http://data-service:${DATA_SERVICE_PORT:-8088}
-    ports:
-      - "${AUTH_SERVICE_PORT:-8081}:${AUTH_SERVICE_PORT:-8081}"
+    # ports:
+    #   - "${AUTH_SERVICE_PORT:-8081}:${AUTH_SERVICE_PORT:-8081}"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8081/health').read()"]
       interval: 30s
@@ -119,8 +119,8 @@ services:
       PROFILE_SERVICE_HOST: 0.0.0.0
       PROFILE_SERVICE_PORT: ${PROFILE_SERVICE_PORT:-8082}
       JWT_SECRET: ${JWT_SECRET}
-    ports:
-      - "${PROFILE_SERVICE_PORT:-8082}:${PROFILE_SERVICE_PORT:-8082}"
+    # ports:
+    #   - "${PROFILE_SERVICE_PORT:-8082}:${PROFILE_SERVICE_PORT:-8082}"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8082/health').read()"]
       interval: 30s
@@ -146,8 +146,8 @@ services:
       DISCOVERY_SERVICE_PORT: ${DISCOVERY_SERVICE_PORT:-8083}
       JWT_SECRET: ${JWT_SECRET}
       RABBITMQ_URL: ${RABBITMQ_URL:-amqp://dating:dating@rabbitmq:5672/}
-    ports:
-      - "${DISCOVERY_SERVICE_PORT:-8083}:${DISCOVERY_SERVICE_PORT:-8083}"
+    # ports:
+    #   - "${DISCOVERY_SERVICE_PORT:-8083}:${DISCOVERY_SERVICE_PORT:-8083}"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8083/health').read()"]
       interval: 30s
@@ -170,8 +170,8 @@ services:
       PHOTO_STORAGE_PATH: /app/photos
       NSFW_THRESHOLD: ${NSFW_THRESHOLD:-0.7}
       JWT_SECRET: ${JWT_SECRET}
-    ports:
-      - "${MEDIA_SERVICE_PORT:-8084}:${MEDIA_SERVICE_PORT:-8084}"
+    # ports:
+    #   - "${MEDIA_SERVICE_PORT:-8084}:${MEDIA_SERVICE_PORT:-8084}"
     volumes:
       - media_storage:/app/photos
     healthcheck:
@@ -195,8 +195,8 @@ services:
       CHAT_SERVICE_PORT: ${CHAT_SERVICE_PORT:-8085}
       JWT_SECRET: ${JWT_SECRET}
       RABBITMQ_URL: ${RABBITMQ_URL:-amqp://dating:dating@rabbitmq:5672/}
-    ports:
-      - "${CHAT_SERVICE_PORT:-8085}:${CHAT_SERVICE_PORT:-8085}"
+    # ports:
+    #   - "${CHAT_SERVICE_PORT:-8085}:${CHAT_SERVICE_PORT:-8085}"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8085/health').read()"]
       interval: 30s
@@ -220,8 +220,8 @@ services:
       PORT: ${NOTIFICATION_SERVICE_PORT:-8087}
       JWT_SECRET: ${JWT_SECRET}
       RABBITMQ_URL: ${RABBITMQ_URL:-amqp://dating:dating@rabbitmq:5672/}
-    ports:
-      - "${NOTIFICATION_SERVICE_PORT:-8087}:${NOTIFICATION_SERVICE_PORT:-8087}"
+    # ports:
+    #   - "${NOTIFICATION_SERVICE_PORT:-8087}:${NOTIFICATION_SERVICE_PORT:-8087}"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8087/health').read()"]
       interval: 30s
@@ -248,8 +248,8 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
       DATA_SERVICE_HOST: 0.0.0.0
       DATA_SERVICE_PORT: ${DATA_SERVICE_PORT:-8088}
-    ports:
-      - "${DATA_SERVICE_PORT:-8088}:${DATA_SERVICE_PORT:-8088}"
+    # ports:
+    #   - "${DATA_SERVICE_PORT:-8088}:${DATA_SERVICE_PORT:-8088}"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8088/health').read()"]
       interval: 30s
@@ -274,8 +274,8 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       ADMIN_SERVICE_HOST: 0.0.0.0
       ADMIN_SERVICE_PORT: ${ADMIN_SERVICE_PORT:-8086}
-    ports:
-      - "${ADMIN_SERVICE_PORT:-8086}:${ADMIN_SERVICE_PORT:-8086}"
+    # ports:
+    #   - "${ADMIN_SERVICE_PORT:-8086}:${ADMIN_SERVICE_PORT:-8086}"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8086/health').read()"]
       interval: 30s
@@ -329,8 +329,8 @@ services:
       ADMIN_SERVICE_URL: ${ADMIN_SERVICE_URL:-http://admin-service:${ADMIN_SERVICE_PORT:-8086}}
       NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:${NOTIFICATION_SERVICE_PORT:-8087}}
       WEBAPP_DOMAIN: https://${DOMAIN:-localhost}
-    ports:
-      - "${GATEWAY_PORT:-8080}:${GATEWAY_PORT:-8080}"
+    # ports:
+    #   - "${GATEWAY_PORT:-8080}:${GATEWAY_PORT:-8080}"
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health').read()"]
       interval: 30s
@@ -404,9 +404,9 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-dating}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-dating}
       RABBITMQ_DEFAULT_VHOST: /
-    ports:
-      - "${RABBITMQ_PORT:-5672}:5672"
-      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"  # Management UI
+    # ports:
+    #   - "${RABBITMQ_PORT:-5672}:5672"
+    #   - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"  # Management UI
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
@@ -435,15 +435,14 @@ services:
       - traefik
       - api-gateway
     restart: unless-stopped
-    # Temporarily disable security restrictions for Nginx
-    # security_opt:
-    #   - no-new-privileges:true
-    # cap_drop:
-    #   - ALL
-    # cap_add:
-    #   - CHOWN
-    #   - FOWNER
-    #   - SETGID
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - FOWNER
+      - SETGID
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:80/health"]
       interval: 30s
@@ -480,8 +479,8 @@ services:
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
       - '--web.enable-lifecycle'
-    ports:
-      - "${PROMETHEUS_PORT:-9090}:9090"
+    # ports:
+    #   - "${PROMETHEUS_PORT:-9090}:9090"
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -511,8 +510,8 @@ services:
       - GF_INSTALL_PLUGINS=
       - GF_LOG_LEVEL=info
       - GF_FEATURE_TOGGLES_ENABLE=publicDashboards
-    ports:
-      - "${GRAFANA_PORT:-3000}:3000"
+    # ports:
+    #   - "${GRAFANA_PORT:-3000}:3000"
     depends_on:
       prometheus:
         condition: service_healthy
@@ -539,8 +538,8 @@ services:
       - ./monitoring/loki/loki-config.yml:/etc/loki/loki-config.yml
       - loki_data:/loki
     command: -config.file=/etc/loki/loki-config.yml -config.expand-env=true
-    ports:
-      - "${LOKI_PORT:-3100}:3100"
+    # ports:
+    #   - "${LOKI_PORT:-3100}:3100"
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -590,8 +589,8 @@ services:
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
-    ports:
-      - "${CADVISOR_PORT:-8090}:8080"  # Changed from 8081 to avoid conflict with auth-service
+    # ports:
+    #   - "${CADVISOR_PORT:-8090}:8080"  # Changed from 8081 to avoid conflict with auth-service
     privileged: true
     devices:
       - /dev/kmsg
@@ -616,8 +615,8 @@ services:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
-    ports:
-      - "${NODE_EXPORTER_PORT:-9100}:9100"
+    # ports:
+    #   - "${NODE_EXPORTER_PORT:-9100}:9100"
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -632,8 +631,8 @@ services:
     image: prometheuscommunity/postgres-exporter:v0.15.0
     environment:
       DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}?sslmode=disable"
-    ports:
-      - "${POSTGRES_EXPORTER_PORT:-9187}:9187"
+    # ports:
+    #   - "${POSTGRES_EXPORTER_PORT:-9187}:9187"
     depends_on:
       - db
     restart: unless-stopped
