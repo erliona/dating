@@ -17,7 +17,10 @@ export function useWebSocket() {
       return
     }
 
-    const wsUrl = `ws://localhost:8080/chat/connect?token=${token}`
+    // Use secure WebSocket in production, regular in development
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const host = window.location.host
+    const wsUrl = `${protocol}//${host}/v1/chat/ws?token=${token}`
     ws.value = new WebSocket(wsUrl)
 
     ws.value.onopen = () => {

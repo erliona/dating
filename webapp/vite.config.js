@@ -6,7 +6,11 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
-      '/api': {
+      '/v1': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
+      },
+      '/health': {
         target: 'http://localhost:8080',
         changeOrigin: true
       }
@@ -16,6 +20,18 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
-    minify: 'terser'
+    minify: 'terser',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['vue', 'vue-router', 'pinia'],
+          telegram: ['@twa-dev/sdk']
+        }
+      }
+    }
+  },
+  define: {
+    __VUE_OPTIONS_API__: true,
+    __VUE_PROD_DEVTOOLS__: false
   }
 })

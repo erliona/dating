@@ -377,32 +377,16 @@ services:
       - ALL
     labels:
       - "traefik.enable=true"
-      # HTTP router - high priority for specific paths (excluding /api/profiles)
-      - "traefik.http.routers.api-gateway.rule=Host(`${DOMAIN:-localhost}`) && (PathPrefix(`/v1`) || Path(`/health`) || PathPrefix(`/admin-panel`) || PathPrefix(`/chat`))"
+      # HTTP router - v1 API routes only
+      - "traefik.http.routers.api-gateway.rule=Host(`${DOMAIN:-localhost}`) && (PathPrefix(`/v1`) || Path(`/health`))"
       - "traefik.http.routers.api-gateway.entrypoints=web"
       - "traefik.http.routers.api-gateway.priority=100"
       - "traefik.http.services.api-gateway.loadbalancer.server.port=${GATEWAY_PORT:-8080}"
-      # HTTPS router - high priority for specific paths (excluding /api/profiles)
-      - "traefik.http.routers.api-gateway-secure.rule=Host(`${DOMAIN:-localhost}`) && (PathPrefix(`/v1`) || Path(`/health`) || PathPrefix(`/admin-panel`) || PathPrefix(`/chat`))"
+      # HTTPS router - v1 API routes only
+      - "traefik.http.routers.api-gateway-secure.rule=Host(`${DOMAIN:-localhost}`) && (PathPrefix(`/v1`) || Path(`/health`))"
       - "traefik.http.routers.api-gateway-secure.entrypoints=websecure"
       - "traefik.http.routers.api-gateway-secure.priority=100"
       - "traefik.http.routers.api-gateway-secure.tls.certresolver=letsencrypt"
-      # Middleware to strip /api prefix
-      - "traefik.http.middlewares.strip-api.stripprefix.prefixes=/api"
-      # HTTP to HTTPS redirect
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-      # API router with strip middleware
-      - "traefik.http.routers.api-gateway-api.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/api`) && !PathPrefix(`/api/profiles`)"
-      - "traefik.http.routers.api-gateway-api.entrypoints=web"
-      - "traefik.http.routers.api-gateway-api.priority=200"
-      - "traefik.http.routers.api-gateway-api.middlewares=strip-api,redirect-to-https"
-      - "traefik.http.routers.api-gateway-api.service=api-gateway"
-      - "traefik.http.routers.api-gateway-api-secure.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/api`) && !PathPrefix(`/api/profiles`)"
-      - "traefik.http.routers.api-gateway-api-secure.entrypoints=websecure"
-      - "traefik.http.routers.api-gateway-api-secure.priority=200"
-      - "traefik.http.routers.api-gateway-api-secure.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.api-gateway-api-secure.middlewares=strip-api"
-      - "traefik.http.routers.api-gateway-api-secure.service=api-gateway"
 
   # Telegram Bot Adapter - Integrates with Telegram
   telegram-bot:
