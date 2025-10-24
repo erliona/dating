@@ -11,8 +11,8 @@ from typing import Sequence, Union
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "004"
-down_revision: Union[str, None] = "003"
+revision: str = "004_fix_admin_timezone"
+down_revision: Union[str, None] = "003_create_admin_table"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
