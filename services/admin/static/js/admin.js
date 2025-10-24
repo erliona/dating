@@ -82,7 +82,7 @@ async function handleLogin(e) {
     errorDiv.classList.add('hidden');
     
     try {
-        const response = await fetch(`${API_BASE}/admin/login`, {
+        const response = await fetch(`${API_BASE}/admin/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
