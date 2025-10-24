@@ -66,6 +66,37 @@ const handleLogin = async () => {
     
     if (!telegramData?.user) {
       console.error('No user data in telegramData:', telegramData)
+      console.log('Telegram WebApp not properly initialized. This might be a development environment.')
+      
+      // For development/testing, create mock data
+      if (telegramData.initData === '') {
+        console.log('Using mock data for development')
+        const mockAuthData = {
+          init_data: 'user=%7B%22id%22%3A123456789%2C%22first_name%22%3A%22Test%22%2C%22last_name%22%3A%22User%22%2C%22username%22%3A%22testuser%22%2C%22language_code%22%3A%22en%22%7D&chat_instance=-123456789&chat_type=sender&auth_date=' + Math.floor(Date.now() / 1000) + '&hash=mock_hash',
+          bot_token: '8302871321:AAGDRnSDYdYHeEOqtEoKZVYLCbBlI2GBYMM'
+        }
+        
+        console.log('Mock auth data:', mockAuthData)
+        console.log('Sending mock login request...')
+        
+        try {
+          await userStore.login(mockAuthData)
+          
+          // Redirect based on profile completion
+          if (userStore.isProfileComplete) {
+            router.push('/discovery')
+          } else {
+            router.push('/onboarding')
+          }
+        } catch (error) {
+          console.error('Mock login error:', error)
+          alert(`Ошибка входа: ${error.response?.data?.error || error.message}`)
+        } finally {
+          loading.value = false
+        }
+        return
+      }
+      
       showAlert('Ошибка: не удалось получить данные Telegram')
       return
     }

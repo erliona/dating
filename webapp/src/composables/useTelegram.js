@@ -43,8 +43,13 @@ export function useTelegram() {
   }
 
   const showAlert = (message) => {
-    if (tg.value) {
-      tg.value.showAlert(message)
+    if (tg.value && tg.value.showAlert) {
+      try {
+        tg.value.showAlert(message)
+      } catch (error) {
+        console.warn('Telegram showAlert failed:', error)
+        alert(message)
+      }
     } else {
       alert(message)
     }
