@@ -31,6 +31,7 @@
         <button 
           class="btn btn-primary btn-large welcome-btn"
           @click="handleLogin"
+          @click.prevent="handleLogin"
           :disabled="loading"
         >
           <span v-if="loading" class="spinner"></span>
@@ -46,19 +47,46 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { useTelegram } from '../composables/useTelegram'
 
 const router = useRouter()
 const userStore = useUserStore()
-const { getTelegramData, showAlert } = useTelegram()
+const { getTelegramData, showAlert, initTelegram, isReady } = useTelegram()
 
 const loading = ref(false)
 
+onMounted(() => {
+  console.log('WelcomeView mounted')
+  console.log('Telegram WebApp available:', !!window.Telegram?.WebApp)
+  console.log('isReady:', isReady.value)
+  
+  // Force initialization
+  initTelegram()
+  
+  // Check again after initialization
+  setTimeout(() => {
+    console.log('After init - isReady:', isReady.value)
+    console.log('Telegram data after init:', getTelegramData())
+  }, 100)
+  
+  // Add simple click test
+  const button = document.querySelector('.welcome-btn')
+  if (button) {
+    button.addEventListener('click', (e) => {
+      console.log('Button clicked directly!', e)
+    })
+  }
+})
+
 const handleLogin = async () => {
+  console.log('handleLogin called!')
+  console.log('loading before:', loading.value)
+  
   loading.value = true
+  console.log('loading after:', loading.value)
   
   try {
     const telegramData = getTelegramData()
