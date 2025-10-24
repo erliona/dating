@@ -1,0 +1,84 @@
+# ==== Production Deployment & Configuration Rules ====
+
+## Migrations Best Practices
+- **ВСЕГДА использовать full filename как revision ID**: `revision: str = "007_create_chat_tables"` НЕ `"007"`
+- **ВСЕГДА обновлять down_revision на full filename**: `down_revision: Union[str, None] = "006_fix_discovery_tables_timezone"`
+- **Проверять VARCHAR column length**: `ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(255)` для длинных revision names
+- **Тестировать миграции локально** перед production deployment
+- **НЕ ПЕРЕИМЕНОВЫВАТЬ миграции в .bak** - Alembic их не увидит и не применит
+- **Проверять текущую версию БД**: `SELECT version_num FROM alembic_version;`
+- **RUN_DB_MIGRATIONS**: устанавливать `true` только для одного сервиса (обычно telegram-bot)
+
+## Docker & Environment
+- **При изменении ENV vars**: использовать `docker compose up -d service` (recreate), НЕ просто `restart`
+- **Проверять что ENV vars попали в контейнер**: `docker compose exec service env | grep VARIABLE`
+- **Secrets generation**: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
+- **НЕ ДУБЛИРОВАТЬ переменные** в .env файле (особенно JWT_SECRET)
+- **Проверять .env.example** синхронизацию при добавлении новых переменных
+
+## Nginx Configuration
+- **В `/etc/nginx/conf.d/*.conf` НИКОГДА не включать** `events {}` или `http {}` блоки
+- **Только `server {}` блоки** в conf.d файлах
+- **При ошибке "directive is not allowed here"** - проверить что нет top-level directives
+- **Проверять что Nginx config валиден**: `nginx -t` перед перезапуском
+
+## Traefik & Routing
+- **Service names в targets**: использовать short names (`api-gateway`), НЕ full Docker Compose names (`dating-microservices-api-gateway-1`)
+- **Strip prefix middleware**: если Traefik forwards `/api/v1/` а сервис ожидает `/v1/`
+- **Priority rules**: выше приоритет для более специфичных путей (200 > 100 > 50)
+- **Проверять router labels** после пересоздания контейнеров: `curl http://localhost:8091/api/http/routers`
+- **Проверять service discovery**: `curl http://localhost:8091/api/http/services`
+
+## Authentication & JWT
+- **Public routes (login, health) НЕ ДОЛЖНЫ требовать JWT**
+- **Использовать sub-applications в aiohttp** для разделения public/protected routes
+- **Проверять что ADMIN_PASSWORD и JWT_SECRET установлены** в .env
+- **НЕ ДУБЛИРОВАТЬ JWT_SECRET** в .env файле
+- **Тестировать login endpoints** после изменений в middleware
+
+## Network & DNS
+- **Prometheus должен быть в той же Docker network** что и application services
+- **Использовать Docker DNS names**, НЕ IP адреса в конфигурациях
+- **Проверять network connectivity**: `docker compose exec service wget -qO- http://target:port/health`
+- **Проверять network membership**: `docker network inspect network-name | jq '.[0].Containers'`
+
+## Post-Deployment Checklist
+- **Container status**: `docker compose ps` - все должны быть `healthy`
+- **Prometheus alerts**: `./scripts/check_alerts.sh` - проверить firing alerts
+- **Health endpoints**: `./scripts/health_check.sh` - все сервисы отвечают
+- **Service logs**: `docker compose logs --tail=20 service | grep -E 'ERROR|WARN'`
+- **Database state**: `SELECT version_num FROM alembic_version;`
+- **Critical endpoints**: тестировать через curl (auth, profile, admin login)
+- **Monitoring targets**: `curl http://localhost:9090/api/v1/targets | jq`
+
+> **Note**: For detailed diagnostic commands, see .cursor/troubleshooting.rules
+
+## Container Management
+- **Rebuild**: code changes, Dockerfile changes, dependency changes
+- **Recreate**: env var changes, label changes, network changes  
+- **Restart**: config file changes (mounted volumes)
+- **Command guide**:
+  - `docker compose build service` - rebuild image
+  - `docker compose up -d service` - recreate container
+  - `docker compose restart service` - restart only
+
+## Security & Secrets
+- **Никогда не коммитить secrets** в git
+- **Использовать strong secrets**: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
+- **Проверять .gitignore** перед commit
+- **Обновлять .env.example** при добавлении новых переменных
+- **Ротировать secrets** при подозрении на компрометацию
+
+## Performance & Reliability
+- **Мониторить resource usage**: CPU, memory, disk space
+- **Проверять health checks**: все сервисы должны отвечать на `/health`
+- **Использовать retries и timeouts** для inter-service calls
+- **Проверять database connections**: connection pool, query performance
+- **Мониторить logs** на предмет memory leaks или performance degradation
+
+## Documentation & Rollback
+- **Обновлять README/changelog** для всех значимых изменений
+- **Документировать breaking changes** в API или database schema
+- **Иметь rollback plan** для каждого deployment
+- **Тестировать rollback процедуры** в staging environment
+- **Никогда не деплоить в пятницу вечером** без emergency plan

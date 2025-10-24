@@ -1,0 +1,544 @@
+# Microservices Docker Compose configuration
+#
+# This configuration deploys the dating application as microservices.
+# Each service can be scaled and deployed independently.
+
+services:
+  # Traefik - Reverse proxy and SSL/TLS termination
+  traefik:
+    image: traefik:v2.11
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-admin@example.com}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+      # Uncomment the following line to use Let's Encrypt staging server for testing
+      # - "--certificatesresolvers.letsencrypt.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+      # Enable Prometheus metrics
+      - "--metrics.prometheus=true"
+      - "--metrics.prometheus.addEntryPointsLabels=true"
+      - "--metrics.prometheus.addServicesLabels=true"
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${TRAEFIK_DASHBOARD_PORT:-8091}:8080"  # Traefik dashboard (changed from 8090 to avoid conflict with cAdvisor)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_certificates:/letsencrypt
+    restart: unless-stopped
+    networks:
+      - default
+      - monitoring
+    labels:
+      - "traefik.enable=true"
+      # Dashboard
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN:-localhost}`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.entrypoints=web"
+
+  # Database (shared in Phase 2, will be split in Phase 3)
+  # Note: External port exposure is disabled by default for production security.
+  # Microservices connect internally via Docker network - no external port needed.
+  # For local development with external tools: uncomment ports and set POSTGRES_EXTERNAL_PORT
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-dating}
+      POSTGRES_USER: ${POSTGRES_USER:-dating}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dating}
+    # Uncomment for local development if you need external database access:
+    # ports:
+    #   - "${POSTGRES_EXTERNAL_PORT:-5433}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dating}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Auth Service - JWT and session management
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth/Dockerfile
+    environment:
+      JWT_SECRET: ${JWT_SECRET}
+      AUTH_SERVICE_HOST: 0.0.0.0
+      AUTH_SERVICE_PORT: ${AUTH_SERVICE_PORT:-8081}
+      BOT_TOKEN: ${BOT_TOKEN}
+    ports:
+      - "${AUTH_SERVICE_PORT:-8081}:${AUTH_SERVICE_PORT:-8081}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8081/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Profile Service - User profiles and settings
+  profile-service:
+    build:
+      context: .
+      dockerfile: services/profile/Dockerfile
+    depends_on:
+      - data-service
+    environment:
+      DATA_SERVICE_URL: http://data-service:${DATA_SERVICE_PORT:-8088}
+      PROFILE_SERVICE_HOST: 0.0.0.0
+      PROFILE_SERVICE_PORT: ${PROFILE_SERVICE_PORT:-8082}
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "${PROFILE_SERVICE_PORT:-8082}:${PROFILE_SERVICE_PORT:-8082}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8082/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Discovery Service - Matching and recommendations
+  discovery-service:
+    build:
+      context: .
+      dockerfile: services/discovery/Dockerfile
+    depends_on:
+      data-service:
+        condition: service_healthy
+    environment:
+      DATA_SERVICE_URL: http://data-service:8088
+      DISCOVERY_SERVICE_HOST: 0.0.0.0
+      DISCOVERY_SERVICE_PORT: ${DISCOVERY_SERVICE_PORT:-8083}
+      JWT_SECRET: ${JWT_SECRET}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://dating:dating@rabbitmq:5672/}
+    ports:
+      - "${DISCOVERY_SERVICE_PORT:-8083}:${DISCOVERY_SERVICE_PORT:-8083}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8083/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Media Service - Photo upload and processing
+  media-service:
+    build:
+      context: .
+      dockerfile: services/media/Dockerfile
+    environment:
+      MEDIA_SERVICE_HOST: 0.0.0.0
+      MEDIA_SERVICE_PORT: ${MEDIA_SERVICE_PORT:-8084}
+      PHOTO_STORAGE_PATH: /app/photos
+      NSFW_THRESHOLD: ${NSFW_THRESHOLD:-0.7}
+      JWT_SECRET: ${JWT_SECRET}
+    ports:
+      - "${MEDIA_SERVICE_PORT:-8084}:${MEDIA_SERVICE_PORT:-8084}"
+    volumes:
+      - media_storage:/app/photos
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8084/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Chat Service - Real-time messaging (WebSocket)
+  chat-service:
+    build:
+      context: .
+      dockerfile: services/chat/Dockerfile
+    environment:
+      CHAT_SERVICE_HOST: 0.0.0.0
+      CHAT_SERVICE_PORT: ${CHAT_SERVICE_PORT:-8085}
+      JWT_SECRET: ${JWT_SECRET}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://dating:dating@rabbitmq:5672/}
+    ports:
+      - "${CHAT_SERVICE_PORT:-8085}:${CHAT_SERVICE_PORT:-8085}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8085/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Notification Service - Push notifications to users
+  notification-service:
+    build:
+      context: .
+      dockerfile: services/notification/Dockerfile
+    environment:
+      BOT_URL: ${BOT_URL:-http://telegram-bot:8080}
+      NOTIFICATION_SERVICE_HOST: 0.0.0.0
+      NOTIFICATION_SERVICE_PORT: ${NOTIFICATION_SERVICE_PORT:-8087}
+      PORT: ${NOTIFICATION_SERVICE_PORT:-8087}
+      JWT_SECRET: ${JWT_SECRET}
+      RABBITMQ_URL: ${RABBITMQ_URL:-amqp://dating:dating@rabbitmq:5672/}
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT:-8087}:${NOTIFICATION_SERVICE_PORT:-8087}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8087/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Data Service - Centralized database access
+  data-service:
+    build:
+      context: .
+      dockerfile: services/data/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dating}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dating}
+      POSTGRES_DB: ${POSTGRES_DB:-dating}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
+      DATA_SERVICE_HOST: 0.0.0.0
+      DATA_SERVICE_PORT: ${DATA_SERVICE_PORT:-8088}
+    ports:
+      - "${DATA_SERVICE_PORT:-8088}:${DATA_SERVICE_PORT:-8088}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8088/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Admin Service - Admin panel for managing the system
+  admin-service:
+    build:
+      context: .
+      dockerfile: services/admin/Dockerfile
+    depends_on:
+      - data-service
+    environment:
+      DATA_SERVICE_URL: http://data-service:${DATA_SERVICE_PORT:-8088}
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ADMIN_SERVICE_HOST: 0.0.0.0
+      ADMIN_SERVICE_PORT: ${ADMIN_SERVICE_PORT:-8086}
+    ports:
+      - "${ADMIN_SERVICE_PORT:-8086}:${ADMIN_SERVICE_PORT:-8086}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8086/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      # HTTP router for admin panel
+      - "traefik.http.routers.admin.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/admin`)"
+      - "traefik.http.routers.admin.entrypoints=web"
+      - "traefik.http.routers.admin.priority=50"
+      - "traefik.http.services.admin.loadbalancer.server.port=${ADMIN_SERVICE_PORT:-8086}"
+      # HTTPS router for admin panel
+      - "traefik.http.routers.admin-secure.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/admin`)"
+      - "traefik.http.routers.admin-secure.entrypoints=websecure"
+      - "traefik.http.routers.admin-secure.priority=50"
+      - "traefik.http.routers.admin-secure.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.admin-secure.service=admin"
+
+  # API Gateway - Routes requests to microservices
+  api-gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    depends_on:
+      - auth-service
+      - profile-service
+      - discovery-service
+      - media-service
+      - chat-service
+      - admin-service
+      - notification-service
+      - traefik
+    environment:
+      GATEWAY_HOST: 0.0.0.0
+      GATEWAY_PORT: ${GATEWAY_PORT:-8080}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth-service:${AUTH_SERVICE_PORT:-8081}}
+      PROFILE_SERVICE_URL: ${PROFILE_SERVICE_URL:-http://profile-service:${PROFILE_SERVICE_PORT:-8082}}
+      DISCOVERY_SERVICE_URL: ${DISCOVERY_SERVICE_URL:-http://discovery-service:${DISCOVERY_SERVICE_PORT:-8083}}
+      MEDIA_SERVICE_URL: ${MEDIA_SERVICE_URL:-http://media-service:${MEDIA_SERVICE_PORT:-8084}}
+      CHAT_SERVICE_URL: ${CHAT_SERVICE_URL:-http://chat-service:${CHAT_SERVICE_PORT:-8085}}
+      ADMIN_SERVICE_URL: ${ADMIN_SERVICE_URL:-http://admin-service:${ADMIN_SERVICE_PORT:-8086}}
+      NOTIFICATION_SERVICE_URL: ${NOTIFICATION_SERVICE_URL:-http://notification-service:${NOTIFICATION_SERVICE_PORT:-8087}}
+      WEBAPP_DOMAIN: https://${DOMAIN:-localhost}
+    ports:
+      - "${GATEWAY_PORT:-8080}:${GATEWAY_PORT:-8080}"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health').read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      # HTTP router - high priority for specific paths (excluding /api/profiles)
+      - "traefik.http.routers.api-gateway.rule=Host(`${DOMAIN:-localhost}`) && (PathPrefix(`/v1`) && !PathPrefix(`/v1/profiles`)) || Path(`/health`) || PathPrefix(`/admin-panel`) || PathPrefix(`/chat`)"
+      - "traefik.http.routers.api-gateway.entrypoints=web"
+      - "traefik.http.routers.api-gateway.priority=100"
+      - "traefik.http.services.api-gateway.loadbalancer.server.port=${GATEWAY_PORT:-8080}"
+      # HTTPS router - high priority for specific paths (excluding /api/profiles)
+      - "traefik.http.routers.api-gateway-secure.rule=Host(`${DOMAIN:-localhost}`) && (PathPrefix(`/v1`) && !PathPrefix(`/v1/profiles`)) || Path(`/health`) || PathPrefix(`/admin-panel`) || PathPrefix(`/chat`)"
+      - "traefik.http.routers.api-gateway-secure.entrypoints=websecure"
+      - "traefik.http.routers.api-gateway-secure.priority=100"
+      - "traefik.http.routers.api-gateway-secure.tls.certresolver=letsencrypt"
+      # Middleware to strip /api prefix
+      - "traefik.http.middlewares.strip-api.stripprefix.prefixes=/api"
+      # HTTP to HTTPS redirect
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      # API router with strip middleware
+      - "traefik.http.routers.api-gateway-api.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/api`) && !PathPrefix(`/api/profiles`)"
+      - "traefik.http.routers.api-gateway-api.entrypoints=web"
+      - "traefik.http.routers.api-gateway-api.priority=200"
+      - "traefik.http.routers.api-gateway-api.middlewares=strip-api,redirect-to-https"
+      - "traefik.http.routers.api-gateway-api.service=api-gateway"
+      - "traefik.http.routers.api-gateway-api-secure.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/api`) && !PathPrefix(`/api/profiles`)"
+      - "traefik.http.routers.api-gateway-api-secure.entrypoints=websecure"
+      - "traefik.http.routers.api-gateway-api-secure.priority=200"
+      - "traefik.http.routers.api-gateway-api-secure.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.api-gateway-api-secure.middlewares=strip-api"
+      - "traefik.http.routers.api-gateway-api-secure.service=api-gateway"
+
+  # Telegram Bot Adapter - Integrates with Telegram
+  telegram-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      - api-gateway
+      - db
+    environment:
+      BOT_TOKEN: ${BOT_TOKEN}
+      BOT_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}
+      API_GATEWAY_URL: http://api-gateway:8080
+      WEBAPP_URL: ${WEBAPP_URL}
+      RUN_DB_MIGRATIONS: ${RUN_DB_MIGRATIONS:-true}
+      JWT_SECRET: ${JWT_SECRET}
+    healthcheck:
+      test: ["CMD", "python", "./docker/healthcheck_bot.py"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+
+  # RabbitMQ - Message broker for async communication
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-dating}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-dating}
+      RABBITMQ_DEFAULT_VHOST: /
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"  # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - default
+      - monitoring
+
+  # WebApp (Next.js)
+  webapp:
+    build:
+      context: ./webapp
+      dockerfile: Dockerfile
+    depends_on:
+      - traefik
+      - api-gateway
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "traefik.enable=true"
+      # HTTP router - low priority catch-all
+      - "traefik.http.routers.webapp.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/`)"
+      - "traefik.http.routers.webapp.entrypoints=web"
+      - "traefik.http.routers.webapp.priority=1"
+      - "traefik.http.services.webapp.loadbalancer.server.port=80"
+      # HTTPS router - low priority catch-all
+      - "traefik.http.routers.webapp-secure.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/`)"
+      - "traefik.http.routers.webapp-secure.entrypoints=websecure"
+      - "traefik.http.routers.webapp-secure.priority=1"
+      - "traefik.http.routers.webapp-secure.tls.certresolver=letsencrypt"
+
+  # ==================== MONITORING STACK ====================
+  
+  # Prometheus - Metrics collection and storage
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    restart: unless-stopped
+    networks:
+      - monitoring
+      - default
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Grafana - Visualization and dashboards
+  grafana:
+    image: grafana/grafana:10.4.0
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:${GRAFANA_PORT:-3000}
+      - GF_INSTALL_PLUGINS=
+      - GF_LOG_LEVEL=info
+      - GF_FEATURE_TOGGLES_ENABLE=publicDashboards
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    depends_on:
+      prometheus:
+        condition: service_healthy
+      loki:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - monitoring
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Loki - Log aggregation
+  loki:
+    image: grafana/loki:3.0.0
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/loki-config.yml
+      - loki_data:/loki
+    command: -config.file=/etc/loki/loki-config.yml -config.expand-env=true
+    ports:
+      - "${LOKI_PORT:-3100}:3100"
+    restart: unless-stopped
+    networks:
+      - monitoring
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3100/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Promtail - Log shipper
+  promtail:
+    image: grafana/promtail:3.0.0
+    volumes:
+      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/log:/var/log:ro
+    command: -config.file=/etc/promtail/promtail-config.yml -config.expand-env=true
+    depends_on:
+      loki:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - monitoring
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9080/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # cAdvisor - Container metrics
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    ports:
+      - "${CADVISOR_PORT:-8090}:8080"  # Changed from 8081 to avoid conflict with auth-service
+    privileged: true
+    devices:
+      - /dev/kmsg
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+  # Node Exporter - System metrics
+  node-exporter:
+    image: prom/node-exporter:latest
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    ports:
+      - "${NODE_EXPORTER_PORT:-9100}:9100"
+    restart: unless-stopped
+    networks:
+      - monitoring
+
+  # Postgres Exporter - Database metrics
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-dating}:${POSTGRES_PASSWORD:-dating}@db:5432/${POSTGRES_DB:-dating}?sslmode=disable"
+    ports:
+      - "${POSTGRES_EXPORTER_PORT:-9187}:9187"
+    depends_on:
+      - db
+    restart: unless-stopped
+    networks:
+      - monitoring
+      - default
+
+networks:
+  monitoring:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  media_storage:
+  traefik_certificates:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  rabbitmq_data:

@@ -1,0 +1,50 @@
+---
+alwaysApply: true
+---
+
+# Git Flow & Docker Awareness
+
+> **Note**: For comprehensive production rules, see `.cursor/production.rules`
+> **Note**: For systematic troubleshooting, see `.cursor/troubleshooting.rules`
+
+## Git Workflow
+- All code changes must go through git: feature branch → commits → PR → review → merge → CI/CD rebuild.
+- Never modify files inside running containers or rely on manual hot-patches.
+- When suggesting changes that touch code, configs, envs, or infra, include this reminder:
+  "Rebuild affected services: docker compose build <service> && docker compose up -d <service>"
+- If new deps are added:
+  - Update requirements*.txt or pyproject.toml,
+  - Update .env.example,
+  - Commit these changes in the same PR.
+- Do not edit generated/compiled artifacts (migrations/versions/*.py, build/, dist/, node_modules/, static/ bundles) by hand.
+- Prefer small, reviewable PRs; include testing notes and rollout plan.
+
+## Docker Container Management
+- Code runs inside Docker containers orchestrated by docker-compose and Traefik.
+- Never run or suggest `docker exec` edits inside containers — changes won't persist.
+- Dev may use bind mounts, but production images require rebuilds.
+- Adding Python deps → update requirements and rebuild image.
+- Infra edits (compose, Dockerfile, Traefik labels) must be followed by
+  `docker compose up --build -d` and verified logs.
+- Never rely on local state; persistent changes must flow through version control.
+- Ensure generated code is deterministic and reproducible across clean container builds.
+
+## Pre-Commit Checklist
+- Check .gitignore before committing (ensure no secrets, build artifacts, or temporary files)
+- Verify all environment variables are documented in .env.example
+- Ensure all new dependencies are added to requirements*.txt
+- Test that services build and start correctly with `docker compose up --build`
+- Verify that health checks pass for all modified services
+
+## Container Rebuild Strategy
+- **Code changes**: `docker compose build <service> && docker compose up -d <service>`
+- **Dependency changes**: `docker compose build --no-cache <service> && docker compose up -d <service>`
+- **Environment changes**: `docker compose up -d <service>` (recreate container)
+- **Infrastructure changes**: `docker compose up --build -d` (rebuild all affected services)
+
+## Git Branch Strategy
+- Use descriptive branch names: `feat/feature-name`, `fix/bug-description`, `refactor/component-name`
+- Keep branches focused on single features or fixes
+- Rebase feature branches on main before creating PR
+- Use conventional commit messages: `<type>(scope): description`
+- Include testing notes and deployment instructions in PR description

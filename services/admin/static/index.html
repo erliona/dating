@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ панель - Dating App</title>
+    <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Login Screen -->
+        <div id="loginScreen" class="screen">
+            <div class="login-container">
+                <h1>🔐 Админ панель</h1>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="username">Логин</label>
+                        <input type="text" id="username" name="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Пароль</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Войти</button>
+                    <div id="loginError" class="error-message hidden"></div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Dashboard Screen -->
+        <div id="dashboardScreen" class="screen hidden">
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <h2>💕 Dating Admin</h2>
+                    <p id="adminName"></p>
+                </div>
+                <nav class="sidebar-nav">
+                    <a href="#" class="nav-item active" data-section="dashboard">
+                        📊 Дашборд
+                    </a>
+                    <a href="#" class="nav-item" data-section="users">
+                        👥 Пользователи
+                    </a>
+                    <a href="#" class="nav-item" data-section="photos">
+                        📸 Модерация фото
+                    </a>
+                    <a href="#" class="nav-item" data-section="settings">
+                        ⚙️ Настройки
+                    </a>
+                </nav>
+                <div class="sidebar-footer">
+                    <button id="logoutBtn" class="btn btn-secondary">Выйти</button>
+                </div>
+            </div>
+
+            <div class="main-content">
+                <!-- Dashboard Section -->
+                <div id="dashboard" class="content-section">
+                    <h1>Статистика системы</h1>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">👥</div>
+                            <div class="stat-content">
+                                <div class="stat-label">Всего пользователей</div>
+                                <div class="stat-value" id="totalUsers">-</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">✅</div>
+                            <div class="stat-content">
+                                <div class="stat-label">Активных за 30 дней</div>
+                                <div class="stat-value" id="activeUsers">-</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">📝</div>
+                            <div class="stat-content">
+                                <div class="stat-label">Заполненных профилей</div>
+                                <div class="stat-value" id="completeProfiles">-</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">📸</div>
+                            <div class="stat-content">
+                                <div class="stat-label">Всего фото</div>
+                                <div class="stat-value" id="totalPhotos">-</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">⏳</div>
+                            <div class="stat-content">
+                                <div class="stat-label">Фото на модерации</div>
+                                <div class="stat-value" id="pendingPhotos">-</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">💕</div>
+                            <div class="stat-content">
+                                <div class="stat-label">Матчей</div>
+                                <div class="stat-value" id="totalMatches">-</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">👍</div>
+                            <div class="stat-content">
+                                <div class="stat-label">Взаимодействий</div>
+                                <div class="stat-value" id="totalInteractions">-</div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">🚫</div>
+                            <div class="stat-content">
+                                <div class="stat-label">Забаненных</div>
+                                <div class="stat-value" id="bannedUsers">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Users Section -->
+                <div id="users" class="content-section hidden">
+                    <h1>Управление пользователями</h1>
+                    <div class="toolbar">
+                        <input type="text" id="userSearch" placeholder="Поиск по имени или username...">
+                        <button id="searchUsersBtn" class="btn btn-primary">Искать</button>
+                    </div>
+                    <div id="usersTable"></div>
+                    <div id="usersPagination" class="pagination"></div>
+                    
+                    <!-- User Details Modal -->
+                    <div id="userModal" class="modal hidden">
+                        <div class="modal-content">
+                            <span class="close">&times;</span>
+                            <div id="userDetails"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Photos Section -->
+                <div id="photos" class="content-section hidden">
+                    <h1>Модерация фотографий</h1>
+                    <div class="toolbar">
+                        <label>
+                            <input type="radio" name="photoFilter" value="all" checked>
+                            Все
+                        </label>
+                        <label>
+                            <input type="radio" name="photoFilter" value="unverified">
+                            На модерации
+                        </label>
+                        <label>
+                            <input type="radio" name="photoFilter" value="verified">
+                            Проверенные
+                        </label>
+                    </div>
+                    <div id="photosGrid" class="photos-grid"></div>
+                    <div id="photosPagination" class="pagination"></div>
+                </div>
+
+                <!-- Settings Section -->
+                <div id="settings" class="content-section hidden">
+                    <h1>Настройки системы</h1>
+                    <div class="settings-container">
+                        <div class="setting-group">
+                            <h2>Модерация контента</h2>
+                            <div class="form-group">
+                                <label for="nsfwThreshold">NSFW порог (0.0-1.0)</label>
+                                <input type="number" id="nsfwThreshold" min="0" max="1" step="0.1" value="0.7">
+                                <small>Чем выше значение, тем строже модерация</small>
+                            </div>
+                        </div>
+                        <div class="setting-group">
+                            <h2>Создание администраторов</h2>
+                            <form id="createAdminForm">
+                                <div class="form-group">
+                                    <label for="newAdminUsername">Логин</label>
+                                    <input type="text" id="newAdminUsername" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="newAdminPassword">Пароль</label>
+                                    <input type="password" id="newAdminPassword" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="newAdminFullName">Полное имя</label>
+                                    <input type="text" id="newAdminFullName">
+                                </div>
+                                <div class="form-group">
+                                    <label for="newAdminEmail">Email</label>
+                                    <input type="email" id="newAdminEmail">
+                                </div>
+                                <button type="submit" class="btn btn-primary">Создать администратора</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,104 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+env/
+ENV/
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environment
+.env
+.env.local
+.env.previous
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+coverage.json
+htmlcov/
+.tox/
+
+# Alembic
+*.db
+*.sqlite
+
+# Monitoring data (volumes should not be committed)
+monitoring/data/
+monitoring/**/data/
+
+# Traefik certificates (should not be committed)
+traefik/letsencrypt/
+letsencrypt/
+acme.json
+
+# Old/backup dashboard files
+monitoring/grafana/dashboards.old/
+
+# Temporary files
+*.tmp
+.tmp/
+tmp/
+
+# Database backups (should be stored elsewhere, not in git)
+backups/
+*.sql
+*.sql.gz
+*.sql.bz2
+*_backup_*.sql*
+db_backup_*
+
+# Old webapp files (kept for reference, not for deployment)
+webapp/*_old.*
+
+# Exclude version number files
+=*
+coverage.xml
+
+# Next.js
+webapp/.next/
+webapp/out/
+webapp/node_modules/
+webapp/.env*.local
+
+# Legacy and temporary files
+*_old/
+*_backup/
+*_legacy/
+*.bak
+*.orig
+*.rej
+
+# Logs
+*.log
+logs/
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini

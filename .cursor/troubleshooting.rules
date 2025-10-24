@@ -1,0 +1,286 @@
+# ==== Systematic Troubleshooting & Diagnostic Rules ====
+
+## Systematic Diagnostic Approach
+
+### Phase 1: Services Status
+- **Container status**: `docker compose ps -a` - все должны быть `healthy` или `running`
+- **Health checks**: `docker compose logs service --tail=20 | grep -E 'health|healthy'`
+- **Startup logs**: `docker compose logs service --tail=50 | grep -E 'Starting|Started|Running'`
+- **Resource usage**: `docker stats --no-stream` - проверить CPU/memory usage
+
+### Phase 2: Database State
+- **Migration status**: `SELECT version_num FROM alembic_version;`
+- **Table existence**: `SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename;`
+- **Connection test**: `docker compose exec -T db psql -U dating -d dating -c '\l'`
+- **Migration files**: `ls -la migrations/versions/ | grep -E '\.py$'` - НЕ должно быть .bak файлов
+
+### Phase 3: Network & Routing
+- **DNS resolution**: `docker compose exec service wget -qO- http://target:port/health`
+- **Traefik routes**: `curl http://localhost:8091/api/http/routers | jq '.[] | select(.name | contains("service-name"))'`
+- **Traefik services**: `curl http://localhost:8091/api/http/services | jq '.[] | select(.name | contains("service-name"))'`
+- **API Gateway logs**: `docker compose logs api-gateway --tail=20 | grep -E 'routing|404|500'`
+
+### Phase 4: Configuration
+- **Environment variables**: `docker compose exec service env | grep VARIABLE`
+- **Container labels**: `docker inspect container-name | jq '.[0].Config.Labels' | grep traefik`
+- **File existence**: `docker compose exec service ls -la /path/to/config`
+- **Config validation**: `docker compose exec service python -c "import config; print('OK')"`
+
+### Phase 5: Monitoring
+- **Prometheus targets**: `curl http://localhost:9090/api/v1/targets | jq '.data.activeTargets[] | select(.health != "up")'`
+- **Prometheus alerts**: `curl http://localhost:9090/api/v1/alerts | jq '.data.alerts[] | select(.state == "firing")'`
+- **Grafana dashboards**: проверить что нет "No data" в критических дашбордах
+- **Metrics endpoints**: `curl http://localhost:port/metrics | head -20`
+
+### Phase 6: Application Logs
+- **Error logs**: `docker compose logs service --tail=50 | grep -E 'ERROR|CRITICAL|Failed'`
+- **Warning logs**: `docker compose logs service --tail=50 | grep -E 'WARN|Warning'`
+- **Startup issues**: `docker compose logs service | grep -E 'Starting|Failed to start|Exception'`
+- **Request logs**: `docker compose logs service --tail=20 | grep -E 'GET|POST|PUT|DELETE'`
+
+## Common Problem Patterns
+
+### Pattern 1: "Миграции не применяются"
+**Симптомы**: 
+- Отсутствуют таблицы в БД
+- Alembic version не обновляется
+- Сервисы не могут найти таблицы
+
+**Диагностика**:
+- Проверить: файлы `.bak` в migrations/versions/
+- Проверить: RUN_DB_MIGRATIONS env var установлен
+- Проверить: alembic_version.version_num VARCHAR длина (должна быть 255, не 32)
+- Проверить: revision и down_revision используют full filenames
+
+**Команды**:
+```bash
+# Проверить миграции
+ls -la migrations/versions/ | grep -E '\.(py|bak)$'
+SELECT version_num FROM alembic_version;
+
+# Исправить .bak файлы
+for f in *.bak; do mv "$f" "${f%.bak}"; done
+
+# Проверить VARCHAR length
+ALTER TABLE alembic_version ALTER COLUMN version_num TYPE VARCHAR(255);
+```
+
+### Pattern 2: "Prometheus targets down"
+**Симптомы**:
+- Все application services показывают `down` в Prometheus
+- Alerts firing: ContainerDown
+- Grafana показывает "No data"
+
+**Диагностика**:
+- Проверить: service names в prometheus.yml (short vs full)
+- Проверить: Prometheus в той же network что и services
+- Проверить: services expose /metrics endpoint
+
+**Команды**:
+```bash
+# Проверить targets
+curl http://localhost:9090/api/v1/targets | jq '.data.activeTargets[] | select(.health != "up")'
+
+# Проверить network connectivity
+docker compose exec prometheus wget -qO- http://api-gateway:8080/health
+
+# Проверить network membership
+docker network inspect dating-microservices_default | jq '.[0].Containers'
+```
+
+### Pattern 3: "API Gateway returns 404"
+**Симптомы**:
+- WebApp не может сделать API calls
+- curl к /api/v1/ endpoints возвращает 404
+- Mini App не работает
+
+**Диагностика**:
+- Проверить: Traefik routing rules (priority, PathPrefix)
+- Проверить: strip prefix middleware если нужен
+- Проверить: API Gateway routes (`/v1/auth/` vs `/v1/profile/` vs `/v1/profiles/`)
+- Проверить: Gateway logs для request path
+
+**Команды**:
+```bash
+# Проверить Traefik routes
+curl http://localhost:8091/api/http/routers | jq '.[] | select(.name | contains("api-gateway"))'
+
+# Проверить API Gateway logs
+docker compose logs api-gateway --tail=20 | grep -E 'routing|404'
+
+# Тестировать routing
+curl -s https://dating.serge.cc/api/v1/auth/health
+curl -s http://localhost:8080/v1/auth/health
+```
+
+### Pattern 4: "Admin Panel не принимает login"
+**Симптомы**:
+- Admin login возвращает 401/403
+- "Missing or invalid Authorization header"
+- Невозможно войти в админку
+
+**Диагностика**:
+- Проверить: JWT middleware применен только к protected routes
+- Проверить: ADMIN_PASSWORD установлен в .env
+- Проверить: login endpoint в public sub-app
+- Проверить: Traefik видит admin service
+
+**Команды**:
+```bash
+# Тестировать login
+curl -X POST http://localhost:8086/admin/auth/login -H 'Content-Type: application/json' -d '{"username":"admin","password":"PASSWORD"}'
+
+# Проверить Traefik
+curl http://localhost:8091/api/http/services | jq '.[] | select(.name | contains("admin"))'
+
+# Проверить env vars
+docker compose exec admin-service env | grep ADMIN_PASSWORD
+```
+
+### Pattern 5: "Service не стартует"
+**Симптомы**:
+- Container в состоянии `starting` или `unhealthy`
+- Health check fails
+- Service не отвечает на requests
+
+**Диагностика**:
+- Проверить: health check logs
+- Проверить: missing ENV vars (JWT_SECRET, DATABASE_URL, etc.)
+- Проверить: dependency services (db, data-service) healthy
+- Проверить: port conflicts
+
+**Команды**:
+```bash
+# Проверить logs
+docker compose logs service --tail=50 | grep -E 'ERROR|Failed|Starting'
+
+# Проверить health check
+docker compose exec service curl -f http://localhost:port/health
+
+# Проверить dependencies
+docker compose ps | grep -E 'db|data-service'
+
+# Проверить env vars
+docker compose exec service env | grep -E 'JWT_SECRET|DATABASE_URL|ADMIN_PASSWORD'
+```
+
+## Diagnostic Commands Library
+
+### Container Management
+```bash
+# Container status
+docker compose ps -a
+docker compose logs service --tail=50
+docker compose exec service bash
+
+# Health checks
+docker compose exec service curl -f http://localhost:port/health
+docker compose exec service wget -qO- http://localhost:port/health
+```
+
+### Database Operations
+```bash
+# Database connection
+docker compose exec -T db psql -U dating -d dating -c "SELECT version_num FROM alembic_version;"
+docker compose exec -T db psql -U dating -d dating -c "SELECT tablename FROM pg_tables WHERE schemaname='public';"
+
+# Migration status
+docker compose exec telegram-bot alembic current
+docker compose exec telegram-bot alembic history
+```
+
+### Network & DNS
+```bash
+# Network connectivity
+docker compose exec service wget -qO- http://target:port/health
+docker network inspect network-name | jq '.[0].Containers'
+
+# DNS resolution
+docker compose exec service nslookup target-service
+docker compose exec service ping target-service
+```
+
+### Prometheus & Monitoring
+```bash
+# Prometheus targets
+curl http://localhost:9090/api/v1/targets | jq '.data.activeTargets[] | select(.health != "up")'
+curl http://localhost:9090/api/v1/targets | jq '.data.activeTargets[] | {job: .labels.job, instance: .labels.instance, health: .health}'
+
+# Prometheus alerts
+curl http://localhost:9090/api/v1/alerts | jq '.data.alerts[] | select(.state == "firing")'
+./scripts/check_alerts.sh
+
+# Metrics endpoints
+curl http://localhost:port/metrics | head -20
+```
+
+### Traefik & Routing
+```bash
+# Traefik routes
+curl http://localhost:8091/api/http/routers | jq '.[] | select(.name | contains("service-name"))'
+curl http://localhost:8091/api/http/routers | jq '.[] | {name: .name, rule: .rule, middlewares: .middlewares}'
+
+# Traefik services
+curl http://localhost:8091/api/http/services | jq '.[] | select(.name | contains("service-name"))'
+curl http://localhost:8091/api/http/services | jq '.[] | {name: .name, servers: .loadBalancer.servers, status: .serverStatus}'
+
+# Traefik middlewares
+curl http://localhost:8091/api/http/middlewares | jq '.[] | select(.name | contains("middleware-name"))'
+```
+
+### Configuration Validation
+```bash
+# Environment variables
+docker compose exec service env | grep VARIABLE
+docker compose exec service env | grep -E 'JWT_SECRET|ADMIN_PASSWORD|DATABASE_URL'
+
+# Container labels
+docker inspect container-name | jq '.[0].Config.Labels' | grep traefik
+docker inspect container-name | jq '.[0].Config.Labels'
+
+# File existence
+docker compose exec service ls -la /path/to/config
+docker compose exec service cat /path/to/config
+```
+
+## When to Rebuild vs Restart
+
+### Rebuild (code changes, Dockerfile changes, dependency changes)
+```bash
+docker compose build service
+docker compose up -d service
+```
+
+### Recreate (env var changes, label changes, network changes)
+```bash
+docker compose up -d service
+```
+
+### Restart (config file changes, mounted volumes)
+```bash
+docker compose restart service
+```
+
+## Emergency Recovery Procedures
+
+### Database Migration Issues
+1. Check current version: `SELECT version_num FROM alembic_version;`
+2. Check migration files: `ls -la migrations/versions/`
+3. Fix .bak files: `for f in *.bak; do mv "$f" "${f%.bak}"; done`
+4. Restart migration service: `docker compose restart telegram-bot`
+
+### Service Won't Start
+1. Check logs: `docker compose logs service --tail=50`
+2. Check dependencies: `docker compose ps | grep -E 'db|data-service'`
+3. Check env vars: `docker compose exec service env | grep VARIABLE`
+4. Recreate container: `docker compose up -d service`
+
+### Network Issues
+1. Check network membership: `docker network inspect network-name`
+2. Test connectivity: `docker compose exec service wget -qO- http://target:port/health`
+3. Recreate network: `docker compose down && docker compose up -d`
+
+### Monitoring Issues
+1. Check Prometheus targets: `curl http://localhost:9090/api/v1/targets`
+2. Check network connectivity: `docker compose exec prometheus wget -qO- http://api-gateway:8080/health`
+3. Add to network: update docker-compose.yml networks section

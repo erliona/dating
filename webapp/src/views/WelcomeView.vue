@@ -1,0 +1,198 @@
+<template>
+  <div class="welcome-view tg-viewport tg-safe-area">
+    <div class="welcome-container">
+      <!-- Logo/Header -->
+      <div class="welcome-header">
+        <h1 class="welcome-title">💕 Dating App</h1>
+        <p class="welcome-subtitle">Найди свою любовь</p>
+      </div>
+
+      <!-- Features -->
+      <div class="welcome-features">
+        <div class="feature-item">
+          <div class="feature-icon">🎯</div>
+          <h3>Умный поиск</h3>
+          <p>Алгоритм подберет идеальных кандидатов</p>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">💬</div>
+          <h3>Безопасный чат</h3>
+          <p>Общайтесь только с теми, кто вам понравился</p>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon">✅</div>
+          <h3>Верификация</h3>
+          <p>Проверенные профили с синим чекмарком</p>
+        </div>
+      </div>
+
+      <!-- Login Button -->
+      <div class="welcome-actions">
+        <button 
+          class="btn btn-primary btn-large welcome-btn"
+          @click="handleLogin"
+          :disabled="loading"
+        >
+          <span v-if="loading" class="spinner"></span>
+          <span v-else>🚀 Начать знакомства</span>
+        </button>
+        
+        <p class="welcome-note">
+          Вход через Telegram - быстро и безопасно
+        </p>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useUserStore } from '../stores/user'
+import { useTelegram } from '../composables/useTelegram'
+
+const router = useRouter()
+const userStore = useUserStore()
+const { getTelegramData, showAlert } = useTelegram()
+
+const loading = ref(false)
+
+const handleLogin = async () => {
+  loading.value = true
+  
+  try {
+    const telegramData = getTelegramData()
+    
+    if (!telegramData?.user) {
+      showAlert('Ошибка: не удалось получить данные Telegram')
+      return
+    }
+
+    // Prepare data for authentication
+    const authData = {
+      id: telegramData.user.id,
+      first_name: telegramData.user.first_name,
+      last_name: telegramData.user.last_name,
+      username: telegramData.user.username,
+      language_code: telegramData.user.language_code,
+      is_premium: telegramData.user.is_premium || false,
+      photo_url: telegramData.user.photo_url,
+      auth_date: telegramData.user.auth_date,
+      hash: telegramData.user.hash
+    }
+
+    await userStore.login(authData)
+    
+    // Redirect based on profile completion
+    if (userStore.isProfileComplete) {
+      router.push('/discovery')
+    } else {
+      router.push('/onboarding')
+    }
+    
+  } catch (error) {
+    console.error('Login error:', error)
+    showAlert('Ошибка входа. Попробуйте еще раз.')
+  } finally {
+    loading.value = false
+  }
+}
+</script>
+
+<style scoped>
+.welcome-view {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 100%);
+  padding: var(--spacing-lg);
+}
+
+.welcome-container {
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+  color: white;
+}
+
+.welcome-header {
+  margin-bottom: var(--spacing-xxl);
+}
+
+.welcome-title {
+  font-size: var(--font-size-xxxl);
+  font-weight: var(--font-weight-bold);
+  margin-bottom: var(--spacing-sm);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.welcome-subtitle {
+  font-size: var(--font-size-lg);
+  opacity: 0.9;
+  margin-bottom: 0;
+}
+
+.welcome-features {
+  margin-bottom: var(--spacing-xxl);
+}
+
+.feature-item {
+  margin-bottom: var(--spacing-xl);
+  padding: var(--spacing-lg);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--border-radius);
+  backdrop-filter: blur(10px);
+}
+
+.feature-icon {
+  font-size: var(--font-size-xxxl);
+  margin-bottom: var(--spacing-md);
+}
+
+.feature-item h3 {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--spacing-sm);
+}
+
+.feature-item p {
+  font-size: var(--font-size-sm);
+  opacity: 0.9;
+  margin-bottom: 0;
+}
+
+.welcome-actions {
+  margin-bottom: var(--spacing-lg);
+}
+
+.welcome-btn {
+  width: 100%;
+  margin-bottom: var(--spacing-md);
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  font-weight: var(--font-weight-semibold);
+  backdrop-filter: blur(10px);
+}
+
+.welcome-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-2px);
+}
+
+.welcome-btn:disabled {
+  opacity: 0.7;
+}
+
+.welcome-note {
+  font-size: var(--font-size-sm);
+  opacity: 0.8;
+  margin-bottom: 0;
+}
+
+.spinner {
+  margin-right: var(--spacing-sm);
+}
+</style>
