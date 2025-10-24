@@ -111,20 +111,27 @@ router.beforeEach((to, from, next) => {
   const userStore = useUserStore()
   const adminToken = localStorage.getItem('admin_token')
   
+  console.log('Router navigation:', { to: to.path, from: from.path, authenticated: userStore.isAuthenticated })
+  
   // Admin routes
   if (to.meta.requiresAdmin) {
     if (!adminToken) {
+      console.log('Admin route without token, redirecting to login')
       next('/admin/login')
     } else {
+      console.log('Admin route with token, proceeding')
       next()
     }
   }
   // Regular auth routes
   else if (to.meta.requiresAuth && !userStore.isAuthenticated) {
+    console.log('Auth required but not authenticated, redirecting to welcome')
     next('/')
   } else if (to.name === 'Welcome' && userStore.isAuthenticated) {
+    console.log('Welcome page but authenticated, redirecting to discovery')
     next('/discovery')
   } else {
+    console.log('Navigation allowed:', to.path)
     next()
   }
 })
