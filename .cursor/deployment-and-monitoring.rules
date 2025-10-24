@@ -21,6 +21,8 @@ alwaysApply: true
 - Проверять эндпоинты `/health` и `/metrics` через curl для каждого сервиса
 - Для критических изменений использовать `--no-cache` при пересборке
 
+> **Note**: For comprehensive post-deployment checklist, see .cursor/production.rules
+
 ## Prometheus & Metrics Validation
 - После изменений в `prometheus.yml` проверять статус всех targets:
   `curl http://localhost:9090/api/v1/targets | jq '.data.activeTargets[] | select(.health != "up")'`

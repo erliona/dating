@@ -90,27 +90,10 @@
 - When touching DB models, also create an Alembic migration stub and a covering test.
 - Prefer incremental edits to existing files; preserve maintainers' comments and structure.
 
-# ==== Git Workflow ====
-- All code changes must go through git: feature branch → commits → PR → review → merge → CI/CD rebuild.
+# ==== Git Workflow & Docker ====
+- See .cursor/git-flow-and-docker.rules for detailed Git workflow and Docker container management rules.
+- Core principle: All code changes must go through git: feature branch → commits → PR → review → merge → CI/CD rebuild.
 - Never modify files inside running containers or rely on manual hot-patches.
-- When suggesting changes that touch code, configs, envs, or infra, include this reminder:
-  "Rebuild affected services: docker compose build <service> && docker compose up -d <service>"
-- If new deps are added:
-  - Update requirements*.txt or pyproject.toml,
-  - Update .env.example,
-  - Commit these changes in the same PR.
-- Do not edit generated/compiled artifacts (migrations/versions/*.py, build/, dist/, node_modules/, static/ bundles) by hand.
-- Prefer small, reviewable PRs; include testing notes and rollout plan.
-
-# ==== Docker & Container Awareness ====
-- Code runs inside Docker containers orchestrated by docker-compose and Traefik.
-- Never run or suggest `docker exec` edits inside containers — changes won't persist.
-- Dev may use bind mounts, but production images require rebuilds.
-- Adding Python deps → update requirements and rebuild image.
-- Infra edits (compose, Dockerfile, Traefik labels) must be followed by
-  `docker compose up --build -d` and verified logs.
-- Never rely on local state; persistent changes must flow through version control.
-- Ensure generated code is deterministic and reproducible across clean container builds.
 
 # ==== Safe Defaults & Guardrails ====
 - Never hardcode ports, URLs, or secrets; read from env/config.
@@ -134,5 +117,5 @@
 # ==== Cross-References ====
 - For production deployment rules: see .cursor/production.rules
 - For troubleshooting and diagnostics: see .cursor/troubleshooting.rules
-- For deployment and monitoring: see .cursor/rules-mdc/deployment-and-monitoring.mdc
-- For git flow and docker: see .cursor/rules-mdc/git-flow-and-docker.mdc
+- For deployment and monitoring: see .cursor/deployment-and-monitoring.rules
+- For git flow and docker: see .cursor/git-flow-and-docker.rules

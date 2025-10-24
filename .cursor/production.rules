@@ -51,6 +51,8 @@
 - **Critical endpoints**: тестировать через curl (auth, profile, admin login)
 - **Monitoring targets**: `curl http://localhost:9090/api/v1/targets | jq`
 
+> **Note**: For detailed diagnostic commands, see .cursor/troubleshooting.rules
+
 ## Container Management
 - **Rebuild**: code changes, Dockerfile changes, dependency changes
 - **Recreate**: env var changes, label changes, network changes  
