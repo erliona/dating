@@ -110,7 +110,7 @@ const handleLogin = async () => {
         
         const mockAuthData = {
           init_data: 'user=%7B%22id%22%3A123456789%2C%22first_name%22%3A%22Test%22%2C%22last_name%22%3A%22User%22%2C%22username%22%3A%22testuser%22%2C%22language_code%22%3A%22en%22%7D&chat_instance=-123456789&chat_type=sender&auth_date=' + Math.floor(Date.now() / 1000) + '&hash=mock_hash',
-          bot_token: '8302871321:AAGDRnSDYdYHeEOqtEoKZVYLCbBlI2GBYMM'
+          bot_token: process.env.VUE_APP_BOT_TOKEN || 'test_token'
         }
         
         console.log('Mock auth data:', mockAuthData)
@@ -146,7 +146,7 @@ const handleLogin = async () => {
       
       const mockAuthData = {
         init_data: 'user=%7B%22id%22%3A123456789%2C%22first_name%22%3A%22Test%22%2C%22last_name%22%3A%22User%22%2C%22username%22%3A%22testuser%22%2C%22language_code%22%3A%22en%22%7D&chat_instance=-123456789&chat_type=sender&auth_date=' + Math.floor(Date.now() / 1000) + '&hash=mock_hash',
-        bot_token: '8302871321:AAGDRnSDYdYHeEOqtEoKZVYLCbBlI2GBYMM'
+        bot_token: process.env.VUE_APP_BOT_TOKEN || 'test_token'
       }
       
       console.log('Mock auth data:', mockAuthData)
@@ -175,7 +175,7 @@ const handleLogin = async () => {
     // Prepare data for authentication
     const authData = {
       init_data: telegramData.raw_data || telegramData.initData,
-      bot_token: telegramData.bot_token || '8302871321:AAGDRnSDYdYHeEOqtEoKZVYLCbBlI2GBYMM'
+      bot_token: telegramData.bot_token || process.env.VUE_APP_BOT_TOKEN || 'test_token'
     }
     
     console.log('Auth data:', authData)
@@ -192,12 +192,26 @@ const handleLogin = async () => {
       // Redirect based on profile completion
       if (userStore.isProfileComplete) {
         showAlert('Переходим в Discovery...')
-        // Use window.location for Telegram Mini App compatibility
-        window.location.href = '/discovery'
+        // Try multiple redirect methods for Telegram Mini App
+        setTimeout(() => {
+          try {
+            window.location.href = '/discovery'
+          } catch (e) {
+            console.error('Redirect failed:', e)
+            showAlert('Ошибка перенаправления')
+          }
+        }, 1000)
       } else {
         showAlert('Переходим в Onboarding...')
-        // Use window.location for Telegram Mini App compatibility
-        window.location.href = '/onboarding'
+        // Try multiple redirect methods for Telegram Mini App
+        setTimeout(() => {
+          try {
+            window.location.href = '/onboarding'
+          } catch (e) {
+            console.error('Redirect failed:', e)
+            showAlert('Ошибка перенаправления')
+          }
+        }, 1000)
       }
     } catch (error) {
       console.error('Login error:', error)
