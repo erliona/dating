@@ -28,7 +28,7 @@ COPY alembic.ini .
 COPY webapp/ /usr/share/nginx/html/
 
 # Copy nginx configuration
-COPY webapp/nginx.conf /etc/nginx/conf.d/default.conf
+COPY services/admin/default.conf /etc/nginx/conf.d/default.conf
 
 # SECURITY: Set proper permissions
 RUN chmod +x services/admin/entrypoint.sh \
