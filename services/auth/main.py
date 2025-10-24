@@ -13,6 +13,7 @@ from aiohttp import web
 from core.utils.logging import configure_logging
 from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
 from core.middleware.rate_limiting import auth_rate_limiting_middleware
+from core.middleware.telegram_security import telegram_security_middleware
 from core.utils.security import (
     RateLimiter,
     ValidationError,
@@ -328,6 +329,9 @@ def create_app(config: dict) -> web.Application:
     
     # Add rate limiting for auth endpoints
     app.middlewares.append(auth_rate_limiting_middleware)
+    
+    # Add Telegram security middleware
+    app.middlewares.append(telegram_security_middleware)
 
     # Add routes
     app.router.add_post("/auth/validate", validate_telegram_init_data)
