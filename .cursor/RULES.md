@@ -187,14 +187,16 @@ alembic history
 # ==== SECURITY & CONFIGURATION ====
 
 ## Secrets Management
-- No secrets in code. Use env vars; keep `.env.example` in sync
-- Passwords: bcrypt; tokens: PyJWT; follow existing expirations/rotation
-- Validate and sanitize uploaded media metadata and user-generated text
-- NEVER commit secrets in git
-- Use strong secrets: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
-- Check .gitignore before commit
-- Update .env.example when adding new variables
-- Rotate secrets when compromise is suspected
+- **No secrets in code**: Use env vars; keep `.env.example` in sync
+- **JWT Security Policy**: See `docs/jwt-security-policy.md` for comprehensive JWT standards, key rotation, and SLO requirements
+- **Password hashing**: bcrypt with appropriate rounds (minimum 12)
+- **Token management**: PyJWT with proper expiration and refresh flows
+- **Key rotation**: JWT secrets rotated every 90 days, emergency rotation within 24 hours
+- **SLO targets**: JWT generation < 50ms, validation < 10ms, refresh flow < 150ms (95th percentile)
+- **Strong secrets**: `python -c "import secrets; print(secrets.token_urlsafe(32))"`
+- **Audit logging**: All authentication events logged with timestamps
+- **NEVER commit secrets**: Check .gitignore before commit
+- **Update documentation**: Update .env.example when adding new variables
 
 ## JWT Authentication
 - Public routes (login, health) MUST NOT require JWT
@@ -221,10 +223,11 @@ alembic history
 - Check that Nginx config is valid: `nginx -t` before restart
 
 ## Traefik & Routing
-- Strip prefix middleware: if Traefik forwards `/api/v1/` but service expects `/v1/`
-- Priority rules: higher priority for more specific paths (200 > 100 > 50)
-- Check router labels after recreating containers: `curl http://localhost:8091/api/http/routers`
-- Check service discovery: `curl http://localhost:8091/api/http/services`
+- **Standardized routing contracts**: See `docs/traefik-routes.md` for complete middleware stacks and priority matrices
+- **Middleware standards**: Use consistent strip-prefix, security-headers, rate-limit middleware
+- **Priority matrix**: Webapp(1) > Admin(50) > API Direct(100) > API Strip(200) > Health(300) > Metrics(400)
+- **Route testing**: `curl http://localhost:8091/api/http/routers | jq '.[] | {name: .name, rule: .rule, priority: .priority}'`
+- **Service discovery**: `curl http://localhost:8091/api/http/services`
 
 # ==== DATABASE & MIGRATIONS ====
 
