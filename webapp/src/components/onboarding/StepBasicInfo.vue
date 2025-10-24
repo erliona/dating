@@ -314,4 +314,3 @@ const handleNext = () => {
   border-top: 1px solid var(--border-color);
 }
 </style>
-</style>
