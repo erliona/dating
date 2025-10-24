@@ -260,7 +260,24 @@ async def get_messages(request: web.Request) -> web.Response:
             request=request
         )
         
-        return web.json_response(result)
+        # Add pagination headers
+        response = web.json_response(result)
+        
+        # Add Link headers for navigation
+        if before_id:
+            next_url = f"/chat/conversations/{conversation_id}/messages?before_id={before_id}&limit={limit}"
+            response.headers['Link'] = f'<{next_url}>; rel="next"'
+        
+        if after_id:
+            prev_url = f"/chat/conversations/{conversation_id}/messages?after_id={after_id}&limit={limit}"
+            response.headers['Link'] = f'<{prev_url}>; rel="prev"'
+        
+        # Add has more indicator
+        messages = result.get('messages', [])
+        has_more = len(messages) == limit
+        response.headers['X-Has-More'] = str(has_more).lower()
+        
+        return response
 
     except Exception as e:
         logger.error(f"Error getting messages: {e}")
@@ -324,7 +341,10 @@ async def send_message(request: web.Request) -> web.Response:
                 }
             )
         
-        return web.json_response(result, status=201)
+        # Add Location header for created resource
+        response = web.json_response(result, status=201)
+        response.headers['Location'] = f"/chat/messages/{result.get('message_id')}"
+        return response
 
     except ValidationError as e:
         logger.warning(f"Validation error in send_message: {e}")
@@ -431,7 +451,10 @@ async def block_user(request: web.Request) -> web.Response:
                 }
             )
         
-        return web.json_response(result, status=201)
+        # Add Location header for created resource
+        response = web.json_response(result, status=201)
+        response.headers['Location'] = f"/chat/blocks/{target_user_id}"
+        return response
         
     except ValidationError as e:
         logger.warning(f"Validation error in block_user: {e}")
