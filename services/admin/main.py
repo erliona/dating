@@ -319,24 +319,30 @@ def create_app(config: dict) -> web.Application:
     app["config"] = config
     app["data_service_url"] = config["data_service_url"]
     
-    # Add middleware
-    # Setup admin middleware stack
-    from core.middleware.standard_stack import setup_admin_middleware_stack
-    setup_admin_middleware_stack(app, "admin-service")
+    # Add standard middleware (NO JWT for public routes)
+    from core.middleware.standard_stack import setup_standard_middleware_stack
+    setup_standard_middleware_stack(app, "admin-service", use_auth=False, use_audit=False)
     
     # Add metrics endpoint
     add_metrics_route(app, "admin-service")
 
-    # Add routes
-    app.router.add_post("/admin/login", login_handler)
-    app.router.add_get("/admin/stats", get_stats_handler)
-    app.router.add_get("/admin/users", list_users_handler)
-    app.router.add_get("/admin/users/{user_id}", get_user_handler)
-    app.router.add_put("/admin/users/{user_id}", update_user_handler)
-    app.router.add_get("/admin/photos", list_photos_handler)
-    app.router.add_put("/admin/photos/{photo_id}", update_photo_handler)
-    app.router.add_delete("/admin/photos/{photo_id}", delete_photo_handler)
+    # PUBLIC routes (NO JWT required)
+    app.router.add_post("/admin/auth/login", login_handler)
     app.router.add_get("/health", health_check)
+    
+    # PROTECTED sub-application WITH JWT middleware
+    from core.middleware.jwt_middleware import admin_jwt_middleware
+    protected = web.Application(middlewares=[admin_jwt_middleware])
+    protected.router.add_get("/admin/stats", get_stats_handler)
+    protected.router.add_get("/admin/users", list_users_handler)
+    protected.router.add_get("/admin/users/{user_id}", get_user_handler)
+    protected.router.add_put("/admin/users/{user_id}", update_user_handler)
+    protected.router.add_get("/admin/photos", list_photos_handler)
+    protected.router.add_put("/admin/photos/{photo_id}", update_photo_handler)
+    protected.router.add_delete("/admin/photos/{photo_id}", delete_photo_handler)
+    
+    # Mount protected app under /admin/api
+    app.add_subapp("/admin/api/", protected)
 
     # Serve static files for admin panel
     app.router.add_static(

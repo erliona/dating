@@ -95,7 +95,7 @@ async def route_profile(request: web.Request) -> web.Response:
     """Route to profile service."""
     profile_url = request.app["config"]["profile_service_url"]
     # Strip /v1 prefix from path for internal routing
-    new_path = request.path.replace("/v1/profiles", "/profiles", 1)
+    new_path = request.path.replace("/v1/profile", "/profile", 1)
     return await proxy_request(request, profile_url, path_override=new_path)
 
 
@@ -269,6 +269,7 @@ def create_app(config: dict) -> web.Application:
     # Add specific routes first, then catch-all routes
     app.router.add_get("/v1/auth/health", route_auth)
     app.router.add_route("*", r"/v1/auth/{tail:.*}", route_auth)
+    app.router.add_route("*", r"/v1/profile/{tail:.*}", route_profile)
     app.router.add_route("*", r"/v1/profiles/{tail:.*}", route_profile)
     app.router.add_route("*", r"/v1/discovery/{tail:.*}", route_discovery)
     app.router.add_route("*", r"/v1/media/{tail:.*}", route_media)
