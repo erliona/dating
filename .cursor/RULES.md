@@ -1730,6 +1730,18 @@ jobs:
 
 ### 12.1 JWT Security Policy
 
+**CRITICAL SECURITY RULE - Bot Token Security:**
+- **NEVER expose bot tokens in frontend code**
+- **Bot tokens must ONLY exist on the server**
+- **Frontend sends only `init_data` to auth-service**
+- **Auth-service uses its own `BOT_TOKEN` from environment**
+- **Client authentication flow:**
+  1. User authenticates via Telegram (gets `init_data`)
+  2. Frontend sends only `init_data` to `/auth/validate`
+  3. Auth-service validates `init_data` using server's `BOT_TOKEN`
+  4. Auth-service returns JWT token for further API calls
+- **Security violation**: Sending `bot_token` from frontend is a CRITICAL security flaw
+
 **JWT Configuration:**
 ```yaml
 # JWT Configuration
