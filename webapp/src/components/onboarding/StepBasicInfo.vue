@@ -106,7 +106,7 @@
         @click="handleNext"
         fullWidth
       >
-        Продолжить ({{ isValid ? 'активна' : 'неактивна' }})
+        Продолжить
       </Button>
     </div>
   </div>
@@ -179,17 +179,10 @@ const validateForm = () => {
 }
 
 const handleNext = () => {
-  console.log('handleNext called')
-  console.log('Form data:', formData.value)
-  console.log('Is valid:', isValid.value)
   validateForm()
-  console.log('Errors after validation:', errors.value)
   if (Object.keys(errors.value).length === 0) {
-    console.log('No errors, proceeding to next step')
     emit('update-data', formData.value)
     emit('next')
-  } else {
-    console.log('Has errors, not proceeding')
   }
 }
 

@@ -32,14 +32,7 @@
         ← Назад
       </button>
       
-      <button 
-        v-if="currentStep < totalSteps"
-        class="btn btn-primary"
-        @click="nextStep"
-        :disabled="!canProceed"
-      >
-        Далее →
-      </button>
+      <!-- Global navigation removed - each step handles its own navigation -->
     </div>
   </div>
 </template>
