@@ -22,6 +22,7 @@ from core.metrics.business_metrics import (
 )
 from core.middleware.correlation import create_headers_with_correlation, log_correlation_propagation
 from core.exceptions import ValidationError, CircuitBreakerError, ExternalServiceError
+from core.middleware.error_handling import setup_error_handling
 
 logger = logging.getLogger(__name__)
 
@@ -526,6 +527,9 @@ async def on_shutdown(app):
 def create_app(config: dict) -> web.Application:
     """Create and configure the discovery service application."""
     app = web.Application()
+    
+    # Setup error handling
+    setup_error_handling(app, \"discovery-service")
     app["config"] = config
     app["data_service_url"] = config["data_service_url"]
     

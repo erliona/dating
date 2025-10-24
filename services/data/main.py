@@ -21,6 +21,7 @@ from core.database import create_database_engine, create_session_factory, get_se
 # from core.middleware.jwt_middleware import jwt_middleware
 from core.middleware.request_logging import request_logging_middleware, user_context_middleware
 from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
+from core.middleware.error_handling import setup_error_handling
 
 logger = logging.getLogger(__name__)
 
@@ -1179,6 +1180,9 @@ async def get_profiles_count_handler(request: web.Request) -> web.Response:
 def create_app(config: dict) -> web.Application:
     """Create and configure the Data Service application."""
     app = web.Application()
+    
+    # Setup error handling
+    setup_error_handling(app, \"data-service")
     app["config"] = config
 
     # Initialize database engine with connection pooling

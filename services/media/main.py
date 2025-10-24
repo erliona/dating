@@ -24,6 +24,7 @@ from core.middleware.audit_logging import audit_log, log_security_event
 from core.metrics.business_metrics import NSFW_DETECTION_TOTAL, NSFW_BLOCKED_TOTAL
 from .minio_client import minio_client
 from .image_processor import image_processor
+from core.middleware.error_handling import setup_error_handling
 
 logger = logging.getLogger(__name__)
 
@@ -396,6 +397,9 @@ async def health_check(request: web.Request) -> web.Response:
 def create_app(config: dict) -> web.Application:
     """Create and configure the media service application."""
     app = web.Application()
+    
+    # Setup error handling
+    setup_error_handling(app, \"media-service")
     app["config"] = config
     
     # Add middleware

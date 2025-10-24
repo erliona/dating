@@ -23,17 +23,70 @@ api.interceptors.request.use(
   }
 )
 
-// Response interceptor to handle errors
+// Response interceptor to handle standardized errors
 api.interceptors.response.use(
   (response) => {
     return response
   },
   (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid
-      localStorage.removeItem('jwt_token')
-      window.location.href = '/'
+    // Handle standardized error format
+    if (error.response?.data?.error) {
+      const errorData = error.response.data
+      
+      // Log structured error
+      console.error('API Error:', {
+        code: errorData.code,
+        message: errorData.message,
+        status: error.response.status,
+        timestamp: errorData.timestamp,
+        request_id: errorData.request_id
+      })
+      
+      // Handle specific error codes
+      switch (errorData.code) {
+        case 'AUTH_001':
+        case 'AUTH_002':
+        case 'AUTH_003':
+          // Authentication errors
+          localStorage.removeItem('jwt_token')
+          window.location.href = '/'
+          break
+          
+        case 'RATE_001':
+          // Rate limit exceeded
+          if (errorData.retry_after) {
+            console.warn(`Rate limited. Retry after ${errorData.retry_after} seconds`)
+          }
+          break
+          
+        case 'VAL_001':
+        case 'VAL_002':
+        case 'VAL_003':
+          // Validation errors - show field-specific messages
+          if (errorData.details?.field) {
+            console.warn(`Validation error for field ${errorData.details.field}: ${errorData.message}`)
+          }
+          break
+          
+        case 'BIZ_001':
+          // Resource not found
+          console.warn(`Resource not found: ${errorData.message}`)
+          break
+          
+        case 'SYS_001':
+        case 'SYS_002':
+          // System errors
+          console.error('System error:', errorData.message)
+          break
+      }
+    } else {
+      // Handle legacy error format
+      if (error.response?.status === 401) {
+        localStorage.removeItem('jwt_token')
+        window.location.href = '/'
+      }
     }
+    
     return Promise.reject(error)
   }
 )

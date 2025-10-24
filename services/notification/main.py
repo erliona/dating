@@ -19,6 +19,7 @@ from core.middleware.metrics_middleware import metrics_middleware, add_metrics_r
 from core.resilience.circuit_breaker import bot_service_breaker
 from core.resilience.retry import retry_notification
 from core.messaging.subscriber import EventSubscriber
+from core.middleware.error_handling import setup_error_handling
 
 logger = logging.getLogger(__name__)
 
@@ -349,6 +350,9 @@ async def on_shutdown(app):
 def create_app() -> web.Application:
     """Create and configure the aiohttp application."""
     app = web.Application()
+    
+    # Setup error handling
+    setup_error_handling(app, \"notification-service")
     
     # Add middleware
     # Setup standard middleware stack

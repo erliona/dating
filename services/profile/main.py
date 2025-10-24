@@ -15,6 +15,7 @@ from core.utils.logging import configure_logging
 from core.utils.validation import validate_profile_data
 from core.middleware.standard_stack import setup_standard_middleware_stack
 from core.middleware.metrics_middleware import add_metrics_route
+from core.middleware.error_handling import setup_error_handling
 from core.middleware.audit_logging import audit_log, log_data_access
 from core.middleware.correlation import create_headers_with_correlation, log_correlation_propagation
 from core.resilience.circuit_breaker import data_service_breaker
@@ -410,6 +411,9 @@ def create_app(config: dict) -> web.Application:
     
     # Store Data Service URL
     app["data_service_url"] = config["data_service_url"]
+    
+    # Setup error handling
+    setup_error_handling(app, "profile-service")
     
     # Business metrics are imported from middleware
     

@@ -14,6 +14,7 @@ from core.utils.logging import configure_logging
 from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
 from core.middleware.rate_limiting import auth_rate_limiting_middleware
 from core.middleware.telegram_security import telegram_security_middleware
+from core.middleware.error_handling import setup_error_handling
 from core.utils.security import (
     RateLimiter,
     ValidationError,
@@ -300,11 +301,13 @@ async def refresh_token(request: web.Request) -> web.Response:
 
     except ValidationError as e:
         logger.warning(f"Token refresh failed: {e}")
-        return web.json_response({"error": str(e)}, status=401)
+        from core.middleware.error_handling import validation_error_response
+        return validation_error_response(str(e), request_id=request.get('request_id'))
 
     except Exception as e:
         logger.error(f"Error refreshing token: {e}")
-        return web.json_response({"error": "Internal server error"}, status=500)
+        from core.middleware.error_handling import internal_error_response
+        return internal_error_response(request_id=request.get('request_id'))
 
 
 # SECURITY: Test endpoint removed for production security
@@ -321,6 +324,9 @@ def create_app(config: dict) -> web.Application:
     """Create and configure the auth service application."""
     app = web.Application()
     app["config"] = config
+
+    # Setup error handling
+    setup_error_handling(app, "auth-service")
 
     # Add middleware
     # Setup auth service middleware stack (no JWT middleware needed)

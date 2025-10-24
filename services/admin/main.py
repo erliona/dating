@@ -25,6 +25,7 @@ from core.middleware.request_logging import request_logging_middleware, user_con
 from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
 from core.resilience.circuit_breaker import data_service_breaker
 from core.resilience.retry import retry_data_service
+from core.middleware.error_handling import setup_error_handling
 
 logger = logging.getLogger(__name__)
 
@@ -318,6 +319,9 @@ async def health_check(request: web.Request) -> web.Response:
 def create_app(config: dict) -> web.Application:
     """Create and configure the admin service application."""
     app = web.Application()
+    
+    # Setup error handling
+    setup_error_handling(app, \"admin-service")
     app["config"] = config
     app["data_service_url"] = config["data_service_url"]
     

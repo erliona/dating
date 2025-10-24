@@ -18,6 +18,7 @@ from core.metrics.business_metrics import record_message_sent, record_conversati
 from core.exceptions import ValidationError, ExternalServiceError
 from core.resilience.retry import retry_data_service
 from core.resilience.circuit_breaker import data_service_breaker
+from core.middleware.error_handling import setup_error_handling
 
 logger = logging.getLogger(__name__)
 
@@ -588,6 +589,9 @@ async def on_shutdown(app):
 def create_app(config: dict) -> web.Application:
     """Create and configure the chat service application."""
     app = web.Application()
+    
+    # Setup error handling
+    setup_error_handling(app, \"chat-service")
     app["config"] = config
     
     # Setup standard middleware stack
