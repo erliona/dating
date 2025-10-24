@@ -31,7 +31,6 @@
         <button 
           class="btn btn-primary btn-large welcome-btn"
           @click="handleLogin"
-          onclick="console.log('Button clicked!'); alert('Button works!');"
           :disabled="loading"
         >
           <span v-if="loading" class="spinner"></span>
@@ -80,6 +79,9 @@ onMounted(() => {
 const handleLogin = async () => {
   console.log('🚀 handleLogin called!')
   
+  // Show immediate feedback
+  showAlert('🚀 Начинаем вход...')
+  
   if (loading.value) {
     console.log('Already loading, ignoring click')
     return
@@ -91,6 +93,9 @@ const handleLogin = async () => {
     const telegramData = getTelegramData()
     console.log('Telegram data:', telegramData)
     
+    // Show what we got from Telegram
+    showAlert(`Данные Telegram: ${telegramData ? 'получены' : 'не получены'}`)
+    
     if (!telegramData?.user) {
       console.error('No user data in telegramData:', telegramData)
       console.log('Telegram WebApp not properly initialized. This might be a development environment.')
@@ -98,16 +103,20 @@ const handleLogin = async () => {
       // For development/testing, create mock data
       if (telegramData.initData === '') {
         console.log('Using mock data for development')
+        showAlert('🧪 Используем тестовые данные...')
+        
         const mockAuthData = {
           init_data: 'user=%7B%22id%22%3A123456789%2C%22first_name%22%3A%22Test%22%2C%22last_name%22%3A%22User%22%2C%22username%22%3A%22testuser%22%2C%22language_code%22%3A%22en%22%7D&chat_instance=-123456789&chat_type=sender&auth_date=' + Math.floor(Date.now() / 1000) + '&hash=mock_hash',
           bot_token: '8302871321:AAGDRnSDYdYHeEOqtEoKZVYLCbBlI2GBYMM'
         }
         
         console.log('Mock auth data:', mockAuthData)
-        console.log('Sending mock login request...')
+        showAlert('📤 Отправляем запрос на сервер...')
         
         try {
           await userStore.login(mockAuthData)
+          
+          showAlert('✅ Вход успешен! Переходим дальше...')
           
           // Redirect based on profile completion
           if (userStore.isProfileComplete) {
@@ -117,7 +126,7 @@ const handleLogin = async () => {
           }
         } catch (error) {
           console.error('Mock login error:', error)
-          alert(`Ошибка входа: ${error.response?.data?.error || error.message}`)
+          showAlert(`❌ Ошибка входа: ${error.response?.data?.error || error.message}`)
         } finally {
           loading.value = false
         }
