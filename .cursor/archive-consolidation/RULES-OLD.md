@@ -30,7 +30,7 @@
 # ==== NAMING CONVENTIONS & STANDARDS ====
 
 ## Migration Naming & Management
-- ✅ **Standard approach**: Use full filename as revision ID (e.g., `"007_create_chat_tables"`)
+- ✅ **Standard approach**: Use Alembic's auto-generated 12-char hashes (e.g., `"abc123def456"`)
 - ✅ **File naming**: Use descriptive filenames like `007_create_chat_tables.py` for readability
 - ❌ **Anti-pattern**: Manual revision ID changes after migration is in main branch
 - ❌ **Anti-pattern**: Short numeric IDs like `"007"` (causes conflicts)
@@ -53,7 +53,7 @@
 
 ### PR Checklist for Migrations
 - [ ] Migration file has descriptive name (e.g., `007_create_chat_tables.py`)
-- [ ] Revision ID is full filename (not manually edited)
+- [ ] Revision ID is auto-generated hash (not manually edited)
 - [ ] `down_revision` points to correct previous migration
 - [ ] Run `alembic check` - no errors
 - [ ] Test migration locally: `alembic upgrade head`
@@ -281,7 +281,7 @@ alembic history
 # ==== DATABASE & MIGRATIONS ====
 
 ## Alembic Best Practices
-- **Use full filename as revision ID**: Let Alembic create 12-char hashes automatically
+- **Use auto-generated revision IDs**: Let Alembic create 12-char hashes automatically
 - **Descriptive filenames**: Use meaningful names like `007_create_chat_tables.py`
 - **Never edit revision IDs**: Once in main branch, never manually change revision IDs
 - **Reversible migrations**: Always implement both `upgrade()` and `downgrade()`
@@ -387,6 +387,9 @@ echo "✅ Migration smoke check passed"
 - **Registry locations**: All images stored in GitHub Container Registry
 - **Release automation**: GitHub Actions workflow for CI/CD releases
 - **Rollback procedures**: Use `./scripts/release.sh rollback <version>` for emergency rollback
+- Use pytest. For new logic add unit tests; for endpoints add integration tests with test DB
+- Keep tests deterministic and fast; use fixtures/factories; mock network calls
+- Maintain/raise coverage thresholds defined in repo configs; add regression tests for fixed bugs
 
 # ==== DEPLOYMENT & OPERATIONS ====
 

@@ -7,6 +7,9 @@ This directory contains the unified rules and guidelines for the Cursor AI assis
 ## File Structure
 
 - **`RULES.md`** - Main unified rules file containing all guidelines, standards, and best practices
+- **`naming-conventions.md`** - Comprehensive naming standards for all project components
+- **`rule-audit-report.md`** - Detailed audit report of rule consolidation process
+- **`validation-report.md`** - Validation results for unified rules
 - **`archive/`** - Contains archived rule files from the previous multi-file structure
 
 ## Rule Categories
