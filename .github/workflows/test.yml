@@ -101,6 +101,11 @@ jobs:
           done
           pg_isready -h localhost -p 5432 -U dating || (echo "PostgreSQL failed to become ready" && exit 1)
 
+      - name: Validate migration safety
+        run: |
+          echo "🔍 Validating migration safety..."
+          ./scripts/validate-migration-safety.sh
+
       - name: Apply database migrations
         env:
           DATABASE_URL: postgresql+asyncpg://dating:test_password@localhost:5432/dating_test
@@ -180,6 +185,11 @@ jobs:
             sleep 2
           done
           pg_isready -h localhost -p 5432 -U dating || (echo "PostgreSQL failed to become ready" && exit 1)
+
+      - name: Validate migration safety
+        run: |
+          echo "🔍 Validating migration safety..."
+          ./scripts/validate-migration-safety.sh
 
       - name: Apply database migrations
         env:

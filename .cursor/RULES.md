@@ -239,6 +239,74 @@ alembic history
 - **Single migration service**: Set `RUN_DB_MIGRATIONS=true` only for one service (usually telegram-bot)
 - **Emergency procedures**: Know how to use `alembic stamp` for recovery
 
+### Migration Safety Guards
+- **CI Validation**: Build MUST fail if multiple services have `RUN_DB_MIGRATIONS=true`
+- **Deployment Smoke Check**: 
+  1. Check current migration: `alembic current`
+  2. Apply migrations: `alembic upgrade head`
+  3. Verify critical endpoints: `/health`, `/admin/auth/login`, `/api/v1/auth/health`
+- **Pre-deployment**: Always verify migration chain integrity before production
+- **Post-deployment**: Confirm all services can connect to updated schema
+
+### CI Migration Validation Script
+```bash
+#!/bin/bash
+# Check that only one service has RUN_DB_MIGRATIONS=true
+MIGRATION_SERVICES=$(grep -r "RUN_DB_MIGRATIONS.*true" docker-compose.yml | wc -l)
+if [ "$MIGRATION_SERVICES" -gt 1 ]; then
+    echo "ERROR: Multiple services have RUN_DB_MIGRATIONS=true"
+    echo "Only one service should run migrations to avoid conflicts"
+    exit 1
+fi
+echo "✅ Migration safety check passed"
+```
+
+### Deployment Smoke Check Script
+```bash
+#!/bin/bash
+# Pre-deployment migration verification
+echo "🔍 Checking migration chain integrity..."
+alembic check || { echo "❌ Migration chain broken"; exit 1; }
+
+echo "📊 Current migration state..."
+alembic current
+
+echo "⬆️ Applying migrations..."
+alembic upgrade head || { echo "❌ Migration failed"; exit 1; }
+
+echo "🏥 Testing critical endpoints..."
+curl -f http://localhost:8080/health || { echo "❌ Health check failed"; exit 1; }
+curl -f http://localhost:8080/api/v1/auth/health || { echo "❌ Auth service failed"; exit 1; }
+curl -f http://localhost:8080/admin/auth/login -X POST -H "Content-Type: application/json" -d '{"username":"test","password":"test"}' || echo "⚠️ Admin login test (expected to fail with test credentials)"
+
+echo "✅ Migration smoke check passed"
+```
+
+### GitHub Actions Integration
+```yaml
+# Add to .github/workflows/test.yml
+- name: Validate Migration Safety
+  run: |
+    # Check only one service has RUN_DB_MIGRATIONS=true
+    MIGRATION_SERVICES=$(grep -r "RUN_DB_MIGRATIONS.*true" docker-compose.yml | wc -l)
+    if [ "$MIGRATION_SERVICES" -gt 1 ]; then
+      echo "❌ ERROR: Multiple services have RUN_DB_MIGRATIONS=true"
+      echo "Only one service should run migrations to avoid conflicts"
+      exit 1
+    fi
+    echo "✅ Migration safety check passed"
+
+- name: Test Migration Chain
+  run: |
+    # Start database for migration testing
+    docker compose up -d db
+    sleep 10
+    
+    # Check migration chain integrity
+    docker compose exec -T db alembic check
+    echo "✅ Migration chain integrity verified"
+```
+
 # ==== TESTING & QUALITY ====
 
 ## Testing Standards
@@ -257,6 +325,8 @@ alembic history
 - Ensure all new dependencies are added to requirements*.txt
 - Test that services build and start correctly with `docker compose up --build`
 - Verify that health checks pass for all modified services
+- **Migration Safety**: Run CI migration validation script
+- **Migration Chain**: Verify `alembic check` passes before deployment
 
 ## Post-Deployment Verification
 - After deployment always check container status: `docker compose ps`
@@ -264,6 +334,8 @@ alembic history
 - Check logs of each modified service: `docker compose logs <service> --tail=20`
 - Check `/health` and `/metrics` endpoints via curl for each service
 - For critical changes use `--no-cache` when rebuilding
+- **Migration Verification**: Run deployment smoke check script
+- **Critical Endpoints**: Test auth, admin, and API gateway endpoints
 
 ## Container Status
 - Container status: `docker compose ps` - all should be `healthy`
