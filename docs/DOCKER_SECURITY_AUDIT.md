@@ -84,10 +84,10 @@ The main Dockerfile uses multi-stage builds to minimize runtime image size:
 
 ```dockerfile
 # Multi-stage build for optimal image size
-FROM python:3.11-slim AS builder
+FROM python:3.11.7-slim AS builder
 # ... build dependencies
 
-FROM python:3.11-slim AS runtime
+FROM python:3.11.7-slim AS runtime
 # ... runtime only
 ```
 
