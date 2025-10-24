@@ -285,6 +285,9 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    cap_add:
+      - CHOWN
+      - FOWNER
     labels:
       - "traefik.enable=true"
       # HTTP router for admin panel
@@ -414,6 +417,9 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+    cap_add:
+      - SETGID
+      - SETUID
     networks:
       - default
       - monitoring
