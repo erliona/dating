@@ -192,10 +192,12 @@ const handleLogin = async () => {
       // Redirect based on profile completion
       if (userStore.isProfileComplete) {
         showAlert('Переходим в Discovery...')
-        router.push('/discovery')
+        // Use window.location for Telegram Mini App compatibility
+        window.location.href = '/discovery'
       } else {
         showAlert('Переходим в Onboarding...')
-        router.push('/onboarding')
+        // Use window.location for Telegram Mini App compatibility
+        window.location.href = '/onboarding'
       }
     } catch (error) {
       console.error('Login error:', error)
