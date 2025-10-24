@@ -96,7 +96,9 @@ class ImageProcessor:
     
     def _create_thumbnail(self, image: Image.Image) -> Image.Image:
         """Create thumbnail image."""
-        return image.copy().thumbnail(self.THUMBNAIL_SIZE, Image.Resampling.LANCZOS)
+        thumbnail = image.copy()
+        thumbnail.thumbnail(self.THUMBNAIL_SIZE, Image.Resampling.LANCZOS)
+        return thumbnail
     
     def _optimize_image(self, image: Image.Image) -> bytes:
         """Optimize image for storage."""
@@ -141,6 +143,86 @@ class ImageProcessor:
             }
         except Exception as e:
             logger.error(f"Failed to get image info: {e}")
+            return {}
+    
+    def validate_image(self, image_data: bytes) -> bool:
+        """Validate image format and size."""
+        try:
+            image = Image.open(io.BytesIO(image_data))
+            
+            # Check format
+            if image.format not in self.supported_formats:
+                logger.warning(f"Unsupported format: {image.format}")
+                return False
+            
+            # Check size (minimum 100x100, maximum 4000x4000)
+            width, height = image.size
+            if width < 100 or height < 100:
+                logger.warning(f"Image too small: {width}x{height}")
+                return False
+            
+            if width > 4000 or height > 4000:
+                logger.warning(f"Image too large: {width}x{height}")
+                return False
+            
+            # Check file size (max 10MB)
+            if len(image_data) > 10 * 1024 * 1024:
+                logger.warning(f"File too large: {len(image_data)} bytes")
+                return False
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Image validation error: {e}")
+            return False
+    
+    def detect_nsfw_content(self, image_data: bytes) -> bool:
+        """
+        Basic NSFW detection (placeholder for AI model).
+        
+        TODO: Integrate with actual NSFW detection model
+        """
+        try:
+            # Placeholder implementation
+            # In production, this would use a trained model
+            image = Image.open(io.BytesIO(image_data))
+            
+            # Basic heuristics (very simple)
+            width, height = image.size
+            aspect_ratio = width / height
+            
+            # Flag extreme aspect ratios as potentially problematic
+            if aspect_ratio > 3.0 or aspect_ratio < 0.33:
+                logger.warning(f"Extreme aspect ratio detected: {aspect_ratio}")
+                return True
+            
+            # Check for very small images (might be inappropriate)
+            if width < 200 or height < 200:
+                logger.warning(f"Very small image: {width}x{height}")
+                return True
+            
+            return False
+            
+        except Exception as e:
+            logger.error(f"NSFW detection error: {e}")
+            return True  # Err on the side of caution
+    
+    def extract_exif_data(self, image_data: bytes) -> dict:
+        """Extract EXIF data before stripping (for logging)."""
+        try:
+            image = Image.open(io.BytesIO(image_data))
+            exif_data = {}
+            
+            if hasattr(image, '_getexif'):
+                exif = image._getexif()
+                if exif is not None:
+                    for tag_id, value in exif.items():
+                        tag = TAGS.get(tag_id, tag_id)
+                        exif_data[tag] = value
+            
+            return exif_data
+        except Exception as e:
+            logger.error(f"Failed to extract EXIF: {e}")
             return {}
 
 

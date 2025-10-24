@@ -169,16 +169,51 @@ async def upload_media(request: web.Request) -> web.Response:
             )
             return web.json_response({"error": "File too large"}, status=413)
 
-        # Process image with pipeline
+        # SECURITY: Validate image format and size
+        if not image_processor.validate_image(file_data):
+            logger.warning(f"Invalid image: {original_filename}")
+            record_file_upload(
+                service="media-service",
+                result="blocked",
+                file_type=ext,
+                reason="invalid_image",
+                user_id=str(request.get("user_id", "unknown")),
+                file_size=size
+            )
+            return web.json_response({"error": "Invalid image format or size"}, status=400)
+
+        # SECURITY: NSFW detection using image processor
+        if image_processor.detect_nsfw_content(file_data):
+            logger.warning(f"Potential NSFW content detected: {original_filename}")
+            record_file_upload(
+                service="media-service",
+                result="blocked",
+                file_type=ext,
+                reason="nsfw_detected",
+                user_id=str(request.get("user_id", "unknown")),
+                file_size=size
+            )
+            return web.json_response({"error": "Content not allowed"}, status=400)
+
+        # Extract EXIF data for logging (before stripping)
+        exif_data = image_processor.extract_exif_data(file_data)
+        if exif_data:
+            logger.info(f"EXIF data extracted: {list(exif_data.keys())}")
+
+        # Process image with enhanced pipeline
         try:
-            processed_data, thumbnail_data = image_processor.process_image(file_data)
+            processed_data, thumbnail_data = image_processor.process_image(file_data, create_thumbnail=True)
+            
+            # Get image info
+            image_info = image_processor.get_image_info(processed_data)
+            logger.info(f"Processed image: {image_info}")
             
             # Upload to MinIO
             await minio_client.upload_file(
                 bucket="photos",
                 object_name=object_name,
                 file_data=processed_data,
-                content_type=content_type
+                content_type="image/jpeg"  # Always JPEG after processing
             )
             
             # Upload thumbnail if created
@@ -188,7 +223,7 @@ async def upload_media(request: web.Request) -> web.Response:
                     bucket="thumbnails",
                     object_name=thumbnail_name,
                     file_data=thumbnail_data,
-                    content_type=content_type
+                    content_type="image/jpeg"
                 )
             
         except Exception as e:
