@@ -2,13 +2,9 @@ name: Tests
 
 on:
   push:
-    branches:
-      - main
-      - develop
+    branches: [ main, develop ]
   pull_request:
-    branches:
-      - main
-      - develop
+    branches: [ main, develop ]
 
 concurrency:
   group: test-${{ github.ref }}
@@ -27,7 +23,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.11'
           cache: 'pip'
 
       - name: Install dependencies
@@ -38,21 +34,23 @@ jobs:
 
       - name: Run unit tests
         env:
-          BOT_TOKEN: "123456789:ABCdefGHIjklMNOpqrsTUVwxyz-test-token"
-          JWT_SECRET: test-secret-key-for-testing-32chars
+          BOT_TOKEN: ${{ secrets.TEST_BOT_TOKEN }}
+          JWT_SECRET: ${{ secrets.TEST_JWT_SECRET }}
+          WEBAPP_URL: http://localhost:3000
+          ADMIN_PASSWORD: test-admin-password
           API_GATEWAY_URL: http://127.0.0.1:9  # Closed port - unit tests should mock network
         run: |
-          python -m pytest tests/unit/ -v --tb=short -m unit --timeout=300 --cov=bot --cov=core --cov-report=xml --cov-report=term
+          pytest tests/unit/ -v --tb=short -m unit --timeout=300 --cov=bot --cov=core --cov-report=xml --cov-report=term
 
       - name: Upload unit test coverage
         uses: codecov/codecov-action@v4
         if: always()
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.xml
           flags: unit
           name: unit-tests
           fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
 
   integration-tests:
     name: Integration Tests
@@ -81,7 +79,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.11'
           cache: 'pip'
 
       - name: Install dependencies
@@ -105,7 +103,7 @@ jobs:
 
       - name: Apply database migrations
         env:
-          BOT_DATABASE_URL: postgresql+asyncpg://dating:test_password@localhost:5432/dating_test
+          DATABASE_URL: postgresql+asyncpg://dating:test_password@localhost:5432/dating_test
         run: |
           echo "Applying database migrations..."
           alembic upgrade head
@@ -114,22 +112,23 @@ jobs:
       - name: Run integration tests
         env:
           DATABASE_URL: postgresql+asyncpg://dating:test_password@localhost:5432/dating_test
-          BOT_DATABASE_URL: postgresql+asyncpg://dating:test_password@localhost:5432/dating_test
-          BOT_TOKEN: "123456789:ABCdefGHIjklMNOpqrsTUVwxyz-test-token"
-          JWT_SECRET: test-secret-key-for-testing-32chars
+          BOT_TOKEN: ${{ secrets.TEST_BOT_TOKEN }}
+          JWT_SECRET: ${{ secrets.TEST_JWT_SECRET }}
+          WEBAPP_URL: http://localhost:3000
+          ADMIN_PASSWORD: test-admin-password
           API_GATEWAY_URL: http://localhost:8080
         run: |
-          python -m pytest tests/integration/ -v --tb=short -m integration --timeout=600 --cov=bot --cov=core --cov-report=xml --cov-report=term
+          pytest tests/integration/ -v --tb=short -m integration --timeout=600 --cov=bot --cov=core --cov-report=xml --cov-report=term
 
       - name: Upload integration test coverage
         uses: codecov/codecov-action@v4
         if: always()
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.xml
           flags: integration
           name: integration-tests
           fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
 
   e2e-tests:
     name: E2E Tests
@@ -160,7 +159,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: '3.11'
           cache: 'pip'
 
       - name: Install dependencies
@@ -184,7 +183,7 @@ jobs:
 
       - name: Apply database migrations
         env:
-          BOT_DATABASE_URL: postgresql+asyncpg://dating:test_password@localhost:5432/dating_test
+          DATABASE_URL: postgresql+asyncpg://dating:test_password@localhost:5432/dating_test
         run: |
           echo "Applying database migrations..."
           alembic upgrade head
@@ -193,22 +192,23 @@ jobs:
       - name: Run E2E tests
         env:
           DATABASE_URL: postgresql+asyncpg://dating:test_password@localhost:5432/dating_test
-          BOT_DATABASE_URL: postgresql+asyncpg://dating:test_password@localhost:5432/dating_test
-          BOT_TOKEN: "123456789:ABCdefGHIjklMNOpqrsTUVwxyz-test-token"
-          JWT_SECRET: test-secret-key-for-testing-32chars
+          BOT_TOKEN: ${{ secrets.TEST_BOT_TOKEN }}
+          JWT_SECRET: ${{ secrets.TEST_JWT_SECRET }}
+          WEBAPP_URL: http://localhost:3000
+          ADMIN_PASSWORD: test-admin-password
           API_GATEWAY_URL: http://localhost:8080
         run: |
-          python -m pytest tests/e2e/ -v --tb=short -m e2e --timeout=900 --cov=bot --cov=core --cov-report=xml --cov-report=term
+          pytest tests/e2e/ -v --tb=short -m e2e --timeout=900 --cov=bot --cov=core --cov-report=xml --cov-report=term
 
       - name: Upload E2E test coverage
         uses: codecov/codecov-action@v4
         if: always()
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.xml
           flags: e2e
           name: e2e-tests
           fail_ci_if_error: false
-          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: Test summary
         if: always()
@@ -216,3 +216,4 @@ jobs:
           echo "## Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ All test suites completed" >> $GITHUB_STEP_SUMMARY
+
