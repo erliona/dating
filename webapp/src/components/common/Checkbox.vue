@@ -65,8 +65,8 @@ const handleChange = (event) => {
 
 .checkbox-custom {
   position: relative;
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   border: 2px solid var(--border-color);
   border-radius: 4px;
   background-color: white;

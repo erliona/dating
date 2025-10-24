@@ -93,21 +93,21 @@ const handleLogin = async () => {
   justify-content: center;
   min-height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
 }
 
 .login-container {
   background-color: white;
   border-radius: var(--border-radius);
   box-shadow: var(--shadow-large);
-  padding: var(--spacing-xl);
+  padding: var(--spacing-md);
   width: 100%;
   max-width: 400px;
 }
 
 .login-header {
   text-align: center;
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-md);
 }
 
 .admin-icon {
@@ -130,7 +130,7 @@ const handleLogin = async () => {
 .login-form {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
+  gap: var(--spacing-md);
 }
 
 .form-group {
@@ -159,7 +159,7 @@ const handleLogin = async () => {
 }
 
 .btn {
-  padding: var(--spacing-md) var(--spacing-lg);
+  padding: var(--spacing-md) var(--spacing-md);
   border: none;
   border-radius: var(--border-radius);
   font-size: var(--font-size-md);
@@ -212,7 +212,7 @@ const handleLogin = async () => {
   color: var(--danger-color);
   padding: var(--spacing-md);
   border-radius: var(--border-radius);
-  margin-top: var(--spacing-lg);
+  margin-top: var(--spacing-md);
   text-align: center;
   font-size: var(--font-size-sm);
 }

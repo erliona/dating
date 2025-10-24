@@ -105,12 +105,12 @@ watch(formData, (newData) => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
 }
 
 .step-header {
   text-align: center;
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-md);
 }
 
 .step-header h2 {
@@ -130,7 +130,7 @@ watch(formData, (newData) => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xl);
+  gap: var(--spacing-lg);
 }
 
 .form-group {
@@ -140,7 +140,7 @@ watch(formData, (newData) => {
 }
 
 .form-label {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   color: var(--text-primary);
 }
@@ -171,7 +171,7 @@ watch(formData, (newData) => {
 
 .bio-tips {
   background-color: var(--bg-secondary);
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   border-radius: var(--border-radius);
 }
 
@@ -184,7 +184,7 @@ watch(formData, (newData) => {
 
 .bio-tips ul {
   margin: 0;
-  padding-left: var(--spacing-lg);
+  padding-left: var(--spacing-md);
 }
 
 .bio-tips li {
@@ -199,7 +199,7 @@ watch(formData, (newData) => {
 
 .bio-examples {
   background-color: var(--bg-secondary);
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   border-radius: var(--border-radius);
 }
 
@@ -234,8 +234,8 @@ watch(formData, (newData) => {
 .step-actions {
   display: flex;
   gap: var(--spacing-md);
-  margin-top: var(--spacing-xl);
-  padding-top: var(--spacing-lg);
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
   border-top: 1px solid var(--border-color);
 }
 

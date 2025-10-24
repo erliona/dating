@@ -162,12 +162,12 @@ watch(formData, (newData) => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
 }
 
 .step-header {
   text-align: center;
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-md);
 }
 
 .step-header h2 {
@@ -187,20 +187,20 @@ watch(formData, (newData) => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xl);
+  gap: var(--spacing-lg);
   overflow-y: auto;
 }
 
 .form-section {
   background-color: var(--bg-secondary);
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   border-radius: var(--border-radius);
 }
 
 .form-section h3 {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
-  margin: 0 0 var(--spacing-lg) 0;
+  margin: 0 0 var(--spacing-md) 0;
   color: var(--text-primary);
 }
 
@@ -265,8 +265,8 @@ watch(formData, (newData) => {
 .step-actions {
   display: flex;
   gap: var(--spacing-md);
-  margin-top: var(--spacing-xl);
-  padding-top: var(--spacing-lg);
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
   border-top: 1px solid var(--border-color);
 }
 

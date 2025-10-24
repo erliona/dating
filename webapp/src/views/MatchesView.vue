@@ -126,7 +126,7 @@ onMounted(() => {
 }
 
 .matches-header h1 {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
   margin: 0;
   color: var(--text-primary);
@@ -161,18 +161,18 @@ onMounted(() => {
 }
 
 .empty-icon {
-  font-size: var(--font-size-xxxl);
+  font-size: var(--font-size-xxl);
   margin-bottom: var(--spacing-md);
 }
 
 .empty-state h3 {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   margin-bottom: var(--spacing-sm);
   color: var(--text-primary);
 }
 
 .empty-state p {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .matches-list {
@@ -219,8 +219,8 @@ onMounted(() => {
   background-color: var(--primary-color);
   color: white;
   border-radius: 50%;
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -262,7 +262,7 @@ onMounted(() => {
 }
 
 .match-arrow {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   color: var(--text-light);
   margin-left: var(--spacing-sm);
 }

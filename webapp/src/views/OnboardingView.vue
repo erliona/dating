@@ -191,18 +191,18 @@ onMounted(() => {
 .progress-container {
   display: flex;
   align-items: center;
-  padding: var(--spacing-md);
+  padding: var(--spacing-sm);
   background-color: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
 }
 
 .progress-bar {
   flex: 1;
-  height: 4px;
+  height: 3px;
   background-color: var(--bg-tertiary);
   border-radius: 2px;
   overflow: hidden;
-  margin-right: var(--spacing-md);
+  margin-right: var(--spacing-sm);
 }
 
 .progress-fill {
@@ -212,28 +212,28 @@ onMounted(() => {
 }
 
 .progress-text {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
   color: var(--text-secondary);
-  min-width: 40px;
+  min-width: 30px;
 }
 
 .step-container {
   flex: 1;
   overflow-y: auto;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
 }
 
 .navigation-container {
   display: flex;
   justify-content: space-between;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   background-color: var(--bg-secondary);
   border-top: 1px solid var(--border-color);
 }
 
 .navigation-container .btn {
-  min-width: 120px;
+  min-width: 80px;
 }
 
 .navigation-container .btn:only-child {

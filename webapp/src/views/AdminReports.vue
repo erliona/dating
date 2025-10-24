@@ -532,7 +532,7 @@ onMounted(() => {
 
 <style scoped>
 .admin-reports {
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   background-color: var(--bg-primary);
   min-height: 100vh;
 }
@@ -541,8 +541,8 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-xl);
-  padding-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-md);
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -553,7 +553,7 @@ onMounted(() => {
 }
 
 .admin-header h1 {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
   margin: 0;
   color: var(--text-primary);
@@ -581,8 +581,8 @@ onMounted(() => {
 .filters-section {
   background-color: white;
   border-radius: var(--border-radius);
-  padding: var(--spacing-lg);
-  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
   box-shadow: var(--shadow-small);
 }
 
@@ -618,20 +618,20 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: var(--spacing-xl);
+  padding: var(--spacing-md);
   text-align: center;
 }
 
 .empty-icon {
   font-size: 3rem;
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .reports-list {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
-  margin-bottom: var(--spacing-lg);
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
 }
 
 .report-card {
@@ -762,12 +762,12 @@ onMounted(() => {
 }
 
 .report-content {
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
 }
 
 .reporter-info,
 .reported-info {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .user-card {
@@ -830,7 +830,7 @@ onMounted(() => {
 }
 
 .report-reason {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .report-reason h4 {
@@ -845,7 +845,7 @@ onMounted(() => {
 }
 
 .report-evidence {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .report-evidence h4 {
@@ -880,7 +880,7 @@ onMounted(() => {
 }
 
 .report-notes {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .report-notes h4 {
@@ -907,7 +907,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   background-color: white;
   border-radius: var(--border-radius);
   box-shadow: var(--shadow-small);
@@ -948,12 +948,12 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   border-bottom: 1px solid var(--border-color);
 }
 
 .modal-body {
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
 }
 
 .screenshot-image {
@@ -962,7 +962,7 @@ onMounted(() => {
 }
 
 .form-group {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .form-group label {
@@ -990,7 +990,7 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: var(--spacing-sm);
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   border-top: 1px solid var(--border-color);
 }
 </style>

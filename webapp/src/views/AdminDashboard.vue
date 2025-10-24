@@ -238,7 +238,7 @@ onMounted(() => {
 
 <style scoped>
 .admin-dashboard {
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   background-color: var(--bg-primary);
   min-height: 100vh;
 }
@@ -247,8 +247,8 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-xl);
-  padding-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-md);
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -268,13 +268,13 @@ onMounted(() => {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--spacing-md);
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-md);
 }
 
 .stat-card {
   background-color: white;
   border-radius: var(--border-radius);
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   box-shadow: var(--shadow-small);
   display: flex;
   align-items: center;
@@ -327,11 +327,11 @@ onMounted(() => {
 }
 
 .alerts-section {
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-md);
 }
 
 .alerts-section h2 {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   margin: 0 0 var(--spacing-md) 0;
   color: var(--text-primary);
@@ -367,7 +367,7 @@ onMounted(() => {
 }
 
 .alert-icon {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
 }
 
 .alert-content {
@@ -382,7 +382,7 @@ onMounted(() => {
 }
 
 .alert-count {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-bold);
   color: var(--text-primary);
   margin-bottom: var(--spacing-xs);
@@ -394,11 +394,11 @@ onMounted(() => {
 }
 
 .quick-actions {
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-md);
 }
 
 .quick-actions h2 {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   margin: 0 0 var(--spacing-md) 0;
   color: var(--text-primary);
@@ -414,7 +414,7 @@ onMounted(() => {
   background-color: white;
   border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -429,7 +429,7 @@ onMounted(() => {
 }
 
 .action-icon {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
 }
 
 .action-label {
@@ -439,7 +439,7 @@ onMounted(() => {
 }
 
 .recent-activity h2 {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   margin: 0 0 var(--spacing-md) 0;
   color: var(--text-primary);
@@ -465,7 +465,7 @@ onMounted(() => {
 }
 
 .activity-icon {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   width: 40px;
   height: 40px;
   display: flex;

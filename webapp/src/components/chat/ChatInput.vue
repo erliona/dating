@@ -176,7 +176,7 @@ watch(() => props.disabled, (newDisabled) => {
 .attach-button {
   background: none;
   border: none;
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   cursor: pointer;
   padding: var(--spacing-sm);
   border-radius: 50%;

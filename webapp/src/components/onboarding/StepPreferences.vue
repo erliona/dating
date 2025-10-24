@@ -140,12 +140,12 @@ watch(preferences, (newPreferences) => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
 }
 
 .step-header {
   text-align: center;
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-md);
 }
 
 .step-header h2 {
@@ -165,7 +165,7 @@ watch(preferences, (newPreferences) => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xl);
+  gap: var(--spacing-lg);
 }
 
 .form-group {
@@ -175,7 +175,7 @@ watch(preferences, (newPreferences) => {
 }
 
 .form-label {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   color: var(--text-primary);
 }
@@ -183,7 +183,7 @@ watch(preferences, (newPreferences) => {
 .age-range {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
+  gap: var(--spacing-md);
 }
 
 .range-item {
@@ -211,8 +211,8 @@ watch(preferences, (newPreferences) => {
 .range-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: var(--primary-color);
   cursor: pointer;
@@ -220,8 +220,8 @@ watch(preferences, (newPreferences) => {
 }
 
 .range-slider::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: var(--primary-color);
   cursor: pointer;
@@ -277,8 +277,8 @@ watch(preferences, (newPreferences) => {
 .step-actions {
   display: flex;
   gap: var(--spacing-md);
-  margin-top: var(--spacing-xl);
-  padding-top: var(--spacing-lg);
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
   border-top: 1px solid var(--border-color);
 }
 

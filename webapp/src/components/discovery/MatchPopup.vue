@@ -85,13 +85,13 @@ const startChat = () => {
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
 }
 
 .match-popup {
   background-color: white;
   border-radius: var(--border-radius);
-  padding: var(--spacing-xl);
+  padding: var(--spacing-md);
   text-align: center;
   max-width: 400px;
   width: 100%;
@@ -111,11 +111,11 @@ const startChat = () => {
 }
 
 .match-animation {
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-md);
 }
 
 .hearts {
-  font-size: var(--font-size-xxxl);
+  font-size: var(--font-size-xxl);
   margin-bottom: var(--spacing-md);
   animation: hearts-bounce 1s ease-in-out infinite;
 }
@@ -126,7 +126,7 @@ const startChat = () => {
 }
 
 .match-animation h2 {
-  font-size: var(--font-size-xxl);
+  font-size: var(--font-size-xl);
   font-weight: var(--font-weight-bold);
   color: var(--primary-color);
   margin-bottom: var(--spacing-sm);
@@ -141,8 +141,8 @@ const startChat = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--spacing-lg);
-  margin-bottom: var(--spacing-xl);
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
 }
 
 .photo-container {
@@ -160,7 +160,7 @@ const startChat = () => {
 }
 
 .heart-between {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
   animation: heart-pulse 1s ease-in-out infinite;
 }
 
@@ -170,11 +170,11 @@ const startChat = () => {
 }
 
 .match-info {
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-md);
 }
 
 .match-info h3 {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   color: var(--text-primary);
   margin-bottom: var(--spacing-sm);

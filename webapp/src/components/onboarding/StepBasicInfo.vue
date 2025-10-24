@@ -196,23 +196,23 @@ watch(formData, (newData) => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
 }
 
 .step-header {
   text-align: center;
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-md);
 }
 
 .step-header h2 {
-  font-size: var(--font-size-2xl);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-bold);
-  margin: 0 0 var(--spacing-sm) 0;
+  margin: 0 0 var(--spacing-xs) 0;
   color: var(--text-primary);
 }
 
 .step-header p {
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
   color: var(--text-secondary);
   margin: 0;
 }
@@ -221,17 +221,17 @@ watch(formData, (newData) => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
+  gap: var(--spacing-md);
 }
 
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-sm);
+  gap: var(--spacing-xs);
 }
 
 .form-label {
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   color: var(--text-primary);
 }
@@ -239,14 +239,14 @@ watch(formData, (newData) => {
 .radio-group {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-md);
+  gap: var(--spacing-sm);
 }
 
 .radio-option {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-md);
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm);
   border: 2px solid var(--border-color);
   border-radius: var(--border-radius);
   cursor: pointer;
@@ -263,8 +263,8 @@ watch(formData, (newData) => {
 }
 
 .radio-custom {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   border: 2px solid var(--border-color);
   border-radius: 50%;
   position: relative;
@@ -308,8 +308,8 @@ watch(formData, (newData) => {
 }
 
 .step-actions {
-  margin-top: var(--spacing-xl);
-  padding-top: var(--spacing-lg);
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
   border-top: 1px solid var(--border-color);
 }
 </style>

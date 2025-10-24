@@ -128,12 +128,12 @@ watch(formData, (newData) => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
 }
 
 .step-header {
   text-align: center;
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-md);
 }
 
 .step-header h2 {
@@ -153,7 +153,7 @@ watch(formData, (newData) => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xl);
+  gap: var(--spacing-lg);
 }
 
 .interests-grid {
@@ -196,7 +196,7 @@ watch(formData, (newData) => {
 }
 
 .interest-icon {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
   margin-bottom: var(--spacing-xs);
 }
 
@@ -208,13 +208,13 @@ watch(formData, (newData) => {
 
 .selection-info {
   text-align: center;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   background-color: var(--bg-secondary);
   border-radius: var(--border-radius);
 }
 
 .selection-count {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   color: var(--text-primary);
   margin: 0 0 var(--spacing-sm) 0;
@@ -229,8 +229,8 @@ watch(formData, (newData) => {
 .step-actions {
   display: flex;
   gap: var(--spacing-md);
-  margin-top: var(--spacing-xl);
-  padding-top: var(--spacing-lg);
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
   border-top: 1px solid var(--border-color);
 }
 

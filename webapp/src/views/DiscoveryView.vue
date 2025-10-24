@@ -182,7 +182,7 @@ onMounted(async () => {
 }
 
 .discovery-header h1 {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
   margin: 0;
   color: var(--text-primary);
@@ -198,7 +198,7 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   overflow: hidden;
 }
 
@@ -217,18 +217,18 @@ onMounted(async () => {
 }
 
 .empty-icon {
-  font-size: var(--font-size-xxxl);
+  font-size: var(--font-size-xxl);
   margin-bottom: var(--spacing-md);
 }
 
 .empty-state h3 {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   margin-bottom: var(--spacing-sm);
   color: var(--text-primary);
 }
 
 .empty-state p {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .swipe-container {
@@ -242,8 +242,8 @@ onMounted(async () => {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: var(--spacing-lg);
-  padding: var(--spacing-lg);
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
   background-color: var(--bg-secondary);
   border-top: 1px solid var(--border-color);
 }
@@ -252,7 +252,7 @@ onMounted(async () => {
   width: 60px;
   height: 60px;
   border-radius: 50%;
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
   border: none;
   box-shadow: var(--shadow-medium);
   transition: all var(--transition-fast);

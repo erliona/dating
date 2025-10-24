@@ -145,9 +145,9 @@ const getCompletionMessage = () => {
 <style scoped>
 .completion-indicator {
   background-color: var(--bg-secondary);
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   border-radius: var(--border-radius);
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .completion-header {
@@ -165,7 +165,7 @@ const getCompletionMessage = () => {
 }
 
 .completion-percentage {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-bold);
   color: var(--primary-color);
 }
@@ -252,7 +252,7 @@ const getCompletionMessage = () => {
 
 .completion-complete {
   text-align: center;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
 }
 
 .complete-icon {

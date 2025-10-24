@@ -189,12 +189,12 @@ watch(photos, (newPhotos) => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
 }
 
 .step-header {
   text-align: center;
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-md);
 }
 
 .step-header h2 {
@@ -214,7 +214,7 @@ watch(photos, (newPhotos) => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xl);
+  gap: var(--spacing-lg);
 }
 
 .photos-grid {
@@ -266,8 +266,8 @@ watch(photos, (newPhotos) => {
   color: white;
   border: none;
   border-radius: 50%;
-  width: 24px;
-  height: 24px;
+  width: 16px;
+  height: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -325,7 +325,7 @@ watch(photos, (newPhotos) => {
 
 .photo-tips {
   background-color: var(--bg-secondary);
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   border-radius: var(--border-radius);
 }
 
@@ -338,7 +338,7 @@ watch(photos, (newPhotos) => {
 
 .photo-tips ul {
   margin: 0;
-  padding-left: var(--spacing-lg);
+  padding-left: var(--spacing-md);
 }
 
 .photo-tips li {
@@ -354,8 +354,8 @@ watch(photos, (newPhotos) => {
 .step-actions {
   display: flex;
   gap: var(--spacing-md);
-  margin-top: var(--spacing-xl);
-  padding-top: var(--spacing-lg);
+  margin-top: var(--spacing-md);
+  padding-top: var(--spacing-md);
   border-top: 1px solid var(--border-color);
 }
 

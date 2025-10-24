@@ -133,9 +133,9 @@ const buttonClasses = computed(() => {
 }
 
 .btn-lg {
-  padding: var(--spacing-md) var(--spacing-lg);
-  font-size: var(--font-size-lg);
-  min-height: 48px;
+  padding: var(--spacing-md) var(--spacing-md);
+  font-size: var(--font-size-md);
+  min-height: 40px;
 }
 
 /* States */

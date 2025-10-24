@@ -68,7 +68,7 @@ const goToSettings = () => {
   align-items: center;
   justify-content: center;
   height: 100%;
-  padding: var(--spacing-xl);
+  padding: var(--spacing-md);
   background-color: var(--bg-primary);
 }
 
@@ -79,7 +79,7 @@ const goToSettings = () => {
 }
 
 .empty-icon {
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-md);
 }
 
 .empty-icon .icon {
@@ -88,7 +88,7 @@ const goToSettings = () => {
 }
 
 .empty-title {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
   margin: 0 0 var(--spacing-md) 0;
   color: var(--text-primary);
@@ -98,19 +98,19 @@ const goToSettings = () => {
   font-size: var(--font-size-md);
   color: var(--text-secondary);
   line-height: 1.5;
-  margin: 0 0 var(--spacing-xl) 0;
+  margin: 0 0 var(--spacing-lg) 0;
 }
 
 .empty-actions {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-md);
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-md);
 }
 
 .empty-tips {
   background-color: var(--bg-secondary);
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   border-radius: var(--border-radius);
   text-align: left;
 }
@@ -124,7 +124,7 @@ const goToSettings = () => {
 
 .empty-tips ul {
   margin: 0;
-  padding-left: var(--spacing-lg);
+  padding-left: var(--spacing-md);
 }
 
 .empty-tips li {

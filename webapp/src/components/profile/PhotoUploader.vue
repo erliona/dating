@@ -191,7 +191,7 @@ watch(() => props.modelValue, (newValue) => {
 .photo-uploader {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-lg);
+  gap: var(--spacing-md);
 }
 
 .uploader-header {
@@ -199,7 +199,7 @@ watch(() => props.modelValue, (newValue) => {
 }
 
 .uploader-header h3 {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   margin: 0 0 var(--spacing-sm) 0;
   color: var(--text-primary);
@@ -260,8 +260,8 @@ watch(() => props.modelValue, (newValue) => {
   color: white;
   border: none;
   border-radius: 50%;
-  width: 24px;
-  height: 24px;
+  width: 16px;
+  height: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -346,7 +346,7 @@ watch(() => props.modelValue, (newValue) => {
 
 .upload-tips {
   background-color: var(--bg-secondary);
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   border-radius: var(--border-radius);
 }
 
@@ -359,7 +359,7 @@ watch(() => props.modelValue, (newValue) => {
 
 .upload-tips ul {
   margin: 0;
-  padding-left: var(--spacing-lg);
+  padding-left: var(--spacing-md);
 }
 
 .upload-tips li {

@@ -107,13 +107,13 @@ const spinnerClasses = computed(() => {
 }
 
 .spinner-md {
-  width: 24px;
-  height: 24px;
+  width: 16px;
+  height: 16px;
 }
 
 .spinner-md .spinner-ring {
-  width: 24px;
-  height: 24px;
+  width: 16px;
+  height: 16px;
   border-width: 2px;
 }
 

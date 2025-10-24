@@ -24,20 +24,20 @@
   --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.15);
   --shadow-large: 0 8px 32px rgba(0, 0, 0, 0.2);
   
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 16px;
-  --spacing-lg: 24px;
-  --spacing-xl: 32px;
-  --spacing-xxl: 48px;
+  --spacing-xs: 2px;
+  --spacing-sm: 4px;
+  --spacing-md: 8px;
+  --spacing-lg: 12px;
+  --spacing-xl: 16px;
+  --spacing-xxl: 20px;
   
-  --font-size-xs: 12px;
-  --font-size-sm: 14px;
-  --font-size-md: 16px;
-  --font-size-lg: 18px;
-  --font-size-xl: 20px;
-  --font-size-xxl: 24px;
-  --font-size-xxxl: 32px;
+  --font-size-xs: 10px;
+  --font-size-sm: 12px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-xxl: 20px;
+  --font-size-xxxl: 24px;
   
   --font-weight-normal: 400;
   --font-weight-medium: 500;
@@ -109,7 +109,7 @@ p {
   cursor: pointer;
   transition: all var(--transition-fast);
   user-select: none;
-  min-height: 44px; /* Touch target */
+  min-height: 36px; /* Compact touch target */
 }
 
 .btn:disabled {
@@ -151,20 +151,20 @@ p {
 }
 
 .btn-large {
-  padding: var(--spacing-md) var(--spacing-xl);
-  font-size: var(--font-size-lg);
-  min-height: 52px;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  font-size: var(--font-size-md);
+  min-height: 40px;
 }
 
 .btn-small {
-  padding: var(--spacing-xs) var(--spacing-md);
-  font-size: var(--font-size-sm);
-  min-height: 36px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  min-height: 28px;
 }
 
 .btn-icon {
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
   padding: 0;
   border-radius: 50%;
   display: flex;
@@ -174,7 +174,7 @@ p {
 
 /* Forms */
 .form-group {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .form-label {
@@ -192,7 +192,7 @@ p {
   font-size: var(--font-size-md);
   background-color: var(--bg-primary);
   transition: border-color var(--transition-fast);
-  min-height: 44px;
+  min-height: 36px;
 }
 
 .form-input:focus {
@@ -207,7 +207,7 @@ p {
 
 .form-textarea {
   resize: vertical;
-  min-height: 100px;
+  min-height: 60px;
 }
 
 .form-select {
@@ -232,16 +232,16 @@ p {
 }
 
 .card-header {
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   border-bottom: 1px solid var(--border-color);
 }
 
 .card-body {
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
 }
 
 .card-footer {
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   border-top: 1px solid var(--border-color);
   background-color: var(--bg-secondary);
 }
@@ -250,12 +250,12 @@ p {
 .container {
   max-width: 100%;
   margin: 0 auto;
-  padding: 0 var(--spacing-md);
+  padding: 0 var(--spacing-sm);
 }
 
 .container-fluid {
   width: 100%;
-  padding: 0 var(--spacing-md);
+  padding: 0 var(--spacing-sm);
 }
 
 .row {
@@ -375,16 +375,16 @@ p {
 /* Responsive */
 @media (max-width: 768px) {
   .container {
-    padding: 0 var(--spacing-sm);
+    padding: 0 var(--spacing-xs);
   }
   
   .btn {
-    min-height: 48px; /* Larger touch targets on mobile */
+    min-height: 36px; /* Compact touch targets for mini app */
   }
   
   .btn-icon {
-    width: 48px;
-    height: 48px;
+    width: 36px;
+    height: 36px;
   }
 }
 

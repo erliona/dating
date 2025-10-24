@@ -339,7 +339,7 @@ onMounted(() => {
 }
 
 .profile-header h2 {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   margin: 0;
   color: var(--text-primary);
@@ -352,7 +352,7 @@ onMounted(() => {
 }
 
 .photos-section {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .main-photo {
@@ -421,7 +421,7 @@ onMounted(() => {
 
 .add-photo-icon {
   display: block;
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-bold);
 }
 
@@ -430,7 +430,7 @@ onMounted(() => {
 }
 
 .info-section {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .info-header {
@@ -441,7 +441,7 @@ onMounted(() => {
 }
 
 .info-header h3 {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
   margin: 0;
   color: var(--text-primary);
@@ -475,7 +475,7 @@ onMounted(() => {
 }
 
 .completion-section {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
   padding: var(--spacing-md);
   background-color: var(--bg-secondary);
   border-radius: var(--border-radius);
@@ -525,7 +525,7 @@ onMounted(() => {
 .interests-section,
 .languages-section,
 .privacy-section {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .details-section h4,
@@ -611,7 +611,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
 }
 
 .photo-modal {
@@ -633,7 +633,7 @@ onMounted(() => {
 }
 
 .photo-modal-header h3 {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   margin: 0;
   color: var(--text-primary);

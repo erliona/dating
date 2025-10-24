@@ -347,7 +347,7 @@ onMounted(() => {
 
 <style scoped>
 .admin-users {
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   background-color: var(--bg-primary);
   min-height: 100vh;
 }
@@ -356,8 +356,8 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--spacing-xl);
-  padding-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-md);
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -368,7 +368,7 @@ onMounted(() => {
 }
 
 .admin-header h1 {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
   margin: 0;
   color: var(--text-primary);
@@ -382,8 +382,8 @@ onMounted(() => {
 .filters-section {
   background-color: white;
   border-radius: var(--border-radius);
-  padding: var(--spacing-lg);
-  margin-bottom: var(--spacing-lg);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
   box-shadow: var(--shadow-small);
 }
 
@@ -418,7 +418,7 @@ onMounted(() => {
   border-radius: var(--border-radius);
   box-shadow: var(--shadow-small);
   overflow: hidden;
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .loading-state,
@@ -427,13 +427,13 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: var(--spacing-xl);
+  padding: var(--spacing-md);
   text-align: center;
 }
 
 .empty-icon {
   font-size: 3rem;
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .users-table {
@@ -560,7 +560,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   background-color: white;
   border-radius: var(--border-radius);
   box-shadow: var(--shadow-small);
@@ -597,19 +597,19 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   border-bottom: 1px solid var(--border-color);
 }
 
 .modal-body {
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
 }
 
 .user-profile {
   display: flex;
   align-items: center;
-  gap: var(--spacing-lg);
-  margin-bottom: var(--spacing-lg);
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
 }
 
 .profile-avatar {
@@ -652,7 +652,7 @@ onMounted(() => {
 
 .stat-value {
   display: block;
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-bold);
   color: var(--text-primary);
 }

@@ -512,7 +512,7 @@ onMounted(() => {
 }
 
 .settings-header h2 {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   margin: 0;
   color: var(--text-primary);
@@ -525,11 +525,11 @@ onMounted(() => {
 }
 
 .settings-section {
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-md);
 }
 
 .settings-section h3 {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   margin-bottom: var(--spacing-md);
   color: var(--text-primary);
@@ -582,7 +582,7 @@ onMounted(() => {
   position: relative;
   display: inline-block;
   width: 50px;
-  height: 24px;
+  height: 16px;
 }
 
 .toggle input {
@@ -647,7 +647,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
 }
 
 .modal {
@@ -656,24 +656,24 @@ onMounted(() => {
   max-width: 400px;
   width: 100%;
   box-shadow: var(--shadow-large);
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
 }
 
 .modal h3 {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
   color: var(--text-primary);
 }
 
 .modal p {
   font-size: var(--font-size-md);
   color: var(--text-secondary);
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .age-range {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .range-input {
@@ -699,15 +699,15 @@ onMounted(() => {
 .range-input input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: var(--primary-color);
   cursor: pointer;
 }
 
 .distance-input {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .distance-input label {
@@ -718,7 +718,7 @@ onMounted(() => {
 }
 
 .gender-options {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .gender-option {
@@ -735,7 +735,7 @@ onMounted(() => {
 }
 
 .delete-confirmation {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .delete-confirmation label {

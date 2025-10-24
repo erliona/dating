@@ -256,7 +256,7 @@ const handleTouchEnd = (event) => {
 }
 
 .card-content {
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   height: 30%;
   display: flex;
   flex-direction: column;
@@ -271,14 +271,14 @@ const handleTouchEnd = (event) => {
 }
 
 .name-age h3 {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
   margin: 0;
   color: var(--text-primary);
 }
 
 .verified-badge {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
 }
 
 .distance {
@@ -326,9 +326,9 @@ const handleTouchEnd = (event) => {
 }
 
 .swipe-indicator {
-  font-size: var(--font-size-xxl);
+  font-size: var(--font-size-xl);
   font-weight: var(--font-weight-bold);
-  padding: var(--spacing-md) var(--spacing-lg);
+  padding: var(--spacing-md) var(--spacing-md);
   border-radius: var(--border-radius);
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }

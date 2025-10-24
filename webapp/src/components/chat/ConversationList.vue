@@ -145,16 +145,16 @@ onMounted(() => {
   justify-content: center;
   height: 100%;
   text-align: center;
-  padding: var(--spacing-xl);
+  padding: var(--spacing-md);
 }
 
 .empty-icon {
   font-size: 3rem;
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .empty-state h3 {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   margin: 0 0 var(--spacing-sm) 0;
   color: var(--text-primary);

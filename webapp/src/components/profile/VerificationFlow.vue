@@ -254,7 +254,7 @@ const formatDate = (dateString) => {
 
 <style scoped>
 .verification-flow {
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
 }
 
 .verification-prompt,
@@ -262,21 +262,21 @@ const formatDate = (dateString) => {
 .verification-approved,
 .verification-rejected {
   text-align: center;
-  padding: var(--spacing-xl);
+  padding: var(--spacing-md);
   background-color: var(--bg-secondary);
   border-radius: var(--border-radius);
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .verification-icon {
   font-size: 3rem;
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .verification-benefits {
   display: flex;
   justify-content: space-around;
-  margin: var(--spacing-lg) 0;
+  margin: var(--spacing-md) 0;
   padding: var(--spacing-md);
   background-color: var(--bg-primary);
   border-radius: var(--border-radius);
@@ -291,11 +291,11 @@ const formatDate = (dateString) => {
 }
 
 .benefit-icon {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
 }
 
 .verification-status {
-  margin: var(--spacing-lg) 0;
+  margin: var(--spacing-md) 0;
 }
 
 .status-item {
@@ -327,13 +327,13 @@ const formatDate = (dateString) => {
   background-color: var(--success-color);
   color: white;
   border-radius: var(--border-radius);
-  margin: var(--spacing-lg) 0;
-  font-size: var(--font-size-lg);
+  margin: var(--spacing-md) 0;
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
 }
 
 .badge-icon {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
 }
 
 .verification-details {
@@ -341,14 +341,14 @@ const formatDate = (dateString) => {
   background-color: var(--bg-primary);
   padding: var(--spacing-md);
   border-radius: var(--border-radius);
-  margin-top: var(--spacing-lg);
+  margin-top: var(--spacing-md);
 }
 
 .rejection-reason {
   background-color: rgba(var(--danger-rgb), 0.1);
   padding: var(--spacing-md);
   border-radius: var(--border-radius);
-  margin: var(--spacing-lg) 0;
+  margin: var(--spacing-md) 0;
   text-align: left;
 }
 
@@ -356,7 +356,7 @@ const formatDate = (dateString) => {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
-  margin-top: var(--spacing-lg);
+  margin-top: var(--spacing-md);
 }
 
 .modal-overlay {
@@ -385,16 +385,16 @@ const formatDate = (dateString) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   border-bottom: 1px solid var(--border-color);
 }
 
 .modal-body {
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
 }
 
 .selfie-instructions {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-md);
 }
 
 .selfie-instructions h4 {
@@ -404,7 +404,7 @@ const formatDate = (dateString) => {
 
 .selfie-instructions ul {
   margin: 0;
-  padding-left: var(--spacing-lg);
+  padding-left: var(--spacing-md);
 }
 
 .selfie-instructions li {
@@ -415,7 +415,7 @@ const formatDate = (dateString) => {
 .upload-area {
   border: 2px dashed var(--border-color);
   border-radius: var(--border-radius);
-  padding: var(--spacing-xl);
+  padding: var(--spacing-md);
   text-align: center;
   cursor: pointer;
   transition: border-color 0.2s ease;
@@ -444,7 +444,7 @@ const formatDate = (dateString) => {
 .modal-footer {
   display: flex;
   gap: var(--spacing-sm);
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   border-top: 1px solid var(--border-color);
 }
 </style>

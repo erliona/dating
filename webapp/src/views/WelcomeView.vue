@@ -107,7 +107,7 @@ onMounted(() => {
   min-height: 100vh;
   max-height: 100vh;
   background: linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 100%);
-  padding: 10px;
+  padding: 4px;
   overflow: hidden;
 }
 
@@ -124,74 +124,74 @@ onMounted(() => {
 }
 
 .welcome-header {
-  margin-bottom: 15px;
+  margin-bottom: 8px;
   flex-shrink: 0;
 }
 
 .welcome-title {
-  font-size: 24px;
+  font-size: 18px;
   font-weight: bold;
-  margin-bottom: 5px;
+  margin-bottom: 2px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .welcome-subtitle {
-  font-size: 16px;
-  opacity: 0.9;
-  margin-bottom: 0;
-}
-
-.welcome-features {
-  margin-bottom: 15px;
-  flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.feature-item {
-  margin-bottom: 0;
-  padding: 12px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  backdrop-filter: blur(10px);
-  flex-shrink: 0;
-}
-
-.feature-icon {
-  font-size: 24px;
-  margin-bottom: 8px;
-}
-
-.feature-item h3 {
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-
-.feature-item p {
   font-size: 12px;
   opacity: 0.9;
   margin-bottom: 0;
 }
 
+.welcome-features {
+  margin-bottom: 8px;
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.feature-item {
+  margin-bottom: 0;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  backdrop-filter: blur(10px);
+  flex-shrink: 0;
+}
+
+.feature-icon {
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.feature-item h3 {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.feature-item p {
+  font-size: 10px;
+  opacity: 0.9;
+  margin-bottom: 0;
+}
+
 .welcome-actions {
-  margin-bottom: 10px;
+  margin-bottom: 4px;
   flex-shrink: 0;
 }
 
 .welcome-btn {
   width: 100%;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   background: rgba(255, 255, 255, 0.2);
   border: 2px solid rgba(255, 255, 255, 0.3);
   color: white;
   font-weight: 600;
   backdrop-filter: blur(10px);
-  padding: 12px 16px;
-  border-radius: 8px;
-  font-size: 16px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
 }
 
 .welcome-btn:hover:not(:disabled) {
@@ -205,7 +205,7 @@ onMounted(() => {
 }
 
 .welcome-note {
-  font-size: 12px;
+  font-size: 10px;
   opacity: 0.8;
   margin-bottom: 0;
   flex-shrink: 0;

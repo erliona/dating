@@ -500,7 +500,7 @@ onMounted(() => {
 }
 
 .edit-header h2 {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   margin: 0;
   color: var(--text-primary);
@@ -513,11 +513,11 @@ onMounted(() => {
 }
 
 .section {
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: var(--spacing-md);
 }
 
 .section h3 {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   margin-bottom: var(--spacing-md);
   color: var(--text-primary);
@@ -563,7 +563,7 @@ onMounted(() => {
 }
 
 .add-icon {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
 }
 
@@ -575,8 +575,8 @@ onMounted(() => {
   color: white;
   border: none;
   border-radius: 50%;
-  width: 24px;
-  height: 24px;
+  width: 16px;
+  height: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -719,7 +719,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
 }
 
 .photo-modal {
@@ -739,14 +739,14 @@ onMounted(() => {
 }
 
 .photo-modal-header h3 {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
   margin: 0;
   color: var(--text-primary);
 }
 
 .photo-modal-content {
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   text-align: center;
 }
 
