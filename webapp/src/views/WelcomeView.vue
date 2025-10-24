@@ -31,6 +31,7 @@
         <button 
           class="btn btn-primary btn-large welcome-btn"
           @click="handleLogin"
+          onclick="console.log('Button clicked!'); alert('Button works!');"
           :disabled="loading"
         >
           <span v-if="loading" class="spinner"></span>
@@ -68,6 +69,12 @@ onMounted(() => {
   window.handleLogin = handleLogin
   
   console.log('WelcomeView ready')
+  
+  // Test Vue reactivity
+  setTimeout(() => {
+    console.log('Vue test - loading value:', loading.value)
+    console.log('Vue test - button element:', document.querySelector('.welcome-btn'))
+  }, 1000)
 })
 
 const handleLogin = async () => {
