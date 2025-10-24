@@ -186,10 +186,15 @@ const handleLogin = async () => {
       
       showAlert('✅ Вход успешен! Переходим дальше...')
       
+      // Show profile completion status
+      showAlert(`Профиль завершен: ${userStore.isProfileComplete ? 'да' : 'нет'}`)
+      
       // Redirect based on profile completion
       if (userStore.isProfileComplete) {
+        showAlert('Переходим в Discovery...')
         router.push('/discovery')
       } else {
+        showAlert('Переходим в Onboarding...')
         router.push('/onboarding')
       }
     } catch (error) {
