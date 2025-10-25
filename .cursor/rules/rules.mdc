@@ -1060,17 +1060,51 @@ async def security_headers_middleware(request, handler):
 
 ### 8.6 API Documentation Standards
 
-**OpenAPI Specification:**
+**CRITICAL RULE - OpenAPI Compliance:**
+- **ALL API endpoints MUST be documented in OpenAPI 3.0 format**
+- **OpenAPI specifications MUST be maintained for both v1 and v2 APIs**
+- **API changes MUST be reflected in OpenAPI specs immediately**
+- **Frontend MUST use OpenAPI-generated client SDKs when available**
+- **API Gateway MUST validate requests against OpenAPI schemas**
+- **Breaking changes MUST be documented in OpenAPI with proper versioning**
+
+**OpenAPI Specification Requirements:**
 ```yaml
-openapi: 3.0.0
+openapi: 3.0.3
 info:
-  title: Dating App API
+  title: Dating Platform API
   version: 1.0.0
+  description: |
+    Comprehensive API documentation with:
+    - Authentication requirements
+    - Rate limiting information
+    - Error format specifications
+    - Request/response examples
+  contact:
+    name: Dating Platform Team
+    email: team@dating.serge.cc
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.dating.serge.cc/v1
+    description: Production server
+  - url: http://localhost:8080/v1
+    description: Development server
+
+security:
+  - BearerAuth: []
+
 paths:
   /v1/auth/login:
     post:
       summary: User login
+      description: Authenticate user with credentials
+      tags: [Authentication]
+      security: []
       requestBody:
+        required: true
         content:
           application/json:
             schema:
@@ -1078,9 +1112,133 @@ paths:
               properties:
                 username:
                   type: string
+                  description: User's username or email
                 password:
                   type: string
+                  format: password
+                  description: User's password
+              required: [username, password]
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: JWT access token
+                  refresh_token:
+                    type: string
+                    description: JWT refresh token
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+  
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
 ```
+
+**OpenAPI Implementation Standards:**
+
+1. **Complete Documentation:**
+   - Every endpoint MUST have summary, description, tags
+   - All request/response schemas MUST be defined
+   - Error responses MUST be documented with examples
+   - Authentication requirements MUST be specified
+
+2. **Schema Validation:**
+   - Request bodies MUST validate against OpenAPI schemas
+   - Response bodies MUST match documented schemas
+   - Field types, formats, and constraints MUST be accurate
+   - Required fields MUST be clearly marked
+
+3. **Version Management:**
+   - Separate OpenAPI specs for v1 and v2 APIs
+   - Breaking changes MUST increment major version
+   - Backward compatibility MUST be maintained for minor versions
+   - Deprecation notices MUST be included in specs
+
+4. **Code Generation:**
+   - Frontend client SDKs MUST be generated from OpenAPI specs
+   - Type definitions MUST be generated for TypeScript
+   - Mock servers MUST be generated for testing
+   - Documentation MUST be auto-generated from specs
+
+5. **Testing Integration:**
+   - API tests MUST validate against OpenAPI schemas
+   - Contract testing MUST ensure spec compliance
+   - Mock responses MUST match OpenAPI definitions
+   - Error scenarios MUST be tested per spec
+
+6. **Documentation Maintenance:**
+   - OpenAPI specs MUST be updated with every API change
+   - Changelog MUST track all spec modifications
+   - Migration guides MUST be provided for breaking changes
+   - Examples MUST be kept current and functional
+
+**OpenAPI File Organization:**
+```
+docs/
+├── API_V1_OPENAPI.yaml    # v1 API specification
+├── API_V2_OPENAPI.yaml    # v2 API specification
+├── API_VERSIONING.md      # Versioning strategy
+└── CHANGELOG.md           # API change history
+```
+
+**OpenAPI Validation Tools:**
+- **Swagger Editor**: Online spec validation and editing
+- **OpenAPI Generator**: Client SDK generation
+- **Prism**: Mock server generation
+- **Spectral**: Linting and style validation
+- **Newman**: Postman collection generation
+
+**OpenAPI Best Practices:**
+- Use descriptive operation IDs
+- Group related endpoints with tags
+- Provide comprehensive examples
+- Document all possible error codes
+- Include rate limiting information
+- Specify content types clearly
+- Use consistent naming conventions
+- Provide clear descriptions for all fields
 
 ---
 

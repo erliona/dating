@@ -1,0 +1,965 @@
+openapi: 3.0.3
+info:
+  title: Dating Platform API v1
+  description: |
+    Dating Platform API v1 - Current stable version
+    
+    ## Authentication
+    All endpoints require JWT authentication via `Authorization: Bearer <token>` header.
+    
+    ## Rate Limiting
+    - Auth endpoints: 10 requests/second
+    - Media endpoints: 20 requests/second  
+    - Other endpoints: 50 requests/second
+    
+    ## Error Format
+    All errors follow the standard format:
+    ```json
+    {
+      "error": {
+        "code": "ERROR_CODE",
+        "message": "Human readable message",
+        "details": { "field": "validation error" },
+        "request_id": "req_123",
+        "timestamp": "2025-01-24T10:30:00Z"
+      }
+    }
+    ```
+  version: 1.0.0
+  contact:
+    name: Dating Platform Team
+    email: team@dating.serge.cc
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.dating.serge.cc/v1
+    description: Production server
+  - url: http://localhost:8080/v1
+    description: Development server
+
+security:
+  - BearerAuth: []
+
+paths:
+  # Authentication Service
+  /auth/validate:
+    post:
+      summary: Validate Telegram init_data
+      description: Validates Telegram WebApp init_data and returns JWT token
+      tags: [Authentication]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                init_data:
+                  type: string
+                  description: Telegram WebApp init_data
+              required: [init_data]
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    description: JWT access token
+                  refresh_token:
+                    type: string
+                    description: JWT refresh token
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /auth/refresh:
+    post:
+      summary: Refresh JWT token
+      description: Refresh expired JWT token using refresh token
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh_token:
+                  type: string
+              required: [refresh_token]
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  refresh_token:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/verify:
+    get:
+      summary: Verify JWT token
+      description: Verify current JWT token validity
+      tags: [Authentication]
+      responses:
+        '200':
+          description: Token is valid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  valid:
+                    type: boolean
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Profile Service
+  /profiles/me:
+    get:
+      summary: Get current user profile
+      description: Retrieve current user's profile information
+      tags: [Profiles]
+      responses:
+        '200':
+          description: Profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    put:
+      summary: Update current user profile
+      description: Update current user's profile information
+      tags: [Profiles]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileUpdate'
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /profiles/progress:
+    patch:
+      summary: Update onboarding progress
+      description: Update user's onboarding progress
+      tags: [Profiles]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                step:
+                  type: string
+                  enum: [basic_info, photos, interests, preferences, bio]
+                data:
+                  type: object
+                  description: Step-specific data
+              required: [step, data]
+      responses:
+        '200':
+          description: Progress updated successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /profiles/verification/request:
+    post:
+      summary: Request profile verification
+      description: Submit verification request with selfie
+      tags: [Profiles]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                selfie:
+                  type: string
+                  format: binary
+                  description: Verification selfie photo
+                document_type:
+                  type: string
+                  enum: [passport, id_card, driver_license]
+              required: [selfie, document_type]
+      responses:
+        '201':
+          description: Verification request submitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  request_id:
+                    type: string
+                  status:
+                    type: string
+                    enum: [pending, approved, rejected]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  # Discovery Service
+  /discovery/candidates:
+    get:
+      summary: Get discovery candidates
+      description: Retrieve potential matches for discovery
+      tags: [Discovery]
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Candidates retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  candidates:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Profile'
+                  has_more:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /discovery/swipe:
+    post:
+      summary: Swipe on a candidate
+      description: Like or pass on a discovery candidate
+      tags: [Discovery]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                target_user_id:
+                  type: string
+                action:
+                  type: string
+                  enum: [like, pass]
+              required: [target_user_id, action]
+      responses:
+        '200':
+          description: Swipe recorded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  match:
+                    type: boolean
+                    description: Whether this swipe created a match
+                  match_id:
+                    type: string
+                    description: Match ID if match was created
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /discovery/matches:
+    get:
+      summary: Get user matches
+      description: Retrieve all matches for current user
+      tags: [Discovery]
+      responses:
+        '200':
+          description: Matches retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  matches:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Match'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /discovery/likes:
+    get:
+      summary: Get users who liked you
+      description: Retrieve users who have liked current user
+      tags: [Discovery]
+      responses:
+        '200':
+          description: Likes retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  likes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Profile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Chat Service
+  /chat/conversations:
+    get:
+      summary: Get user conversations
+      description: Retrieve all conversations for current user
+      tags: [Chat]
+      responses:
+        '200':
+          description: Conversations retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conversations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /chat/conversations/{id}/messages:
+    get:
+      summary: Get conversation messages
+      description: Retrieve messages for a conversation
+      tags: [Chat]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: before_id
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Messages retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Message'
+                  has_more:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      summary: Send a message
+      description: Send a message to a conversation
+      tags: [Chat]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+                  maxLength: 4000
+                idempotency_key:
+                  type: string
+                  format: uuid
+              required: [text, idempotency_key]
+      responses:
+        '201':
+          description: Message sent successfully
+          headers:
+            Location:
+              description: URL of the created message
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '200':
+          description: Idempotent replay - message already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /chat/conversations/{id}/read-state:
+    put:
+      summary: Mark messages as read
+      description: Mark messages as read up to a specific message
+      tags: [Chat]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                up_to_message_id:
+                  type: string
+              required: [up_to_message_id]
+      responses:
+        '204':
+          description: Read state updated successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /chat/blocks:
+    post:
+      summary: Block a user
+      description: Block a user from messaging
+      tags: [Chat]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                target_user_id:
+                  type: string
+              required: [target_user_id]
+      responses:
+        '201':
+          description: User blocked successfully
+          headers:
+            Location:
+              description: URL of the block record
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /chat/blocks/{target_user_id}:
+    delete:
+      summary: Unblock a user
+      description: Remove block on a user
+      tags: [Chat]
+      parameters:
+        - name: target_user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: User unblocked successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /chat/reports:
+    post:
+      summary: Report a conversation
+      description: Report inappropriate behavior in a conversation
+      tags: [Chat]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                conversation_id:
+                  type: string
+                message_id:
+                  type: string
+                reason:
+                  type: string
+                  enum: [spam, harassment, inappropriate_content, fake_profile]
+                comment:
+                  type: string
+                  maxLength: 500
+              required: [conversation_id, reason]
+      responses:
+        '202':
+          description: Report submitted for review
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  # Media Service
+  /media/upload:
+    post:
+      summary: Upload media file
+      description: Upload a photo or other media file
+      tags: [Media]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Media file to upload
+                type:
+                  type: string
+                  enum: [profile_photo, verification_photo]
+              required: [file, type]
+      responses:
+        '201':
+          description: Media uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  url:
+                    type: string
+                  thumbnail_url:
+                    type: string
+                  type:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /media/{id}:
+    get:
+      summary: Get media file
+      description: Retrieve media file information
+      tags: [Media]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Media retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  url:
+                    type: string
+                  thumbnail_url:
+                    type: string
+                  type:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      summary: Delete media file
+      description: Delete a media file
+      tags: [Media]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Media deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Settings
+  /settings/preferences:
+    get:
+      summary: Get user preferences
+      description: Retrieve user's discovery preferences
+      tags: [Settings]
+      responses:
+        '200':
+          description: Preferences retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preferences'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    put:
+      summary: Update user preferences
+      description: Update user's discovery preferences
+      tags: [Settings]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Preferences'
+      responses:
+        '200':
+          description: Preferences updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Preferences'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /settings/notifications:
+    get:
+      summary: Get notification settings
+      description: Retrieve user's notification preferences
+      tags: [Settings]
+      responses:
+        '200':
+          description: Notification settings retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSettings'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    put:
+      summary: Update notification settings
+      description: Update user's notification preferences
+      tags: [Settings]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NotificationSettings'
+      responses:
+        '200':
+          description: Notification settings updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationSettings'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        telegram_id:
+          type: integer
+        username:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        language_code:
+          type: string
+        is_premium:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    Profile:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        age:
+          type: integer
+        bio:
+          type: string
+        photos:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              url:
+                type: string
+              thumbnail_url:
+                type: string
+        location:
+          type: object
+          properties:
+            latitude:
+              type: number
+            longitude:
+              type: number
+            city:
+              type: string
+            country:
+              type: string
+        interests:
+          type: array
+          items:
+            type: string
+        preferences:
+          $ref: '#/components/schemas/Preferences'
+        is_verified:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ProfileUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        age:
+          type: integer
+        bio:
+          type: string
+        interests:
+          type: array
+          items:
+            type: string
+        preferences:
+          $ref: '#/components/schemas/Preferences'
+
+    Preferences:
+      type: object
+      properties:
+        age_min:
+          type: integer
+        age_max:
+          type: integer
+        max_distance:
+          type: integer
+        gender:
+          type: string
+          enum: [male, female, all]
+        interests:
+          type: array
+          items:
+            type: string
+
+    NotificationSettings:
+      type: object
+      properties:
+        new_matches:
+          type: boolean
+        new_messages:
+          type: boolean
+        likes:
+          type: boolean
+        marketing:
+          type: boolean
+
+    Match:
+      type: object
+      properties:
+        id:
+          type: string
+        user:
+          $ref: '#/components/schemas/Profile'
+        created_at:
+          type: string
+          format: date-time
+
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: string
+        participants:
+          type: array
+          items:
+            $ref: '#/components/schemas/Profile'
+        last_message:
+          $ref: '#/components/schemas/Message'
+        unread_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+        conversation_id:
+          type: string
+        sender_id:
+          type: string
+        text:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        read_at:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+            request_id:
+              type: string
+            timestamp:
+              type: string
+              format: date-time
+
+  responses:
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Profiles
+    description: User profile management
+  - name: Discovery
+    description: User discovery and matching
+  - name: Chat
+    description: Real-time messaging
+  - name: Media
+    description: Media file management
+  - name: Settings
+    description: User preferences and settings
