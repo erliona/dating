@@ -75,6 +75,23 @@ alwaysApply: true
 
 ---
 
+## Output Style (What Cursor Must Return)
+
+1) **Plan (5–10 bullets) + list of files** to change (before coding).
+2) **Minimal diffs** only for the promised files (don't refactor unrelated code).
+3) **Tests** (pytest) + how to run them locally.
+4) **OpenAPI/docs** updates for any public API change.
+5) **Commands** for build/test/deploy + **post-deploy checks**:
+   ```bash
+   docker compose build <service> && docker compose up -d <service>
+   docker compose ps
+   curl -f http://<service>:<port>/health
+   ```
+
+> If more than **5 files** are needed, stop and propose splitting into multiple PRs.
+
+---
+
 ## 2. PROJECT IDENTITY & TECHNOLOGY STACK
 
 ### 2.1 Project Overview
@@ -168,7 +185,7 @@ scripts/              # Utility scripts
 - `/api/v1/discovery/swipe`
 - `/api/v1/chat/conversations/{id}/messages`
 
-**Note:** Service routing handled internally by API Gateway
+**Note:** Service routing handled internally by API Gateway. Public URLs must not expose internal service names; routing to microservices happens inside the API Gateway.
 
 ### 3.3 Docker Service & Network Naming
 
@@ -1324,7 +1341,7 @@ docs/
 - `GET /chat/ws` - Connect with Authorization header, conversation_id in query
 
 **Message Operations:**
-- `POST /chat/conversations/{id}/messages` - Send message (requires Idempotency-Key header)
+- `POST /chat/conversations/{id}/messages` - Send message (**requires** header `Idempotency-Key: <uuid>`)
 - `GET /chat/conversations/{id}/messages` - List messages (pagination: before_id/after_id)
 
 **Read State:**
@@ -1348,8 +1365,8 @@ docs/
 
 **Database Requirements:**
 - Unique index on (conversation_id, idempotency_key)
-- participant_read_state table
-- blocks table with unique (blocker_id, target_user_id)
+- participant_read_state table with **UNIQUE(conversation_id, user_id)**
+- blocks table with **UNIQUE(blocker_id, target_user_id)**
 - reports table
 
 **WebSocket Events:**
