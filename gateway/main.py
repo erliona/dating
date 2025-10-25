@@ -144,8 +144,8 @@ def create_app(config: dict) -> web.Application:
     app = web.Application()
     app["config"] = config
     
-    # Create HTTP session for WebSocket connections
-    app["http_session"] = ClientSession()
+    # HTTP session will be created on startup
+    app["http_session"] = None
     
     # Add middleware
     app.middlewares.append(request_logging_middleware)
@@ -203,9 +203,13 @@ def create_app(config: dict) -> web.Application:
     return app
 
 
+async def startup_session(app: web.Application):
+    """Create HTTP session on app startup."""
+    app["http_session"] = ClientSession()
+
 async def cleanup_session(app: web.Application):
     """Cleanup HTTP session on app shutdown."""
-    if "http_session" in app:
+    if "http_session" in app and app["http_session"]:
         await app["http_session"].close()
 
 
@@ -230,7 +234,8 @@ if __name__ == "__main__":
 
     app = create_app(config)
     
-    # Add cleanup handler
+    # Add startup and cleanup handlers
+    app.on_startup.append(startup_session)
     app.on_cleanup.append(cleanup_session)
     
     web.run_app(app, host=config.get("host", "0.0.0.0"), port=config.get("port", 8080))
