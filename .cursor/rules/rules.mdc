@@ -45,12 +45,19 @@ alwaysApply: true
 - **NEVER change network names** in docker-compose.yml
 - **NEVER change port mappings** without migration plan
 - **Breaking changes require coordination** with all services
+- **Update dependent files**: .env files, reverse proxies (e.g., Nginx), and monitoring configs (healthchecks, alerts, dashboards)
 
 ### 🚫 **NO SECRETS OR BINARIES IN GIT**
 - **NEVER commit secrets** (passwords, tokens, keys)
 - **NEVER commit binary files** (images, executables, databases)
 - **Use .gitignore** for sensitive files
 - **Use environment variables** for secrets
+
+### 🚫 **NO LOG SCHEMA CHANGES WITHOUT COORDINATION**
+- **NEVER change log schema/format** (JSON fields, levels) without coordination
+- **Changes break alerts and dashboards** - coordinate with observability team
+- **Document log format** in monitoring documentation
+- **Version log schemas** if changes are necessary
 
 ---
 
@@ -232,6 +239,11 @@ scripts/              # Utility scripts
 - Check with `SELECT version_num FROM alembic_version;`
 - RUN_DB_MIGRATIONS: Set to `true` only for one service (usually telegram-bot)
 
+**Idempotency and Backward Compatibility:**
+- Migrations must be idempotent (safe to run multiple times)
+- Migrations must be backward compatible until deployment is confirmed
+- Test migrations on production-like dataset before deploying
+
 ### 4.2 Migration Conflict Resolution
 
 **Before Merging:**
@@ -250,6 +262,9 @@ alembic upgrade head && alembic downgrade -1 && alembic upgrade head` - no error
 - [ ] Test rollback: `alembic downgrade -1` then `alembic upgrade head`
 - [ ] No `.bak` files in migrations/versions/
 - [ ] Migration is reversible (has both `upgrade()` and `downgrade()`)
+- [ ] README/docs updated if setup or commands changed
+- [ ] Verified backward compatibility for existing clients (API/SDK/CLI)
+- [ ] Documented breaking changes + migration path (if any)
 
 ### 4.3 Emergency Migration Procedures
 
@@ -429,6 +444,12 @@ deploy:
 - Monitoring stack: Prometheus, Grafana, Loki ONLY on production
 - Development: `docker compose up -d` (no monitoring)
 - Production: `docker compose --profile production up -d` (with monitoring)
+
+**Environment Variable Management:**
+- Maintain `.env.example` with all required variables documented
+- Maintain `.env.schema` for validation (or use dotenv-linter)
+- Ensure required variables are documented and checked in CI
+- Use validation tools to catch missing/misconfigured variables
 
 **Environment Configuration:**
 - Local development: Use `.env` file with `ENVIRONMENT=development`
@@ -1635,7 +1656,13 @@ echo "Migration safety checks passed"
 - [ ] Resource limits set appropriately
 - [ ] Monitoring stack configured (production only)
 
-### 10.4 Deployment Process
+### 10.5 Deployment Process
+
+**Deployment Order (Blue/Green or Rolling):**
+- Run DB migrations (exactly once) BEFORE scaling up new app version
+- Prevents schema mismatch between old and new application versions
+- Use migration service or init container, not application startup
+- Verify migration completion before proceeding with deployment
 
 **Local Development:**
 ```bash
@@ -1776,7 +1803,34 @@ jobs:
 
 ---
 
-### 10.2 Branch Protection Rules
+### 10.2 Quality Gates
+
+**Coverage Thresholds:**
+- Absolute coverage must be ≥ 85%
+- CI fails on relative drop > 2% vs main branch
+- Prevents flaky coverage drops from accidental test removals
+- Use `pytest-cov` with `--cov-fail-under=85` and `--cov-report=term-missing`
+
+**Required Quality Gates:**
+- OpenAPI validation against schemas
+- Migration chain integrity checks
+- Single migrator service (RUN_DB_MIGRATIONS=true once)
+- Docker build + Trivy security scanning
+- SBOM generation
+- Immutable container image tags
+
+### 10.3 Local Dev Quickstart
+
+**Run Tests Inside Docker:**
+```bash
+docker compose exec api pytest -q --maxfail=1
+```
+
+**Prerequisites:**
+- Requires GNU Make on system
+- macOS users: ensure `make` is available or install via `brew install make`
+
+### 10.4 Branch Protection Rules
 
 **Main Branch Protection (Required):**
 - **Minimum 1-2 approvals** before merge
@@ -2561,6 +2615,45 @@ docker compose exec -T db psql -U dating -d dating < backup.sql
 - Provide status summaries
 - Include next steps
 - Ask for clarification when needed
+
+---
+
+## INCIDENT RESPONSE (🧯)
+
+**Incident Management:**
+- Create timestamped incident doc in `incident/` directory
+- Assign an incident owner/commander
+- Capture logs, metrics, and impact assessment
+- Follow the communications tree for stakeholder updates
+- Conduct post-incident review within 48 hours
+
+**Incident Doc Template:**
+```markdown
+# Incident: [Brief Description]
+- Date/Time: YYYY-MM-DD HH:MM UTC
+- Owner: [Name]
+- Severity: [P0/P1/P2/P3]
+- Status: [Investigating/Mitigating/Resolved]
+
+## Impact
+- Affected services:
+- User impact:
+- Data impact:
+
+## Timeline
+- HH:MM - Incident detected
+- HH:MM - Owner assigned
+- HH:MM - Root cause identified
+- HH:MM - Mitigation applied
+- HH:MM - Incident resolved
+
+## Root Cause
+[Analysis]
+
+## Action Items
+- [ ] Task 1
+- [ ] Task 2
+```
 
 ---
 
