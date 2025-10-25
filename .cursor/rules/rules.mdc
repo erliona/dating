@@ -9,6 +9,7 @@ alwaysApply: true
 - **ONLY use Git workflow**: branch → PR → review → merge
 - **ALL changes MUST go through GitHub**: Local → GitHub → Server
 - **NO hotfixes on production**: Use proper deployment pipeline
+- **Emergency fixes must go through hotfix branch + reviewed PR**
 
 ### 🚫 **NO PUBLIC ROUTE CHANGES WITHOUT OPENAPI**
 - **NEVER change public API routes without updating OpenAPI specs**
@@ -241,7 +242,7 @@ scripts/              # Utility scripts
 
 **Idempotency and Backward Compatibility:**
 - Migrations must be idempotent (safe to run multiple times)
-- Migrations must be backward compatible until deployment is confirmed
+- Migrations must be backward compatible until deployment is verified
 - Test migrations on production-like dataset before deploying
 
 ### 4.2 Migration Conflict Resolution
@@ -253,6 +254,9 @@ alembic upgrade head && alembic downgrade -1 && alembic upgrade head` to verify 
 - Never manually edit `down_revision` in existing migrations
 
 **PR Checklist:**
+- [ ] README/docs updated if setup or commands changed
+- [ ] Verified backward compatibility for existing clients (API/SDK/CLI)
+- [ ] Documented breaking changes + migration path (if any)
 - [ ] Migration file has descriptive name
 - [ ] Revision ID is auto-generated hash (not manually edited)
 - [ ] `down_revision` points to correct previous migration
@@ -262,9 +266,7 @@ alembic upgrade head && alembic downgrade -1 && alembic upgrade head` - no error
 - [ ] Test rollback: `alembic downgrade -1` then `alembic upgrade head`
 - [ ] No `.bak` files in migrations/versions/
 - [ ] Migration is reversible (has both `upgrade()` and `downgrade()`)
-- [ ] README/docs updated if setup or commands changed
-- [ ] Verified backward compatibility for existing clients (API/SDK/CLI)
-- [ ] Documented breaking changes + migration path (if any)
+- [ ] PR title follows conventional commits format (e.g., feat:, fix:, chore:)
 
 ### 4.3 Emergency Migration Procedures
 
@@ -447,7 +449,7 @@ deploy:
 
 **Environment Variable Management:**
 - Maintain `.env.example` with all required variables documented
-- Maintain `.env.schema` for validation (or use dotenv-linter)
+- Maintain `.env.schema` for validation or use dotenv-linter
 - Ensure required variables are documented and checked in CI
 - Use validation tools to catch missing/misconfigured variables
 
@@ -1181,6 +1183,7 @@ async def security_headers_middleware(request, handler):
 - **Frontend MUST use OpenAPI-generated client SDKs when available**
 - **API Gateway MUST validate requests against OpenAPI schemas**
 - **Breaking changes MUST be documented in OpenAPI with proper versioning**
+- **Run openapi-diff in CI to detect breaking contract changes**
 
 **OpenAPI Specification Requirements:**
 ```yaml
@@ -1659,10 +1662,11 @@ echo "Migration safety checks passed"
 ### 10.5 Deployment Process
 
 **Deployment Order (Blue/Green or Rolling):**
-- Run DB migrations (exactly once) BEFORE scaling up new app version
+- Run DB migrations once, before scaling new version in blue/green or rolling deploys
 - Prevents schema mismatch between old and new application versions
 - Use migration service or init container, not application startup
 - Verify migration completion before proceeding with deployment
+- Tag release in Git after successful deploy (for traceability)
 
 **Local Development:**
 ```bash
@@ -1818,6 +1822,8 @@ jobs:
 - Docker build + Trivy security scanning
 - SBOM generation
 - Immutable container image tags
+- Format (Black/Prettier), Lint (Ruff/ESLint), Types (mypy/tsc)
+- All checks run locally via `make ci` before pushing
 
 ### 10.3 Local Dev Quickstart
 
@@ -2621,11 +2627,12 @@ docker compose exec -T db psql -U dating -d dating < backup.sql
 ## INCIDENT RESPONSE (🧯)
 
 **Incident Management:**
-- Create timestamped incident doc in `incident/` directory
+- Create timestamped and numbered incident record in `incident/` directory
 - Assign an incident owner/commander
 - Capture logs, metrics, and impact assessment
 - Follow the communications tree for stakeholder updates
 - Conduct post-incident review within 48 hours
+- Postmortem must include root cause, impact summary, and action items with owners
 
 **Incident Doc Template:**
 ```markdown
