@@ -1,9 +1,37 @@
 -r requirements.txt
+
+# Testing Framework
 pytest>=8.2,<9.0
 pytest-asyncio>=0.23
 pytest-cov>=4.1,<6.0
 pytest-timeout>=2.1  # Required for CI test timeouts
 pytest-mock==3.14.0  # Mocking for testing circuit breakers
+pytest-xdist>=3.5  # Parallel test execution
+pytest-html>=4.1  # HTML test reports
+
+# Code Quality Tools
+black>=23.0,<24.0  # Code formatting
+isort>=5.12,<6.0  # Import sorting
+ruff>=0.1,<1.0  # Fast Python linter
+mypy>=1.8,<2.0  # Static type checking
+bandit>=1.7,<2.0  # Security linting
+
+# Documentation
+sphinx>=7.0,<8.0  # Documentation generation
+sphinx-rtd-theme>=1.3  # Read the Docs theme
+
+# Configuration
 pyyaml>=6.0  # Required for monitoring config tests
-aiosqlite>=0.19
+aiosqlite>=0.19  # SQLite for testing
+
+# Security
 pip-audit>=2.6  # Security vulnerability scanner for dependencies
+safety>=3.0  # Additional security checks
+
+# Performance Testing
+locust>=2.17  # Load testing framework
+memory-profiler>=0.61  # Memory profiling
+
+# CI/CD Tools
+pre-commit>=3.6  # Git hooks for code quality
+commitizen>=3.13  # Conventional commits
