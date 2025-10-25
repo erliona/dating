@@ -7,11 +7,7 @@ from aiohttp import web
 
 pytestmark = pytest.mark.e2e
 
-from services.admin.main import (
-    create_app,
-    hash_password,
-    verify_password,
-)
+from services.admin.main import create_app, hash_password, verify_password
 
 
 class TestPasswordHashing:

@@ -18,9 +18,7 @@ from core.metrics.business_metrics import NSFW_DETECTION_TOTAL
 from core.middleware.audit_logging import audit_log
 from core.middleware.error_handling import setup_error_handling
 from core.middleware.metrics_middleware import add_metrics_route
-from core.middleware.security_metrics import (
-    record_file_upload,
-)
+from core.middleware.security_metrics import record_file_upload
 from core.utils.logging import configure_logging
 
 from .image_processor import image_processor

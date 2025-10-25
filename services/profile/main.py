@@ -12,11 +12,7 @@ import logging
 import aiohttp
 from aiohttp import web
 
-from core.exceptions import (
-    CircuitBreakerError,
-    ExternalServiceError,
-    ValidationError,
-)
+from core.exceptions import CircuitBreakerError, ExternalServiceError, ValidationError
 from core.metrics.business_metrics import (
     record_profile_created,
     record_profile_updated,
