@@ -18,24 +18,20 @@ depends_on = None
 def upgrade():
     """Add performance indexes for query optimization."""
 
-    # Profiles table indexes
-    op.create_index(
-        "idx_profiles_location_gist", "profiles", ["location"], postgresql_using="gist"
-    )
-
-    op.create_index("idx_profiles_age_gender", "profiles", ["age", "gender"])
-
+    # Profiles table indexes - using actual column names
     op.create_index("idx_profiles_city", "profiles", ["city"])
 
     op.create_index("idx_profiles_created_at", "profiles", ["created_at"])
 
-    # Interactions table indexes
+    op.create_index("idx_profiles_geohash", "profiles", ["geohash"])
+
+    # Interactions table indexes - using actual column names
     op.create_index(
-        "idx_interactions_target_action", "interactions", ["target_user_id", "action"]
+        "idx_interactions_target_type", "interactions", ["target_id", "interaction_type"]
     )
 
     op.create_index(
-        "idx_interactions_user_action", "interactions", ["user_id", "action"]
+        "idx_interactions_user_type", "interactions", ["user_id", "interaction_type"]
     )
 
     op.create_index("idx_interactions_created_at", "interactions", ["created_at"])
@@ -63,24 +59,10 @@ def upgrade():
 
     op.create_index("idx_likes_liker_created", "likes", ["liker_id", "created_at"])
 
-    # User preferences indexes
-    op.create_index(
-        "idx_user_preferences_age_range", "user_preferences", ["min_age", "max_age"]
-    )
-
-    op.create_index(
-        "idx_user_preferences_distance", "user_preferences", ["max_distance"]
-    )
-
-    # User activity indexes
-    op.create_index(
-        "idx_user_activity_last_active", "user_activity", ["last_active_at"]
-    )
-
     # Photos table indexes
     op.create_index("idx_photos_created_at", "photos", ["created_at"])
 
-    op.create_index("idx_photos_is_primary", "photos", ["is_primary"])
+    op.create_index("idx_photos_user_id", "photos", ["user_id"])
 
     # Notifications table indexes (additional to existing)
     op.create_index(
@@ -140,11 +122,8 @@ def downgrade():
     op.drop_index("idx_reports_reported_status", table_name="reports")
     op.drop_index("idx_notifications_read_created", table_name="notifications")
     op.drop_index("idx_notifications_user_type", table_name="notifications")
-    op.drop_index("idx_photos_is_primary", table_name="photos")
+    op.drop_index("idx_photos_user_id", table_name="photos")
     op.drop_index("idx_photos_created_at", table_name="photos")
-    op.drop_index("idx_user_activity_last_active", table_name="user_activity")
-    op.drop_index("idx_user_preferences_distance", table_name="user_preferences")
-    op.drop_index("idx_user_preferences_age_range", table_name="user_preferences")
     op.drop_index("idx_likes_liker_created", table_name="likes")
     op.drop_index("idx_likes_liked_created", table_name="likes")
     op.drop_index("idx_conversations_updated_at", table_name="conversations")
@@ -152,9 +131,8 @@ def downgrade():
     op.drop_index("idx_messages_sender_created", table_name="messages")
     op.drop_index("idx_messages_conversation_created", table_name="messages")
     op.drop_index("idx_interactions_created_at", table_name="interactions")
-    op.drop_index("idx_interactions_user_action", table_name="interactions")
-    op.drop_index("idx_interactions_target_action", table_name="interactions")
+    op.drop_index("idx_interactions_user_type", table_name="interactions")
+    op.drop_index("idx_interactions_target_type", table_name="interactions")
+    op.drop_index("idx_profiles_geohash", table_name="profiles")
     op.drop_index("idx_profiles_created_at", table_name="profiles")
     op.drop_index("idx_profiles_city", table_name="profiles")
-    op.drop_index("idx_profiles_age_gender", table_name="profiles")
-    op.drop_index("idx_profiles_location_gist", table_name="profiles")
