@@ -13,7 +13,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "007_create_chat_tables"
-down_revision: str | None = "006_fix_discovery_tables_timezone"
+down_revision: str | None = "bdaa2d721dde"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
