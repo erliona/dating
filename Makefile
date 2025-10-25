@@ -92,6 +92,10 @@ logs:
 ci: clean lint format type-check security test
 	@echo "All CI checks completed successfully!"
 
+# Run CI checks without cleaning (faster)
+ci-fast: lint format type-check security test
+	@echo "Fast CI checks completed successfully!"
+
 # Development setup
 dev-setup: install
 	@echo "Setting up development environment..."
