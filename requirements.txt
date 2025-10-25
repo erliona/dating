@@ -5,7 +5,7 @@ alembic==1.13.1
 python-dotenv==1.0.0  # Secure environment variable loading
 PyJWT==2.8.0  # JWT token generation and validation
 aiohttp==3.9.1  # HTTP server for photo upload API
-Pillow==10.2.0  # Image processing and optimization
+Pillow==10.4.0  # Image processing and optimization
 aiohttp-cors==0.7.0  # CORS support for API
 nudenet==2.0.0  # NSFW content detection ML model (v2.x has NudeClassifier)
 onnxruntime==1.16.3  # Runtime for NudeNet model
