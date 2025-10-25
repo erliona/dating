@@ -22,7 +22,7 @@ def upgrade():
 
     # Add idempotency support to messages
     op.add_column(
-        "messages", sa.Column("idempotency_key", postgresql.UUID(), nullable=True)
+        "messages", sa.Column("idempotency_key", sa.String(255), nullable=True)
     )
     op.add_column(
         "messages", sa.Column("idempotency_expires_at", sa.TIMESTAMP(), nullable=True)
@@ -38,9 +38,9 @@ def upgrade():
     # Create participant_read_state table
     op.create_table(
         "participant_read_state",
-        sa.Column("conversation_id", postgresql.UUID(), nullable=False),
-        sa.Column("user_id", postgresql.UUID(), nullable=False),
-        sa.Column("last_read_message_id", postgresql.UUID(), nullable=False),
+        sa.Column("conversation_id", sa.Integer(), nullable=False),
+        sa.Column("user_id", sa.Integer(), nullable=False),
+        sa.Column("last_read_message_id", sa.Integer(), nullable=False),
         sa.Column(
             "last_read_at",
             sa.TIMESTAMP(),
