@@ -2799,6 +2799,58 @@ docker compose exec -T db psql -U dating -d dating < backup.sql
 
 ---
 
+## 🚫 CRITICAL PROHIBITIONS
+
+### 🚫 **NO DIRECT SERVER/CONTAINER EDITS**
+- **NEVER edit files directly on server or in containers**
+- **ONLY use Git workflow**: branch → PR → review → merge
+- **ALL changes MUST go through GitHub**: Local → GitHub → Server
+- **NO hotfixes on production**: Use proper deployment pipeline
+
+### 🚫 **NO PUBLIC ROUTE CHANGES WITHOUT OPENAPI**
+- **NEVER change public API routes without updating OpenAPI specs**
+- **ALWAYS update OpenAPI documentation** before route changes
+- **MUST run tests** after OpenAPI updates
+- **Breaking changes REQUIRE version bump** (v1 → v2)
+
+### 🚫 **NO ALEMBIC REVISION EDITS**
+- **NEVER edit `revision` or `down_revision`** in merged migrations
+- **ONLY create new migrations** for schema changes
+- **Use `alembic merge`** for conflicting migrations
+- **NEVER manually edit migration IDs** after merge to main
+
+### 🚫 **NO DEPENDENCIES WITHOUT JUSTIFICATION**
+- **NEVER add dependencies** without clear business justification
+- **MUST update `requirements.txt`** or `requirements-dev.txt`
+- **Document WHY** each dependency is needed
+- **Pin versions** to specific releases (no `>=` or `~`)
+
+### 🚫 **NO UNRELATED FILE CHANGES**
+- **NEVER touch unrelated files/services** in same commit
+- **NEVER create new top-level directories** without approval
+- **Keep changes focused** on single feature/fix
+- **One commit = one logical change**
+
+### 🚫 **NO HARDCODED VALUES**
+- **NEVER hardcode ports, URLs, or secrets**
+- **ALWAYS use environment variables** from `.env`/`.env.example`
+- **Configure via docker-compose.yml** environment section
+- **Document all required env vars** in `.env.example`
+
+### 🚫 **NO DOCKER SERVICE/NETWORK RENAMES**
+- **NEVER change service names** in docker-compose.yml
+- **NEVER change network names** in docker-compose.yml
+- **NEVER change port mappings** without migration plan
+- **Breaking changes require coordination** with all services
+
+### 🚫 **NO SECRETS OR BINARIES IN GIT**
+- **NEVER commit secrets** (passwords, tokens, keys)
+- **NEVER commit binary files** (images, executables, databases)
+- **Use .gitignore** for sensitive files
+- **Use environment variables** for secrets
+
+---
+
 ## CRITICAL REMINDERS
 
 1. **Code Synchronization**: ALWAYS sync Local ↔ GitHub ↔ Server
