@@ -195,8 +195,11 @@ def create_app(config: dict) -> web.Application:
     app.router.add_route("*", r"/v1/admin/{tail:.*}", route_admin)
     app.router.add_route("*", r"/v1/notifications/{tail:.*}", route_notifications)
     
-    # Add CORS to all routes
+    # Add CORS to specific routes (exclude wildcard routes)
     for route in app.router.routes():
+        # Skip wildcard routes that cause CORS conflicts
+        if hasattr(route, 'resource') and hasattr(route.resource, 'canonical') and '{tail}' in route.resource.canonical:
+            continue
         cors.add(route)
     
     return app
