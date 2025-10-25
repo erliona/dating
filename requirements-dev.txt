@@ -24,6 +24,9 @@ sphinx-rtd-theme>=1.3  # Read the Docs theme
 pyyaml>=6.0  # Required for monitoring config tests
 aiosqlite>=0.19  # SQLite for testing
 
+# Image Processing (for tests)
+Pillow>=10.4.0  # Required for image processing tests
+
 # Security
 pip-audit>=2.6  # Security vulnerability scanner for dependencies
 safety>=3.0  # Additional security checks
