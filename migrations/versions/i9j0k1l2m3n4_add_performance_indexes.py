@@ -1,7 +1,7 @@
 """Add performance indexes
 
-Revision ID: 013_add_performance_indexes
-Revises: 012_chat_protocol_improvements
+Revision ID: i9j0k1l2m3n4
+Revises: h8i9j0k1l2m3
 Create Date: 2025-01-24 11:00:00.000000
 
 """
@@ -9,8 +9,8 @@ Create Date: 2025-01-24 11:00:00.000000
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "013_add_performance_indexes"
-down_revision: str = "012_chat_protocol_improvements"
+revision: str = "i9j0k1l2m3n4"
+down_revision: str = "h8i9j0k1l2m3"
 branch_labels = None
 depends_on = None
 

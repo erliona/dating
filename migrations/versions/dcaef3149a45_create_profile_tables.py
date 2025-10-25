@@ -1,7 +1,7 @@
 """create profile tables
 
 Revision ID: dcaef3149a45
-Revises: 8b74e0367a99
+Revises: <base>
 Create Date: 2025-10-25 22:47:43.779206
 
 """

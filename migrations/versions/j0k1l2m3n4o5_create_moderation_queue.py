@@ -1,7 +1,7 @@
 """Create moderation queue table
 
-Revision ID: 014_create_moderation_queue
-Revises: 013_add_performance_indexes
+Revision ID: j0k1l2m3n4o5
+Revises: i9j0k1l2m3n4
 Create Date: 2025-01-25 09:10:00.000000
 
 """
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "014_create_moderation_queue"
-down_revision = "013_add_performance_indexes"
+revision = "j0k1l2m3n4o5"
+down_revision: str = "i9j0k1l2m3n4"
 branch_labels = None
 depends_on = None
 

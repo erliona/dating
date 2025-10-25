@@ -1,7 +1,7 @@
 """Add user preferences and activity tracking tables.
 
-Revision ID: 010_add_user_preferences_activity
-Revises: 009b_add_telegram_metadata
+Revision ID: f6g7h8i9j0k1
+Revises: e5f6g7h8i9j0
 Create Date: 2025-01-23
 
 """
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "010_add_user_preferences_activity"
-down_revision: str | None = "009b_add_telegram_metadata"
+revision: str = "f6g7h8i9j0k1"
+down_revision: str | None = "e5f6g7h8i9j0"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

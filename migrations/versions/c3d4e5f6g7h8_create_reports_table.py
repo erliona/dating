@@ -1,7 +1,7 @@
 """Create reports table for user reports and moderation.
 
-Revision ID: 008b_create_reports_table
-Revises: 008_create_notifications_table
+Revision ID: c3d4e5f6g7h8
+Revises: b2c3d4e5f6g7
 Create Date: 2025-01-23
 
 """
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "008b_create_reports_table"
-down_revision: str | None = "008_create_notifications_table"
+revision: str = "c3d4e5f6g7h8"
+down_revision: str | None = "b2c3d4e5f6g7"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

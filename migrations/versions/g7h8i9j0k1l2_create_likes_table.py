@@ -1,7 +1,7 @@
 """Create likes table for tracking who liked whom.
 
-Revision ID: 011_create_likes_table
-Revises: 010_add_user_preferences_activity
+Revision ID: g7h8i9j0k1l2
+Revises: f6g7h8i9j0k1
 Create Date: 2025-01-23
 
 """
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "011_create_likes_table"
-down_revision: str | None = "010_add_user_preferences_activity"
+revision: str = "g7h8i9j0k1l2"
+down_revision: str | None = "f6g7h8i9j0k1"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

@@ -1,7 +1,7 @@
 """Create conversations and messages tables for chat functionality.
 
-Revision ID: 007_create_chat_tables
-Revises: 006_fix_discovery_tables_timezone
+Revision ID: a1b2c3d4e5f6
+Revises: bdaa2d721dde
 Create Date: 2025-01-23
 
 """
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "007_create_chat_tables"
+revision: str = "a1b2c3d4e5f6"
 down_revision: str | None = "bdaa2d721dde"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None

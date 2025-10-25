@@ -1,7 +1,7 @@
 """Create notification_preferences table
 
-Revision ID: 015_create_notification_preferences
-Revises: 014_create_moderation_queue
+Revision ID: k1l2m3n4o5p6
+Revises: j0k1l2m3n4o5
 Create Date: 2025-01-25 10:00:00.000000
 
 """
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "015_create_notification_preferences"
-down_revision = "014_create_moderation_queue"
+revision = "k1l2m3n4o5p6"
+down_revision: str = "j0k1l2m3n4o5"
 branch_labels = None
 depends_on = None
 

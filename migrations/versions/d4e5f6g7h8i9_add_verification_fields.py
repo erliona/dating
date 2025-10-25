@@ -1,7 +1,7 @@
 """Add verification fields to profiles table.
 
-Revision ID: 009_add_verification_fields
-Revises: 008b_create_reports_table
+Revision ID: d4e5f6g7h8i9
+Revises: c3d4e5f6g7h8
 Create Date: 2025-01-23
 
 """
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "009_add_verification_fields"
-down_revision: str | None = "008b_create_reports_table"
+revision: str = "d4e5f6g7h8i9"
+down_revision: str | None = "c3d4e5f6g7h8"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

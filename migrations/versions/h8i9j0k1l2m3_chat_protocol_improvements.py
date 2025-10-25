@@ -1,7 +1,7 @@
 """Chat protocol improvements
 
-Revision ID: 012_chat_protocol_improvements
-Revises: 011_create_likes_table
+Revision ID: h8i9j0k1l2m3
+Revises: g7h8i9j0k1l2
 Create Date: 2025-01-24 10:30:00.000000
 
 """
@@ -11,8 +11,8 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = "012_chat_protocol_improvements"
-down_revision: str = "011_create_likes_table"
+revision: str = "h8i9j0k1l2m3"
+down_revision: str = "g7h8i9j0k1l2"
 branch_labels = None
 depends_on = None
 

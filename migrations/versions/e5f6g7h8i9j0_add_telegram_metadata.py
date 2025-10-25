@@ -1,7 +1,7 @@
 """Add Telegram metadata fields to users table for admin panel and anti-fraud.
 
-Revision ID: 009b_add_telegram_metadata
-Revises: 009_add_verification_fields
+Revision ID: e5f6g7h8i9j0
+Revises: d4e5f6g7h8i9
 Create Date: 2025-01-23
 
 """
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "009b_add_telegram_metadata"
-down_revision: str | None = "009_add_verification_fields"
+revision: str = "e5f6g7h8i9j0"
+down_revision: str | None = "d4e5f6g7h8i9"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
