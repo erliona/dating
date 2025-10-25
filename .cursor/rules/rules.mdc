@@ -60,6 +60,10 @@ alwaysApply: true
 
 1. **Plan + File List**: Start with clear plan and list of files to modify
 2. **Minimal Diffs**: Show only essential changes, not full file contents
+   - If changes affect >5 files, STOP and propose splitting into multiple PRs
+   - Do NOT rewrite unrelated parts of a file
+   - Do NOT refactor code outside the current task scope
+   - Focus: one logical change per commit
 3. **Tests + Commands**: Include pytest commands and validation steps
 4. **OpenAPI Updates**: When API changes, update OpenAPI specs
 5. **Build/Test/Deploy**: Include build, test, and deployment commands with health checks
@@ -162,7 +166,7 @@ scripts/              # Utility scripts
 - `/api/v1/auth/login`
 - `/api/v1/profiles/{user_id}`
 - `/api/v1/discovery/swipe`
-- `/api/v1/chat/messages`
+- `/api/v1/chat/conversations/{id}/messages`
 
 **Note:** Service routing handled internally by API Gateway
 
@@ -518,7 +522,7 @@ secrets:
 labels:
   - "traefik.http.routers.{service}.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/path`)"
   - "traefik.http.routers.{service}.entrypoints=web"
-  - "traefik.http.routers.{service}.priority=1"
+  - "traefik.http.routers.{service}.priority=200"  # Example for API direct; see matrix below
   - "traefik.http.services.{service}.loadbalancer.server.port=8080"
 ```
 
@@ -1752,6 +1756,41 @@ jobs:
 - Production database
 - Optimized logging
 - Resource limits applied
+
+---
+
+### 10.2 Branch Protection Rules
+
+**Main Branch Protection (Required):**
+- **Minimum 1-2 approvals** before merge
+- **CI must pass** (all tests green)
+- **No direct push to main** (enforce PR workflow)
+- **Require branch up-to-date** before merge (rebase/update)
+- **Require linear history** (squash or rebase, no merge commits)
+- **Dismiss stale approvals** on new commits
+
+**Configuration:**
+```yaml
+# .github/branch-protection.yml (example)
+main:
+  required_status_checks:
+    strict: true
+    contexts:
+      - "Tests"
+      - "Static Checks"
+      - "Docker Build"
+  required_pull_request_reviews:
+    required_approving_review_count: 1
+    dismiss_stale_reviews: true
+  enforce_admins: false
+  restrictions: null
+```
+
+**Benefits:**
+- Prevents accidental direct commits to main
+- Ensures all code goes through review
+- Catches CI failures before merge
+- Maintains clean Git history
 
 ---
 
