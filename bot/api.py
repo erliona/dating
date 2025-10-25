@@ -1,7 +1,7 @@
 """Bot API utilities for authentication and image processing."""
 
 import io
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt
