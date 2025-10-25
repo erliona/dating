@@ -5,6 +5,7 @@ Revises: 8b74e0367a99
 Create Date: 2025-10-25 22:47:43.779206
 
 """
+
 import sqlalchemy as sa
 from alembic import op
 
@@ -17,7 +18,7 @@ depends_on: str = None
 
 def upgrade() -> None:
     """Create users and profiles tables."""
-    
+
     # Create users table
     op.create_table(
         "users",
@@ -28,11 +29,21 @@ def upgrade() -> None:
         sa.Column("language_code", sa.String(length=10), nullable=True),
         sa.Column("is_premium", sa.Boolean(), nullable=False, default=False),
         sa.Column("is_banned", sa.Boolean(), nullable=False, default=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
-    
+
     # Create profiles table
     op.create_table(
         "profiles",
@@ -59,20 +70,48 @@ def upgrade() -> None:
         sa.Column("hide_distance", sa.Boolean(), nullable=False, default=False),
         sa.Column("hide_online", sa.Boolean(), nullable=False, default=False),
         sa.Column("hide_age", sa.Boolean(), nullable=False, default=False),
-        sa.Column("allow_messages_from", sa.String(length=20), nullable=False, default="matches"),
+        sa.Column(
+            "allow_messages_from",
+            sa.String(length=20),
+            nullable=False,
+            default="matches",
+        ),
         sa.Column("is_visible", sa.Boolean(), nullable=False, default=True),
         sa.Column("is_complete", sa.Boolean(), nullable=False, default=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.CheckConstraint("birth_date <= CURRENT_DATE", name="birth_date_not_future"),
-        sa.CheckConstraint("height_cm IS NULL OR (height_cm >= 100 AND height_cm <= 250)", name="height_cm_range"),
-        sa.CheckConstraint("gender IN ('male', 'female', 'other')", name="valid_gender"),
-        sa.CheckConstraint("orientation IN ('male', 'female', 'any')", name="valid_orientation"),
-        sa.CheckConstraint("goal IN ('friendship', 'dating', 'relationship', 'networking', 'serious', 'casual')", name="valid_goal"),
-        sa.CheckConstraint("allow_messages_from IN ('matches', 'anyone')", name="valid_allow_messages_from"),
+        sa.CheckConstraint(
+            "height_cm IS NULL OR (height_cm >= 100 AND height_cm <= 250)",
+            name="height_cm_range",
+        ),
+        sa.CheckConstraint(
+            "gender IN ('male', 'female', 'other')", name="valid_gender"
+        ),
+        sa.CheckConstraint(
+            "orientation IN ('male', 'female', 'any')", name="valid_orientation"
+        ),
+        sa.CheckConstraint(
+            "goal IN ('friendship', 'dating', 'relationship', 'networking', 'serious', 'casual')",
+            name="valid_goal",
+        ),
+        sa.CheckConstraint(
+            "allow_messages_from IN ('matches', 'anyone')",
+            name="valid_allow_messages_from",
+        ),
     )
-    
+
     # Create photos table
     op.create_table(
         "photos",
@@ -84,7 +123,12 @@ def upgrade() -> None:
         sa.Column("file_size", sa.Integer(), nullable=True),
         sa.Column("width", sa.Integer(), nullable=True),
         sa.Column("height", sa.Integer(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
 
