@@ -1,6 +1,76 @@
 ---
 alwaysApply: true
 ---
+
+## 🚫 RED LINES - CRITICAL PROHIBITIONS
+
+### 🚫 **NO DIRECT SERVER/CONTAINER EDITS**
+- **NEVER edit files directly on server or in containers**
+- **ONLY use Git workflow**: branch → PR → review → merge
+- **ALL changes MUST go through GitHub**: Local → GitHub → Server
+- **NO hotfixes on production**: Use proper deployment pipeline
+
+### 🚫 **NO PUBLIC ROUTE CHANGES WITHOUT OPENAPI**
+- **NEVER change public API routes without updating OpenAPI specs**
+- **ALWAYS update OpenAPI documentation** before route changes
+- **MUST run tests** after OpenAPI updates
+- **Breaking changes REQUIRE version bump** (v1 → v2)
+
+### 🚫 **NO ALEMBIC REVISION EDITS**
+- **NEVER edit `revision` or `down_revision`** in merged migrations
+- **ONLY create new migrations** for schema changes
+- **Use `alembic merge`** for conflicting migrations
+- **NEVER manually edit migration IDs** after merge to main
+
+### 🚫 **NO DEPENDENCIES WITHOUT JUSTIFICATION**
+- **NEVER add dependencies** without clear business justification
+- **MUST update `requirements.txt`** or `requirements-dev.txt`
+- **Document WHY** each dependency is needed
+- **Pin versions** to specific releases (no `>=` or `~`)
+
+### 🚫 **NO UNRELATED FILE CHANGES**
+- **NEVER touch unrelated files/services** in same commit
+- **NEVER create new top-level directories** without approval
+- **Keep changes focused** on single feature/fix
+- **One commit = one logical change**
+
+### 🚫 **NO HARDCODED VALUES**
+- **NEVER hardcode ports, URLs, or secrets**
+- **ALWAYS use environment variables** from `.env`/`.env.example`
+- **Configure via docker-compose.yml** environment section
+- **Document all required env vars** in `.env.example`
+
+### 🚫 **NO DOCKER SERVICE/NETWORK RENAMES**
+- **NEVER change service names** in docker-compose.yml
+- **NEVER change network names** in docker-compose.yml
+- **NEVER change port mappings** without migration plan
+- **Breaking changes require coordination** with all services
+
+### 🚫 **NO SECRETS OR BINARIES IN GIT**
+- **NEVER commit secrets** (passwords, tokens, keys)
+- **NEVER commit binary files** (images, executables, databases)
+- **Use .gitignore** for sensitive files
+- **Use environment variables** for secrets
+
+---
+
+## 📋 OUTPUT STYLE GUIDANCE
+
+### Required Format for All Responses:
+
+1. **Plan + File List**: Start with clear plan and list of files to modify
+2. **Minimal Diffs**: Show only essential changes, not full file contents
+3. **Tests + Commands**: Include pytest commands and validation steps
+4. **OpenAPI Updates**: When API changes, update OpenAPI specs
+5. **Build/Test/Deploy**: Include build, test, and deployment commands with health checks
+
+### Task Limits:
+- **Maximum 5 files per task**
+- **If more than 5 files needed, split into multiple PRs**
+- **Each PR should be focused and reviewable**
+
+---
+
 ## 2. PROJECT IDENTITY & TECHNOLOGY STACK
 
 ### 2.1 Project Overview
@@ -26,7 +96,6 @@ This is a Telegram Mini App with an API Gateway and multiple Python microservice
 - Traefik 2.x (reverse proxy)
 - PostgreSQL 15 (database)
 - RabbitMQ (message queue)
-- Redis (caching)
 
 **Monitoring:**
 - Prometheus (metrics)
@@ -76,8 +145,9 @@ scripts/              # Utility scripts
 ### 3.1 Migration Naming & Management
 
 **Standard Approach:**
-- Use full filename as revision ID (e.g., `"007_create_chat_tables"`)
-- Use descriptive filenames like `007_create_chat_tables.py` for readability
+- Use standard auto-generated hashes: `alembic revision -m "message"`
+- NEVER manually edit `revision` or `down_revision` after merge to main
+- Use descriptive migration messages for readability
 
 **Anti-patterns:**
 - Manual revision ID changes after migration is in main branch
@@ -86,13 +156,15 @@ scripts/              # Utility scripts
 
 ### 3.2 API Route Naming
 
-**Pattern:** `/v1/{service}/{resource}/{action}`
+**Pattern:** `/api/v1/{resource}/{action}`
 
 **Examples:**
-- `/v1/auth/login`
-- `/v1/profiles/{user_id}`
-- `/v1/discovery/swipe`
-- `/v1/chat/messages`
+- `/api/v1/auth/login`
+- `/api/v1/profiles/{user_id}`
+- `/api/v1/discovery/swipe`
+- `/api/v1/chat/messages`
+
+**Note:** Service routing handled internally by API Gateway
 
 ### 3.3 Docker Service & Network Naming
 
@@ -142,15 +214,17 @@ scripts/              # Utility scripts
 ### 4.2 Migration Conflict Resolution
 
 **Before Merging:**
-- Always run `alembic check` to verify migration chain
+- Always run `alembic history --verbose
+alembic upgrade head && alembic downgrade -1 && alembic upgrade head` to verify migration chain
 - Use `alembic merge -m "merge message"` to create merge migration
 - Never manually edit `down_revision` in existing migrations
 
 **PR Checklist:**
 - [ ] Migration file has descriptive name
-- [ ] Revision ID is full filename (not manually edited)
+- [ ] Revision ID is auto-generated hash (not manually edited)
 - [ ] `down_revision` points to correct previous migration
-- [ ] Run `alembic check` - no errors
+- [ ] Run `alembic history --verbose
+alembic upgrade head && alembic downgrade -1 && alembic upgrade head` - no errors
 - [ ] Test migration locally: `alembic upgrade head`
 - [ ] Test rollback: `alembic downgrade -1` then `alembic upgrade head`
 - [ ] No `.bak` files in migrations/versions/
@@ -173,7 +247,8 @@ scripts/              # Utility scripts
 alembic revision -m "descriptive message"
 
 # Check migration chain integrity
-alembic check
+alembic history --verbose
+alembic upgrade head && alembic downgrade -1 && alembic upgrade head
 
 # Apply migrations
 alembic upgrade head
@@ -324,6 +399,8 @@ deploy:
       memory: 256M
 ```
 
+**NOTE:** `deploy.resources` works only in Docker Swarm mode. For regular docker-compose, use: `mem_limit`, `cpus`, or `--compatibility` flag
+
 ### 5.4 Environment Management
 
 **Environment Detection:**
@@ -447,13 +524,12 @@ labels:
 
 ### 6.2 Route Priority Matrix
 
-**Priority Order:**
-1. Webapp (priority 1)
-2. Admin (priority 50)
-3. API Direct (priority 100)
-4. API Strip (priority 200)
-5. Health (priority 300)
-6. Metrics (priority 400)
+**Priority Order (higher number = higher priority):**
+1. Metrics/Health (priority 400)
+2. API Strip-prefix (priority 300)
+3. API Direct (priority 200)
+4. Admin (priority 100)
+5. Webapp (priority 50)
 
 ### 6.3 Middleware Stack
 
@@ -476,14 +552,10 @@ labels:
 ### 6.5 Route Testing Commands
 
 ```bash
-# Test HTTP route
-curl -H "Host: dating.serge.cc" http://localhost/api/health
-
-# Test HTTPS route
-curl -H "Host: dating.serge.cc" https://localhost/api/health
-
-# Test with specific path
-curl -H "Host: dating.serge.cc" http://localhost/v1/auth/health
+# Test via Traefik (ports not exposed directly)
+curl https://dating.serge.cc/health
+curl https://dating.serge.cc/api/v1/auth/health
+curl https://dating.serge.cc/api/v1/profiles/health
 ```
 
 ---
@@ -1242,6 +1314,51 @@ docs/
 
 ---
 
+### 8.7 Chat Service v2 - Canonical API
+
+**WebSocket Endpoint:**
+- `GET /chat/ws` - Connect with Authorization header, conversation_id in query
+
+**Message Operations:**
+- `POST /chat/conversations/{id}/messages` - Send message (requires Idempotency-Key header)
+- `GET /chat/conversations/{id}/messages` - List messages (pagination: before_id/after_id)
+
+**Read State:**
+- `PUT /chat/conversations/{id}/read-state` - Body: `{"up_to_message_id": "..."}` → 204
+
+**Blocking:**
+- `POST /chat/blocks` - Body: `{"target_user_id": "..."}`
+- `DELETE /chat/blocks/{target_user_id}` → 204
+
+**Reporting:**
+- `POST /chat/reports` - Body: `{conversation_id, message_id?, reason}` → 202
+
+**Pagination:**
+- Messages: Use before_id/after_id for cursor-based pagination
+- Conversations: Use cursor field
+
+**Status Codes:**
+- 201: Created (new message)
+- 202: Accepted (report queued)
+- 204: No Content (read-state, unblock)
+
+**Database Requirements:**
+- Unique index on (conversation_id, idempotency_key)
+- participant_read_state table
+- blocks table with unique (blocker_id, target_user_id)
+- reports table
+
+**WebSocket Events:**
+```json
+{
+  "type": "message.new",
+  "conversation_id": "...",
+  "message": {...}
+}
+```
+
+---
+
 ## 9. TESTING & QUALITY ASSURANCE
 
 ### 9.1 Testing Standards (pytest)
@@ -1445,7 +1562,8 @@ jobs:
 **Migration Validation:**
 ```bash
 # Check migration chain integrity
-alembic check
+alembic history --verbose
+alembic upgrade head && alembic downgrade -1 && alembic upgrade head
 
 # Validate only one service has RUN_DB_MIGRATIONS=true
 grep -c "RUN_DB_MIGRATIONS=true" docker-compose.yml
@@ -1464,7 +1582,8 @@ if [ "$MIGRATION_COUNT" -ne 1 ]; then
 fi
 
 # Check migration chain integrity
-docker compose exec telegram-bot alembic check
+docker compose exec telegram-bot alembic history --verbose
+alembic upgrade head && alembic downgrade -1 && alembic upgrade head
 if [ $? -ne 0 ]; then
     echo "ERROR: Migration chain integrity check failed"
     exit 1
@@ -1537,10 +1656,13 @@ curl -f https://dating.serge.cc/v1/profiles/health
 # Check container status
 docker compose ps
 
-# Check service health
-curl http://localhost:8080/health
-curl http://localhost:8081/health
-curl http://localhost:8082/health
+# Check service health via docker exec (internal ports)
+docker compose exec api-gateway curl http://localhost:8080/health
+docker compose exec auth-service curl http://localhost:8081/health
+docker compose exec profile-service curl http://localhost:8082/health
+
+# Or via Traefik externally
+curl https://dating.serge.cc/health
 ```
 
 **Database Verification:**
@@ -1557,14 +1679,10 @@ docker compose exec db psql -U dating -d dating -c "\dt"
 
 **Monitoring Verification:**
 ```bash
-# Check Prometheus targets
-curl http://localhost:9090/api/v1/targets
-
-# Check Grafana dashboard
-curl http://localhost:3001/api/health
-
-# Check Loki logs
-curl http://localhost:3100/ready
+# Access monitoring via Traefik or internal docker exec
+docker compose exec prometheus wget -qO- http://localhost:9090/-/healthy
+docker compose exec grafana curl http://localhost:3000/api/health
+docker compose exec loki curl http://localhost:3100/ready
 ```
 
 ### 10.6 Rollback Procedures
@@ -2240,7 +2358,8 @@ docker compose exec telegram-bot env | grep -E "(POSTGRES|JWT|BOT)"
 
 **Migration Issues:**
 - Symptom: `KeyError: 'revision_id'`
-- Solution: Check migration chain with `alembic check`
+- Solution: Check migration chain with `alembic history --verbose
+alembic upgrade head && alembic downgrade -1 && alembic upgrade head`
 - Fix: Use `alembic merge` for conflicts
 
 **Docker Permission Issues:**
@@ -2399,457 +2518,7 @@ docker compose exec -T db psql -U dating -d dating < backup.sql
 6. **Monitoring**: Check service health after changes
 7. **Rollback**: Always have rollback plan ready
 
----
 
-## 13. OBSERVABILITY & MONITORING
-
-### 13.1 Logging Standards (Structured JSON)
-
-**Log Format:**
-```json
-{
-  "timestamp": "2025-01-24T10:30:00Z",
-  "level": "INFO",
-  "logger": "service-name",
-  "message": "Operation completed",
-  "service_name": "auth-service",
-  "request_id": "req-123",
-  "user_id": 12345,
-  "duration_ms": 150
-}
-```
-
-**Log Levels:**
-- DEBUG: Detailed information for debugging
-- INFO: General information about operation
-- WARNING: Something unexpected happened
-- ERROR: Error occurred but service continues
-- CRITICAL: Serious error, service may stop
-
-### 13.2 Metrics Patterns (Prometheus)
-
-**Counter Metrics:**
-```python
-from prometheus_client import Counter
-
-request_count = Counter(
-    'http_requests_total',
-    'Total HTTP requests',
-    ['method', 'endpoint', 'status']
-)
-```
-
-**Histogram Metrics:**
-```python
-from prometheus_client import Histogram
-
-request_duration = Histogram(
-    'http_request_duration_seconds',
-    'HTTP request duration',
-    ['method', 'endpoint']
-)
-```
-
-### 13.3 Distributed Tracing (W3C Trace Context)
-
-**Trace Headers:**
-```python
-# Extract trace context
-traceparent = request.headers.get('traceparent')
-tracestate = request.headers.get('tracestate')
-
-# Propagate to downstream services
-headers = {
-    'traceparent': traceparent,
-    'tracestate': tracestate
-}
-```
-
-### 13.4 Health & Readiness Probes
-
-**Health Check Endpoint:**
-```python
-async def health_check(request):
-    return web.json_response({
-        'status': 'healthy',
-        'timestamp': datetime.utcnow().isoformat(),
-        'version': '1.0.0'
-    })
-```
-
-### 13.5 Grafana Dashboards
-
-**Dashboard Metrics:**
-- Request rate and duration
-- Error rates by service
-- Database connection pool
-- Memory and CPU usage
-- Custom business metrics
-
-### 13.6 Alert Configuration
-
-**Alert Rules:**
-```yaml
-groups:
-  - name: dating-app
-    rules:
-      - alert: HighErrorRate
-        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
-        for: 5m
-        labels:
-          severity: warning
-        annotations:
-          summary: High error rate detected
-```
-
----
-
-## 14. ARCHITECTURE & SYSTEM DESIGN
-
-### 14.1 Microservices Architecture
-
-**Service Dependencies:**
-```
-telegram-bot → api-gateway → auth-service
-                    ↓
-              profile-service
-                    ↓
-              discovery-service
-                    ↓
-              chat-service
-```
-
-**Data Flow:**
-1. User interacts with Telegram bot
-2. Bot sends requests to API Gateway
-3. Gateway routes to appropriate service
-4. Service processes request
-5. Response sent back through gateway
-
-### 14.2 Service Dependencies
-
-**Core Services:**
-- `auth-service`: Authentication and authorization
-- `profile-service`: User profiles and preferences
-- `discovery-service`: Matching algorithm
-- `chat-service`: Messaging functionality
-- `media-service`: File upload and processing
-
-**Supporting Services:**
-- `admin-service`: Admin panel and moderation
-- `notification-service`: Push notifications
-- `data-service`: Centralized data access
-
-### 14.3 Database Schema Design
-
-**Core Tables:**
-- `users`: User accounts and authentication
-- `profiles`: User profile information
-- `photos`: User photos and media
-- `interactions`: Swipe interactions
-- `matches`: User matches
-- `messages`: Chat messages
-- `conversations`: Chat conversations
-
-### 14.4 Message Queue Patterns (RabbitMQ)
-
-**Queue Configuration:**
-```python
-# Notification queue
-await channel.queue_declare('notifications', durable=True)
-
-# Match notification
-await channel.basic_publish(
-    exchange='',
-    routing_key='notifications',
-    body=json.dumps({
-        'type': 'match',
-        'user_id': user_id,
-        'match_id': match_id
-    })
-)
-```
-
-### 14.5 Cache Strategy
-
-**Redis Caching:**
-- User sessions: 24 hours
-- Profile data: 1 hour
-- Discovery results: 30 minutes
-- Chat messages: 7 days
-
-**Cache Keys:**
-```
-user:session:{user_id}
-profile:{user_id}
-discovery:{user_id}:{location}
-chat:{conversation_id}:messages
-```
-
----
-
-## 15. TROUBLESHOOTING & DIAGNOSTICS
-
-### 15.1 6-Phase Diagnostic Methodology
-
-**Phase 1: Service Health**
-```bash
-# Check container status
-docker compose ps
-
-# Check service health
-curl http://localhost:8080/health
-```
-
-**Phase 2: Database Connectivity**
-```bash
-# Test database connection
-docker compose exec db psql -U dating -d dating -c "SELECT 1"
-
-# Check migration status
-docker compose exec telegram-bot alembic current
-```
-
-**Phase 3: Network Connectivity**
-```bash
-# Test internal network
-docker compose exec api-gateway ping auth-service
-
-# Test external connectivity
-curl -f https://dating.serge.cc/health
-```
-
-**Phase 4: Log Analysis**
-```bash
-# Check service logs
-docker compose logs telegram-bot --tail=50
-
-# Check for errors
-docker compose logs | grep ERROR
-```
-
-**Phase 5: Resource Usage**
-```bash
-# Check resource usage
-docker stats
-
-# Check disk space
-df -h
-```
-
-**Phase 6: Configuration Validation**
-```bash
-# Validate configuration
-docker compose config
-
-# Check environment variables
-docker compose exec telegram-bot env | grep -E "(POSTGRES|JWT|BOT)"
-```
-
-### 15.2 Common Problem Patterns
-
-**Migration Issues:**
-- Symptom: `KeyError: 'revision_id'`
-- Solution: Check migration chain with `alembic check`
-- Fix: Use `alembic merge` for conflicts
-
-**Docker Permission Issues:**
-- Symptom: `setgid(101) failed (1: Operation not permitted)`
-- Solution: Add appropriate capabilities or run as non-root
-- Fix: Update docker-compose.yml with correct capabilities
-
-**Network Connectivity:**
-- Symptom: `Temporary failure in name resolution`
-- Solution: Check Docker networks and DNS configuration
-- Fix: Ensure services are on correct networks
-
-### 15.3 Diagnostic Commands Library
-
-**Container Management:**
-```bash
-# List all containers
-docker compose ps
-
-# Check container logs
-docker compose logs <service>
-
-# Execute command in container
-docker compose exec <service> <command>
-
-# Restart service
-docker compose restart <service>
-```
-
-**Database Diagnostics:**
-```bash
-# Connect to database
-docker compose exec db psql -U dating -d dating
-
-# Check migration status
-docker compose exec telegram-bot alembic current
-
-# Show migration history
-docker compose exec telegram-bot alembic history
-```
-
-**Network Diagnostics:**
-```bash
-# Test internal connectivity
-docker compose exec api-gateway curl http://auth-service:8081/health
-
-# Check network configuration
-docker network ls
-docker network inspect dating-microservices_default
-```
-
-### 15.4 Emergency Procedures
-
-**Service Recovery:**
-```bash
-# Restart all services
-docker compose down && docker compose up -d
-
-# Restart specific service
-docker compose restart <service>
-
-# Rebuild and restart
-docker compose build <service> && docker compose up -d <service>
-```
-
-**Database Recovery:**
-```bash
-# Rollback migration
-docker compose exec telegram-bot alembic downgrade -1
-
-# Reset to specific migration
-docker compose exec telegram-bot alembic stamp <revision>
-
-# Restore from backup
-docker compose exec -T db psql -U dating -d dating < backup.sql
-```
-
----
-
-## 16. CURSOR AI SPECIFIC GUIDANCE
-
-### 16.1 Task Planning & TODO Management
-
-**TODO Creation:**
-- Use `todo_write` tool for task management
-- Set appropriate status: `pending`, `in_progress`, `completed`, `cancelled`
-- Provide clear, actionable task descriptions
-- Update status in real-time
-
-**Task Prioritization:**
-- CRITICAL: System-breaking issues
-- HIGH: Feature development
-- MEDIUM: Improvements
-- LOW: Nice-to-have features
-
-### 16.2 File Reading & Editing Patterns
-
-**File Reading:**
-- Use `read_file` for complete file content
-- Use `offset` and `limit` for large files
-- Read multiple files in parallel when possible
-
-**File Editing:**
-- Use `search_replace` for precise changes
-- Use `MultiEdit` for multiple changes to same file
-- Use `write` for new files
-- Always verify changes with `read_file`
-
-### 16.3 Tool Selection Guidelines
-
-**Code Analysis:**
-- `codebase_search`: Semantic code search
-- `grep`: Exact string/regex search
-- `read_file`: File content analysis
-
-**File Operations:**
-- `search_replace`: Single precise edits
-- `MultiEdit`: Multiple edits to same file
-- `write`: New file creation
-- `delete_file`: File removal
-
-**System Operations:**
-- `run_terminal_cmd`: Command execution
-- `list_dir`: Directory listing
-- `glob_file_search`: File pattern search
-
-### 16.4 Communication Style
-
-**Response Format:**
-- Use clear, structured responses
-- Include code examples in markdown blocks
-- Provide step-by-step instructions
-- Include error handling and validation
-
-**Error Handling:**
-- Acknowledge errors immediately
-- Provide clear error descriptions
-- Suggest specific solutions
-- Follow up on error resolution
-
-**Progress Updates:**
-- Update TODO status in real-time
-- Provide status summaries
-- Include next steps
-- Ask for clarification when needed
-
----
-
-## 🚫 CRITICAL PROHIBITIONS
-
-### 🚫 **NO DIRECT SERVER/CONTAINER EDITS**
-- **NEVER edit files directly on server or in containers**
-- **ONLY use Git workflow**: branch → PR → review → merge
-- **ALL changes MUST go through GitHub**: Local → GitHub → Server
-- **NO hotfixes on production**: Use proper deployment pipeline
-
-### 🚫 **NO PUBLIC ROUTE CHANGES WITHOUT OPENAPI**
-- **NEVER change public API routes without updating OpenAPI specs**
-- **ALWAYS update OpenAPI documentation** before route changes
-- **MUST run tests** after OpenAPI updates
-- **Breaking changes REQUIRE version bump** (v1 → v2)
-
-### 🚫 **NO ALEMBIC REVISION EDITS**
-- **NEVER edit `revision` or `down_revision`** in merged migrations
-- **ONLY create new migrations** for schema changes
-- **Use `alembic merge`** for conflicting migrations
-- **NEVER manually edit migration IDs** after merge to main
-
-### 🚫 **NO DEPENDENCIES WITHOUT JUSTIFICATION**
-- **NEVER add dependencies** without clear business justification
-- **MUST update `requirements.txt`** or `requirements-dev.txt`
-- **Document WHY** each dependency is needed
-- **Pin versions** to specific releases (no `>=` or `~`)
-
-### 🚫 **NO UNRELATED FILE CHANGES**
-- **NEVER touch unrelated files/services** in same commit
-- **NEVER create new top-level directories** without approval
-- **Keep changes focused** on single feature/fix
-- **One commit = one logical change**
-
-### 🚫 **NO HARDCODED VALUES**
-- **NEVER hardcode ports, URLs, or secrets**
-- **ALWAYS use environment variables** from `.env`/`.env.example`
-- **Configure via docker-compose.yml** environment section
-- **Document all required env vars** in `.env.example`
-
-### 🚫 **NO DOCKER SERVICE/NETWORK RENAMES**
-- **NEVER change service names** in docker-compose.yml
-- **NEVER change network names** in docker-compose.yml
-- **NEVER change port mappings** without migration plan
-- **Breaking changes require coordination** with all services
-
-### 🚫 **NO SECRETS OR BINARIES IN GIT**
-- **NEVER commit secrets** (passwords, tokens, keys)
-- **NEVER commit binary files** (images, executables, databases)
-- **Use .gitignore** for sensitive files
-- **Use environment variables** for secrets
-
----
 
 ## CRITICAL REMINDERS
 
