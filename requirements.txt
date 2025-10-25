@@ -1,6 +1,7 @@
 aiogram==3.3.0
 SQLAlchemy==2.0.25
 asyncpg==0.29.0
+psycopg2-binary==2.9.9  # PostgreSQL adapter for SQLAlchemy
 alembic==1.13.1
 python-dotenv==1.0.0  # Secure environment variable loading
 PyJWT==2.8.0  # JWT token generation and validation
