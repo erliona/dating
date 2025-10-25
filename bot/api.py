@@ -1,11 +1,11 @@
 """Bot API utilities for authentication and image processing."""
 
-import jwt
+import io
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 
+import jwt
 from PIL import Image
-import io
 
 from core.utils.errors import AuthenticationError
 
@@ -160,8 +160,9 @@ async def health_check_handler(request):
 
 async def generate_token_handler(request):
     """Generate token handler for testing."""
-    from aiohttp import web
     import json
+
+    from aiohttp import web
 
     try:
         data = await request.json()
