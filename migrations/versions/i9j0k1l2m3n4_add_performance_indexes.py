@@ -27,7 +27,9 @@ def upgrade():
 
     # Interactions table indexes - using actual column names
     op.create_index(
-        "idx_interactions_target_type", "interactions", ["target_id", "interaction_type"]
+        "idx_interactions_target_type",
+        "interactions",
+        ["target_id", "interaction_type"],
     )
 
     op.create_index(
