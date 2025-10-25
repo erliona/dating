@@ -13,26 +13,27 @@ This microservice handles admin panel functionality including:
 import hashlib
 import logging
 import os
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import datetime
+from typing import Any
 
 import aiohttp
 from aiohttp import web
 
-from core.utils.logging import configure_logging
+from core.middleware.error_handling import setup_error_handling
 from core.middleware.jwt_middleware import admin_jwt_middleware
-from core.middleware.request_logging import request_logging_middleware, user_context_middleware
-from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
+from core.middleware.metrics_middleware import add_metrics_route
 from core.resilience.circuit_breaker import data_service_breaker
 from core.resilience.retry import retry_data_service
-from core.middleware.error_handling import setup_error_handling
-from core.utils.errors import StandardError, ErrorCode
+from core.utils.errors import StandardError
+from core.utils.logging import configure_logging
 
 logger = logging.getLogger(__name__)
 
 
 @retry_data_service()
-async def _call_data_service(url: str, method: str = "GET", data: dict = None, params: dict = None):
+async def _call_data_service(
+    url: str, method: str = "GET", data: dict = None, params: dict = None
+):
     """Helper to call Data Service with retry logic."""
     async with aiohttp.ClientSession() as session:
         async with session.request(method, url, json=data, params=params) as resp:
@@ -59,7 +60,7 @@ async def create_session_token(admin_id: int, secret: str) -> str:
     return token
 
 
-async def verify_session_token(token: str, secret: str) -> Optional[int]:
+async def verify_session_token(token: str, secret: str) -> int | None:
     """Verify session token and return admin_id."""
     # In production, verify against Redis/database
     # For now, this is a placeholder
@@ -82,13 +83,13 @@ async def login_handler(request: web.Request) -> web.Response:
         # SECURITY: Use environment variables for admin credentials
         admin_username = os.getenv("ADMIN_USERNAME", "admin")
         admin_password = os.getenv("ADMIN_PASSWORD")
-        
+
         if not admin_password:
             logger.error("ADMIN_PASSWORD environment variable is required")
             return web.json_response(
                 {"error": "Admin authentication not configured"}, status=500
             )
-        
+
         if username == admin_username and password == admin_password:
             token = await create_session_token(1, request.app["config"]["jwt_secret"])
             return web.json_response(
@@ -114,19 +115,19 @@ async def get_stats_handler(request: web.Request) -> web.Response:
     """Get system statistics for dashboard."""
     try:
         data_service_url = request.app["data_service_url"]
-        
+
         # Use circuit breaker + retry
         result = await data_service_breaker.call(
             _call_data_service,
             f"{data_service_url}/data/stats",
-            fallback=lambda *args: {"error": "Service temporarily unavailable"}
+            fallback=lambda *args: {"error": "Service temporarily unavailable"},
         )
-        
+
         if "error" in result:
             if result["error"] == "Service temporarily unavailable":
                 return web.json_response(result, status=503)
             return web.json_response(result, status=500)
-        
+
         return web.json_response(result)
 
     except Exception as e:
@@ -142,15 +143,15 @@ async def list_users_handler(request: web.Request) -> web.Response:
         search = request.query.get("search", "")
 
         data_service_url = request.app["data_service_url"]
-        
+
         # Build query parameters
-        params = {
-            "page": page,
-            "per_page": per_page,
+        params: dict[str, Any] = {
+            "page": int(page),
+            "per_page": int(per_page),
         }
         if search:
-            params["search"] = search
-        
+            params["search"] = str(search)
+
         # Use circuit breaker + retry
         result = await data_service_breaker.call(
             _call_data_service,
@@ -158,12 +159,17 @@ async def list_users_handler(request: web.Request) -> web.Response:
             "GET",
             None,
             params,
-            fallback=lambda *args: {"users": [], "total": 0, "page": page, "per_page": per_page}
+            fallback=lambda *args: {
+                "users": [],
+                "total": 0,
+                "page": page,
+                "per_page": per_page,
+            },
         )
-        
+
         if "error" in result:
             return web.json_response(result, status=500)
-        
+
         return web.json_response(result)
 
     except Exception as e:
@@ -177,21 +183,21 @@ async def get_user_handler(request: web.Request) -> web.Response:
         user_id = int(request.match_info["user_id"])
 
         data_service_url = request.app["data_service_url"]
-        
+
         # Use circuit breaker + retry
         result = await data_service_breaker.call(
             _call_data_service,
             f"{data_service_url}/data/users/{user_id}",
-            fallback=lambda *args: {"error": "Service temporarily unavailable"}
+            fallback=lambda *args: {"error": "Service temporarily unavailable"},
         )
-        
+
         if "error" in result:
             if result["error"] == "Service temporarily unavailable":
                 return web.json_response(result, status=503)
             if "not found" in result.get("error", "").lower():
                 return web.json_response(result, status=404)
             return web.json_response(result, status=500)
-        
+
         return web.json_response(result)
 
     except ValueError:
@@ -208,9 +214,11 @@ async def update_user_handler(request: web.Request) -> web.Response:
         data = await request.json()
 
         data_service_url = request.app["data_service_url"]
-        
+
         async with aiohttp.ClientSession() as session:
-            async with session.put(f"{data_service_url}/data/users/{user_id}", json=data) as response:
+            async with session.put(
+                f"{data_service_url}/data/users/{user_id}", json=data
+            ) as response:
                 if response.status == 200:
                     result = await response.json()
                     return web.json_response(result)
@@ -218,7 +226,9 @@ async def update_user_handler(request: web.Request) -> web.Response:
                     return web.json_response({"error": "User not found"}, status=404)
                 else:
                     logger.error(f"Data service returned status {response.status}")
-                    return web.json_response({"error": "Failed to update user"}, status=500)
+                    return web.json_response(
+                        {"error": "Failed to update user"}, status=500
+                    )
 
     except ValueError:
         return web.json_response({"error": "Invalid user ID"}, status=400)
@@ -236,25 +246,29 @@ async def list_photos_handler(request: web.Request) -> web.Response:
         unverified_only = request.query.get("unverified") == "true"
 
         data_service_url = request.app["data_service_url"]
-        
+
         # Build query parameters
-        params = {
-            "page": page,
-            "per_page": per_page,
+        params: dict[str, Any] = {
+            "page": int(page),
+            "per_page": int(per_page),
         }
         if verified_only:
-            params["verified"] = "true"
+            params["verified"] = True
         elif unverified_only:
-            params["unverified"] = "true"
-        
+            params["unverified"] = True
+
         async with aiohttp.ClientSession() as session:
-            async with session.get(f"{data_service_url}/data/photos", params=params) as response:
+            async with session.get(
+                f"{data_service_url}/data/photos", params=params
+            ) as response:
                 if response.status == 200:
                     result = await response.json()
                     return web.json_response(result)
                 else:
                     logger.error(f"Data service returned status {response.status}")
-                    return web.json_response({"error": "Failed to list photos"}, status=500)
+                    return web.json_response(
+                        {"error": "Failed to list photos"}, status=500
+                    )
 
     except Exception as e:
         logger.error(f"Error listing photos: {e}", exc_info=True)
@@ -268,9 +282,11 @@ async def update_photo_handler(request: web.Request) -> web.Response:
         data = await request.json()
 
         data_service_url = request.app["data_service_url"]
-        
+
         async with aiohttp.ClientSession() as session:
-            async with session.put(f"{data_service_url}/data/photos/{photo_id}", json=data) as response:
+            async with session.put(
+                f"{data_service_url}/data/photos/{photo_id}", json=data
+            ) as response:
                 if response.status == 200:
                     result = await response.json()
                     return web.json_response(result)
@@ -278,7 +294,9 @@ async def update_photo_handler(request: web.Request) -> web.Response:
                     return web.json_response({"error": "Photo not found"}, status=404)
                 else:
                     logger.error(f"Data service returned status {response.status}")
-                    return web.json_response({"error": "Failed to update photo"}, status=500)
+                    return web.json_response(
+                        {"error": "Failed to update photo"}, status=500
+                    )
 
     except ValueError:
         return web.json_response({"error": "Invalid photo ID"}, status=400)
@@ -293,9 +311,11 @@ async def delete_photo_handler(request: web.Request) -> web.Response:
         photo_id = int(request.match_info["photo_id"])
 
         data_service_url = request.app["data_service_url"]
-        
+
         async with aiohttp.ClientSession() as session:
-            async with session.delete(f"{data_service_url}/data/photos/{photo_id}") as response:
+            async with session.delete(
+                f"{data_service_url}/data/photos/{photo_id}"
+            ) as response:
                 if response.status == 200:
                     result = await response.json()
                     return web.json_response(result)
@@ -303,7 +323,9 @@ async def delete_photo_handler(request: web.Request) -> web.Response:
                     return web.json_response({"error": "Photo not found"}, status=404)
                 else:
                     logger.error(f"Data service returned status {response.status}")
-                    return web.json_response({"error": "Failed to delete photo"}, status=500)
+                    return web.json_response(
+                        {"error": "Failed to delete photo"}, status=500
+                    )
 
     except ValueError:
         return web.json_response({"error": "Invalid photo ID"}, status=400)
@@ -317,165 +339,176 @@ async def health_check(request: web.Request) -> web.Response:
     return web.json_response({"status": "healthy", "service": "admin"})
 
 
-def create_app(config: dict) -> web.Application:
+def create_app(config: dict) -> web.Application:  # type: ignore[return-value]
     """Create and configure the admin service application."""
-    app = web.Application()
-    
+    app: web.Application = web.Application()
+
     # Setup error handling
-    setup_error_handling(app, \"admin-service")
+    setup_error_handling(app, "admin-service")
     app["config"] = config
     app["data_service_url"] = config["data_service_url"]
-    
+
     # Add standard middleware (NO JWT for public routes)
     from core.middleware.standard_stack import setup_standard_middleware_stack
-    setup_standard_middleware_stack(app, "admin-service", use_auth=False, use_audit=False)
-    
+
+    setup_standard_middleware_stack(
+        app, "admin-service", use_auth=False, use_audit=False
+    )
+
     # Add metrics endpoint
     add_metrics_route(app, "admin-service")
 
     # PUBLIC routes (NO JWT required)
     app.router.add_post("/admin/auth/login", login_handler)
     app.router.add_get("/health", health_check)
-    
+
     # Serve admin panel static files
     app.router.add_static("/admin/", "services/admin/static/")
-    
+
     # Serve index.html for /admin/ root path
     async def serve_admin_index(request):
         return web.FileResponse("services/admin/static/index.html")
+
     app.router.add_get("/admin/", serve_admin_index)
-    
+
     # Redirect /admin/login to /admin/ for browser compatibility
     async def redirect_login(request):
-        return web.HTTPFound('/admin/')
+        return web.HTTPFound("/admin/")
+
     app.router.add_get("/admin/login", redirect_login)
 
 
 # ==================== MODERATION HANDLERS ====================
 
+
 async def get_moderation_queue_handler(request: web.Request) -> web.Response:
     """Get moderation queue with pagination and filtering."""
     try:
         # Get query parameters
-        status = request.query.get('status', 'pending')
-        content_type = request.query.get('content_type')
-        priority = request.query.get('priority')
-        page = int(request.query.get('page', 1))
-        limit = int(request.query.get('limit', 20))
-        
+        status = request.query.get("status", "pending")
+        content_type = request.query.get("content_type")
+        priority = request.query.get("priority")
+        page = int(request.query.get("page", 1))
+        limit = int(request.query.get("limit", 20))
+
         # Build query parameters
-        params = {
-            'status': status,
-            'page': page,
-            'limit': limit
-        }
+        params = {"status": status, "page": page, "limit": limit}
         if content_type:
-            params['content_type'] = content_type
+            params["content_type"] = content_type
         if priority:
-            params['priority'] = priority
-            
+            params["priority"] = priority
+
         # Call data service
         data_service_url = request.app["config"]["data_service_url"]
         url = f"{data_service_url}/moderation/queue"
-        
+
         result = await _call_data_service(url, params=params)
-        
-        return web.json_response({
-            "items": result.get("items", []),
-            "total": result.get("total", 0),
-            "page": page,
-            "limit": limit,
-            "has_more": result.get("has_more", False)
-        })
-        
+
+        return web.json_response(
+            {
+                "items": result.get("items", []),
+                "total": result.get("total", 0),
+                "page": page,
+                "limit": limit,
+                "has_more": result.get("has_more", False),
+            }
+        )
+
     except Exception as e:
         logger.error(f"Error getting moderation queue: {e}")
         return web.json_response(
             StandardError(
-                code=ErrorCode.INTERNAL_ERROR,
-                message="Failed to get moderation queue"
+                error="INTERNAL_ERROR",
+                message="Failed to get moderation queue",
+                code="INTERNAL_ERROR",
+                status_code=500,
+                timestamp=datetime.utcnow().isoformat(),
             ).to_dict(),
-            status=500
+            status=500,
         )
 
 
 async def approve_moderation_handler(request: web.Request) -> web.Response:
     """Approve moderation item."""
     try:
-        moderation_id = request.match_info['moderation_id']
+        moderation_id = request.match_info["moderation_id"]
         data = await request.json()
-        notes = data.get('notes', '')
-        
+        notes = data.get("notes", "")
+
         # Get moderator ID from JWT
-        moderator_id = request.get('user_id')
-        
+        moderator_id = request.get("user_id")
+
         # Call data service
         data_service_url = request.app["config"]["data_service_url"]
         url = f"{data_service_url}/moderation/{moderation_id}/approve"
-        
-        payload = {
-            'moderator_id': moderator_id,
-            'notes': notes
-        }
-        
+
+        payload = {"moderator_id": moderator_id, "notes": notes}
+
         result = await _call_data_service(url, method="POST", data=payload)
-        
-        return web.json_response({
-            "message": "Moderation item approved",
-            "moderation_id": moderation_id,
-            "result": result
-        })
-        
+
+        return web.json_response(
+            {
+                "message": "Moderation item approved",
+                "moderation_id": moderation_id,
+                "result": result,
+            }
+        )
+
     except Exception as e:
         logger.error(f"Error approving moderation: {e}")
         return web.json_response(
             StandardError(
-                code=ErrorCode.INTERNAL_ERROR,
-                message="Failed to approve moderation"
+                error="INTERNAL_ERROR",
+                message="Failed to approve moderation",
+                code="INTERNAL_ERROR",
+                status_code=500,
+                timestamp=datetime.utcnow().isoformat(),
             ).to_dict(),
-            status=500
+            status=500,
         )
 
 
 async def reject_moderation_handler(request: web.Request) -> web.Response:
     """Reject moderation item."""
     try:
-        moderation_id = request.match_info['moderation_id']
+        moderation_id = request.match_info["moderation_id"]
         data = await request.json()
-        notes = data.get('notes', '')
-        
+        notes = data.get("notes", "")
+
         # Get moderator ID from JWT
-        moderator_id = request.get('user_id')
-        
+        moderator_id = request.get("user_id")
+
         # Call data service
         data_service_url = request.app["config"]["data_service_url"]
         url = f"{data_service_url}/moderation/{moderation_id}/reject"
-        
-        payload = {
-            'moderator_id': moderator_id,
-            'notes': notes
-        }
-        
+
+        payload = {"moderator_id": moderator_id, "notes": notes}
+
         result = await _call_data_service(url, method="POST", data=payload)
-        
-        return web.json_response({
-            "message": "Moderation item rejected",
-            "moderation_id": moderation_id,
-            "result": result
-        })
-        
+
+        return web.json_response(
+            {
+                "message": "Moderation item rejected",
+                "moderation_id": moderation_id,
+                "result": result,
+            }
+        )
+
     except Exception as e:
         logger.error(f"Error rejecting moderation: {e}")
         return web.json_response(
             StandardError(
-                code=ErrorCode.INTERNAL_ERROR,
-                message="Failed to reject moderation"
+                error="INTERNAL_ERROR",
+                message="Failed to reject moderation",
+                code="INTERNAL_ERROR",
+                status_code=500,
+                timestamp=datetime.utcnow().isoformat(),
             ).to_dict(),
-            status=500
+            status=500,
         )
-    
+
     # PROTECTED sub-application WITH JWT middleware
-    from core.middleware.jwt_middleware import admin_jwt_middleware
+
     protected = web.Application(middlewares=[admin_jwt_middleware])
     protected.router.add_get("/admin/stats", get_stats_handler)
     protected.router.add_get("/admin/users", list_users_handler)
@@ -484,17 +517,20 @@ async def reject_moderation_handler(request: web.Request) -> web.Response:
     protected.router.add_get("/admin/photos", list_photos_handler)
     protected.router.add_put("/admin/photos/{photo_id}", update_photo_handler)
     protected.router.add_delete("/admin/photos/{photo_id}", delete_photo_handler)
-    
+
     # Moderation endpoints
     protected.router.add_get("/admin/moderation/queue", get_moderation_queue_handler)
-    protected.router.add_post("/admin/moderation/{moderation_id}/approve", approve_moderation_handler)
-    protected.router.add_post("/admin/moderation/{moderation_id}/reject", reject_moderation_handler)
-    
+    protected.router.add_post(
+        "/admin/moderation/{moderation_id}/approve", approve_moderation_handler
+    )
+    protected.router.add_post(
+        "/admin/moderation/{moderation_id}/reject", reject_moderation_handler
+    )
+
     # Mount protected app under /admin/api
     app.add_subapp("/admin/api/", protected)
 
-
-    return app
+    return app  # type: ignore[return-value]
 
 
 if __name__ == "__main__":
@@ -514,4 +550,4 @@ if __name__ == "__main__":
     )
 
     app = create_app(config)
-    web.run_app(app, host=config["host"], port=config["port"])
+    web.run_app(app, host=str(config["host"]), port=int(str(config["port"])))

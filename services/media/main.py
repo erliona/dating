@@ -5,26 +5,26 @@ from __future__ import annotations
 This microservice handles photo/video upload, validation, and optimization.
 """
 
-import logging
-import os
-import mimetypes
 import hashlib
+import logging
+import mimetypes
+import os
 import uuid
 from pathlib import Path
-from typing import Optional
 
 from aiohttp import web
 
-from core.utils.logging import configure_logging
-from core.middleware.jwt_middleware import jwt_middleware
-from core.middleware.request_logging import request_logging_middleware, user_context_middleware
-from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
-from core.middleware.security_metrics import record_file_upload, record_suspicious_activity
-from core.middleware.audit_logging import audit_log, log_security_event
-from core.metrics.business_metrics import NSFW_DETECTION_TOTAL, NSFW_BLOCKED_TOTAL
-from .minio_client import minio_client
-from .image_processor import image_processor
+from core.metrics.business_metrics import NSFW_DETECTION_TOTAL
+from core.middleware.audit_logging import audit_log
 from core.middleware.error_handling import setup_error_handling
+from core.middleware.metrics_middleware import add_metrics_route
+from core.middleware.security_metrics import (
+    record_file_upload,
+)
+from core.utils.logging import configure_logging
+
+from .image_processor import image_processor
+from .minio_client import minio_client
 
 logger = logging.getLogger(__name__)
 
@@ -34,39 +34,40 @@ async def queue_for_moderation(
     content_id: str,
     user_id: str,
     reason: str = "upload",
-    priority: int = 1
+    priority: int = 1,
 ) -> None:
     """Queue content for moderation via data service."""
     try:
         import aiohttp
-        
+
         data_service_url = os.getenv("DATA_SERVICE_URL", "http://data-service:8088")
         url = f"{data_service_url}/moderation/queue"
-        
+
         payload = {
             "content_type": content_type,
             "content_id": content_id,
             "user_id": user_id,
             "reason": reason,
-            "priority": priority
+            "priority": priority,
         }
-        
+
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=payload) as response:
                 if response.status not in [200, 201]:
                     error_text = await response.text()
-                    logger.error(f"Failed to queue moderation: {response.status} - {error_text}")
+                    logger.error(
+                        f"Failed to queue moderation: {response.status} - {error_text}"
+                    )
                     raise Exception(f"Moderation queue failed: {response.status}")
-                    
+
     except Exception as e:
         logger.error(f"Error queuing for moderation: {e}")
         raise
 
+
 # Security configuration
-ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
-ALLOWED_MIME_TYPES = {
-    'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'
-}
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+ALLOWED_MIME_TYPES = {"image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 MAX_FILENAME_LENGTH = 255
 
@@ -75,7 +76,7 @@ def validate_file_extension(filename: str) -> bool:
     """Validate file extension."""
     if not filename:
         return False
-    
+
     ext = Path(filename).suffix.lower()
     return ext in ALLOWED_EXTENSIONS
 
@@ -84,9 +85,9 @@ def validate_mime_type(content_type: str) -> bool:
     """Validate MIME type."""
     if not content_type:
         return False
-    
+
     # Extract main MIME type (ignore parameters like charset)
-    main_type = content_type.split(';')[0].strip().lower()
+    main_type = content_type.split(";")[0].strip().lower()
     return main_type in ALLOWED_MIME_TYPES
 
 
@@ -99,16 +100,16 @@ def sanitize_filename(filename: str) -> str:
     """Sanitize filename to prevent path traversal."""
     if not filename:
         return "upload"
-    
+
     # Remove path separators and dangerous characters
     filename = os.path.basename(filename)
     filename = "".join(c for c in filename if c.isalnum() or c in "._-")
-    
+
     # Limit length
     if len(filename) > MAX_FILENAME_LENGTH:
         name, ext = os.path.splitext(filename)
-        filename = name[:MAX_FILENAME_LENGTH - len(ext)] + ext
-    
+        filename = name[: MAX_FILENAME_LENGTH - len(ext)] + ext
+
     return filename or "upload"
 
 
@@ -146,11 +147,11 @@ async def upload_media(request: web.Request) -> web.Response:
         reader = await request.multipart()
         field = await reader.next()
 
-        if not field or field.name != "file":
+        if not field or getattr(field, "name", None) != "file":
             return web.json_response({"error": "No file provided"}, status=400)
 
         # SECURITY: Validate filename
-        original_filename = field.filename or "upload"
+        original_filename = getattr(field, "filename", None) or "upload"
         if not validate_file_extension(original_filename):
             logger.warning(f"Invalid file extension: {original_filename}")
             record_file_upload(
@@ -158,12 +159,12 @@ async def upload_media(request: web.Request) -> web.Response:
                 result="blocked",
                 file_type=Path(original_filename).suffix.lower(),
                 reason="invalid_extension",
-                user_id=str(request.get("user_id", "unknown"))
+                user_id=str(request.get("user_id", "unknown")),
             )
             return web.json_response({"error": "Invalid file type"}, status=400)
 
         # SECURITY: Validate MIME type
-        content_type = field.headers.get('Content-Type', '')
+        content_type = field.headers.get("Content-Type", "")
         if not validate_mime_type(content_type):
             logger.warning(f"Invalid MIME type: {content_type}")
             record_file_upload(
@@ -171,7 +172,7 @@ async def upload_media(request: web.Request) -> web.Response:
                 result="blocked",
                 file_type=Path(original_filename).suffix.lower(),
                 reason="invalid_mime_type",
-                user_id=str(request.get("user_id", "unknown"))
+                user_id=str(request.get("user_id", "unknown")),
             )
             return web.json_response({"error": "Invalid file type"}, status=400)
 
@@ -185,12 +186,12 @@ async def upload_media(request: web.Request) -> web.Response:
         file_data = b""
         size = 0
         while True:
-            chunk = await field.read_chunk()
+            chunk = await getattr(field, "read_chunk", lambda: b"")()  # type: ignore[misc]
             if not chunk:
                 break
             file_data += chunk
             size += len(chunk)
-            
+
         # SECURITY: Check file size during upload
         if not validate_file_size(size):
             logger.warning(f"File too large: {size} bytes")
@@ -200,7 +201,7 @@ async def upload_media(request: web.Request) -> web.Response:
                 file_type=ext,
                 reason="file_too_large",
                 user_id=str(request.get("user_id", "unknown")),
-                file_size=size
+                file_size=size,
             )
             return web.json_response({"error": "File too large"}, status=413)
 
@@ -213,9 +214,11 @@ async def upload_media(request: web.Request) -> web.Response:
                 file_type=ext,
                 reason="invalid_image",
                 user_id=str(request.get("user_id", "unknown")),
-                file_size=size
+                file_size=size,
             )
-            return web.json_response({"error": "Invalid image format or size"}, status=400)
+            return web.json_response(
+                {"error": "Invalid image format or size"}, status=400
+            )
 
         # SECURITY: NSFW detection using image processor
         if image_processor.detect_nsfw_content(file_data):
@@ -226,7 +229,7 @@ async def upload_media(request: web.Request) -> web.Response:
                 file_type=ext,
                 reason="nsfw_detected",
                 user_id=str(request.get("user_id", "unknown")),
-                file_size=size
+                file_size=size,
             )
             return web.json_response({"error": "Content not allowed"}, status=400)
 
@@ -237,20 +240,22 @@ async def upload_media(request: web.Request) -> web.Response:
 
         # Process image with enhanced pipeline
         try:
-            processed_data, thumbnail_data = image_processor.process_image(file_data, create_thumbnail=True)
-            
+            processed_data, thumbnail_data = image_processor.process_image(
+                file_data, create_thumbnail=True
+            )
+
             # Get image info
             image_info = image_processor.get_image_info(processed_data)
             logger.info(f"Processed image: {image_info}")
-            
+
             # Upload to MinIO
             await minio_client.upload_file(
                 bucket="photos",
                 object_name=object_name,
                 file_data=processed_data,
-                content_type="image/jpeg"  # Always JPEG after processing
+                content_type="image/jpeg",  # Always JPEG after processing
             )
-            
+
             # Upload thumbnail if created
             if thumbnail_data:
                 thumbnail_name = f"thumb_{file_id}{ext}"
@@ -258,9 +263,9 @@ async def upload_media(request: web.Request) -> web.Response:
                     bucket="thumbnails",
                     object_name=thumbnail_name,
                     file_data=thumbnail_data,
-                    content_type="image/jpeg"
+                    content_type="image/jpeg",
                 )
-            
+
         except Exception as e:
             logger.error(f"Image processing failed: {e}")
             return web.json_response({"error": "Image processing failed"}, status=500)
@@ -269,11 +274,8 @@ async def upload_media(request: web.Request) -> web.Response:
         file_hash = hashlib.sha256(processed_data).hexdigest()
 
         # Record NSFW detection for safe files
-        NSFW_DETECTION_TOTAL.labels(
-            service='media-service',
-            result='safe'
-        ).inc()
-        
+        NSFW_DETECTION_TOTAL.labels(service="media-service", result="safe").inc()
+
         # Record successful file upload
         record_file_upload(
             service="media-service",
@@ -281,9 +283,9 @@ async def upload_media(request: web.Request) -> web.Response:
             file_type=ext,
             user_id=str(request.get("user_id", "unknown")),
             file_size=size,
-            file_id=file_id
+            file_id=file_id,
         )
-        
+
         # Audit log file upload
         audit_log(
             operation="file_upload",
@@ -295,9 +297,9 @@ async def upload_media(request: web.Request) -> web.Response:
                 "file_size": size,
                 "file_type": ext,
                 "file_hash": file_hash,
-                "content_type": content_type
+                "content_type": content_type,
             },
-            request=request
+            request=request,
         )
 
         # Auto-queue for moderation
@@ -307,7 +309,7 @@ async def upload_media(request: web.Request) -> web.Response:
                 content_id=file_id,
                 user_id=str(request.get("user_id", "unknown")),
                 reason="upload",
-                priority=1
+                priority=1,
             )
             logger.info(f"Photo {file_id} queued for moderation")
         except Exception as e:
@@ -315,14 +317,14 @@ async def upload_media(request: web.Request) -> web.Response:
             # Don't fail the upload if moderation queueing fails
 
         logger.info(
-            f"File uploaded successfully",
+            "File uploaded successfully",
             extra={
                 "event_type": "file_uploaded",
                 "file_id": file_id,
                 "size": size,
                 "hash": file_hash,
-                "user_id": request.get("user_id")
-            }
+                "user_id": request.get("user_id"),
+            },
         )
 
         return web.json_response(
@@ -348,7 +350,7 @@ async def get_media(request: web.Request) -> web.Response:
     """
     try:
         file_id = request.match_info["file_id"]
-        
+
         # SECURITY: Validate file_id format (UUID)
         try:
             uuid.UUID(file_id)
@@ -359,25 +361,28 @@ async def get_media(request: web.Request) -> web.Response:
         # Find file with allowed extensions only
         for ext in ALLOWED_EXTENSIONS:
             object_name = f"{file_id}{ext}"
-            
+
             # Check if file exists in MinIO
             if await minio_client.file_exists("photos", object_name):
                 try:
                     # Download file from MinIO
                     file_data = await minio_client.download_file("photos", object_name)
-                    
+
                     # Set appropriate headers
                     headers = {
-                        'Content-Type': mimetypes.guess_type(object_name)[0] or 'application/octet-stream',
-                        'Cache-Control': 'public, max-age=3600',  # Cache for 1 hour
-                        'X-Content-Type-Options': 'nosniff',
+                        "Content-Type": mimetypes.guess_type(object_name)[0]
+                        or "application/octet-stream",
+                        "Cache-Control": "public, max-age=3600",  # Cache for 1 hour
+                        "X-Content-Type-Options": "nosniff",
                     }
-                    
+
                     return web.Response(body=file_data, headers=headers)
-                    
+
                 except Exception as e:
                     logger.error(f"Error downloading from MinIO: {e}")
-                    return web.json_response({"error": "Failed to retrieve file"}, status=500)
+                    return web.json_response(
+                        {"error": "Failed to retrieve file"}, status=500
+                    )
 
         return web.json_response({"error": "File not found"}, status=404)
 
@@ -393,7 +398,7 @@ async def delete_media(request: web.Request) -> web.Response:
     """
     try:
         file_id = request.match_info["file_id"]
-        
+
         # SECURITY: Validate file_id format (UUID)
         try:
             uuid.UUID(file_id)
@@ -406,24 +411,24 @@ async def delete_media(request: web.Request) -> web.Response:
         for ext in ALLOWED_EXTENSIONS:
             object_name = f"{file_id}{ext}"
             thumbnail_name = f"thumb_{file_id}{ext}"
-            
+
             # Delete main file from MinIO
             if await minio_client.file_exists("photos", object_name):
                 await minio_client.delete_file("photos", object_name)
                 deleted = True
-                
+
             # Delete thumbnail from MinIO
             if await minio_client.file_exists("thumbnails", thumbnail_name):
                 await minio_client.delete_file("thumbnails", thumbnail_name)
-                
+
             if deleted:
                 logger.info(
-                    f"File deleted successfully",
+                    "File deleted successfully",
                     extra={
                         "event_type": "file_deleted",
                         "file_id": file_id,
-                        "user_id": request.get("user_id")
-                    }
+                        "user_id": request.get("user_id"),
+                    },
                 )
                 break
 
@@ -445,16 +450,17 @@ async def health_check(request: web.Request) -> web.Response:
 def create_app(config: dict) -> web.Application:
     """Create and configure the media service application."""
     app = web.Application()
-    
+
     # Setup error handling
-    setup_error_handling(app, \"media-service")
+    setup_error_handling(app, "media-service")
     app["config"] = config
-    
+
     # Add middleware
     # Setup standard middleware stack
     from core.middleware.standard_stack import setup_standard_middleware_stack
+
     setup_standard_middleware_stack(app, "media-service", use_auth=True, use_audit=True)
-    
+
     # Add metrics endpoint
     add_metrics_route(app, "media-service")
 
@@ -484,4 +490,4 @@ if __name__ == "__main__":
     )
 
     app = create_app(config)
-    web.run_app(app, host=config["host"], port=config["port"])
+    web.run_app(app, host=str(config["host"]), port=int(str(config["port"])))

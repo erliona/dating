@@ -10,32 +10,28 @@ import logging
 
 from aiohttp import web
 
-from core.utils.logging import configure_logging
-from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
-from core.middleware.rate_limiting import auth_rate_limiting_middleware
-from core.middleware.telegram_security import telegram_security_middleware
+from core.metrics.business_metrics import (
+    JWT_TOKENS_CREATED,
+    TELEGRAM_AUTH_FAILED,
+    TELEGRAM_AUTH_SUCCESS,
+)
+from core.middleware.audit_logging import audit_log, log_security_event
 from core.middleware.error_handling import setup_error_handling
+from core.middleware.metrics_middleware import add_metrics_route
+from core.middleware.rate_limiting import auth_rate_limiting_middleware
+from core.middleware.security_metrics import (
+    record_auth_attempt,
+    record_auth_failure,
+    record_security_event,
+)
+from core.middleware.telegram_security import telegram_security_middleware
+from core.utils.logging import configure_logging
 from core.utils.security import (
-    RateLimiter,
     ValidationError,
     generate_jwt_token,
     generate_token_pair,
     validate_jwt_token,
     validate_telegram_webapp_init_data,
-)
-from core.middleware.security_metrics import (
-    record_auth_attempt,
-    record_auth_failure,
-    record_security_event
-)
-from core.middleware.audit_logging import audit_log, log_security_event
-from core.metrics.business_metrics import (
-    JWT_TOKENS_CREATED,
-    JWT_TOKENS_VALIDATED,
-    JWT_TOKENS_EXPIRED,
-    TELEGRAM_AUTH_SUCCESS,
-    TELEGRAM_AUTH_FAILED,
-    JWT_VALIDATION_FAILED
 )
 
 logger = logging.getLogger(__name__)
@@ -54,16 +50,12 @@ async def validate_telegram_init_data(request: web.Request) -> web.Response:
         init_data = data.get("init_data")
 
         if not init_data:
-            return web.json_response(
-                {"error": "Missing init_data"}, status=400
-            )
+            return web.json_response({"error": "Missing init_data"}, status=400)
 
         # Get bot token from server environment (not from client!)
         bot_token = request.app["config"].get("bot_token")
         if not bot_token:
-            return web.json_response(
-                {"error": "Bot token not configured"}, status=500
-            )
+            return web.json_response({"error": "Bot token not configured"}, status=500)
 
         # Validate initData using server's bot token
         user_data = validate_telegram_webapp_init_data(init_data, bot_token)
@@ -81,27 +73,29 @@ async def validate_telegram_init_data(request: web.Request) -> web.Response:
             "first_name": user_data.get("user", {}).get("first_name"),
             "last_name": user_data.get("user", {}).get("last_name"),
             "language_code": user_data.get("user", {}).get("language_code"),
-            "is_premium": user_data.get("user", {}).get("is_premium", False)
+            "is_premium": user_data.get("user", {}).get("is_premium", False),
         }
-        
+
         import aiohttp
+
         async with aiohttp.ClientSession() as session:
             async with session.post(
-                f"{data_service_url}/data/users/create_or_update",
-                json=user_payload
+                f"{data_service_url}/data/users/create_or_update", json=user_payload
             ) as resp:
                 if resp.status != 200:
                     logger.error(f"Failed to create/update user: {await resp.text()}")
-                    return web.json_response({"error": "Failed to create user"}, status=500)
+                    return web.json_response(
+                        {"error": "Failed to create user"}, status=500
+                    )
                 db_user = await resp.json()
-        
+
         # Try to get existing profile
         async with aiohttp.ClientSession() as session:
             async with session.get(
                 f"{data_service_url}/data/profiles/{db_user['id']}"
             ) as resp:
                 profile = await resp.json() if resp.status == 200 else None
-        
+
         # Try to get preferences
         async with aiohttp.ClientSession() as session:
             async with session.get(
@@ -114,33 +108,25 @@ async def validate_telegram_init_data(request: web.Request) -> web.Response:
             service="auth-service",
             result="success",
             method="telegram_webapp",
-            user_id=str(telegram_id)
+            user_id=str(telegram_id),
         )
-        
+
         # Record JWT token creation
-        JWT_TOKENS_CREATED.labels(
-            service='auth-service',
-            token_type='access'
-        ).inc()
-        
-        JWT_TOKENS_CREATED.labels(
-            service='auth-service',
-            token_type='refresh'
-        ).inc()
-        
+        JWT_TOKENS_CREATED.labels(service="auth-service", token_type="access").inc()
+
+        JWT_TOKENS_CREATED.labels(service="auth-service", token_type="refresh").inc()
+
         # Record Telegram auth success
-        TELEGRAM_AUTH_SUCCESS.labels(
-            service='auth-service'
-        ).inc()
-        
+        TELEGRAM_AUTH_SUCCESS.labels(service="auth-service").inc()
+
         record_security_event(
             event_type="user_login",
             service="auth-service",
             severity="info",
             user_id=str(telegram_id),
-            method="telegram_webapp"
+            method="telegram_webapp",
         )
-        
+
         # Audit log successful login
         audit_log(
             operation="user_login",
@@ -153,51 +139,53 @@ async def validate_telegram_init_data(request: web.Request) -> web.Response:
                     "id": user_data.get("user", {}).get("id"),
                     "first_name": user_data.get("user", {}).get("first_name"),
                     "last_name": user_data.get("user", {}).get("last_name"),
-                }
+                },
             },
-            request=request
+            request=request,
         )
 
-        return web.json_response({
-            "token": tokens["access_token"],
-            "access_token": tokens["access_token"],
-            "refresh_token": tokens["refresh_token"],
-            "user": {
-                "id": db_user["id"],  # Internal DB ID
-                "telegram_id": telegram_id,
-                "username": db_user.get("username"),
-                "first_name": db_user.get("first_name"),
-                "last_name": db_user.get("last_name"),
-            },
-            "profile": profile,  # Will be None for new users
-            "preferences": preferences,  # Will be None for new users
-            "expires_in": 3600,
-        })
+        return web.json_response(
+            {
+                "token": tokens["access_token"],
+                "access_token": tokens["access_token"],
+                "refresh_token": tokens["refresh_token"],
+                "user": {
+                    "id": db_user["id"],  # Internal DB ID
+                    "telegram_id": telegram_id,
+                    "username": db_user.get("username"),
+                    "first_name": db_user.get("first_name"),
+                    "last_name": db_user.get("last_name"),
+                },
+                "profile": profile,  # Will be None for new users
+                "preferences": preferences,  # Will be None for new users
+                "expires_in": 3600,
+            }
+        )
 
     except ValidationError as e:
         logger.warning(f"Validation failed: {e}")
-        
+
         # Record failed authentication
         record_auth_attempt(
             service="auth-service",
             result="failure",
             method="telegram_webapp",
-            reason=str(e)
+            reason=str(e),
         )
-        
+
         # Record Telegram auth failure
         TELEGRAM_AUTH_FAILED.labels(
-            service='auth-service',
-            reason=str(e.code) if hasattr(e, 'code') else 'validation_error'
+            service="auth-service",
+            reason=str(e.code) if hasattr(e, "code") else "validation_error",
         ).inc()
-        
+
         record_auth_failure(
             service="auth-service",
             reason="validation_failed",
             user_id="unknown",
-            error=str(e)
+            error=str(e),
         )
-        
+
         # Audit log failed authentication attempt
         log_security_event(
             event_type="authentication_failure",
@@ -207,24 +195,24 @@ async def validate_telegram_init_data(request: web.Request) -> web.Response:
             details={
                 "method": "telegram_webapp",
                 "error": str(e),
-                "reason": "validation_failed"
+                "reason": "validation_failed",
             },
-            request=request
+            request=request,
         )
-        
+
         return web.json_response({"error": str(e)}, status=401)
 
     except Exception as e:
         logger.error(f"Error validating init_data: {e}")
-        
+
         # Record authentication error
         record_auth_attempt(
             service="auth-service",
             result="error",
             method="telegram_webapp",
-            reason="internal_error"
+            reason="internal_error",
         )
-        
+
         return web.json_response({"error": "Internal server error"}, status=500)
 
 
@@ -268,9 +256,7 @@ async def refresh_token(request: web.Request) -> web.Response:
         refresh_token_str = data.get("refresh_token")
 
         if not refresh_token_str:
-            return web.json_response(
-                {"error": "refresh_token is required"}, status=400
-            )
+            return web.json_response({"error": "refresh_token is required"}, status=400)
 
         jwt_secret = request.app["config"].get("jwt_secret")
 
@@ -279,35 +265,38 @@ async def refresh_token(request: web.Request) -> web.Response:
 
         # Generate new access token
         user_id = payload.get("user_id")
-        new_access_token = generate_jwt_token(user_id, jwt_secret, token_type="access")
+        new_access_token = generate_jwt_token(
+            int(user_id) if user_id else 0, jwt_secret, token_type="access"
+        )
 
         # Audit log token refresh
         audit_log(
             operation="token_refresh",
             user_id=str(user_id),
             service="auth-service",
-            details={
-                "token_type": "refresh_to_access",
-                "expires_in": 3600
-            },
-            request=request
+            details={"token_type": "refresh_to_access", "expires_in": 3600},
+            request=request,
         )
 
-        return web.json_response({
-            "access_token": new_access_token,
-            "user_id": user_id,
-            "expires_in": 3600,  # 1 hour in seconds
-        })
+        return web.json_response(
+            {
+                "access_token": new_access_token,
+                "user_id": user_id,
+                "expires_in": 3600,  # 1 hour in seconds
+            }
+        )
 
     except ValidationError as e:
         logger.warning(f"Token refresh failed: {e}")
         from core.middleware.error_handling import validation_error_response
-        return validation_error_response(str(e), request_id=request.get('request_id'))
+
+        return validation_error_response(str(e), request_id=request.get("request_id"))
 
     except Exception as e:
         logger.error(f"Error refreshing token: {e}")
         from core.middleware.error_handling import internal_error_response
-        return internal_error_response(request_id=request.get('request_id'))
+
+        return internal_error_response(request_id=request.get("request_id"))
 
 
 # SECURITY: Test endpoint removed for production security
@@ -331,11 +320,12 @@ def create_app(config: dict) -> web.Application:
     # Add middleware
     # Setup auth service middleware stack (no JWT middleware needed)
     from core.middleware.standard_stack import setup_auth_service_middleware_stack
+
     setup_auth_service_middleware_stack(app, "auth-service")
-    
+
     # Add rate limiting for auth endpoints
     app.middlewares.append(auth_rate_limiting_middleware)
-    
+
     # Add Telegram security middleware
     app.middlewares.append(telegram_security_middleware)
 
@@ -345,7 +335,7 @@ def create_app(config: dict) -> web.Application:
     app.router.add_post("/auth/refresh", refresh_token)
     # SECURITY: Removed /auth/test endpoint - was a critical vulnerability
     app.router.add_get("/health", health_check)
-    
+
     # Add metrics endpoint
     add_metrics_route(app, "auth-service")
 
@@ -364,9 +354,9 @@ if __name__ == "__main__":
         logger.error("JWT_SECRET environment variable is required for security")
         raise RuntimeError(
             "JWT_SECRET environment variable is required. "
-            "Generate a strong secret with: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+            'Generate a strong secret with: python -c "import secrets; print(secrets.token_urlsafe(32))"'
         )
-    
+
     config = {
         "jwt_secret": jwt_secret,
         "bot_token": os.getenv("BOT_TOKEN"),
@@ -381,4 +371,4 @@ if __name__ == "__main__":
     )
 
     app = create_app(config)
-    web.run_app(app, host=config["host"], port=config["port"])
+    web.run_app(app, host=str(config["host"]), port=int(str(config["port"])))

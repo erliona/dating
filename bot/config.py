@@ -17,7 +17,9 @@ class BotConfig:
     """Settings required to run the bot."""
 
     token: str
-    api_gateway_url: str | None = None  # Optional - not needed for notification-only bot
+    api_gateway_url: str | None = (
+        None  # Optional - not needed for notification-only bot
+    )
     database_url: str | None = None  # Optional - for backward compatibility
     webapp_url: str | None = None  # Optional - not used by bot anymore
     jwt_secret: str | None = None
@@ -41,7 +43,9 @@ def load_config() -> BotConfig:
 
     token = os.getenv("BOT_TOKEN")
     if not token:
-        raise RuntimeError("BOT_TOKEN environment variable is required to start the bot")
+        raise RuntimeError(
+            "BOT_TOKEN environment variable is required to start the bot"
+        )
 
     # Validate token format (basic check)
     token = token.strip()
@@ -83,7 +87,9 @@ def load_config() -> BotConfig:
 
     webapp_url = os.getenv("WEBAPP_URL")
     if webapp_url and not webapp_url.strip():
-        raise RuntimeError("WEBAPP_URL cannot be empty if set; unset it or provide a valid URL")
+        raise RuntimeError(
+            "WEBAPP_URL cannot be empty if set; unset it or provide a valid URL"
+        )
 
     # Validate WEBAPP_URL uses HTTPS for production security (if provided)
     if webapp_url:
@@ -111,7 +117,8 @@ def load_config() -> BotConfig:
         api_gateway_url = api_gateway_url.strip()
         if not api_gateway_url.startswith(("http://", "https://")):
             raise RuntimeError(
-                "API_GATEWAY_URL must start with http:// or https://. " f"Got: {api_gateway_url}"
+                "API_GATEWAY_URL must start with http:// or https://. "
+                f"Got: {api_gateway_url}"
             )
 
     # Database URL is now optional - bot uses API Gateway instead
@@ -127,10 +134,12 @@ def load_config() -> BotConfig:
         postgres_port = os.getenv("POSTGRES_PORT", "5432")
         postgres_db = os.getenv("POSTGRES_DB")
 
-        if not database_url_raw and all([postgres_user, postgres_password, postgres_db]):
+        if not database_url_raw and all(
+            [postgres_user, postgres_password, postgres_db]
+        ):
             # URL-encode the username and password to handle special characters
-            encoded_user = quote_plus(postgres_user)
-            encoded_password = quote_plus(postgres_password)
+            encoded_user = quote_plus(postgres_user or "")
+            encoded_password = quote_plus(postgres_password or "")
             database_url_raw = (
                 f"postgresql+asyncpg://{encoded_user}:{encoded_password}"
                 f"@{postgres_host}:{postgres_port}/{postgres_db}"
@@ -140,9 +149,13 @@ def load_config() -> BotConfig:
             try:
                 database_url = make_url(database_url_raw)
                 if database_url.drivername.startswith("postgresql"):
-                    database_url_str = database_url.render_as_string(hide_password=False)
+                    database_url_str = database_url.render_as_string(
+                        hide_password=False
+                    )
             except ArgumentError:
-                logging.warning("Invalid DATABASE_URL provided, ignoring for thin client")
+                logging.warning(
+                    "Invalid DATABASE_URL provided, ignoring for thin client"
+                )
                 database_url_str = None
 
     # JWT secret for authentication (Epic A2)
@@ -168,7 +181,9 @@ def load_config() -> BotConfig:
     try:
         nsfw_threshold = float(nsfw_threshold_str)
         if not 0.0 <= nsfw_threshold <= 1.0:
-            logging.warning(f"Invalid NSFW_THRESHOLD {nsfw_threshold}, using default 0.7")
+            logging.warning(
+                f"Invalid NSFW_THRESHOLD {nsfw_threshold}, using default 0.7"
+            )
             nsfw_threshold = 0.7
     except ValueError:
         logging.warning("Invalid NSFW_THRESHOLD format, using default 0.7")

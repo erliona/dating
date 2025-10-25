@@ -1,6 +1,6 @@
 """Test Admin model timezone handling."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -15,7 +15,7 @@ class TestAdminModelTimezone:
     def test_admin_model_accepts_timezone_aware_datetime(self):
         """Test that Admin model can be instantiated with timezone-aware datetimes."""
         # Create timezone-aware datetime
-        now_utc = datetime.now(timezone.utc)
+        now_utc = datetime.now(UTC)
 
         # This should not raise any errors
         admin = Admin(
@@ -40,7 +40,7 @@ class TestAdminModelTimezone:
 
     def test_admin_model_last_login_can_be_none(self):
         """Test that last_login can be None."""
-        now_utc = datetime.now(timezone.utc)
+        now_utc = datetime.now(UTC)
 
         admin = Admin(
             id=1,

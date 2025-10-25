@@ -30,7 +30,7 @@ def create_valid_init_data(bot_token: str, user_id: int, auth_date: int = None) 
     )
 
     secret_key = hmac.new(
-        key="WebAppData".encode(), msg=bot_token.encode(), digestmod=hashlib.sha256
+        key=b"WebAppData", msg=bot_token.encode(), digestmod=hashlib.sha256
     ).digest()
 
     calculated_hash = hmac.new(

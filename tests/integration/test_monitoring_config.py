@@ -7,10 +7,9 @@ import pytest
 pytestmark = pytest.mark.integration
 
 import json
-import os
 from pathlib import Path
 
-import yaml
+import yaml  # type: ignore[import]
 
 
 def test_loki_config_exists():
@@ -22,7 +21,7 @@ def test_loki_config_exists():
 def test_loki_config_valid_yaml():
     """Test that Loki configuration is valid YAML."""
     config_path = Path("monitoring/loki/loki-config.yml")
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config = yaml.safe_load(f)
     assert config is not None, "Loki config should be valid YAML"
 
@@ -30,7 +29,7 @@ def test_loki_config_valid_yaml():
 def test_loki_config_modern_schema():
     """Test that Loki uses modern configuration schema."""
     config_path = Path("monitoring/loki/loki-config.yml")
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config = yaml.safe_load(f)
 
     # Check for modern schema configuration
@@ -47,7 +46,7 @@ def test_loki_config_modern_schema():
 def test_loki_config_no_deprecated_fields():
     """Test that Loki config doesn't contain deprecated fields."""
     config_path = Path("monitoring/loki/loki-config.yml")
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         content = f.read()
 
     # These fields were deprecated and should not be present
@@ -62,7 +61,7 @@ def test_loki_config_no_deprecated_fields():
 def test_loki_config_has_storage_config():
     """Test that Loki has proper storage configuration."""
     config_path = Path("monitoring/loki/loki-config.yml")
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config = yaml.safe_load(f)
 
     assert "storage_config" in config, "Should have storage_config"
@@ -72,7 +71,7 @@ def test_loki_config_has_storage_config():
 def test_loki_config_has_compactor():
     """Test that Loki has compactor configured for retention."""
     config_path = Path("monitoring/loki/loki-config.yml")
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config = yaml.safe_load(f)
 
     assert "compactor" in config, "Should have compactor"
@@ -90,7 +89,7 @@ def test_promtail_config_exists():
 def test_promtail_config_valid_yaml():
     """Test that Promtail configuration is valid YAML."""
     config_path = Path("monitoring/promtail/promtail-config.yml")
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config = yaml.safe_load(f)
     assert config is not None, "Promtail config should be valid YAML"
 
@@ -98,7 +97,7 @@ def test_promtail_config_valid_yaml():
 def test_promtail_config_has_enhanced_features():
     """Test that Promtail has enhanced log processing features."""
     config_path = Path("monitoring/promtail/promtail-config.yml")
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config = yaml.safe_load(f)
 
     # Check for batching configuration
@@ -119,7 +118,7 @@ def test_prometheus_config_exists():
 def test_prometheus_config_valid_yaml():
     """Test that Prometheus configuration is valid YAML."""
     config_path = Path("monitoring/prometheus/prometheus.yml")
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config = yaml.safe_load(f)
     assert config is not None, "Prometheus config should be valid YAML"
 
@@ -127,7 +126,7 @@ def test_prometheus_config_valid_yaml():
 def test_prometheus_config_has_loki_scraping():
     """Test that Prometheus is configured to scrape Loki metrics."""
     config_path = Path("monitoring/prometheus/prometheus.yml")
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config = yaml.safe_load(f)
 
     assert "scrape_configs" in config, "Should have scrape_configs"
@@ -140,7 +139,7 @@ def test_prometheus_config_has_loki_scraping():
 def test_prometheus_config_has_enhanced_labeling():
     """Test that Prometheus scrape configs have enhanced labels."""
     config_path = Path("monitoring/prometheus/prometheus.yml")
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config = yaml.safe_load(f)
 
     # Check that at least one job has labels
@@ -164,7 +163,7 @@ def test_grafana_datasources_config_exists():
 def test_grafana_datasources_valid_yaml():
     """Test that Grafana datasources configuration is valid YAML."""
     config_path = Path("monitoring/grafana/provisioning/datasources/datasources.yml")
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config = yaml.safe_load(f)
     assert config is not None, "Grafana datasources config should be valid YAML"
 
@@ -172,7 +171,7 @@ def test_grafana_datasources_valid_yaml():
 def test_grafana_has_prometheus_and_loki():
     """Test that Grafana has both Prometheus and Loki datasources."""
     config_path = Path("monitoring/grafana/provisioning/datasources/datasources.yml")
-    with open(config_path, "r") as f:
+    with open(config_path) as f:
         config = yaml.safe_load(f)
 
     assert "datasources" in config, "Should have datasources"
@@ -205,20 +204,22 @@ def test_grafana_dashboards_valid_json():
     dashboard_dir = Path("monitoring/grafana/dashboards")
 
     for dashboard_file in dashboard_dir.glob("*.json"):
-        with open(dashboard_file, "r") as f:
+        with open(dashboard_file) as f:
             try:
                 dashboard = json.load(f)
                 assert (
                     dashboard is not None
                 ), f"{dashboard_file.name} should be valid JSON"
             except json.JSONDecodeError as e:
-                assert False, f"{dashboard_file.name} has invalid JSON: {e}"
+                raise AssertionError(
+                    f"{dashboard_file.name} has invalid JSON: {e}"
+                ) from e
 
 
 def test_docker_compose_has_version_pinning():
     """Test that docker-compose.yml uses specific versions, not :latest."""
     compose_path = Path("docker-compose.yml")
-    with open(compose_path, "r") as f:
+    with open(compose_path) as f:
         content = f.read()
 
     # Check that monitoring services don't use :latest
@@ -235,7 +236,7 @@ def test_docker_compose_has_version_pinning():
 def test_docker_compose_has_env_expansion_flag():
     """Test that Loki has -config.expand-env=true flag."""
     compose_path = Path("docker-compose.yml")
-    with open(compose_path, "r") as f:
+    with open(compose_path) as f:
         content = f.read()
 
     assert (
@@ -246,7 +247,7 @@ def test_docker_compose_has_env_expansion_flag():
 def test_docker_compose_has_health_checks():
     """Test that monitoring services have health checks."""
     compose_path = Path("docker-compose.yml")
-    with open(compose_path, "r") as f:
+    with open(compose_path) as f:
         config = yaml.safe_load(f)
 
     services = config.get("services", {})
@@ -268,7 +269,7 @@ def test_monitoring_documentation_updated():
     doc_path = Path("docs/MONITORING_SETUP.md")
     assert doc_path.exists(), "MONITORING_SETUP.md should exist"
 
-    with open(doc_path, "r") as f:
+    with open(doc_path) as f:
         content = f.read()
 
     # Check for version mentions

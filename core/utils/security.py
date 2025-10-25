@@ -10,8 +10,8 @@ import hmac
 import json
 import logging
 import time
-from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 from urllib.parse import parse_qsl, unquote
 
 import jwt
@@ -125,7 +125,7 @@ def validate_telegram_webapp_init_data(
 
     # Calculate secret key: HMAC-SHA256 of bot token with constant string
     secret_key = hmac.new(
-        key="WebAppData".encode(), msg=bot_token.encode(), digestmod=hashlib.sha256
+        key=b"WebAppData", msg=bot_token.encode(), digestmod=hashlib.sha256
     ).digest()
 
     # Calculate hash: HMAC-SHA256 of data_check_string with secret_key
@@ -147,7 +147,7 @@ def validate_telegram_webapp_init_data(
     if "user" in validated_data:
         try:
             validated_data["user"] = json.loads(unquote(validated_data["user"]))
-        except (json.JSONDecodeError, ValueError) as exc:
+        except (json.JSONDecodeError, ValueError):
             logger.warning(
                 "Failed to parse user data",
                 exc_info=True,
@@ -169,11 +169,7 @@ def validate_telegram_webapp_init_data(
         "initData validated successfully",
         extra={
             "event_type": "auth_success",
-            "user_id": (
-                validated_data.get("user", {}).get("id")
-                if isinstance(validated_data.get("user"), dict)
-                else None
-            ),
+            "user_id": None,
             "data_age_seconds": data_age,
         },
     )
@@ -182,8 +178,10 @@ def validate_telegram_webapp_init_data(
 
 
 def generate_jwt_token(
-    user_id: int, secret_key: str, additional_claims: Optional[dict[str, Any]] = None,
-    token_type: str = "access"
+    user_id: int,
+    secret_key: str,
+    additional_claims: dict[str, Any] | None = None,
+    token_type: str = "access",
 ) -> str:
     """Generate a JWT token for authenticated user.
 
@@ -199,8 +197,8 @@ def generate_jwt_token(
     Example:
         >>> token = generate_jwt_token(123456, "secret", {"role": "user"})
     """
-    now = datetime.now(timezone.utc)
-    
+    now = datetime.now(UTC)
+
     # Set expiration based on token type
     if token_type == "refresh":
         expiration = now + timedelta(days=JWT_REFRESH_TTL_DAYS)
@@ -238,7 +236,7 @@ def generate_jwt_token(
 
 
 def generate_token_pair(
-    user_id: int, secret_key: str, additional_claims: Optional[dict[str, Any]] = None
+    user_id: int, secret_key: str, additional_claims: dict[str, Any] | None = None
 ) -> dict[str, str]:
     """Generate both access and refresh tokens.
 
@@ -256,15 +254,16 @@ def generate_token_pair(
         >>> refresh_token = tokens["refresh_token"]
     """
     access_token = generate_jwt_token(user_id, secret_key, additional_claims, "access")
-    refresh_token = generate_jwt_token(user_id, secret_key, additional_claims, "refresh")
-    
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token
-    }
+    refresh_token = generate_jwt_token(
+        user_id, secret_key, additional_claims, "refresh"
+    )
+
+    return {"access_token": access_token, "refresh_token": refresh_token}
 
 
-def validate_jwt_token(token: str, secret_key: str, expected_type: str = "access") -> dict[str, Any]:
+def validate_jwt_token(
+    token: str, secret_key: str, expected_type: str = "access"
+) -> dict[str, Any]:
     """Validate and decode a JWT token.
 
     Args:
@@ -302,10 +301,10 @@ def validate_jwt_token(token: str, secret_key: str, expected_type: str = "access
             logger.warning(
                 f"JWT token type mismatch: expected {expected_type}, got {token_type}",
                 extra={
-                    "event_type": "jwt_validation_failed", 
+                    "event_type": "jwt_validation_failed",
                     "reason": "wrong_type",
                     "expected_type": expected_type,
-                    "actual_type": token_type
+                    "actual_type": token_type,
                 },
             )
             raise ValidationError(f"Invalid token type: expected {expected_type}")
@@ -313,9 +312,9 @@ def validate_jwt_token(token: str, secret_key: str, expected_type: str = "access
         logger.info(
             "JWT token validated",
             extra={
-                "event_type": "jwt_validated", 
+                "event_type": "jwt_validated",
                 "user_id": payload.get("user_id"),
-                "token_type": token_type
+                "token_type": token_type,
             },
         )
 
@@ -326,7 +325,7 @@ def validate_jwt_token(token: str, secret_key: str, expected_type: str = "access
             "JWT token expired",
             extra={"event_type": "jwt_validation_failed", "reason": "expired"},
         )
-        raise ValidationError("Token has expired")
+        raise ValidationError("Token has expired") from None
 
     except jwt.InvalidTokenError as exc:
         logger.warning(

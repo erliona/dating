@@ -7,10 +7,9 @@ Epic C: Discovery, interactions, matches, and favorites.
 """
 
 import logging
-from datetime import date, datetime, timezone
-from typing import Optional
+from datetime import UTC, date, datetime
 
-from sqlalchemy import and_, delete, func, or_, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .cache import get_cache
@@ -34,9 +33,9 @@ class ProfileRepository:
     async def create_or_update_user(
         self,
         tg_id: int,
-        username: Optional[str] = None,
-        first_name: Optional[str] = None,
-        language_code: Optional[str] = None,
+        username: str | None = None,
+        first_name: str | None = None,
+        language_code: str | None = None,
         is_premium: bool = False,
     ) -> User:
         """Create or update user record.
@@ -61,7 +60,7 @@ class ProfileRepository:
             user.first_name = first_name
             user.language_code = language_code
             user.is_premium = is_premium
-            user.updated_at = datetime.now(timezone.utc)
+            user.updated_at = datetime.now(UTC)
 
             logger.info(
                 "User updated",
@@ -94,7 +93,7 @@ class ProfileRepository:
 
         return user
 
-    async def get_user_by_tg_id(self, tg_id: int) -> Optional[User]:
+    async def get_user_by_tg_id(self, tg_id: int) -> User | None:
         """Get user by Telegram ID.
 
         Args:
@@ -106,7 +105,7 @@ class ProfileRepository:
         result = await self.session.execute(select(User).where(User.tg_id == tg_id))
         return result.scalar_one_or_none()
 
-    async def get_user_by_id(self, user_id: int) -> Optional[User]:
+    async def get_user_by_id(self, user_id: int) -> User | None:
         """Get user by internal user ID.
 
         Args:
@@ -169,7 +168,7 @@ class ProfileRepository:
 
         return profile
 
-    async def get_profile_by_user_id(self, user_id: int) -> Optional[Profile]:
+    async def get_profile_by_user_id(self, user_id: int) -> Profile | None:
         """Get profile by user ID.
 
         Args:
@@ -178,10 +177,12 @@ class ProfileRepository:
         Returns:
             Profile object or None
         """
-        result = await self.session.execute(select(Profile).where(Profile.user_id == user_id))
+        result = await self.session.execute(
+            select(Profile).where(Profile.user_id == user_id)
+        )
         return result.scalar_one_or_none()
 
-    async def update_profile(self, user_id: int, profile_data: dict) -> Optional[Profile]:
+    async def update_profile(self, user_id: int, profile_data: dict) -> Profile | None:
         """Update existing profile.
 
         Args:
@@ -225,7 +226,7 @@ class ProfileRepository:
             if field in profile_data:
                 setattr(profile, field, profile_data[field])
 
-        profile.updated_at = datetime.now(timezone.utc)
+        profile.updated_at = datetime.now(UTC)
 
         logger.info(
             "Profile updated",
@@ -244,10 +245,10 @@ class ProfileRepository:
         url: str,
         sort_order: int = 0,
         safe_score: float = 1.0,
-        file_size: Optional[int] = None,
-        mime_type: Optional[str] = None,
-        width: Optional[int] = None,
-        height: Optional[int] = None,
+        file_size: int | None = None,
+        mime_type: str | None = None,
+        width: int | None = None,
+        height: int | None = None,
     ) -> Photo:
         """Add a photo to user's profile.
 
@@ -326,7 +327,7 @@ class ProfileRepository:
         photos = result.scalars().all()
 
         # Group photos by user_id
-        photos_by_user = {}
+        photos_by_user: dict[int, list] = {}
         for photo in photos:
             if photo.user_id not in photos_by_user:
                 photos_by_user[photo.user_id] = []
@@ -369,19 +370,19 @@ class ProfileRepository:
         self,
         user_id: int,
         limit: int = 10,
-        cursor: Optional[int] = None,
-        age_min: Optional[int] = None,
-        age_max: Optional[int] = None,
-        max_distance_km: Optional[float] = None,
-        goal: Optional[str] = None,
-        height_min: Optional[int] = None,
-        height_max: Optional[int] = None,
-        has_children: Optional[bool] = None,
-        smoking: Optional[bool] = None,
-        drinking: Optional[bool] = None,
-        education: Optional[str] = None,
+        cursor: int | None = None,
+        age_min: int | None = None,
+        age_max: int | None = None,
+        max_distance_km: float | None = None,
+        goal: str | None = None,
+        height_min: int | None = None,
+        height_max: int | None = None,
+        has_children: bool | None = None,
+        smoking: bool | None = None,
+        drinking: bool | None = None,
+        education: str | None = None,
         verified_only: bool = False,
-    ) -> tuple[list[Profile], Optional[int]]:
+    ) -> tuple[list[Profile], int | None]:
         """Find candidate profiles for discovery with filters and pagination.
 
         Args:
@@ -417,9 +418,9 @@ class ProfileRepository:
         # Build query
         query = select(Profile).where(
             Profile.user_id != user_id,
-            Profile.is_visible == True,
-            Profile.is_complete == True,
-            Profile.user_id.not_in(interacted_ids) if interacted_ids else True,
+            Profile.is_visible,
+            Profile.is_complete,
+            Profile.user_id.not_in(interacted_ids) if interacted_ids else True,  # type: ignore[arg-type]
         )
 
         # Apply mutual orientation filters
@@ -522,7 +523,7 @@ class ProfileRepository:
         if interaction:
             # Update existing interaction
             interaction.interaction_type = interaction_type
-            interaction.updated_at = datetime.now(timezone.utc)
+            interaction.updated_at = datetime.now(UTC)
             logger.info(
                 "Interaction updated",
                 extra={
@@ -621,7 +622,9 @@ class ProfileRepository:
             # Roll back and fetch the existing match
             await self.session.rollback()
             result = await self.session.execute(
-                select(Match).where(Match.user1_id == user1_id, Match.user2_id == user2_id)
+                select(Match).where(
+                    Match.user1_id == user1_id, Match.user2_id == user2_id
+                )
             )
             match = result.scalar_one_or_none()
 
@@ -657,8 +660,8 @@ class ProfileRepository:
         return match
 
     async def get_matches(
-        self, user_id: int, limit: int = 20, cursor: Optional[int] = None
-    ) -> tuple[list[tuple[Match, Profile]], Optional[int]]:
+        self, user_id: int, limit: int = 20, cursor: int | None = None
+    ) -> tuple[list[tuple[Match, Profile]], int | None]:
         """Get user's matches with profiles.
 
         Args:
@@ -676,7 +679,9 @@ class ProfileRepository:
             return cached
 
         # Build query for matches involving this user
-        query = select(Match).where(or_(Match.user1_id == user_id, Match.user2_id == user_id))
+        query = select(Match).where(
+            or_(Match.user1_id == user_id, Match.user2_id == user_id)
+        )
 
         if cursor:
             query = query.where(Match.id < cursor)
@@ -695,7 +700,9 @@ class ProfileRepository:
         # Get profiles for matched users
         matches_with_profiles = []
         for match in matches:
-            other_user_id = match.user2_id if match.user1_id == user_id else match.user1_id
+            other_user_id = (
+                match.user2_id if match.user1_id == user_id else match.user1_id
+            )
             profile = await self.get_profile_by_user_id(other_user_id)
             if profile:
                 matches_with_profiles.append((match, profile))
@@ -728,7 +735,9 @@ class ProfileRepository:
         """
         # Check if favorite already exists
         result = await self.session.execute(
-            select(Favorite).where(Favorite.user_id == user_id, Favorite.target_id == target_id)
+            select(Favorite).where(
+                Favorite.user_id == user_id, Favorite.target_id == target_id
+            )
         )
         favorite = result.scalar_one_or_none()
 
@@ -774,10 +783,12 @@ class ProfileRepository:
             True if removed, False if not found
         """
         result = await self.session.execute(
-            delete(Favorite).where(Favorite.user_id == user_id, Favorite.target_id == target_id)
+            delete(Favorite).where(
+                Favorite.user_id == user_id, Favorite.target_id == target_id
+            )
         )
 
-        removed = result.rowcount > 0
+        removed = result.rowcount > 0 if hasattr(result, "rowcount") else False
 
         if removed:
             # Invalidate favorites cache
@@ -795,8 +806,8 @@ class ProfileRepository:
         return removed
 
     async def get_favorites(
-        self, user_id: int, limit: int = 20, cursor: Optional[int] = None
-    ) -> tuple[list[tuple[Favorite, Profile]], Optional[int]]:
+        self, user_id: int, limit: int = 20, cursor: int | None = None
+    ) -> tuple[list[tuple[Favorite, Profile]], int | None]:
         """Get user's favorites with profiles.
 
         Args:
@@ -852,15 +863,17 @@ class ProfileRepository:
         return favorites_with_profiles, next_cursor
 
     # Admin methods
-    async def list_users(self, page: int = 1, per_page: int = 20, search: str = "") -> tuple[list[User], int]:
+    async def list_users(
+        self, page: int = 1, per_page: int = 20, search: str = ""
+    ) -> tuple[list[User], int]:
         """List users with pagination for admin panel."""
         from sqlalchemy import func, or_
-        
+
         offset = (page - 1) * per_page
-        
+
         # Build query
         query = select(User).order_by(User.created_at.desc())
-        
+
         if search:
             query = query.where(
                 or_(
@@ -868,73 +881,74 @@ class ProfileRepository:
                     User.first_name.ilike(f"%{search}%"),
                 )
             )
-        
+
         # Count total
         count_query = select(func.count()).select_from(query.subquery())
         total_result = await self.session.execute(count_query)
         total = total_result.scalar()
-        
+
         # Get page
         query = query.offset(offset).limit(per_page)
         result = await self.session.execute(query)
         users = result.scalars().all()
-        
-        return users, total
+
+        return list(users), total or 0
 
     async def get_system_stats(self) -> dict:
         """Get system statistics for admin dashboard."""
+        from datetime import datetime, timedelta
+
         from sqlalchemy import func
-        from datetime import datetime, timedelta, timezone
-        
+
         # Total users
         total_users_result = await self.session.execute(select(func.count(User.id)))
         total_users = total_users_result.scalar()
-        
+
         # Active users (created in last 30 days)
-        thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+        thirty_days_ago = datetime.now(UTC) - timedelta(days=30)
         active_users_result = await self.session.execute(
             select(func.count(User.id)).where(User.created_at >= thirty_days_ago)
         )
         active_users = active_users_result.scalar()
-        
+
         # Total profiles
         total_profiles_result = await self.session.execute(
             select(func.count(Profile.id))
         )
         total_profiles = total_profiles_result.scalar()
-        
+
         # Complete profiles
         complete_profiles_result = await self.session.execute(
             select(func.count(Profile.id)).where(Profile.is_complete)
         )
         complete_profiles = complete_profiles_result.scalar()
-        
+
         # Total photos
         total_photos_result = await self.session.execute(select(func.count(Photo.id)))
         total_photos = total_photos_result.scalar()
-        
+
         # Verified photos
         verified_photos_result = await self.session.execute(
             select(func.count(Photo.id)).where(Photo.is_verified)
         )
         verified_photos = verified_photos_result.scalar()
-        
+
         # Total matches
         total_matches_result = await self.session.execute(select(func.count(Match.id)))
         total_matches = total_matches_result.scalar()
-        
+
         # Total interactions
         total_interactions_result = await self.session.execute(
             select(func.count(Interaction.id))
         )
         total_interactions = total_interactions_result.scalar()
-        
+
         # Banned users
         banned_users_result = await self.session.execute(
             select(func.count(User.id)).where(User.is_banned)
         )
         banned_users = banned_users_result.scalar()
-        
+
         return {
             "users": {
                 "total": total_users,
@@ -948,42 +962,48 @@ class ProfileRepository:
             "photos": {
                 "total": total_photos,
                 "verified": verified_photos,
-                "pending": total_photos - verified_photos,
+                "pending": (total_photos or 0) - (verified_photos or 0),
             },
             "matches": total_matches,
             "interactions": total_interactions,
         }
 
-    async def list_photos(self, page: int = 1, per_page: int = 20, verified_only: bool = False, unverified_only: bool = False) -> tuple[list[Photo], int]:
+    async def list_photos(
+        self,
+        page: int = 1,
+        per_page: int = 20,
+        verified_only: bool = False,
+        unverified_only: bool = False,
+    ) -> tuple[list[Photo], int]:
         """List photos for moderation."""
         from sqlalchemy import func
-        
+
         offset = (page - 1) * per_page
-        
+
         query = select(Photo).order_by(Photo.created_at.desc())
-        
+
         if verified_only:
             query = query.where(Photo.is_verified)
         elif unverified_only:
             query = query.where(~Photo.is_verified)
-        
+
         # Count total
         count_query = select(func.count()).select_from(query.subquery())
         total_result = await self.session.execute(count_query)
         total = total_result.scalar()
-        
+
         # Get page
         query = query.offset(offset).limit(per_page)
         result = await self.session.execute(query)
         photos = result.scalars().all()
-        
-        return photos, total
 
-    async def get_photo_by_id(self, photo_id: int) -> Optional[Photo]:
+        return list(photos), total or 0
+
+    async def get_photo_by_id(self, photo_id: int) -> Photo | None:
         """Get photo by ID."""
         result = await self.session.execute(select(Photo).where(Photo.id == photo_id))
         return result.scalar_one_or_none()
-    
+
     async def get_profiles_count(self) -> int:
         """Get total count of profiles."""
         result = await self.session.execute(select(func.count(Profile.id)))

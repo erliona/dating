@@ -1,7 +1,5 @@
 """Tests for bot configuration module."""
 
-import os
-
 import pytest
 
 pytestmark = pytest.mark.unit

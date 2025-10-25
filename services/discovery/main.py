@@ -5,24 +5,30 @@ from __future__ import annotations
 This microservice handles matching algorithm and candidate discovery.
 """
 
-import logging
-import aiohttp
 import asyncio
+import logging
+from typing import Any
 
+import aiohttp
 from aiohttp import web
-from core.utils.logging import configure_logging
-from core.middleware.standard_stack import setup_standard_middleware_stack
-from core.middleware.metrics_middleware import add_metrics_route
-from core.resilience.circuit_breaker import data_service_breaker
-from core.resilience.retry import retry_data_service
+
+from core.exceptions import CircuitBreakerError, ExternalServiceError, ValidationError
 from core.messaging.publisher import EventPublisher
 from core.metrics.business_metrics import (
-    record_interaction, record_swipe, update_active_users, 
-    update_users_by_region, update_matches_current
+    record_interaction,
+    record_swipe,
+    update_active_users,
 )
-from core.middleware.correlation import create_headers_with_correlation, log_correlation_propagation
-from core.exceptions import ValidationError, CircuitBreakerError, ExternalServiceError
+from core.middleware.correlation import (
+    create_headers_with_correlation,
+    log_correlation_propagation,
+)
 from core.middleware.error_handling import setup_error_handling
+from core.middleware.metrics_middleware import add_metrics_route
+from core.middleware.standard_stack import setup_standard_middleware_stack
+from core.resilience.circuit_breaker import data_service_breaker
+from core.resilience.retry import retry_data_service
+from core.utils.logging import configure_logging
 
 logger = logging.getLogger(__name__)
 
@@ -31,28 +37,36 @@ event_publisher = None
 
 
 @retry_data_service()
-async def _call_data_service(url: str, method: str = "GET", data: dict = None, params: dict = None, request: web.Request = None):
+async def _call_data_service(
+    url: str,
+    method: str = "GET",
+    data: dict = None,
+    params: dict = None,
+    request: web.Request = None,
+):
     """Helper to call Data Service with retry logic and correlation ID propagation."""
     headers = {}
-    
+
     # Add correlation headers if request is provided
     if request:
         headers = create_headers_with_correlation(request)
         log_correlation_propagation(
-            correlation_id=request.get('correlation_id', 'unknown'),
-            from_service='discovery-service',
-            to_service='data-service',
+            correlation_id=request.get("correlation_id", "unknown"),
+            from_service="discovery-service",
+            to_service="data-service",
             operation=f"{method} {url}",
-            request=request
+            request=request,
         )
-    
+
     async with aiohttp.ClientSession() as session:
-        async with session.request(method, url, json=data, params=params, headers=headers) as resp:
+        async with session.request(
+            method, url, json=data, params=params, headers=headers
+        ) as resp:
             if resp.status >= 400:
                 raise ExternalServiceError(
-                    service='data-service',
+                    service="data-service",
                     message=f"HTTP {resp.status}: {await resp.text()}",
-                    details={'url': url, 'method': method, 'status': resp.status}
+                    details={"url": url, "method": method, "status": resp.status},
                 )
             return await resp.json()
 
@@ -71,41 +85,52 @@ async def get_candidates(request: web.Request) -> web.Response:
             raise ValidationError("user_id is required")
 
         data_service_url = request.app["data_service_url"]
-        
+
         # Build query parameters for Data Service
-        params = {
+        params: dict[str, Any] = {
             "user_id": user_id,
             "limit": limit,
         }
-        
+
         # Add cursor if provided
-        if request.query.get("cursor"):
-            params["cursor"] = request.query.get("cursor")
-        
+        cursor = request.query.get("cursor")
+        if cursor:
+            params["cursor"] = cursor
+
         # Add filters
         filter_params = [
-            "age_min", "age_max", "max_distance_km", "goal", "height_min", 
-            "height_max", "has_children", "smoking", "drinking", "education", "verified_only"
+            "age_min",
+            "age_max",
+            "max_distance_km",
+            "goal",
+            "height_min",
+            "height_max",
+            "has_children",
+            "smoking",
+            "drinking",
+            "education",
+            "verified_only",
         ]
         for param in filter_params:
-            if request.query.get(param):
-                params[param] = request.query.get(param)
-        
+            value = request.query.get(param)
+            if value:
+                params[param] = value
+
         # Add geocoding support
-        if request.query.get("lat") and request.query.get("lon"):
-            params["lat"] = request.query.get("lat")
-            params["lon"] = request.query.get("lon")
-            
+        lat = request.query.get("lat")
+        lon = request.query.get("lon")
+        if lat and lon:
+            params["lat"] = lat
+            params["lon"] = lon
+
             # Get location info for user's coordinates
             from .geocoding import reverse_geocode
-            location_info = await reverse_geocode(
-                float(request.query.get("lat")), 
-                float(request.query.get("lon"))
-            )
+
+            location_info = await reverse_geocode(float(lat), float(lon))
             if location_info:
                 params["user_city"] = location_info.get("city", "")
                 params["user_country"] = location_info.get("country", "")
-        
+
         # Get user profile and preferences for smart matching
         profile_url = f"{data_service_url}/data/profiles/{user_id}"
         profile_result = await data_service_breaker.call(
@@ -115,9 +140,9 @@ async def get_candidates(request: web.Request) -> web.Response:
             None,
             None,
             request,
-            fallback=lambda *args: {}
+            fallback=lambda *args: {},
         )
-        
+
         preferences_url = f"{data_service_url}/data/user-preferences/{user_id}"
         preferences_result = await data_service_breaker.call(
             _call_data_service,
@@ -126,9 +151,9 @@ async def get_candidates(request: web.Request) -> web.Response:
             None,
             None,
             request,
-            fallback=lambda *args: {}
+            fallback=lambda *args: {},
         )
-        
+
         # Get user's previous interactions to avoid showing same people
         interactions_url = f"{data_service_url}/data/interactions/{user_id}"
         interactions_result = await data_service_breaker.call(
@@ -138,33 +163,38 @@ async def get_candidates(request: web.Request) -> web.Response:
             None,
             None,
             request,
-            fallback=lambda *args: {"interactions": []}
+            fallback=lambda *args: {"interactions": []},
         )
-        
-        seen_user_ids = [interaction['target_id'] for interaction in interactions_result.get('interactions', [])]
-        params['exclude_user_ids'] = seen_user_ids + [user_id]  # Exclude self and already seen
-        
+
+        seen_user_ids = [
+            str(interaction["target_id"])
+            for interaction in interactions_result.get("interactions", [])
+        ]
+        params["exclude_user_ids"] = seen_user_ids + [
+            str(user_id)
+        ]  # Exclude self and already seen
+
         # Add smart filters based on user preferences
-        profile = profile_result.get('profile', {})
-        preferences = preferences_result.get('preferences', {})
-        
-        if preferences.get('preferred_gender'):
-            params['gender'] = preferences['preferred_gender']
-        elif profile.get('orientation'):
-            params['gender'] = profile['orientation']
-            
-        if preferences.get('min_age'):
-            params['age_min'] = preferences['min_age']
-        if preferences.get('max_age'):
-            params['age_max'] = preferences['max_age']
-        if preferences.get('max_distance_km'):
-            params['max_distance_km'] = preferences['max_distance_km']
+        profile = profile_result.get("profile", {})
+        preferences = preferences_result.get("preferences", {})
+
+        if preferences.get("preferred_gender"):
+            params["gender"] = preferences["preferred_gender"]
+        elif profile.get("orientation"):
+            params["gender"] = profile["orientation"]
+
+        if preferences.get("min_age"):
+            params["age_min"] = preferences["min_age"]
+        if preferences.get("max_age"):
+            params["age_max"] = preferences["max_age"]
+        if preferences.get("max_distance_km"):
+            params["max_distance_km"] = preferences["max_distance_km"]
         else:
-            params['max_distance_km'] = 50  # Default radius
-        
+            params["max_distance_km"] = 50  # Default radius
+
         # Get more candidates for better filtering
-        params['limit'] = limit * 2
-        
+        params["limit"] = limit * 2
+
         # Use circuit breaker + retry with correlation ID propagation
         result = await data_service_breaker.call(
             _call_data_service,
@@ -173,18 +203,18 @@ async def get_candidates(request: web.Request) -> web.Response:
             None,
             params,
             request,  # Pass request for correlation ID
-            fallback=lambda *args: {"candidates": [], "cursor": None}
+            fallback=lambda *args: {"candidates": [], "cursor": None},
         )
-        
+
         if "error" in result:
             raise ExternalServiceError(
-                service='data-service',
+                service="data-service",
                 message=result.get("error", "Unknown error"),
-                details=result
+                details=result,
             )
-        
+
         candidates = result.get("candidates", [])
-        
+
         # Filter out blocked users
         try:
             blocked_result = await _call_data_service(
@@ -192,20 +222,26 @@ async def get_candidates(request: web.Request) -> web.Response:
                 "GET",
                 None,
                 {"blocker_id": user_id},
-                request=request
+                request=request,
             )
-            blocked_user_ids = [block["target_user_id"] for block in blocked_result.get("blocks", [])]
+            blocked_user_ids = [
+                block["target_user_id"] for block in blocked_result.get("blocks", [])
+            ]
             candidates = [c for c in candidates if c["id"] not in blocked_user_ids]
         except Exception as e:
             logger.warning(f"Failed to filter blocked users: {e}")
             # Continue without filtering if we can't get blocked users
-        
+
         # If we have less than 5 candidates, expand search radius
         if len(candidates) < 5:
             expanded_params = params.copy()
-            expanded_params['max_distance_km'] = min(expanded_params.get('max_distance_km', 50) * 2, 200)
-            expanded_params['exclude_user_ids'] = seen_user_ids + [user_id]  # Don't include already fetched
-            
+            expanded_params["max_distance_km"] = min(
+                expanded_params.get("max_distance_km", 50) * 2, 200
+            )
+            expanded_params["exclude_user_ids"] = seen_user_ids + [
+                user_id
+            ]  # Don't include already fetched
+
             expanded_result = await data_service_breaker.call(
                 _call_data_service,
                 f"{data_service_url}/data/candidates",
@@ -213,52 +249,58 @@ async def get_candidates(request: web.Request) -> web.Response:
                 None,
                 expanded_params,
                 request,
-                fallback=lambda *args: {"candidates": []}
+                fallback=lambda *args: {"candidates": []},
             )
-            
+
             additional_candidates = expanded_result.get("candidates", [])
-            
+
             # Merge and deduplicate
-            existing_ids = {c['id'] for c in candidates}
+            existing_ids = {c["id"] for c in candidates}
             for candidate in additional_candidates:
-                if candidate['id'] not in existing_ids:
+                if candidate["id"] not in existing_ids:
                     candidates.append(candidate)
-                    existing_ids.add(candidate['id'])
-        
+                    existing_ids.add(candidate["id"])
+
         # Smart sorting: verified first, then by distance, then by interests match, then random
         def sort_key(candidate):
-            verified_bonus = 1000 if candidate.get('is_verified', False) else 0
-            distance_penalty = candidate.get('distance', 999) * 10
-            
+            verified_bonus = 1000 if candidate.get("is_verified", False) else 0
+            distance_penalty = candidate.get("distance", 999) * 10
+
             # Interest matching bonus
             interest_bonus = 0
-            if profile.get('interests') and candidate.get('interests'):
-                common_interests = set(profile['interests']) & set(candidate['interests'])
+            if profile.get("interests") and candidate.get("interests"):
+                common_interests = set(profile["interests"]) & set(
+                    candidate["interests"]
+                )
                 interest_bonus = len(common_interests) * 50
-            
+
             # Random factor for variety
-            random_factor = hash(str(candidate['id'])) % 100
-            
+            random_factor = hash(str(candidate["id"])) % 100
+
             return verified_bonus - distance_penalty + interest_bonus + random_factor
-        
+
         candidates.sort(key=sort_key, reverse=True)
-        
+
         # Limit to requested number
         candidates = candidates[:limit]
-        
+
         # Record metrics
-        record_interaction()
-        update_active_users()
-        
-        return web.json_response({
-            'candidates': candidates,
-            'total': len(candidates),
-            'cursor': result.get('cursor'),
-            'search_radius_km': params.get('max_distance_km', 50)
-        })
+        record_interaction(
+            service="discovery-service", interaction_type="get_candidates"
+        )
+        update_active_users(service="discovery-service", count=1)
+
+        return web.json_response(
+            {
+                "candidates": candidates,
+                "total": len(candidates),
+                "cursor": result.get("cursor"),
+                "search_radius_km": params.get("max_distance_km", 50),
+            }
+        )
 
     except ValueError as e:
-        raise ValidationError("Invalid parameters", details={"error": str(e)})
+        raise ValidationError("Invalid parameters", details={"error": str(e)}) from e
     except Exception as e:
         logger.error(f"Error getting candidates: {e}", exc_info=True)
         raise
@@ -280,13 +322,13 @@ async def like_profile(request: web.Request) -> web.Response:
             raise ValidationError("user_id and target_id are required")
 
         data_service_url = request.app["data_service_url"]
-        
+
         interaction_data = {
             "user_id": user_id,
             "target_id": target_id,
             "interaction_type": interaction_type,
         }
-        
+
         # Use circuit breaker + retry with correlation ID propagation
         result = await data_service_breaker.call(
             _call_data_service,
@@ -295,22 +337,24 @@ async def like_profile(request: web.Request) -> web.Response:
             interaction_data,
             None,
             request,  # Pass request for correlation ID
-            fallback=lambda *args: {"error": "Service temporarily unavailable"}
+            fallback=lambda *args: {"error": "Service temporarily unavailable"},
         )
-        
+
         if "error" in result:
             if result["error"] == "Service temporarily unavailable":
                 raise CircuitBreakerError("data-service")
             raise ExternalServiceError(
-                service='data-service',
+                service="data-service",
                 message=result.get("error", "Unknown error"),
-                details=result
+                details=result,
             )
-        
+
         # Record metrics
-        record_interaction('discovery-service', interaction_type)
-        record_swipe('discovery-service', interaction_type)
-        
+        record_interaction(
+            service="discovery-service", interaction_type=interaction_type
+        )
+        record_swipe(service="discovery-service", swipe_type=interaction_type)
+
         # Check if it's a match and publish event
         if result.get("is_match") and event_publisher:
             correlation_id = request.get("correlation_id")
@@ -320,14 +364,14 @@ async def like_profile(request: web.Request) -> web.Response:
                     "user_id_1": user_id,
                     "user_id_2": target_id,
                     "matched_at": result.get("created_at"),
-                    "interaction_type": interaction_type
+                    "interaction_type": interaction_type,
                 },
-                correlation_id=correlation_id
+                correlation_id=correlation_id,
             )
-            
+
             # Record match metric
-            record_interaction('discovery-service', 'match')
-        
+            record_interaction(service="discovery-service", interaction_type="match")
+
         return web.json_response(result)
 
     except Exception as e:
@@ -337,7 +381,7 @@ async def like_profile(request: web.Request) -> web.Response:
 
 async def swipe_user(request: web.Request) -> web.Response:
     """Unified swipe endpoint (like or pass).
-    
+
     POST /discovery/swipe
     Body: {
         "user_id": 123,
@@ -348,39 +392,34 @@ async def swipe_user(request: web.Request) -> web.Response:
         data = await request.json()
         user_id = data.get("user_id")
         action = data.get("action")
-        
+
         if not user_id:
             return web.json_response({"error": "user_id is required"}, status=400)
-        
+
         if action not in ["like", "pass"]:
-            return web.json_response({"error": "action must be 'like' or 'pass'"}, status=400)
-        
+            return web.json_response(
+                {"error": "action must be 'like' or 'pass'"}, status=400
+            )
+
         # Call data service
+        data_service_url = request.app["data_service_url"]
         result = await _call_data_service(
-            f"{DATA_SERVICE_URL}/data/discovery/swipe",
-            "POST",
-            data,
-            request
+            f"{data_service_url}/data/discovery/swipe", "POST", data, request
         )
-        
+
         # Record metrics
-        record_swipe(
-            service="discovery-service",
-            result="success",
-            user_id=str(user_id),
-            action=action
-        )
-        
+        record_swipe(service="discovery-service", swipe_type=action)
+
         # Publish event if it's a match
-        if action == "like" and result.get("is_match"):
+        if action == "like" and result.get("is_match") and event_publisher:
             await event_publisher.publish_match_event(
                 user_id=user_id,
                 target_user_id=data.get("target_user_id"),
-                match_id=result.get("match_id")
+                match_id=result.get("match_id"),
             )
-        
+
         return web.json_response(result)
-        
+
     except ValidationError as e:
         logger.warning(f"Validation error in swipe_user: {e}")
         return web.json_response({"error": str(e)}, status=400)
@@ -394,35 +433,31 @@ async def swipe_user(request: web.Request) -> web.Response:
 
 async def get_likes(request: web.Request) -> web.Response:
     """Get users who liked me.
-    
+
     GET /discovery/likes
     Query params: user_id, limit, cursor
     """
     try:
         user_id = int(request.query.get("user_id", 0))
         limit = int(request.query.get("limit", 20))
-        
+
         if not user_id:
             return web.json_response({"error": "user_id is required"}, status=400)
-        
+
         # Call data service
+        data_service_url = request.app["data_service_url"]
         result = await _call_data_service(
-            f"{DATA_SERVICE_URL}/data/discovery/likes",
+            f"{data_service_url}/data/discovery/likes",
             "GET",
             params={"user_id": user_id, "limit": limit},
-            request=request
+            request=request,
         )
-        
+
         # Record metrics
-        record_interaction(
-            service="discovery-service",
-            result="success",
-            user_id=str(user_id),
-            action="get_likes"
-        )
-        
+        record_interaction(service="discovery-service", interaction_type="get_likes")
+
         return web.json_response(result)
-        
+
     except ExternalServiceError as e:
         logger.error(f"Data service error in get_likes: {e}")
         return web.json_response({"error": "Failed to get likes"}, status=500)
@@ -445,17 +480,18 @@ async def get_matches(request: web.Request) -> web.Response:
             return web.json_response({"error": "user_id is required"}, status=400)
 
         data_service_url = request.app["data_service_url"]
-        
+
         # Build query parameters for Data Service
-        params = {
+        params: dict[str, Any] = {
             "user_id": user_id,
             "limit": limit,
         }
-        
+
         # Add cursor if provided
-        if request.query.get("cursor"):
-            params["cursor"] = request.query.get("cursor")
-        
+        cursor = request.query.get("cursor")
+        if cursor:
+            params["cursor"] = cursor
+
         # Use circuit breaker + retry
         result = await data_service_breaker.call(
             _call_data_service,
@@ -463,19 +499,23 @@ async def get_matches(request: web.Request) -> web.Response:
             "GET",
             None,
             params,
-            fallback=lambda *args: {"matches": [], "cursor": None}
+            fallback=lambda *args: {"matches": [], "cursor": None},
         )
-        
+
         if "error" in result:
             return web.json_response(result, status=500)
-        
+
         # Increment business metrics for each match
         if result and "matches" in result:
-            matches_total.inc(len(result["matches"]))
-        
+            # Note: matches_total metric removed, using record_interaction instead
+            record_interaction(
+                service="discovery-service",
+                interaction_type="match_created",
+            )
+
         return web.json_response(result)
 
-    except ValueError as e:
+    except ValueError:
         return web.json_response({"error": "Invalid parameters"}, status=400)
     except Exception as e:
         logger.error(f"Error getting matches: {e}", exc_info=True)
@@ -484,46 +524,44 @@ async def get_matches(request: web.Request) -> web.Response:
 
 async def block_user_handler(request: web.Request) -> web.Response:
     """Block a user from discovery.
-    
+
     POST /discovery/block/{user_id}
     """
     try:
-        user_id = request.match_info['user_id']
-        current_user_id = request.get('user_id')
-        
+        user_id = request.match_info["user_id"]
+        current_user_id = request.get("user_id")
+
         if not current_user_id:
             return web.json_response({"error": "Authentication required"}, status=401)
-        
+
         if user_id == current_user_id:
             return web.json_response({"error": "Cannot block yourself"}, status=400)
-        
+
         # Call data service to create block
-        result = await _call_data_service(
-            f"{DATA_SERVICE_URL}/data/blocks",
+        data_service_url = request.app["data_service_url"]
+        await _call_data_service(
+            f"{data_service_url}/data/blocks",
             "POST",
             {
                 "blocker_id": current_user_id,
                 "target_user_id": user_id,
-                "reason": "user_blocked"
+                "reason": "user_blocked",
             },
-            request=request
+            request=request,
         )
-        
+
         # Record metrics
         record_interaction(
             service="discovery-service",
-            action="block",
-            user_id=str(current_user_id),
-            target_user_id=str(user_id)
+            interaction_type="block",
         )
-        
+
         logger.info(f"User {current_user_id} blocked user {user_id}")
-        
-        return web.json_response({
-            "message": "User blocked successfully",
-            "blocked_user_id": user_id
-        })
-        
+
+        return web.json_response(
+            {"message": "User blocked successfully", "blocked_user_id": user_id}
+        )
+
     except ValidationError as e:
         logger.warning(f"Validation error in block_user: {e}")
         return web.json_response({"error": str(e)}, status=400)
@@ -537,46 +575,50 @@ async def block_user_handler(request: web.Request) -> web.Response:
 
 async def report_user_handler(request: web.Request) -> web.Response:
     """Report a user for inappropriate behavior.
-    
+
     POST /discovery/report/{user_id}
     Body: { "reason": "spam|abuse|inappropriate|fake|other" }
     """
     try:
-        user_id = request.match_info['user_id']
-        current_user_id = request.get('user_id')
+        user_id = request.match_info["user_id"]
+        current_user_id = request.get("user_id")
         data = await request.json()
-        
+
         if not current_user_id:
             return web.json_response({"error": "Authentication required"}, status=401)
-        
+
         if user_id == current_user_id:
             return web.json_response({"error": "Cannot report yourself"}, status=400)
-        
-        reason = data.get('reason', 'other')
-        valid_reasons = ['spam', 'abuse', 'inappropriate', 'fake', 'other']
-        
+
+        reason = data.get("reason", "other")
+        valid_reasons = ["spam", "abuse", "inappropriate", "fake", "other"]
+
         if reason not in valid_reasons:
-            return web.json_response({
-                "error": f"Invalid reason. Must be one of: {', '.join(valid_reasons)}"
-            }, status=400)
-        
+            return web.json_response(
+                {
+                    "error": f"Invalid reason. Must be one of: {', '.join(valid_reasons)}"
+                },
+                status=400,
+            )
+
         # Call data service to create report
-        result = await _call_data_service(
-            f"{DATA_SERVICE_URL}/data/reports",
+        data_service_url = request.app["data_service_url"]
+        await _call_data_service(
+            f"{data_service_url}/data/reports",
             "POST",
             {
                 "reporter_id": current_user_id,
                 "reported_user_id": user_id,
                 "reason": reason,
-                "context": "discovery"
+                "context": "discovery",
             },
-            request=request
+            request=request,
         )
-        
+
         # Send to moderation queue
         try:
             await _call_data_service(
-                f"{DATA_SERVICE_URL}/moderation/queue",
+                f"{data_service_url}/moderation/queue",
                 "POST",
                 {
                     "content_type": "report",
@@ -584,30 +626,30 @@ async def report_user_handler(request: web.Request) -> web.Response:
                     "user_id": current_user_id,
                     "reason": reason,
                     "priority": 2,  # High priority for user reports
-                    "reported_by": current_user_id
+                    "reported_by": current_user_id,
                 },
-                request=request
+                request=request,
             )
         except Exception as e:
             logger.warning(f"Failed to queue report for moderation: {e}")
             # Don't fail the report if moderation queueing fails
-        
+
         # Record metrics
         record_interaction(
             service="discovery-service",
-            action="report",
-            user_id=str(current_user_id),
-            target_user_id=str(user_id)
+            interaction_type="report",
         )
-        
+
         logger.info(f"User {current_user_id} reported user {user_id} for {reason}")
-        
-        return web.json_response({
-            "message": "User reported successfully",
-            "reported_user_id": user_id,
-            "reason": reason
-        })
-        
+
+        return web.json_response(
+            {
+                "message": "User reported successfully",
+                "reported_user_id": user_id,
+                "reason": reason,
+            }
+        )
+
     except ValidationError as e:
         logger.warning(f"Validation error in report_user: {e}")
         return web.json_response({"error": str(e)}, status=400)
@@ -631,13 +673,13 @@ async def sync_discovery_metrics():
             # This would typically call data-service to get current stats
             # For now, we'll just log that the sync is running
             logger.debug("Syncing discovery metrics...")
-            
+
             # TODO: Implement actual metrics sync with data-service
             # stats = await get_discovery_stats()
             # update_active_users('discovery-service', stats['active_users_24h'])
             # for region, count in stats['users_by_region'].items():
             #     update_users_by_region('discovery-service', region, count)
-            
+
             await asyncio.sleep(300)  # Update every 5 minutes
         except Exception as e:
             logger.error(f"Failed to sync discovery metrics: {e}")
@@ -652,25 +694,25 @@ async def on_startup(app):
         event_publisher = EventPublisher(rabbitmq_url)
         await event_publisher.connect()
         logger.info("Event publisher initialized")
-    
+
     # Start metrics sync background task
-    app['metrics_sync_task'] = asyncio.create_task(sync_discovery_metrics())
+    app["metrics_sync_task"] = asyncio.create_task(sync_discovery_metrics())
     logger.info("Metrics sync task started")
 
 
 async def on_shutdown(app):
     """Shutdown handler."""
     global event_publisher
-    
+
     # Cancel metrics sync task
-    if 'metrics_sync_task' in app:
-        app['metrics_sync_task'].cancel()
+    if "metrics_sync_task" in app:
+        app["metrics_sync_task"].cancel()
         try:
-            await app['metrics_sync_task']
+            await app["metrics_sync_task"]
         except asyncio.CancelledError:
             pass
         logger.info("Metrics sync task cancelled")
-    
+
     if event_publisher:
         await event_publisher.close()
         logger.info("Event publisher closed")
@@ -679,15 +721,17 @@ async def on_shutdown(app):
 def create_app(config: dict) -> web.Application:
     """Create and configure the discovery service application."""
     app = web.Application()
-    
+
     # Setup error handling
-    setup_error_handling(app, \"discovery-service")
+    setup_error_handling(app, "discovery-service")
     app["config"] = config
     app["data_service_url"] = config["data_service_url"]
-    
+
     # Setup standard middleware stack
-    setup_standard_middleware_stack(app, "discovery-service", use_auth=True, use_audit=True)
-    
+    setup_standard_middleware_stack(
+        app, "discovery-service", use_auth=True, use_audit=True
+    )
+
     # Add metrics endpoint
     add_metrics_route(app, "discovery-service")
 
@@ -700,7 +744,7 @@ def create_app(config: dict) -> web.Application:
     app.router.add_post("/discovery/block/{user_id}", block_user_handler)
     app.router.add_post("/discovery/report/{user_id}", report_user_handler)
     app.router.add_get("/health", health_check)
-    
+
     # Add startup/shutdown handlers
     app.on_startup.append(on_startup)
     app.on_shutdown.append(on_shutdown)
@@ -717,7 +761,9 @@ if __name__ == "__main__":
     config = {
         "jwt_secret": os.getenv("JWT_SECRET"),  # SECURITY: No default value
         "data_service_url": os.getenv("DATA_SERVICE_URL", "http://data-service:8088"),
-        "rabbitmq_url": os.getenv("RABBITMQ_URL", "amqp://dating:dating@rabbitmq:5672/"),
+        "rabbitmq_url": os.getenv(
+            "RABBITMQ_URL", "amqp://dating:dating@rabbitmq:5672/"
+        ),
         "host": os.getenv("DISCOVERY_SERVICE_HOST", "0.0.0.0"),
         "port": int(os.getenv("DISCOVERY_SERVICE_PORT", 8083)),
     }
@@ -728,4 +774,4 @@ if __name__ == "__main__":
     )
 
     app = create_app(config)
-    web.run_app(app, host=config["host"], port=config["port"])
+    web.run_app(app, host=str(config["host"]), port=int(str(config["port"])))

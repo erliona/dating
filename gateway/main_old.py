@@ -12,11 +12,14 @@ from aiohttp import ClientSession, ClientTimeout, web
 from aiohttp_cors import ResourceOptions
 from aiohttp_cors import setup as cors_setup
 
-from core.utils.logging import configure_logging
-from core.middleware.request_logging import request_logging_middleware, user_context_middleware
-from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
-from core.middleware.versioning import versioning_middleware
 from core.middleware.correlation import correlation_middleware
+from core.middleware.metrics_middleware import add_metrics_route, metrics_middleware
+from core.middleware.request_logging import (
+    request_logging_middleware,
+    user_context_middleware,
+)
+from core.middleware.versioning import versioning_middleware
+from core.utils.logging import configure_logging
 
 logger = logging.getLogger(__name__)
 
@@ -49,12 +52,12 @@ async def proxy_request(
                 for k, v in request.headers.items()
                 if k.lower() not in ["host", "connection"]
             }
-            
+
             # Add correlation ID if present
             correlation_id = request.get("correlation_id")
             if correlation_id:
                 headers["X-Correlation-ID"] = correlation_id
-            
+
             # Forward request
             async with session.request(
                 method=request.method,
@@ -89,7 +92,9 @@ async def route_auth(request: web.Request) -> web.Response:
     new_path = request.path.replace("/v1", "", 1)
     if not new_path:
         new_path = "/"
-    logger.info(f"Routing auth request: {request.path} -> {new_path} (target: {auth_url})")
+    logger.info(
+        f"Routing auth request: {request.path} -> {new_path} (target: {auth_url})"
+    )
     return await proxy_request(request, auth_url, path_override=new_path)
 
 
@@ -226,14 +231,14 @@ def create_app(config: dict) -> web.Application:
     """Create and configure the API gateway application."""
     app = web.Application()
     app["config"] = config
-    
+
     # Add middleware for request logging and user context
     app.middlewares.append(correlation_middleware)
     app.middlewares.append(versioning_middleware)
     app.middlewares.append(user_context_middleware)
     app.middlewares.append(request_logging_middleware)
     app.middlewares.append(metrics_middleware)
-    
+
     # Add metrics endpoint
     add_metrics_route(app, "api-gateway")
 
@@ -241,11 +246,13 @@ def create_app(config: dict) -> web.Application:
     # SECURITY: Restrict CORS to specific domains only
     webapp_domain = config.get("webapp_domain")
     if not webapp_domain:
-        logger.error("webapp_domain not configured - CORS will be disabled for security")
+        logger.error(
+            "webapp_domain not configured - CORS will be disabled for security"
+        )
         # In production, we should fail if webapp_domain is not set
         # For now, we'll use a restrictive default
         webapp_domain = "https://localhost:3000"  # Development only
-    
+
     cors = cors_setup(
         app,
         defaults={
@@ -279,24 +286,26 @@ def create_app(config: dict) -> web.Application:
     app.router.add_route("*", r"/v1/chat/{tail:.*}", route_chat)
     app.router.add_route("*", r"/v1/admin/{tail:.*}", route_admin)
     app.router.add_route("*", r"/v1/notifications/{tail:.*}", route_notifications)
-    
+
     # Legacy routes (redirect to v1)
     async def redirect_to_v1(request: web.Request) -> web.Response:
         """Redirect legacy routes to v1."""
         new_path = f"/v1{request.path}"
         logger.warning(
             f"Legacy route redirected: {request.path} -> {new_path}",
-            extra={"event_type": "legacy_redirect"}
+            extra={"event_type": "legacy_redirect"},
         )
         return web.HTTPMovedPermanently(location=new_path)
-    
+
     app.router.add_route("*", "/auth/{tail:.*}", redirect_to_v1)
     app.router.add_route("*", "/profiles/{tail:.*}", redirect_to_v1)
     app.router.add_route("*", "/discovery/{tail:.*}", redirect_to_v1)
     app.router.add_route("*", "/media/{tail:.*}", redirect_to_v1)
     app.router.add_route("*", "/chat/{tail:.*}", redirect_to_v1)
     app.router.add_route("*", "/admin/{tail:.*}", redirect_to_v1)
-    app.router.add_route("*", "/admin-panel/{tail:.*}", route_admin)  # Keep admin-panel as is
+    app.router.add_route(
+        "*", "/admin-panel/{tail:.*}", route_admin
+    )  # Keep admin-panel as is
     app.router.add_route("*", "/notifications/{tail:.*}", redirect_to_v1)
 
     # Add unified /api/* routes for frontend/WebApp (public API)
@@ -333,10 +342,10 @@ def create_app(config: dict) -> web.Application:
         new_path = f"/api/v1{request.path[4:]}"  # Remove /api and add /api/v1
         logger.warning(
             f"Legacy API route redirected: {request.path} -> {new_path}",
-            extra={"event_type": "legacy_api_redirect"}
+            extra={"event_type": "legacy_api_redirect"},
         )
         return web.HTTPMovedPermanently(location=new_path)
-    
+
     # Legacy auth endpoints
     add_cors_route("/api/auth/token", redirect_api_to_v1)
     add_cors_route("/api/auth/{tail:.*}", redirect_api_to_v1)
@@ -370,7 +379,9 @@ def create_app(config: dict) -> web.Application:
     # Debug: Log all registered routes
     logger.info("Registered routes:")
     for route in app.router.routes():
-        logger.info(f"  {route.method} {route.resource.canonical}")
+        logger.info(
+            f"  {route.method} {route.resource.canonical if route.resource else 'Unknown'}"
+        )
 
     return app
 
@@ -410,4 +421,4 @@ if __name__ == "__main__":
     )
 
     app = create_app(config)
-    web.run_app(app, host=config["host"], port=config["port"])
+    web.run_app(app, host=str(config["host"]), port=int(str(config["port"])))

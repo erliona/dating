@@ -8,7 +8,7 @@ For production use, replace with Redis.
 
 import logging
 import time
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class Cache:
         self._misses = 0
         self._last_cleanup = time.time()
 
-    def get(self, key: str) -> Optional[Any]:
+    def get(self, key: str) -> Any | None:
         """Get value from cache.
 
         Args:
@@ -99,7 +99,9 @@ class Cache:
             del self._storage[key]
 
         if keys_to_delete:
-            logger.debug(f"Cache pattern deleted: {pattern}, count: {len(keys_to_delete)}")
+            logger.debug(
+                f"Cache pattern deleted: {pattern}, count: {len(keys_to_delete)}"
+            )
 
         return len(keys_to_delete)
 
@@ -143,7 +145,7 @@ class Cache:
 
 
 # Global cache instance
-_cache_instance: Optional[Cache] = None
+_cache_instance: Cache | None = None
 
 
 def get_cache() -> Cache:

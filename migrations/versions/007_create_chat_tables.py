@@ -6,21 +6,21 @@ Create Date: 2025-01-23
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "007_create_chat_tables"
-down_revision: Union[str, None] = "006_fix_discovery_tables_timezone"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "006_fix_discovery_tables_timezone"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
     """Create conversations and messages tables."""
-    
+
     # Create conversations table
     op.create_table(
         "conversations",
@@ -29,12 +29,20 @@ def upgrade() -> None:
         sa.Column("user1_id", sa.Integer(), nullable=False),
         sa.Column("user2_id", sa.Integer(), nullable=False),
         sa.Column("last_message_at", sa.DateTime(), nullable=True),
-        sa.Column("unread_count_user1", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("unread_count_user2", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column(
+            "unread_count_user1", sa.Integer(), nullable=False, server_default="0"
+        ),
+        sa.Column(
+            "unread_count_user2", sa.Integer(), nullable=False, server_default="0"
+        ),
         sa.Column("is_blocked", sa.Boolean(), nullable=False, server_default="false"),
         sa.Column("blocked_by_user_id", sa.Integer(), nullable=True),
-        sa.Column("created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("match_id"),
         sa.CheckConstraint("user1_id < user2_id", name="user1_less_than_user2"),
@@ -50,10 +58,17 @@ def upgrade() -> None:
         sa.Column("conversation_id", sa.Integer(), nullable=False),
         sa.Column("sender_id", sa.Integer(), nullable=False),
         sa.Column("content", sa.Text(), nullable=False),
-        sa.Column("content_type", sa.String(length=20), nullable=False, server_default="'text'"),
+        sa.Column(
+            "content_type",
+            sa.String(length=20),
+            nullable=False,
+            server_default="'text'",
+        ),
         sa.Column("media_url", sa.String(length=500), nullable=True),
         sa.Column("is_read", sa.Boolean(), nullable=False, server_default="false"),
-        sa.Column("created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
+        ),
         sa.CheckConstraint(
             "content_type IN ('text', 'photo', 'voice', 'system')",
             name="valid_content_type",

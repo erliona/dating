@@ -1,18 +1,14 @@
 """End-to-end tests for complete user flows."""
 
-import json
-from datetime import date
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from aiogram.types import Message, User, WebAppData
 
 pytestmark = pytest.mark.e2e
 
 
 class TestOnboardingFlow:
     """Test complete user onboarding flow."""
-
 
 
 class TestDiscoveryFlow:
@@ -98,7 +94,6 @@ class TestChatFlow:
 class TestProfileManagementFlow:
     """Test profile editing and management."""
 
-
     @pytest.mark.asyncio
     async def test_profile_deletion_flow(self):
         """Test deleting user profile."""
@@ -113,7 +108,6 @@ class TestProfileManagementFlow:
 
 class TestLocationFlow:
     """Test location-based features."""
-
 
     @pytest.mark.asyncio
     async def test_distance_filtering_flow(self):
@@ -149,7 +143,6 @@ class TestNotificationFlow:
 
 class TestErrorHandlingFlow:
     """Test error handling in user flows."""
-
 
 
 class TestAdminFlow:

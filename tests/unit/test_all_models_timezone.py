@@ -1,6 +1,6 @@
 """Test timezone handling for all database models."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -14,7 +14,7 @@ class TestUserModelTimezone:
 
     def test_user_model_accepts_timezone_aware_datetime(self):
         """Test that User model can be instantiated with timezone-aware datetimes."""
-        now_utc = datetime.now(timezone.utc)
+        now_utc = datetime.now(UTC)
 
         user = User(
             id=1,
@@ -50,7 +50,7 @@ class TestProfileModelTimezone:
 
     def test_profile_model_accepts_timezone_aware_datetime(self):
         """Test that Profile model can be instantiated with timezone-aware datetimes."""
-        now_utc = datetime.now(timezone.utc)
+        now_utc = datetime.now(UTC)
         from datetime import date
 
         profile = Profile(
@@ -87,7 +87,7 @@ class TestPhotoModelTimezone:
 
     def test_photo_model_accepts_timezone_aware_datetime(self):
         """Test that Photo model can be instantiated with timezone-aware datetimes."""
-        now_utc = datetime.now(timezone.utc)
+        now_utc = datetime.now(UTC)
 
         photo = Photo(
             id=1,
@@ -116,7 +116,7 @@ class TestInteractionModelTimezone:
 
     def test_interaction_model_accepts_timezone_aware_datetime(self):
         """Test that Interaction model can be instantiated with timezone-aware datetimes."""
-        now_utc = datetime.now(timezone.utc)
+        now_utc = datetime.now(UTC)
 
         interaction = Interaction(
             id=1,
@@ -149,7 +149,7 @@ class TestMatchModelTimezone:
 
     def test_match_model_accepts_timezone_aware_datetime(self):
         """Test that Match model can be instantiated with timezone-aware datetimes."""
-        now_utc = datetime.now(timezone.utc)
+        now_utc = datetime.now(UTC)
 
         match = Match(
             id=1,
@@ -175,7 +175,7 @@ class TestFavoriteModelTimezone:
 
     def test_favorite_model_accepts_timezone_aware_datetime(self):
         """Test that Favorite model can be instantiated with timezone-aware datetimes."""
-        now_utc = datetime.now(timezone.utc)
+        now_utc = datetime.now(UTC)
 
         favorite = Favorite(
             id=1,

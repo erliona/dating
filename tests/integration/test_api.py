@@ -1,10 +1,8 @@
 """Tests for HTTP API photo upload functionality."""
 
-import base64
 import io
 import json
-from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import jwt
 import pytest
@@ -235,7 +233,6 @@ class TestAuthenticateRequest:
 
     async def test_authenticate_missing_header(self):
         """Test authentication fails when Authorization header is missing."""
-        from aiohttp import web
 
         from bot.api import AuthenticationError, authenticate_request
 
@@ -372,8 +369,6 @@ class TestGenerateTokenHandler:
         assert response.status == 500
 
 
-
-
 class TestCreateApp:
     """Test create_app function."""
 
@@ -437,8 +432,6 @@ class TestCreateApp:
 
         assert app is not None
         assert app["config"].photo_cdn_url == "https://cdn.example.com"
-
-
 
 
 @pytest.mark.asyncio

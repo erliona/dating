@@ -12,12 +12,16 @@ from aiohttp import ClientSession, ClientTimeout, web
 from aiohttp_cors import ResourceOptions
 from aiohttp_cors import setup as cors_setup
 
-from core.utils.logging import configure_logging
-from core.middleware.request_logging import request_logging_middleware, user_context_middleware
-from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
-from core.middleware.versioning import versioning_middleware
 from core.middleware.correlation import correlation_middleware
-from .websocket_proxy import proxy_websocket, is_websocket_request
+from core.middleware.metrics_middleware import add_metrics_route, metrics_middleware
+from core.middleware.request_logging import (
+    request_logging_middleware,
+    user_context_middleware,
+)
+from core.middleware.versioning import versioning_middleware
+from core.utils.logging import configure_logging
+
+from .websocket_proxy import is_websocket_request, proxy_websocket
 
 logger = logging.getLogger(__name__)
 
@@ -35,13 +39,13 @@ async def proxy_request(
                 path = path_override
             else:
                 # Extract path after /v1/{service}/
-                path_parts = request.path.split('/')
-                if len(path_parts) >= 4 and path_parts[1] == 'v1':
+                path_parts = request.path.split("/")
+                if len(path_parts) >= 4 and path_parts[1] == "v1":
                     # Remove /v1/{service} prefix
-                    path = '/' + '/'.join(path_parts[3:])
+                    path = "/" + "/".join(path_parts[3:])
                 else:
                     path = request.path
-            
+
             query_string = request.query_string
             full_url = f"{target_url}{path}"
             if query_string:
@@ -63,12 +67,10 @@ async def proxy_request(
             ) as response:
                 # Read response body
                 body = await response.read()
-                
+
                 # Create response
                 return web.Response(
-                    body=body,
-                    status=response.status,
-                    headers=dict(response.headers)
+                    body=body, status=response.status, headers=dict(response.headers)
                 )
 
     except Exception as e:
@@ -77,6 +79,7 @@ async def proxy_request(
 
 
 # ==================== ROUTING FUNCTIONS ====================
+
 
 async def route_auth(request: web.Request) -> web.Response:
     """Route auth requests to auth-service."""
@@ -105,11 +108,11 @@ async def route_media(request: web.Request) -> web.Response:
 async def route_chat(request: web.Request) -> web.Response:
     """Route chat requests to chat-service with WebSocket support."""
     target_url = request.app["config"]["chat_service_url"]
-    
+
     # Check if this is a WebSocket request
     if is_websocket_request(request):
         return await proxy_websocket(request, target_url)
-    
+
     # Regular HTTP request
     return await proxy_request(request, target_url)
 
@@ -128,32 +131,32 @@ async def route_notifications(request: web.Request) -> web.Response:
 
 # ==================== HEALTH & METRICS ====================
 
+
 async def health_check(request: web.Request) -> web.Response:
     """Health check endpoint."""
-    return web.json_response({
-        "status": "healthy",
-        "service": "api-gateway",
-        "version": "2.0.0"
-    })
+    return web.json_response(
+        {"status": "healthy", "service": "api-gateway", "version": "2.0.0"}
+    )
 
 
 # ==================== APPLICATION SETUP ====================
+
 
 def create_app(config: dict) -> web.Application:
     """Create and configure the API Gateway application."""
     app = web.Application()
     app["config"] = config
-    
+
     # HTTP session will be created on startup
     app["http_session"] = None
-    
+
     # Add middleware
     app.middlewares.append(request_logging_middleware)
     app.middlewares.append(user_context_middleware)
     app.middlewares.append(metrics_middleware)
     app.middlewares.append(versioning_middleware)
     app.middlewares.append(correlation_middleware)
-    
+
     # Setup CORS
     # Configure CORS with multiple origins
     allowed_origins = [
@@ -164,28 +167,33 @@ def create_app(config: dict) -> web.Application:
         "http://localhost:3000",  # Development
         "http://localhost:5173",  # Vite dev server
     ]
-    
+
     # Add additional origins from environment
-    extra_origins = os.getenv('CORS_ORIGINS', '').split(',')
-    allowed_origins.extend([origin.strip() for origin in extra_origins if origin.strip()])
-    
-    cors = cors_setup(app, defaults={
-        "*": ResourceOptions(
-            allow_credentials=True,
-            expose_headers="*",
-            allow_headers="*",
-            allow_methods="*"
-        )
-    })
-    
+    extra_origins = os.getenv("CORS_ORIGINS", "").split(",")
+    allowed_origins.extend(
+        [origin.strip() for origin in extra_origins if origin.strip()]
+    )
+
+    cors = cors_setup(
+        app,
+        defaults={
+            "*": ResourceOptions(
+                allow_credentials=True,
+                expose_headers="*",
+                allow_headers="*",
+                allow_methods="*",
+            )
+        },
+    )
+
     # Add metrics endpoint
     add_metrics_route(app, "api-gateway")
-    
+
     # ==================== ROUTES ====================
-    
+
     # Health check
     app.router.add_get("/health", health_check)
-    
+
     # API v1 routes
     app.router.add_route("*", r"/api/v1/auth/{tail:.*}", route_auth)
     app.router.add_route("*", r"/api/v1/profiles/{tail:.*}", route_profile)
@@ -194,20 +202,26 @@ def create_app(config: dict) -> web.Application:
     app.router.add_route("*", r"/api/v1/chat/{tail:.*}", route_chat)
     app.router.add_route("*", r"/api/v1/admin/{tail:.*}", route_admin)
     app.router.add_route("*", r"/api/v1/notifications/{tail:.*}", route_notifications)
-    
+
     # Add CORS to specific routes (exclude wildcard routes)
     for route in app.router.routes():
         # Skip wildcard routes that cause CORS conflicts
-        if hasattr(route, 'resource') and hasattr(route.resource, 'canonical') and '{tail}' in route.resource.canonical:
+        if (
+            hasattr(route, "resource")
+            and hasattr(route.resource, "canonical")
+            and route.resource
+            and "{tail}" in route.resource.canonical
+        ):
             continue
         cors.add(route)
-    
+
     return app
 
 
 async def startup_session(app: web.Application):
     """Create HTTP session on app startup."""
     app["http_session"] = ClientSession()
+
 
 async def cleanup_session(app: web.Application):
     """Cleanup HTTP session on app shutdown."""
@@ -221,12 +235,22 @@ if __name__ == "__main__":
 
     config = {
         "auth_service_url": os.getenv("AUTH_SERVICE_URL", "http://auth-service:8081"),
-        "profile_service_url": os.getenv("PROFILE_SERVICE_URL", "http://profile-service:8082"),
-        "discovery_service_url": os.getenv("DISCOVERY_SERVICE_URL", "http://discovery-service:8083"),
-        "media_service_url": os.getenv("MEDIA_SERVICE_URL", "http://media-service:8084"),
+        "profile_service_url": os.getenv(
+            "PROFILE_SERVICE_URL", "http://profile-service:8082"
+        ),
+        "discovery_service_url": os.getenv(
+            "DISCOVERY_SERVICE_URL", "http://discovery-service:8083"
+        ),
+        "media_service_url": os.getenv(
+            "MEDIA_SERVICE_URL", "http://media-service:8084"
+        ),
         "chat_service_url": os.getenv("CHAT_SERVICE_URL", "http://chat-service:8085"),
-        "admin_service_url": os.getenv("ADMIN_SERVICE_URL", "http://admin-service:8086"),
-        "notification_service_url": os.getenv("NOTIFICATION_SERVICE_URL", "http://notification-service:8087"),
+        "admin_service_url": os.getenv(
+            "ADMIN_SERVICE_URL", "http://admin-service:8086"
+        ),
+        "notification_service_url": os.getenv(
+            "NOTIFICATION_SERVICE_URL", "http://notification-service:8087"
+        ),
     }
 
     logger.info(
@@ -235,9 +259,11 @@ if __name__ == "__main__":
     )
 
     app = create_app(config)
-    
+
     # Add startup and cleanup handlers
     app.on_startup.append(startup_session)
     app.on_cleanup.append(cleanup_session)
-    
-    web.run_app(app, host=config.get("host", "0.0.0.0"), port=config.get("port", 8080))
+
+    web.run_app(
+        app, host=str(config.get("host", "0.0.0.0")), port=int(config.get("port", 8080))
+    )

@@ -13,12 +13,12 @@ The bot no longer has any command handlers or HTTP API server.
 import asyncio
 import logging
 import os
-from typing import Any, Dict
+from typing import Any
 
 from aiogram import Bot, Dispatcher
+from aiogram.filters import CommandStart
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import Message
-from aiogram.filters import CommandStart
 from aiohttp import web
 
 from core.utils.logging import configure_logging
@@ -34,20 +34,23 @@ _dp_instance: Dispatcher = None
 async def start_command_handler(message: Message) -> None:
     """Handle /start command."""
     logger = logging.getLogger(__name__)
-    
+
     # Get WebApp URL from config
     webapp_url = os.getenv("WEBAPP_URL", "https://dating.serge.cc")
-    
+
     # Create inline keyboard with WebApp button
-    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
-    
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(
-            text="🚀 Открыть Mini App",
-            web_app=WebAppInfo(url=webapp_url)
-        )]
-    ])
-    
+    from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="🚀 Открыть Mini App", web_app=WebAppInfo(url=webapp_url)
+                )
+            ]
+        ]
+    )
+
     welcome_text = (
         "👋 Добро пожаловать в Dating App!\n\n"
         "🎯 Найди свою половинку\n"
@@ -55,12 +58,12 @@ async def start_command_handler(message: Message) -> None:
         "📍 Встречайся рядом с тобой\n\n"
         "Нажми кнопку ниже, чтобы начать:"
     )
-    
+
     await message.answer(welcome_text, reply_markup=keyboard)
-    
+
     logger.info(
         f"Start command handled for user {message.from_user.id}",
-        extra={"event_type": "start_command", "user_id": message.from_user.id}
+        extra={"event_type": "start_command", "user_id": message.from_user.id},
     )
 
 
@@ -91,7 +94,9 @@ async def send_match_notification_handler(request: web.Request) -> web.Response:
         if success:
             return web.json_response({"status": "sent", "user_id": user_id})
         else:
-            return web.json_response({"error": "Failed to send notification"}, status=500)
+            return web.json_response(
+                {"error": "Failed to send notification"}, status=500
+            )
     except Exception as e:
         logging.error(f"Error handling match notification request: {e}", exc_info=True)
         return web.json_response({"error": "Internal server error"}, status=500)
@@ -123,9 +128,13 @@ async def send_message_notification_handler(request: web.Request) -> web.Respons
         if success:
             return web.json_response({"status": "sent", "user_id": user_id})
         else:
-            return web.json_response({"error": "Failed to send notification"}, status=500)
+            return web.json_response(
+                {"error": "Failed to send notification"}, status=500
+            )
     except Exception as e:
-        logging.error(f"Error handling message notification request: {e}", exc_info=True)
+        logging.error(
+            f"Error handling message notification request: {e}", exc_info=True
+        )
         return web.json_response({"error": "Internal server error"}, status=500)
 
 
@@ -154,7 +163,9 @@ async def send_like_notification_handler(request: web.Request) -> web.Response:
         if success:
             return web.json_response({"status": "sent", "user_id": user_id})
         else:
-            return web.json_response({"error": "Failed to send notification"}, status=500)
+            return web.json_response(
+                {"error": "Failed to send notification"}, status=500
+            )
     except Exception as e:
         logging.error(f"Error handling like notification request: {e}", exc_info=True)
         return web.json_response({"error": "Internal server error"}, status=500)
@@ -166,7 +177,7 @@ async def health_check_handler(request: web.Request) -> web.Response:
 
 
 # Internal notification sending functions
-async def send_match_notification(user_id: int, match_data: Dict[str, Any]) -> bool:
+async def send_match_notification(user_id: int, match_data: dict[str, Any]) -> bool:
     """Send notification about a new match.
 
     Args:
@@ -212,7 +223,7 @@ async def send_match_notification(user_id: int, match_data: Dict[str, Any]) -> b
         return False
 
 
-async def send_message_notification(user_id: int, message_data: Dict[str, Any]) -> bool:
+async def send_message_notification(user_id: int, message_data: dict[str, Any]) -> bool:
     """Send notification about a new message.
 
     Args:
@@ -257,7 +268,7 @@ async def send_message_notification(user_id: int, message_data: Dict[str, Any]) 
         return False
 
 
-async def send_like_notification(user_id: int, like_data: Dict[str, Any]) -> bool:
+async def send_like_notification(user_id: int, like_data: dict[str, Any]) -> bool:
     """Send notification about receiving a like.
 
     Args:
@@ -356,12 +367,12 @@ async def run_bot_with_commands(host: str = "0.0.0.0", port: int = 8080):
 
     # Start polling for commands
     logger.info("Starting polling for commands", extra={"event_type": "polling_start"})
-    
+
     try:
         # Run both HTTP server and polling concurrently
         await asyncio.gather(
             _dp_instance.start_polling(_bot_instance),
-            asyncio.Event().wait()  # Keep HTTP server running
+            asyncio.Event().wait(),  # Keep HTTP server running
         )
     finally:
         await runner.cleanup()
@@ -398,7 +409,9 @@ async def main() -> None:
             )
             raise ValueError("BOT_TOKEN is not properly configured")
 
-        logger.info("Creating bot instance...", extra={"event_type": "bot_creation_start"})
+        logger.info(
+            "Creating bot instance...", extra={"event_type": "bot_creation_start"}
+        )
         bot = Bot(token=config.token)
 
         # Try to get bot info to validate token early
@@ -428,13 +441,16 @@ async def main() -> None:
         # Create dispatcher and register command handlers
         dp = Dispatcher(storage=MemoryStorage())
         dp.message.register(start_command_handler, CommandStart())
-        
+
         # Store instances globally
         global _bot_instance, _dp_instance
         _bot_instance = bot
         _dp_instance = dp
-        
-        logger.info("Dispatcher created and handlers registered", extra={"event_type": "dispatcher_created"})
+
+        logger.info(
+            "Dispatcher created and handlers registered",
+            extra={"event_type": "dispatcher_created"},
+        )
 
         # Start notification HTTP server
         notification_host = os.getenv("API_HOST", "0.0.0.0")

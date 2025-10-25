@@ -34,6 +34,7 @@ def get_database_url() -> str:
         os.getenv("BOT_DATABASE_URL")
         or os.getenv("DATABASE_URL")
         or config.get_main_option("sqlalchemy.url")
+        or "sqlite:///bot.db"
     )
 
 

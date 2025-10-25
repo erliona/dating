@@ -12,7 +12,7 @@ import pytest
 pytestmark = pytest.mark.e2e
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bot.db import Profile, User
+from bot.db import Profile
 from bot.repository import ProfileRepository
 
 

@@ -6,29 +6,33 @@ Create Date: 2025-01-23
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "011_create_likes_table"
-down_revision: Union[str, None] = "010_add_user_preferences_activity"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "010_add_user_preferences_activity"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
     """Create likes table."""
-    
+
     op.create_table(
         "likes",
         sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
         sa.Column("liker_id", sa.Integer(), nullable=False),
         sa.Column("liked_id", sa.Integer(), nullable=False),
-        sa.Column("like_type", sa.String(length=20), nullable=False, server_default="'like'"),
+        sa.Column(
+            "like_type", sa.String(length=20), nullable=False, server_default="'like'"
+        ),
         sa.Column("is_viewed", sa.Boolean(), nullable=False, server_default="false"),
-        sa.Column("created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
+        ),
         sa.CheckConstraint(
             "like_type IN ('like', 'superlike')",
             name="valid_like_type",

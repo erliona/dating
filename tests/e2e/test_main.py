@@ -1,14 +1,10 @@
 """Tests for bot/main.py - bot handlers and main entry point."""
 
-import asyncio
 import json
 import logging
-from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from aiogram import Dispatcher
-from aiogram.types import Message, User, WebAppData, WebAppInfo
 
 pytestmark = pytest.mark.e2e
 
@@ -272,7 +268,7 @@ class TestMainFunction:
     )
     async def test_main_config_load_error(self):
         """Test main() handles configuration load error.
-        
+
         NOTE: This test needs to be refactored to handle graceful shutdown of main().
         """
         pass
@@ -282,7 +278,7 @@ class TestMainFunction:
     )
     async def test_main_bot_creation_with_api_gateway(self):
         """Test main() creates bot with API Gateway configuration (thin client).
-        
+
         NOTE: This test needs to be refactored to handle graceful shutdown of main().
         """
         pass
@@ -292,7 +288,7 @@ class TestMainFunction:
     )
     async def test_main_without_api_gateway(self):
         """Test main() handles missing API Gateway configuration.
-        
+
         NOTE: This test needs to be refactored to handle graceful shutdown of main().
         """
         pass
@@ -302,7 +298,7 @@ class TestMainFunction:
     )
     async def test_main_bot_execution_error(self):
         """Test main() handles bot execution error.
-        
+
         NOTE: This test needs to be refactored to handle graceful shutdown of main().
         """
         pass

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 pytestmark = pytest.mark.e2e
 
-from bot.db import Favorite, Interaction, Match, Profile, User
+from bot.db import Favorite, Interaction, Match, Profile
 from bot.repository import ProfileRepository
 
 
@@ -173,7 +173,7 @@ class TestInteractions:
         self.session.execute = AsyncMock(return_value=result_mock)
         self.session.flush = AsyncMock()
 
-        interaction = await repository.create_interaction(1, 2, "like")
+        await repository.create_interaction(1, 2, "like")
 
         # Verify interaction was added
         self.session.add.assert_called_once()
@@ -259,7 +259,7 @@ class TestMatches:
         self.session.execute = AsyncMock(return_value=result_mock)
         self.session.flush = AsyncMock()
 
-        match = await repository.create_match(2, 1)
+        await repository.create_match(2, 1)
 
         # Verify match was added with normalized IDs
         self.session.add.assert_called_once()
@@ -361,7 +361,7 @@ class TestFavorites:
         self.session.execute = AsyncMock(return_value=result_mock)
         self.session.flush = AsyncMock()
 
-        favorite = await repository.add_favorite(1, 2)
+        await repository.add_favorite(1, 2)
 
         # Verify favorite was added
         self.session.add.assert_called_once()

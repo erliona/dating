@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from enum import Enum
-from typing import Optional
 
 from sqlalchemy import (
     ARRAY,
+    JSON,
     BigInteger,
     Boolean,
     CheckConstraint,
@@ -16,7 +16,6 @@ from sqlalchemy import (
     Float,
     Index,
     Integer,
-    JSON,
     SmallInteger,
     String,
     Text,
@@ -75,10 +74,12 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    tg_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False, index=True)
-    username: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    first_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    language_code: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
+    tg_id: Mapped[int] = mapped_column(
+        BigInteger, unique=True, nullable=False, index=True
+    )
+    username: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    first_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    language_code: Mapped[str | None] = mapped_column(String(10), nullable=True)
     is_premium: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_banned: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
@@ -98,7 +99,9 @@ class Profile(Base):
     __tablename__ = "profiles"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True, index=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, nullable=False, unique=True, index=True
+    )
 
     # Basic information
     name: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -106,25 +109,27 @@ class Profile(Base):
     gender: Mapped[str] = mapped_column(String(20), nullable=False)
     orientation: Mapped[str] = mapped_column(String(20), nullable=False)
     goal: Mapped[str] = mapped_column(String(50), nullable=False)
-    bio: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    bio: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Interests - stored as array
-    interests: Mapped[Optional[list[str]]] = mapped_column(ARRAY(String(50)), nullable=True)
+    interests: Mapped[list[str] | None] = mapped_column(
+        ARRAY(String(50)), nullable=True
+    )
 
     # Optional profile details
-    height_cm: Mapped[Optional[int]] = mapped_column(SmallInteger, nullable=True)
-    education: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    has_children: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
-    wants_children: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
-    smoking: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
-    drinking: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    height_cm: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    education: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    has_children: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    wants_children: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    smoking: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    drinking: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
 
     # Location - geohash for privacy
-    country: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    city: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
-    geohash: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, index=True)
-    latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
-    longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    country: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    geohash: Mapped[str | None] = mapped_column(String(20), nullable=True, index=True)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Privacy settings
     hide_distance: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -157,7 +162,9 @@ class Profile(Base):
             name="height_cm_range",
         ),
         CheckConstraint("gender IN ('male', 'female', 'other')", name="valid_gender"),
-        CheckConstraint("orientation IN ('male', 'female', 'any')", name="valid_orientation"),
+        CheckConstraint(
+            "orientation IN ('male', 'female', 'any')", name="valid_orientation"
+        ),
         CheckConstraint(
             "goal IN ('friendship', 'dating', 'relationship', 'networking', 'serious', 'casual')",
             name="valid_goal",
@@ -185,10 +192,10 @@ class Photo(Base):
     safe_score: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
 
     # File metadata
-    file_size: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    mime_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    width: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    height: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    file_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    mime_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    width: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    height: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # Status
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -200,7 +207,9 @@ class Photo(Base):
 
     __table_args__ = (
         CheckConstraint("sort_order >= 0 AND sort_order <= 2", name="sort_order_range"),
-        CheckConstraint("safe_score >= 0.0 AND safe_score <= 1.0", name="safe_score_range"),
+        CheckConstraint(
+            "safe_score >= 0.0 AND safe_score <= 1.0", name="safe_score_range"
+        ),
         Index("idx_photos_user_id_sort", "user_id", "sort_order"),
     )
 
@@ -295,15 +304,19 @@ class Admin(Base):
     __tablename__ = "admins"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    username: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    username: Mapped[str] = mapped_column(
+        String(255), unique=True, nullable=False, index=True
+    )
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
-    full_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    email: Mapped[Optional[str]] = mapped_column(
+    full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    email: Mapped[str | None] = mapped_column(
         String(255), unique=True, nullable=True, index=True
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_super_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    last_login: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_login: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -319,6 +332,7 @@ class Admin(Base):
 
 # New models for MVP features
 
+
 class Conversation(Base):
     """Conversation table - stores chat conversations between matched users."""
 
@@ -328,11 +342,13 @@ class Conversation(Base):
     match_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
     user1_id: Mapped[int] = mapped_column(Integer, nullable=False)
     user2_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    last_message_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_message_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     unread_count_user1: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     unread_count_user2: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_blocked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    blocked_by_user_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    blocked_by_user_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -360,8 +376,10 @@ class Message(Base):
     conversation_id: Mapped[int] = mapped_column(Integer, nullable=False)
     sender_id: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    content_type: Mapped[str] = mapped_column(String(20), default="text", nullable=False)
-    media_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    content_type: Mapped[str] = mapped_column(
+        String(20), default="text", nullable=False
+    )
+    media_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -388,10 +406,12 @@ class Notification(Base):
     notification_type: Mapped[str] = mapped_column(String(50), nullable=False)
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
-    data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_sent: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    sent_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -416,14 +436,16 @@ class Report(Base):
     reporter_id: Mapped[int] = mapped_column(Integer, nullable=False)
     reported_user_id: Mapped[int] = mapped_column(Integer, nullable=False)
     report_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     context: Mapped[str] = mapped_column(String(20), default="profile", nullable=False)
-    context_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    context_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
-    admin_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    resolved_by_admin_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    action_taken: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    admin_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    resolved_by_admin_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    action_taken: Mapped[str | None] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -451,7 +473,13 @@ class Report(Base):
             "action_taken IN ('warned', 'banned_1d', 'banned_7d', 'banned_permanent', 'profile_hidden', 'photo_removed', 'no_action')",
             name="valid_action_taken",
         ),
-        UniqueConstraint("reporter_id", "reported_user_id", "context", "context_id", name="unique_report"),
+        UniqueConstraint(
+            "reporter_id",
+            "reported_user_id",
+            "context",
+            "context_id",
+            name="unique_report",
+        ),
         Index("idx_reports_reporter_id", "reporter_id"),
         Index("idx_reports_reported_user_id", "reported_user_id"),
         Index("idx_reports_status", "status"),
@@ -468,10 +496,16 @@ class UserPreferences(Base):
     user_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
     min_age: Mapped[int] = mapped_column(Integer, default=18, nullable=False)
     max_age: Mapped[int] = mapped_column(Integer, default=55, nullable=False)
-    preferred_gender: Mapped[str] = mapped_column(String(20), default="any", nullable=False)
+    preferred_gender: Mapped[str] = mapped_column(
+        String(20), default="any", nullable=False
+    )
     max_distance_km: Mapped[int] = mapped_column(Integer, default=50, nullable=False)
-    show_verified_only: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    show_active_only: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    show_verified_only: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+    show_active_only: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -486,8 +520,14 @@ class UserPreferences(Base):
         CheckConstraint("min_age >= 18 AND min_age <= 100", name="valid_min_age"),
         CheckConstraint("max_age >= 18 AND max_age <= 100", name="valid_max_age"),
         CheckConstraint("min_age <= max_age", name="min_age_less_than_max_age"),
-        CheckConstraint("max_distance_km >= 1 AND max_distance_km <= 1000", name="valid_max_distance"),
-        CheckConstraint("preferred_gender IN ('male', 'female', 'any')", name="valid_preferred_gender"),
+        CheckConstraint(
+            "max_distance_km >= 1 AND max_distance_km <= 1000",
+            name="valid_max_distance",
+        ),
+        CheckConstraint(
+            "preferred_gender IN ('male', 'female', 'any')",
+            name="valid_preferred_gender",
+        ),
         Index("idx_user_preferences_user_id", "user_id"),
     )
 
@@ -499,14 +539,24 @@ class UserActivity(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
-    last_active_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    last_location_update_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_active_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_location_update_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     total_swipes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     total_likes_given: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    total_likes_received: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    total_likes_received: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False
+    )
     total_matches: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    daily_superlikes_used: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    last_superlike_reset_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    daily_superlikes_used: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False
+    )
+    last_superlike_reset_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -522,7 +572,10 @@ class UserActivity(Base):
         CheckConstraint("total_likes_given >= 0", name="valid_likes_given"),
         CheckConstraint("total_likes_received >= 0", name="valid_likes_received"),
         CheckConstraint("total_matches >= 0", name="valid_total_matches"),
-        CheckConstraint("daily_superlikes_used >= 0 AND daily_superlikes_used <= 5", name="valid_daily_superlikes"),
+        CheckConstraint(
+            "daily_superlikes_used >= 0 AND daily_superlikes_used <= 5",
+            name="valid_daily_superlikes",
+        ),
         Index("idx_user_activity_user_id", "user_id"),
         Index("idx_user_activity_last_active", "last_active_at"),
     )

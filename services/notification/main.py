@@ -8,18 +8,15 @@ It receives notification requests from other services and forwards them to the b
 
 import logging
 import os
-from typing import Any, Dict
 
 from aiohttp import ClientError, ClientSession, ClientTimeout, web
 
-from core.utils.logging import configure_logging
-from core.middleware.jwt_middleware import jwt_middleware
-from core.middleware.request_logging import request_logging_middleware, user_context_middleware
-from core.middleware.metrics_middleware import metrics_middleware, add_metrics_route
-from core.resilience.circuit_breaker import bot_service_breaker
-from core.resilience.retry import retry_notification
 from core.messaging.subscriber import EventSubscriber
 from core.middleware.error_handling import setup_error_handling
+from core.middleware.metrics_middleware import add_metrics_route
+from core.resilience.circuit_breaker import bot_service_breaker
+from core.resilience.retry import retry_notification
+from core.utils.logging import configure_logging
 
 logger = logging.getLogger(__name__)
 
@@ -44,54 +41,66 @@ async def _check_notification_preferences(user_id: str, notification_type: str) 
     try:
         data_service_url = os.getenv("DATA_SERVICE_URL", "http://data-service:8088")
         url = f"{data_service_url}/data/notification-preferences/{user_id}"
-        
+
         async with ClientSession(timeout=ClientTimeout(total=5)) as session:
             async with session.get(url) as resp:
                 if resp.status == 200:
                     preferences = await resp.json()
-                    
+
                     # Check if push notifications are enabled
-                    if not preferences.get('push_enabled', True):
+                    if not preferences.get("push_enabled", True):
                         return False
-                    
+
                     # Check quiet hours
-                    from datetime import datetime, time
+                    from datetime import datetime
+
                     current_time = datetime.now().time()
-                    quiet_start = preferences.get('quiet_hours_start')
-                    quiet_end = preferences.get('quiet_hours_end')
-                    
+                    quiet_start = preferences.get("quiet_hours_start")
+                    quiet_end = preferences.get("quiet_hours_end")
+
                     if quiet_start and quiet_end:
-                        quiet_start_time = datetime.strptime(quiet_start, '%H:%M').time()
-                        quiet_end_time = datetime.strptime(quiet_end, '%H:%M').time()
-                        
+                        quiet_start_time = datetime.strptime(
+                            quiet_start, "%H:%M"
+                        ).time()
+                        quiet_end_time = datetime.strptime(quiet_end, "%H:%M").time()
+
                         # Handle quiet hours that cross midnight
                         if quiet_start_time <= quiet_end_time:
                             if quiet_start_time <= current_time <= quiet_end_time:
                                 return False
                         else:
-                            if current_time >= quiet_start_time or current_time <= quiet_end_time:
+                            if (
+                                current_time >= quiet_start_time
+                                or current_time <= quiet_end_time
+                            ):
                                 return False
-                    
+
                     # Check specific notification type
                     type_mapping = {
-                        'new_match': preferences.get('new_matches', True),
-                        'new_message': preferences.get('new_messages', True),
-                        'super_like': preferences.get('super_likes', True),
-                        'like': preferences.get('likes', True),
-                        'profile_view': preferences.get('profile_views', False),
-                        'verification_update': preferences.get('verification_updates', True),
-                        'marketing': preferences.get('marketing', False),
-                        'reminder': preferences.get('reminders', True)
+                        "new_match": preferences.get("new_matches", True),
+                        "new_message": preferences.get("new_messages", True),
+                        "super_like": preferences.get("super_likes", True),
+                        "like": preferences.get("likes", True),
+                        "profile_view": preferences.get("profile_views", False),
+                        "verification_update": preferences.get(
+                            "verification_updates", True
+                        ),
+                        "marketing": preferences.get("marketing", False),
+                        "reminder": preferences.get("reminders", True),
                     }
-                    
+
                     return type_mapping.get(notification_type, True)
                 else:
                     # If we can't get preferences, allow notification by default
-                    logger.warning(f"Failed to get notification preferences for user {user_id}: {resp.status}")
+                    logger.warning(
+                        f"Failed to get notification preferences for user {user_id}: {resp.status}"
+                    )
                     return True
-                    
+
     except Exception as e:
-        logger.warning(f"Error checking notification preferences for user {user_id}: {e}")
+        logger.warning(
+            f"Error checking notification preferences for user {user_id}: {e}"
+        )
         # If we can't check preferences, allow notification by default
         return True
 
@@ -99,17 +108,16 @@ async def _check_notification_preferences(user_id: str, notification_type: str) 
 async def handle_match_event(data: dict, correlation_id: str = None):
     """Handle match.created event."""
     logger.info(
-        "Processing match event",
-        extra={"correlation_id": correlation_id, "data": data}
+        "Processing match event", extra={"correlation_id": correlation_id, "data": data}
     )
-    
+
     user_id_1 = data.get("user_id_1")
     user_id_2 = data.get("user_id_2")
-    
+
     if not user_id_1 or not user_id_2:
         logger.error("Invalid match event data: missing user IDs")
         return
-    
+
     # Send notifications to both users
     await send_match_notification(user_id_1, {"matched_user_id": user_id_2})
     await send_match_notification(user_id_2, {"matched_user_id": user_id_1})
@@ -119,17 +127,17 @@ async def handle_message_event(data: dict, correlation_id: str = None):
     """Handle message.sent event."""
     logger.info(
         "Processing message event",
-        extra={"correlation_id": correlation_id, "data": data}
+        extra={"correlation_id": correlation_id, "data": data},
     )
-    
+
     conversation_id = data.get("conversation_id")
     sender_id = data.get("sender_id")
-    text = data.get("text")
-    
+    data.get("text")
+
     if not conversation_id or not sender_id:
         logger.error("Invalid message event data: missing required fields")
         return
-    
+
     # For now, just log the message event
     # In a real implementation, you would:
     # 1. Get the recipient user ID from the conversation
@@ -141,98 +149,28 @@ async def send_match_notification(user_id: int, match_data: dict):
     """Send match notification to user."""
     try:
         # Check notification preferences
-        should_send = await _check_notification_preferences(str(user_id), 'new_match')
+        should_send = await _check_notification_preferences(str(user_id), "new_match")
         if not should_send:
-            logger.info(f"Match notification skipped for user {user_id} due to preferences")
+            logger.info(
+                f"Match notification skipped for user {user_id} due to preferences"
+            )
             return {"status": "skipped", "reason": "user_preferences"}
-        
+
         # Use circuit breaker + retry
         result = await bot_service_breaker.call(
             _call_bot,
             f"{BOT_URL}/notifications/match",
             {"user_id": user_id, "match_data": match_data},
-            fallback=lambda *args: {"status": "queued"}
+            fallback=lambda *args: {"status": "queued"},
         )
-        
+
         if result.get("status") == "queued":
             logger.warning(f"Match notification queued for user {user_id}")
         else:
             logger.info(f"Match notification sent to user {user_id}")
-            
+
     except Exception as e:
         logger.error(f"Error sending match notification to user {user_id}: {e}")
-
-
-async def send_match_notification(request: web.Request) -> web.Response:
-    """Send notification about a new match.
-
-    POST /api/notifications/send_match
-    Body: {
-        "user_id": int,  # Telegram user ID
-        "match_data": {
-            "id": int,
-            "name": str,
-            "photo_url": str (optional)
-        }
-    }
-    """
-    try:
-        data = await request.json()
-        user_id = data.get("user_id")
-        match_data = data.get("match_data", {})
-
-        if not user_id:
-            return web.json_response({"error": "user_id is required"}, status=400)
-
-        # Call bot HTTP endpoint to send notification
-        async with ClientSession(timeout=ClientTimeout(total=10)) as session:
-            try:
-                async with session.post(
-                    f"{BOT_URL}/notifications/match",
-                    json={"user_id": user_id, "match_data": match_data},
-                ) as response:
-                    if response.status == 200:
-                        logger.info(
-                            "Match notification sent successfully",
-                            extra={
-                                "event_type": "match_notification_sent",
-                                "user_id": user_id,
-                                "match_id": match_data.get("id"),
-                            },
-                        )
-                        return web.json_response(
-                            {"status": "sent", "user_id": user_id, "notification_type": "match"}
-                        )
-                    else:
-                        logger.error(
-                            f"Bot returned error status: {response.status}",
-                            extra={
-                                "event_type": "bot_error",
-                                "status": response.status,
-                                "user_id": user_id,
-                            },
-                        )
-                        return web.json_response(
-                            {"error": "Failed to send notification", "status": response.status},
-                            status=500,
-                        )
-            except ClientError as e:
-                logger.error(
-                    f"Failed to call bot endpoint: {e}",
-                    exc_info=True,
-                    extra={"event_type": "bot_connection_error", "user_id": user_id},
-                )
-                return web.json_response(
-                    {"error": "Failed to connect to bot service"}, status=503
-                )
-
-    except Exception as e:
-        logger.error(
-            f"Error queueing match notification: {e}",
-            exc_info=True,
-            extra={"event_type": "match_notification_error"},
-        )
-        return web.json_response({"error": "Internal server error"}, status=500)
 
 
 async def send_message_notification(request: web.Request) -> web.Response:
@@ -257,10 +195,14 @@ async def send_message_notification(request: web.Request) -> web.Response:
             return web.json_response({"error": "user_id is required"}, status=400)
 
         # Check notification preferences
-        should_send = await _check_notification_preferences(str(user_id), 'new_message')
+        should_send = await _check_notification_preferences(str(user_id), "new_message")
         if not should_send:
-            logger.info(f"Message notification skipped for user {user_id} due to preferences")
-            return web.json_response({"status": "skipped", "reason": "user_preferences"})
+            logger.info(
+                f"Message notification skipped for user {user_id} due to preferences"
+            )
+            return web.json_response(
+                {"status": "skipped", "reason": "user_preferences"}
+            )
 
         # Call bot HTTP endpoint to send notification
         async with ClientSession(timeout=ClientTimeout(total=10)) as session:
@@ -278,7 +220,11 @@ async def send_message_notification(request: web.Request) -> web.Response:
                             },
                         )
                         return web.json_response(
-                            {"status": "sent", "user_id": user_id, "notification_type": "message"}
+                            {
+                                "status": "sent",
+                                "user_id": user_id,
+                                "notification_type": "message",
+                            }
                         )
                     else:
                         logger.error(
@@ -290,7 +236,10 @@ async def send_message_notification(request: web.Request) -> web.Response:
                             },
                         )
                         return web.json_response(
-                            {"error": "Failed to send notification", "status": response.status},
+                            {
+                                "error": "Failed to send notification",
+                                "status": response.status,
+                            },
                             status=500,
                         )
             except ClientError as e:
@@ -348,7 +297,11 @@ async def send_like_notification(request: web.Request) -> web.Response:
                             },
                         )
                         return web.json_response(
-                            {"status": "sent", "user_id": user_id, "notification_type": "like"}
+                            {
+                                "status": "sent",
+                                "user_id": user_id,
+                                "notification_type": "like",
+                            }
                         )
                     else:
                         logger.error(
@@ -360,7 +313,10 @@ async def send_like_notification(request: web.Request) -> web.Response:
                             },
                         )
                         return web.json_response(
-                            {"error": "Failed to send notification", "status": response.status},
+                            {
+                                "error": "Failed to send notification",
+                                "status": response.status,
+                            },
                             status=500,
                         )
             except ClientError as e:
@@ -394,15 +350,15 @@ async def on_startup(app):
     """Startup handler."""
     global event_subscriber
     rabbitmq_url = os.getenv("RABBITMQ_URL", "amqp://dating:dating@rabbitmq:5672/")
-    
+
     if rabbitmq_url:
         event_subscriber = EventSubscriber(rabbitmq_url, "notification-service")
         await event_subscriber.connect()
-        
+
         # Register event handlers
         event_subscriber.register_handler("match.created", handle_match_event)
         event_subscriber.register_handler("message.sent", handle_message_event)
-        
+
         # Start consuming
         await event_subscriber.start_consuming()
         logger.info("Notification service started consuming events")
@@ -419,24 +375,27 @@ async def on_shutdown(app):
 def create_app() -> web.Application:
     """Create and configure the aiohttp application."""
     app = web.Application()
-    
+
     # Setup error handling
-    setup_error_handling(app, \"notification-service")
-    
+    setup_error_handling(app, "notification-service")
+
     # Add middleware
     # Setup standard middleware stack
     from core.middleware.standard_stack import setup_standard_middleware_stack
-    setup_standard_middleware_stack(app, "notification-service", use_auth=True, use_audit=True)
-    
+
+    setup_standard_middleware_stack(
+        app, "notification-service", use_auth=True, use_audit=True
+    )
+
     # Add metrics endpoint
     add_metrics_route(app, "notification-service")
 
     # Register routes
-    app.router.add_post("/api/notifications/send_match", send_match_notification)
+    app.router.add_post("/api/notifications/send_match", send_match_notification)  # type: ignore[arg-type]
     app.router.add_post("/api/notifications/send_message", send_message_notification)
     app.router.add_post("/api/notifications/send_like", send_like_notification)
     app.router.add_get("/health", health_check)
-    
+
     # Add startup/shutdown handlers
     app.on_startup.append(on_startup)
     app.on_shutdown.append(on_shutdown)

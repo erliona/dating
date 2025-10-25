@@ -5,10 +5,10 @@ import asyncio
 import hashlib
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -55,8 +55,8 @@ async def create_admin(
             email=email,
             is_active=True,
             is_super_admin=is_super_admin,
-            created_at=datetime.now(timezone.utc),
-            updated_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
 
         session.add(admin)
@@ -122,7 +122,7 @@ async def change_password(username: str, new_password: str):
             return False
 
         admin.password_hash = hash_password(new_password)
-        admin.updated_at = datetime.now(timezone.utc)
+        admin.updated_at = datetime.now(UTC)
         await session.commit()
 
         print(f"✅ Пароль для '{username}' успешно изменен!")

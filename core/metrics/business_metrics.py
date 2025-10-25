@@ -6,141 +6,103 @@ from prometheus_client import Counter, Gauge
 
 # Profile metrics - Counter for events (increment only)
 PROFILE_CREATED = Counter(
-    'profile_created_total',
-    'Total profiles created',
-    ['service']
+    "profile_created_total", "Total profiles created", ["service"]
 )
 
 PROFILE_UPDATED = Counter(
-    'profile_updated_total',
-    'Total profiles updated',
-    ['service']
+    "profile_updated_total", "Total profiles updated", ["service"]
 )
 
 PROFILE_DELETED = Counter(
-    'profile_deleted_total',
-    'Total profiles deleted',
-    ['service']
+    "profile_deleted_total", "Total profiles deleted", ["service"]
 )
 
 # Interaction metrics - Counter for events
 INTERACTION_CREATED = Counter(
-    'interaction_created_total',
-    'Total interactions (likes, dislikes, matches)',
-    ['service', 'type']
+    "interaction_created_total",
+    "Total interactions (likes, dislikes, matches)",
+    ["service", "type"],
 )
 
 SWIPES_TOTAL = Counter(
-    'swipes_total',
-    'Total swipes (likes + dislikes)',
-    ['service', 'type']
+    "swipes_total", "Total swipes (likes + dislikes)", ["service", "type"]
 )
 
 # Message metrics - Counter for events
-MESSAGE_SENT = Counter(
-    'message_sent_total',
-    'Total messages sent',
-    ['service']
-)
+MESSAGE_SENT = Counter("message_sent_total", "Total messages sent", ["service"])
 
 CONVERSATION_STARTED = Counter(
-    'conversation_started_total',
-    'Total conversations started',
-    ['service']
+    "conversation_started_total", "Total conversations started", ["service"]
 )
 
 # Current state gauges (synchronized with database)
 USERS_ACTIVE = Gauge(
-    'active_users_total',
-    'Number of users active in last 24h',
-    ['service']
+    "active_users_total", "Number of users active in last 24h", ["service"]
 )
 
 USERS_BY_REGION = Gauge(
-    'users_by_region',
-    'Users by geographic region',
-    ['service', 'region']
+    "users_by_region", "Users by geographic region", ["service", "region"]
 )
 
-MATCHES_CURRENT = Gauge(
-    'matches_current',
-    'Current number of matches',
-    ['service']
-)
+MATCHES_CURRENT = Gauge("matches_current", "Current number of matches", ["service"])
 
 CONVERSATIONS_ACTIVE = Gauge(
-    'conversations_active',
-    'Number of active conversations',
-    ['service']
+    "conversations_active", "Number of active conversations", ["service"]
 )
 
 # Legacy metrics for backward compatibility (will be deprecated)
 USERS_TOTAL = Gauge(
-    'users_total',
-    'Total number of users (legacy - use profile_created_total)',
-    ['service']
+    "users_total",
+    "Total number of users (legacy - use profile_created_total)",
+    ["service"],
 )
 
 MATCHES_TOTAL = Gauge(
-    'matches_total',
-    'Total number of matches (legacy - use interaction_created_total)',
-    ['service']
+    "matches_total",
+    "Total number of matches (legacy - use interaction_created_total)",
+    ["service"],
 )
 
 MESSAGES_TOTAL = Gauge(
-    'messages_total',
-    'Total number of messages (legacy - use message_sent_total)',
-    ['service']
+    "messages_total",
+    "Total number of messages (legacy - use message_sent_total)",
+    ["service"],
 )
 
 # JWT and Authentication metrics
 JWT_TOKENS_CREATED = Counter(
-    'jwt_tokens_created_total',
-    'Total JWT tokens created',
-    ['service', 'token_type']
+    "jwt_tokens_created_total", "Total JWT tokens created", ["service", "token_type"]
 )
 
 JWT_TOKENS_VALIDATED = Counter(
-    'jwt_tokens_validated_total',
-    'Total JWT token validations',
-    ['service', 'result']
+    "jwt_tokens_validated_total", "Total JWT token validations", ["service", "result"]
 )
 
 JWT_TOKENS_EXPIRED = Counter(
-    'jwt_tokens_expired_total',
-    'Total expired JWT tokens',
-    ['service']
+    "jwt_tokens_expired_total", "Total expired JWT tokens", ["service"]
 )
 
 JWT_VALIDATION_FAILED = Counter(
-    'jwt_validation_failed_total',
-    'Failed JWT validations',
-    ['service', 'reason']
+    "jwt_validation_failed_total", "Failed JWT validations", ["service", "reason"]
 )
 
 TELEGRAM_AUTH_SUCCESS = Counter(
-    'telegram_auth_success_total',
-    'Successful Telegram authentications',
-    ['service']
+    "telegram_auth_success_total", "Successful Telegram authentications", ["service"]
 )
 
 TELEGRAM_AUTH_FAILED = Counter(
-    'telegram_auth_failed_total',
-    'Failed Telegram authentications',
-    ['service', 'reason']
+    "telegram_auth_failed_total",
+    "Failed Telegram authentications",
+    ["service", "reason"],
 )
 
 # NSFW Detection metrics
 NSFW_DETECTION_TOTAL = Counter(
-    'nsfw_detection_total',
-    'Total NSFW detections',
-    ['service', 'result']
+    "nsfw_detection_total", "Total NSFW detections", ["service", "result"]
 )
 
 NSFW_BLOCKED_TOTAL = Counter(
-    'nsfw_blocked_total',
-    'Total NSFW blocked uploads',
-    ['service']
+    "nsfw_blocked_total", "Total NSFW blocked uploads", ["service"]
 )
 
 

@@ -1,11 +1,9 @@
 """Tests for admin service."""
 
-import hashlib
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from aiohttp import web
-from sqlalchemy.ext.asyncio import AsyncSession
 
 pytestmark = pytest.mark.e2e
 

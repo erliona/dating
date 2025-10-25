@@ -1,7 +1,7 @@
 """Tests for bot/repository.py - database repository operations."""
 
 from datetime import date, datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,7 +30,7 @@ class TestProfileRepository:
         self.session.execute = AsyncMock(return_value=result_mock)
         self.session.flush = AsyncMock()
 
-        user = await repository.create_or_update_user(
+        await repository.create_or_update_user(
             tg_id=12345,
             username="testuser",
             first_name="Test",
@@ -145,7 +145,7 @@ class TestProfileRepository:
             "is_complete": True,
         }
 
-        profile = await repository.create_profile(1, profile_data)
+        await repository.create_profile(1, profile_data)
 
         # Verify profile was added to session
         self.session.add.assert_called_once()
@@ -247,7 +247,7 @@ class TestProfileRepository:
         repository = ProfileRepository(self.session)
         self.session.flush = AsyncMock()
 
-        photo = await repository.add_photo(
+        await repository.add_photo(
             user_id=1,
             url="https://example.com/photo.jpg",
             sort_order=0,
