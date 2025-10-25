@@ -1,109 +1,135 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '../stores/user'
 
+// Lazy loading with error handling and loading states
+const lazyLoad = (componentName) => {
+  return () => import(/* webpackChunkName: "views" */ `../views/${componentName}.vue`)
+}
+
+// Lazy loading with retry mechanism
+const lazyLoadWithRetry = (componentName, retries = 3) => {
+  return () => import(/* webpackChunkName: "views" */ `../views/${componentName}.vue`)
+    .catch(error => {
+      if (retries > 0) {
+        console.warn(`Failed to load ${componentName}, retrying... (${retries} attempts left)`)
+        return lazyLoadWithRetry(componentName, retries - 1)()
+      }
+      console.error(`Failed to load ${componentName} after ${retries} retries:`, error)
+      throw error
+    })
+}
+
 const routes = [
   {
     path: '/',
     name: 'Welcome',
-    component: () => import('../views/WelcomeView.vue'),
+    component: lazyLoad('WelcomeView'),
     meta: { requiresAuth: false }
   },
   {
     path: '/onboarding',
     name: 'Onboarding',
-    component: () => import('../views/OnboardingView.vue'),
+    component: lazyLoadWithRetry('OnboardingView'),
     meta: { requiresAuth: true }
   },
   {
     path: '/discovery',
     name: 'Discovery',
-    component: () => import('../views/DiscoveryView.vue'),
+    component: lazyLoadWithRetry('DiscoveryView'),
     meta: { requiresAuth: true }
   },
   {
     path: '/matches',
     name: 'Matches',
-    component: () => import('../views/MatchesView.vue'),
+    component: lazyLoad('MatchesView'),
     meta: { requiresAuth: true }
   },
   {
     path: '/likes',
     name: 'Likes',
-    component: () => import('../views/LikesView.vue'),
+    component: lazyLoad('LikesView'),
     meta: { requiresAuth: true }
   },
   {
     path: '/chat',
     name: 'Chat',
-    component: () => import('../views/ChatView.vue'),
+    component: lazyLoadWithRetry('ChatView'),
     meta: { requiresAuth: true }
   },
   {
     path: '/chat/:conversationId',
     name: 'Conversation',
-    component: () => import('../views/ConversationView.vue'),
+    component: lazyLoadWithRetry('ConversationView'),
     meta: { requiresAuth: true }
   },
   {
     path: '/profile',
     name: 'Profile',
-    component: () => import('../views/ProfileView.vue'),
+    component: lazyLoad('ProfileView'),
     meta: { requiresAuth: true }
   },
   {
     path: '/profile/edit',
     name: 'EditProfile',
-    component: () => import('../views/EditProfileView.vue'),
+    component: lazyLoad('EditProfileView'),
     meta: { requiresAuth: true }
   },
   {
     path: '/settings',
     name: 'Settings',
-    component: () => import('../views/SettingsView.vue'),
+    component: lazyLoad('SettingsView'),
     meta: { requiresAuth: true }
   },
-  // Admin routes
+  // Admin routes - lazy loaded with admin chunk
   {
     path: '/admin/login',
     name: 'AdminLogin',
-    component: () => import('../views/AdminLogin.vue'),
+    component: () => import(/* webpackChunkName: "admin" */ '../views/AdminLogin.vue'),
     meta: { requiresAuth: false }
   },
   {
     path: '/admin',
     name: 'AdminDashboard',
-    component: () => import('../views/AdminDashboard.vue'),
+    component: () => import(/* webpackChunkName: "admin" */ '../views/AdminDashboard.vue'),
     meta: { requiresAuth: true, requiresAdmin: true }
   },
   {
     path: '/admin/users',
     name: 'AdminUsers',
-    component: () => import('../views/AdminUsers.vue'),
+    component: () => import(/* webpackChunkName: "admin" */ '../views/AdminUsers.vue'),
     meta: { requiresAuth: true, requiresAdmin: true }
   },
   {
     path: '/admin/photos',
     name: 'AdminPhotos',
-    component: () => import('../views/AdminPhotos.vue'),
+    component: () => import(/* webpackChunkName: "admin" */ '../views/AdminPhotos.vue'),
     meta: { requiresAuth: true, requiresAdmin: true }
   },
   {
     path: '/admin/verifications',
     name: 'AdminVerifications',
-    component: () => import('../views/AdminVerifications.vue'),
+    component: () => import(/* webpackChunkName: "admin" */ '../views/AdminVerifications.vue'),
     meta: { requiresAuth: true, requiresAdmin: true }
   },
   {
     path: '/admin/reports',
     name: 'AdminReports',
-    component: () => import('../views/AdminReports.vue'),
+    component: () => import(/* webpackChunkName: "admin" */ '../views/AdminReports.vue'),
     meta: { requiresAuth: true, requiresAdmin: true }
   }
 ]
 
 const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes,
+  // Enable scroll behavior for better UX
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) {
+      return savedPosition
+    } else {
+      return { top: 0 }
+    }
+  }
 })
 
 // Navigation guard
