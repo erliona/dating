@@ -59,8 +59,8 @@ def upgrade():
     # Create chat_blocks table
     op.create_table(
         "chat_blocks",
-        sa.Column("blocker_id", postgresql.UUID(), nullable=False),
-        sa.Column("target_user_id", postgresql.UUID(), nullable=False),
+        sa.Column("blocker_id", sa.Integer(), nullable=False),
+        sa.Column("target_user_id", sa.Integer(), nullable=False),
         sa.Column(
             "created_at",
             sa.TIMESTAMP(),
