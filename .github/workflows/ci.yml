@@ -171,14 +171,14 @@ jobs:
     strategy:
       matrix:
         service: [
-          auth-service,
-          profile-service, 
-          discovery-service,
-          chat-service,
-          media-service,
-          admin-service,
-          notification-service,
-          data-service,
+          auth,
+          profile, 
+          discovery,
+          chat,
+          media,
+          admin,
+          notification,
+          data,
           api-gateway,
           telegram-bot
         ]
@@ -193,16 +193,22 @@ jobs:
     - name: Build Docker image
       run: |
         if [ "${{ matrix.service }}" = "api-gateway" ]; then
-          docker build -f gateway/Dockerfile -t ${{ matrix.service }} .
+          docker build -f gateway/Dockerfile -t api-gateway .
         elif [ "${{ matrix.service }}" = "telegram-bot" ]; then
-          docker build -f Dockerfile -t ${{ matrix.service }} .
+          docker build -f Dockerfile -t telegram-bot .
         else
-          docker build -f services/${{ matrix.service }}/Dockerfile -t ${{ matrix.service }} .
+          docker build -f services/${{ matrix.service }}/Dockerfile -t ${{ matrix.service }}-service .
         fi
         
     - name: Test Docker image
       run: |
-        docker run --rm ${{ matrix.service }} python -c "print('Service started successfully')"
+        if [ "${{ matrix.service }}" = "api-gateway" ]; then
+          docker run --rm api-gateway python -c "print('Service started successfully')"
+        elif [ "${{ matrix.service }}" = "telegram-bot" ]; then
+          docker run --rm telegram-bot python -c "print('Service started successfully')"
+        else
+          docker run --rm ${{ matrix.service }}-service python -c "print('Service started successfully')"
+        fi
         
     - name: Verify immutable tags
       run: |
