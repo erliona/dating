@@ -8,7 +8,7 @@ across all microservices.
 import logging
 import traceback
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from enum import Enum
 from typing import Any
 
@@ -232,7 +232,7 @@ def create_standard_error(
         message=message,
         code=error_code.value,
         status_code=status_code,
-        timestamp=datetime.now(timezone.utc).isoformat(),
+        timestamp=datetime.now(UTC).isoformat(),
         request_id=request_id,
         details=details,
         retry_after=retry_after,
