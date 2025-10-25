@@ -190,15 +190,15 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
       
-        - name: Build Docker image
-          run: |
-            if [ "${{ matrix.service }}" = "api-gateway" ]; then
-              docker build -f gateway/Dockerfile -t ${{ matrix.service }} .
-            elif [ "${{ matrix.service }}" = "telegram-bot" ]; then
-              docker build -f Dockerfile -t ${{ matrix.service }} .
-            else
-              docker build -f services/${{ matrix.service }}/Dockerfile -t ${{ matrix.service }} .
-            fi
+    - name: Build Docker image
+      run: |
+        if [ "${{ matrix.service }}" = "api-gateway" ]; then
+          docker build -f gateway/Dockerfile -t ${{ matrix.service }} .
+        elif [ "${{ matrix.service }}" = "telegram-bot" ]; then
+          docker build -f Dockerfile -t ${{ matrix.service }} .
+        else
+          docker build -f services/${{ matrix.service }}/Dockerfile -t ${{ matrix.service }} .
+        fi
         
     - name: Test Docker image
       run: |
