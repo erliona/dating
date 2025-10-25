@@ -30,8 +30,18 @@ async def proxy_request(
 
     try:
         async with ClientSession(timeout=timeout) as session:
-            # Build target URL
-            path = path_override or request.path
+            # Build target URL - strip /v1/{service}/ prefix
+            if path_override:
+                path = path_override
+            else:
+                # Extract path after /v1/{service}/
+                path_parts = request.path.split('/')
+                if len(path_parts) >= 4 and path_parts[1] == 'v1':
+                    # Remove /v1/{service} prefix
+                    path = '/' + '/'.join(path_parts[3:])
+                else:
+                    path = request.path
+            
             query_string = request.query_string
             full_url = f"{target_url}{path}"
             if query_string:
