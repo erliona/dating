@@ -35,7 +35,6 @@ async def proxy_websocket(
         async with request.app["http_session"].ws_connect(
             target_ws_url, headers=dict(request.headers), timeout=30
         ) as target_ws:
-
             # Create WebSocket response for client
             ws = web.WebSocketResponse()
             await ws.prepare(request)

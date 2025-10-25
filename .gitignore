@@ -100,3 +100,6 @@ logs/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# Security reports
+bandit-report.json
