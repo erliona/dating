@@ -1,8 +1,8 @@
 """Bot API utilities for authentication and image processing."""
 
 import io
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Optional
+from datetime import datetime, timedelta, UTC
+from typing import Any
 
 import jwt
 from PIL import Image
@@ -21,7 +21,7 @@ def create_jwt_token(user_id: int, secret: str, expires_in: int = 3600) -> str:
     Returns:
         The JWT token string
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "user_id": user_id,
         "iat": now,
@@ -31,7 +31,7 @@ def create_jwt_token(user_id: int, secret: str, expires_in: int = 3600) -> str:
     return jwt.encode(payload, secret, algorithm="HS256")
 
 
-def verify_jwt_token(token: str, secret: str) -> Dict[str, Any]:
+def verify_jwt_token(token: str, secret: str) -> dict[str, Any]:
     """Verify and decode a JWT token.
 
     Args:
@@ -48,9 +48,9 @@ def verify_jwt_token(token: str, secret: str) -> Dict[str, Any]:
         payload = jwt.decode(token, secret, algorithms=["HS256"])
         return payload
     except jwt.ExpiredSignatureError:
-        raise AuthenticationError("Token has expired")
+        raise AuthenticationError("Token has expired") from None
     except jwt.InvalidTokenError:
-        raise AuthenticationError("Invalid token")
+        raise AuthenticationError("Invalid token") from None
 
 
 async def authenticate_request(request, secret: str) -> int:
@@ -160,7 +160,6 @@ async def health_check_handler(request):
 
 async def generate_token_handler(request):
     """Generate token handler for testing."""
-    import json
 
     from aiohttp import web
 
