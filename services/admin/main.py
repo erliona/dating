@@ -26,6 +26,7 @@ from core.middleware.metrics_middleware import metrics_middleware, add_metrics_r
 from core.resilience.circuit_breaker import data_service_breaker
 from core.resilience.retry import retry_data_service
 from core.middleware.error_handling import setup_error_handling
+from core.utils.errors import StandardError, ErrorCode
 
 logger = logging.getLogger(__name__)
 
@@ -348,6 +349,130 @@ def create_app(config: dict) -> web.Application:
     async def redirect_login(request):
         return web.HTTPFound('/admin/')
     app.router.add_get("/admin/login", redirect_login)
+
+
+# ==================== MODERATION HANDLERS ====================
+
+async def get_moderation_queue_handler(request: web.Request) -> web.Response:
+    """Get moderation queue with pagination and filtering."""
+    try:
+        # Get query parameters
+        status = request.query.get('status', 'pending')
+        content_type = request.query.get('content_type')
+        priority = request.query.get('priority')
+        page = int(request.query.get('page', 1))
+        limit = int(request.query.get('limit', 20))
+        
+        # Build query parameters
+        params = {
+            'status': status,
+            'page': page,
+            'limit': limit
+        }
+        if content_type:
+            params['content_type'] = content_type
+        if priority:
+            params['priority'] = priority
+            
+        # Call data service
+        data_service_url = request.app["config"]["data_service_url"]
+        url = f"{data_service_url}/moderation/queue"
+        
+        result = await _call_data_service(url, params=params)
+        
+        return web.json_response({
+            "items": result.get("items", []),
+            "total": result.get("total", 0),
+            "page": page,
+            "limit": limit,
+            "has_more": result.get("has_more", False)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting moderation queue: {e}")
+        return web.json_response(
+            StandardError(
+                code=ErrorCode.INTERNAL_ERROR,
+                message="Failed to get moderation queue"
+            ).to_dict(),
+            status=500
+        )
+
+
+async def approve_moderation_handler(request: web.Request) -> web.Response:
+    """Approve moderation item."""
+    try:
+        moderation_id = request.match_info['moderation_id']
+        data = await request.json()
+        notes = data.get('notes', '')
+        
+        # Get moderator ID from JWT
+        moderator_id = request.get('user_id')
+        
+        # Call data service
+        data_service_url = request.app["config"]["data_service_url"]
+        url = f"{data_service_url}/moderation/{moderation_id}/approve"
+        
+        payload = {
+            'moderator_id': moderator_id,
+            'notes': notes
+        }
+        
+        result = await _call_data_service(url, method="POST", data=payload)
+        
+        return web.json_response({
+            "message": "Moderation item approved",
+            "moderation_id": moderation_id,
+            "result": result
+        })
+        
+    except Exception as e:
+        logger.error(f"Error approving moderation: {e}")
+        return web.json_response(
+            StandardError(
+                code=ErrorCode.INTERNAL_ERROR,
+                message="Failed to approve moderation"
+            ).to_dict(),
+            status=500
+        )
+
+
+async def reject_moderation_handler(request: web.Request) -> web.Response:
+    """Reject moderation item."""
+    try:
+        moderation_id = request.match_info['moderation_id']
+        data = await request.json()
+        notes = data.get('notes', '')
+        
+        # Get moderator ID from JWT
+        moderator_id = request.get('user_id')
+        
+        # Call data service
+        data_service_url = request.app["config"]["data_service_url"]
+        url = f"{data_service_url}/moderation/{moderation_id}/reject"
+        
+        payload = {
+            'moderator_id': moderator_id,
+            'notes': notes
+        }
+        
+        result = await _call_data_service(url, method="POST", data=payload)
+        
+        return web.json_response({
+            "message": "Moderation item rejected",
+            "moderation_id": moderation_id,
+            "result": result
+        })
+        
+    except Exception as e:
+        logger.error(f"Error rejecting moderation: {e}")
+        return web.json_response(
+            StandardError(
+                code=ErrorCode.INTERNAL_ERROR,
+                message="Failed to reject moderation"
+            ).to_dict(),
+            status=500
+        )
     
     # PROTECTED sub-application WITH JWT middleware
     from core.middleware.jwt_middleware import admin_jwt_middleware
@@ -359,6 +484,11 @@ def create_app(config: dict) -> web.Application:
     protected.router.add_get("/admin/photos", list_photos_handler)
     protected.router.add_put("/admin/photos/{photo_id}", update_photo_handler)
     protected.router.add_delete("/admin/photos/{photo_id}", delete_photo_handler)
+    
+    # Moderation endpoints
+    protected.router.add_get("/admin/moderation/queue", get_moderation_queue_handler)
+    protected.router.add_post("/admin/moderation/{moderation_id}/approve", approve_moderation_handler)
+    protected.router.add_post("/admin/moderation/{moderation_id}/reject", reject_moderation_handler)
     
     # Mount protected app under /admin/api
     app.add_subapp("/admin/api/", protected)

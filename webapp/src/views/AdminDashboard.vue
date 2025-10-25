@@ -99,6 +99,15 @@
             <div class="alert-description">Неподходящие фото</div>
           </div>
         </div>
+
+        <div class="alert-card" :class="getAlertClass('high')" v-if="alerts.pending_moderation > 0">
+          <div class="alert-icon">⏳</div>
+          <div class="alert-content">
+            <div class="alert-title">Модерация</div>
+            <div class="alert-count">{{ alerts.pending_moderation }}</div>
+            <div class="alert-description">Ожидают проверки</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -121,6 +130,10 @@
         <button class="action-btn" @click="navigateTo('/admin/reports')">
           <div class="action-icon">📋</div>
           <div class="action-label">Жалобы</div>
+        </button>
+        <button class="action-btn" @click="navigateTo('/admin/moderation')">
+          <div class="action-icon">⏳</div>
+          <div class="action-label">Модерация</div>
         </button>
       </div>
     </div>

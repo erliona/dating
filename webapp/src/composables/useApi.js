@@ -3,7 +3,7 @@ import axios from 'axios'
 import { useNavigation } from './useNavigation'
 
 const api = axios.create({
-  baseURL: '/v1',
+  baseURL: '/api/v1',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json'
@@ -150,6 +150,14 @@ export function useApi() {
     return post('/discovery/swipe', { user_id: userId, action })
   }
 
+  const blockUser = async (userId) => {
+    return post(`/discovery/block/${userId}`)
+  }
+
+  const reportUser = async (userId, reason) => {
+    return post(`/discovery/report/${userId}`, { reason })
+  }
+
   const getMatches = async () => {
     return get('/discovery/matches')
   }
@@ -247,6 +255,8 @@ export function useApi() {
     // Discovery
     getCandidates,
     swipeUser,
+    blockUser,
+    reportUser,
     getMatches,
     getLikes,
     // Chat

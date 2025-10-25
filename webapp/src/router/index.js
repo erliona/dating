@@ -116,6 +116,12 @@ const routes = [
     name: 'AdminReports',
     component: () => import(/* webpackChunkName: "admin" */ '../views/AdminReports.vue'),
     meta: { requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/admin/moderation',
+    name: 'AdminModeration',
+    component: () => import(/* webpackChunkName: "admin" */ '../views/AdminModeration.vue'),
+    meta: { requiresAuth: true, requiresAdmin: true }
   }
 ]
 

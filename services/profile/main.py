@@ -29,6 +29,38 @@ from core.exceptions import ValidationError, CircuitBreakerError, ExternalServic
 logger = logging.getLogger(__name__)
 
 
+async def queue_for_moderation(
+    content_type: str,
+    content_id: str,
+    user_id: str,
+    reason: str = "profile_update",
+    priority: int = 1
+) -> None:
+    """Queue content for moderation via data service."""
+    try:
+        data_service_url = os.getenv("DATA_SERVICE_URL", "http://data-service:8088")
+        url = f"{data_service_url}/moderation/queue"
+        
+        payload = {
+            "content_type": content_type,
+            "content_id": content_id,
+            "user_id": user_id,
+            "reason": reason,
+            "priority": priority
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=payload) as response:
+                if response.status not in [200, 201]:
+                    error_text = await response.text()
+                    logger.error(f"Failed to queue moderation: {response.status} - {error_text}")
+                    raise Exception(f"Moderation queue failed: {response.status}")
+                    
+    except Exception as e:
+        logger.error(f"Error queuing for moderation: {e}")
+        raise
+
+
 @retry_data_service()
 async def _call_data_service(url: str, method: str = "GET", data: dict = None, request: web.Request = None):
     """Helper to call Data Service with retry logic and correlation ID propagation."""
@@ -255,6 +287,20 @@ async def update_current_profile(request: web.Request) -> web.Response:
             details={"fields_updated": list(data.keys())},
             request=request
         )
+
+        # Auto-queue for moderation
+        try:
+            await queue_for_moderation(
+                content_type="profile",
+                content_id=str(user_id),
+                user_id=str(user_id),
+                reason="profile_update",
+                priority=1
+            )
+            logger.info(f"Profile {user_id} queued for moderation")
+        except Exception as e:
+            logger.error(f"Failed to queue profile for moderation: {e}")
+            # Don't fail the profile update if moderation queueing fails
         
         return web.json_response(result)
         
@@ -359,6 +405,129 @@ async def sync_metrics(request: web.Request) -> web.Response:
         return web.json_response({"error": "Internal server error"}, status=500)
 
 
+async def get_notification_preferences_handler(request: web.Request) -> web.Response:
+    """Get user's notification preferences.
+    
+    GET /settings/notifications/preferences
+    """
+    try:
+        user_id = request.get('user_id')
+        if not user_id:
+            return web.json_response({"error": "Authentication required"}, status=401)
+        
+        # Call data service
+        result = await _call_data_service(
+            f"{DATA_SERVICE_URL}/data/notification-preferences/{user_id}",
+            "GET",
+            None,
+            None,
+            request
+        )
+        
+        return web.json_response(result)
+        
+    except ValidationError as e:
+        logger.warning(f"Validation error in get_notification_preferences: {e}")
+        return web.json_response({"error": str(e)}, status=400)
+    except ExternalServiceError as e:
+        logger.error(f"Data service error in get_notification_preferences: {e}")
+        return web.json_response({"error": "Failed to get notification preferences"}, status=500)
+    except Exception as e:
+        logger.error(f"Unexpected error in get_notification_preferences: {e}")
+        return web.json_response({"error": "Internal server error"}, status=500)
+
+
+async def update_notification_preferences_handler(request: web.Request) -> web.Response:
+    """Update user's notification preferences.
+    
+    PUT /settings/notifications/preferences
+    Body: { notification preferences }
+    """
+    try:
+        user_id = request.get('user_id')
+        if not user_id:
+            return web.json_response({"error": "Authentication required"}, status=401)
+        
+        data = await request.json()
+        
+        # Validate notification preferences data
+        if not validate_notification_preferences_data(data):
+            return web.json_response({"error": "Invalid notification preferences data"}, status=400)
+        
+        # Call data service
+        result = await _call_data_service(
+            f"{DATA_SERVICE_URL}/data/notification-preferences/{user_id}",
+            "PUT",
+            data,
+            None,
+            request
+        )
+        
+        # Record metrics
+        record_profile_updated(
+            service="profile-service",
+            result="success",
+            user_id=str(user_id)
+        )
+        
+        # Log audit
+        audit_log(
+            service="profile-service",
+            action="update_notification_preferences",
+            user_id=str(user_id),
+            details={"preferences_updated": list(data.keys())},
+            request=request
+        )
+        
+        return web.json_response(result)
+        
+    except ValidationError as e:
+        logger.warning(f"Validation error in update_notification_preferences: {e}")
+        return web.json_response({"error": str(e)}, status=400)
+    except ExternalServiceError as e:
+        logger.error(f"Data service error in update_notification_preferences: {e}")
+        return web.json_response({"error": "Failed to update notification preferences"}, status=500)
+    except Exception as e:
+        logger.error(f"Unexpected error in update_notification_preferences: {e}")
+        return web.json_response({"error": "Internal server error"}, status=500)
+
+
+def validate_notification_preferences_data(data: dict) -> bool:
+    """Validate notification preferences data."""
+    valid_boolean_fields = [
+        'push_enabled', 'email_enabled', 'telegram_enabled',
+        'new_matches', 'new_messages', 'super_likes', 'likes',
+        'profile_views', 'verification_updates', 'marketing', 'reminders'
+    ]
+    
+    valid_time_fields = ['quiet_hours_start', 'quiet_hours_end']
+    valid_string_fields = ['timezone']
+    
+    # Check boolean fields
+    for field in valid_boolean_fields:
+        if field in data and not isinstance(data[field], bool):
+            return False
+    
+    # Check time fields
+    for field in valid_time_fields:
+        if field in data and data[field] is not None:
+            if not isinstance(data[field], str):
+                return False
+            # Basic time format validation (HH:MM)
+            try:
+                from datetime import datetime
+                datetime.strptime(data[field], '%H:%M')
+            except ValueError:
+                return False
+    
+    # Check string fields
+    for field in valid_string_fields:
+        if field in data and not isinstance(data[field], str):
+            return False
+    
+    return True
+
+
 async def sync_metrics_periodically():
     """Background task to sync business metrics with database."""
     while True:
@@ -439,6 +608,8 @@ def create_app(config: dict) -> web.Application:
     app.router.add_put("/settings/preferences", update_user_preferences)
     app.router.add_get("/settings/notifications", get_notification_settings)
     app.router.add_put("/settings/notifications", update_notification_settings)
+    app.router.add_get("/settings/notifications/preferences", get_notification_preferences_handler)
+    app.router.add_put("/settings/notifications/preferences", update_notification_preferences_handler)
     
     # Verification endpoints
     from .verification import request_verification

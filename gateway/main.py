@@ -186,14 +186,14 @@ def create_app(config: dict) -> web.Application:
     # Health check
     app.router.add_get("/health", health_check)
     
-    # v1 API routes
-    app.router.add_route("*", r"/v1/auth/{tail:.*}", route_auth)
-    app.router.add_route("*", r"/v1/profiles/{tail:.*}", route_profile)
-    app.router.add_route("*", r"/v1/discovery/{tail:.*}", route_discovery)
-    app.router.add_route("*", r"/v1/media/{tail:.*}", route_media)
-    app.router.add_route("*", r"/v1/chat/{tail:.*}", route_chat)
-    app.router.add_route("*", r"/v1/admin/{tail:.*}", route_admin)
-    app.router.add_route("*", r"/v1/notifications/{tail:.*}", route_notifications)
+    # API v1 routes
+    app.router.add_route("*", r"/api/v1/auth/{tail:.*}", route_auth)
+    app.router.add_route("*", r"/api/v1/profiles/{tail:.*}", route_profile)
+    app.router.add_route("*", r"/api/v1/discovery/{tail:.*}", route_discovery)
+    app.router.add_route("*", r"/api/v1/media/{tail:.*}", route_media)
+    app.router.add_route("*", r"/api/v1/chat/{tail:.*}", route_chat)
+    app.router.add_route("*", r"/api/v1/admin/{tail:.*}", route_admin)
+    app.router.add_route("*", r"/api/v1/notifications/{tail:.*}", route_notifications)
     
     # Add CORS to specific routes (exclude wildcard routes)
     for route in app.router.routes():

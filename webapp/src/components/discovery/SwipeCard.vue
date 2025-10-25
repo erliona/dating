@@ -59,6 +59,24 @@
           {{ getInterestIcon(interest) }} {{ getInterestLabel(interest) }}
         </span>
       </div>
+
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <button 
+          class="action-btn block-btn" 
+          @click="handleBlock"
+          title="Заблокировать пользователя"
+        >
+          🚫 Заблокировать
+        </button>
+        <button 
+          class="action-btn report-btn" 
+          @click="handleReport"
+          title="Пожаловаться на пользователя"
+        >
+          📋 Пожаловаться
+        </button>
+      </div>
     </div>
 
     <!-- Swipe Overlay -->
@@ -84,7 +102,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['swipe'])
+const emit = defineEmits(['swipe', 'block', 'report'])
 
 const currentPhotoIndex = ref(0)
 const { isDragging, onTouchStart, onTouchMove, onTouchEnd, getSwipeTransform, getSwipeOpacity } = useSwipe()
@@ -187,6 +205,24 @@ const handleSwipeEnd = (result) => {
 const handleTouchEnd = (event) => {
   const result = onTouchEnd(event)
   handleSwipeEnd(result)
+}
+
+// Handle block action
+const handleBlock = () => {
+  if (confirm('Вы уверены, что хотите заблокировать этого пользователя?')) {
+    emit('block', props.candidate.id)
+  }
+}
+
+// Handle report action
+const handleReport = () => {
+  const reason = prompt('Укажите причину жалобы:', '')
+  if (reason && reason.trim()) {
+    emit('report', {
+      userId: props.candidate.id,
+      reason: reason.trim()
+    })
+  }
 }
 </script>
 
@@ -343,5 +379,45 @@ const handleTouchEnd = (event) => {
   background-color: rgba(108, 117, 125, 0.9);
   color: white;
   transform: rotate(-15deg);
+}
+
+.action-buttons {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--border-color);
+}
+
+.action-btn {
+  flex: 1;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-small);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  background-color: white;
+}
+
+.block-btn {
+  color: var(--danger-color);
+  border-color: var(--danger-color);
+}
+
+.block-btn:hover {
+  background-color: var(--danger-color);
+  color: white;
+}
+
+.report-btn {
+  color: var(--warning-color);
+  border-color: var(--warning-color);
+}
+
+.report-btn:hover {
+  background-color: var(--warning-color);
+  color: white;
 }
 </style>

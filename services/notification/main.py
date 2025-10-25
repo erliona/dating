@@ -39,6 +39,63 @@ async def _call_bot(url: str, data: dict):
             return await resp.json()
 
 
+async def _check_notification_preferences(user_id: str, notification_type: str) -> bool:
+    """Check if user should receive notification based on preferences."""
+    try:
+        data_service_url = os.getenv("DATA_SERVICE_URL", "http://data-service:8088")
+        url = f"{data_service_url}/data/notification-preferences/{user_id}"
+        
+        async with ClientSession(timeout=ClientTimeout(total=5)) as session:
+            async with session.get(url) as resp:
+                if resp.status == 200:
+                    preferences = await resp.json()
+                    
+                    # Check if push notifications are enabled
+                    if not preferences.get('push_enabled', True):
+                        return False
+                    
+                    # Check quiet hours
+                    from datetime import datetime, time
+                    current_time = datetime.now().time()
+                    quiet_start = preferences.get('quiet_hours_start')
+                    quiet_end = preferences.get('quiet_hours_end')
+                    
+                    if quiet_start and quiet_end:
+                        quiet_start_time = datetime.strptime(quiet_start, '%H:%M').time()
+                        quiet_end_time = datetime.strptime(quiet_end, '%H:%M').time()
+                        
+                        # Handle quiet hours that cross midnight
+                        if quiet_start_time <= quiet_end_time:
+                            if quiet_start_time <= current_time <= quiet_end_time:
+                                return False
+                        else:
+                            if current_time >= quiet_start_time or current_time <= quiet_end_time:
+                                return False
+                    
+                    # Check specific notification type
+                    type_mapping = {
+                        'new_match': preferences.get('new_matches', True),
+                        'new_message': preferences.get('new_messages', True),
+                        'super_like': preferences.get('super_likes', True),
+                        'like': preferences.get('likes', True),
+                        'profile_view': preferences.get('profile_views', False),
+                        'verification_update': preferences.get('verification_updates', True),
+                        'marketing': preferences.get('marketing', False),
+                        'reminder': preferences.get('reminders', True)
+                    }
+                    
+                    return type_mapping.get(notification_type, True)
+                else:
+                    # If we can't get preferences, allow notification by default
+                    logger.warning(f"Failed to get notification preferences for user {user_id}: {resp.status}")
+                    return True
+                    
+    except Exception as e:
+        logger.warning(f"Error checking notification preferences for user {user_id}: {e}")
+        # If we can't check preferences, allow notification by default
+        return True
+
+
 async def handle_match_event(data: dict, correlation_id: str = None):
     """Handle match.created event."""
     logger.info(
@@ -83,6 +140,12 @@ async def handle_message_event(data: dict, correlation_id: str = None):
 async def send_match_notification(user_id: int, match_data: dict):
     """Send match notification to user."""
     try:
+        # Check notification preferences
+        should_send = await _check_notification_preferences(str(user_id), 'new_match')
+        if not should_send:
+            logger.info(f"Match notification skipped for user {user_id} due to preferences")
+            return {"status": "skipped", "reason": "user_preferences"}
+        
         # Use circuit breaker + retry
         result = await bot_service_breaker.call(
             _call_bot,
@@ -192,6 +255,12 @@ async def send_message_notification(request: web.Request) -> web.Response:
 
         if not user_id:
             return web.json_response({"error": "user_id is required"}, status=400)
+
+        # Check notification preferences
+        should_send = await _check_notification_preferences(str(user_id), 'new_message')
+        if not should_send:
+            logger.info(f"Message notification skipped for user {user_id} due to preferences")
+            return web.json_response({"status": "skipped", "reason": "user_preferences"})
 
         # Call bot HTTP endpoint to send notification
         async with ClientSession(timeout=ClientTimeout(total=10)) as session:

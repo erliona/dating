@@ -38,6 +38,8 @@
           :candidate="currentCandidate"
           @swipe="handleSwipe"
           @superlike="handleSuperLike"
+          @block="handleBlock"
+          @report="handleReport"
         />
       </div>
     </div>
@@ -111,6 +113,8 @@ const {
   swipe
 } = discoveryStore
 
+const { blockUser, reportUser } = useApi()
+
 const handleSwipe = async (action) => {
   if (!currentCandidate.value) return
 
@@ -144,6 +148,26 @@ const handlePass = () => {
 const handleSuperLike = () => {
   if (canSuperLike.value) {
     handleSwipe('superlike')
+  }
+}
+
+const handleBlock = async (userId) => {
+  try {
+    await blockUser(userId)
+    // Remove from candidates and load next
+    await loadNextCandidate()
+  } catch (error) {
+    console.error('Error blocking user:', error)
+  }
+}
+
+const handleReport = async (reportData) => {
+  try {
+    await reportUser(reportData.userId, reportData.reason)
+    // Remove from candidates and load next
+    await loadNextCandidate()
+  } catch (error) {
+    console.error('Error reporting user:', error)
   }
 }
 

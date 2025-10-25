@@ -95,6 +95,107 @@
               <span class="toggle-slider"></span>
             </label>
           </div>
+          
+          <div class="setting-item">
+            <div class="setting-info">
+              <h4>Лайки</h4>
+              <p>Получать уведомления о лайках</p>
+            </div>
+            <label class="toggle">
+              <input 
+                type="checkbox" 
+                v-model="notificationSettings.likes"
+                @change="updateNotificationSettings"
+              />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          
+          <div class="setting-item">
+            <div class="setting-info">
+              <h4>Super Like</h4>
+              <p>Получать уведомления о Super Like</p>
+            </div>
+            <label class="toggle">
+              <input 
+                type="checkbox" 
+                v-model="notificationSettings.super_likes"
+                @change="updateNotificationSettings"
+              />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          
+          <div class="setting-item">
+            <div class="setting-info">
+              <h4>Просмотры профиля</h4>
+              <p>Получать уведомления о просмотрах профиля</p>
+            </div>
+            <label class="toggle">
+              <input 
+                type="checkbox" 
+                v-model="notificationSettings.profile_views"
+                @change="updateNotificationSettings"
+              />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          
+          <div class="setting-item">
+            <div class="setting-info">
+              <h4>Маркетинг</h4>
+              <p>Получать рекламные уведомления</p>
+            </div>
+            <label class="toggle">
+              <input 
+                type="checkbox" 
+                v-model="notificationSettings.marketing"
+                @change="updateNotificationSettings"
+              />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          
+          <div class="setting-item">
+            <div class="setting-info">
+              <h4>Напоминания</h4>
+              <p>Получать напоминания о неактивности</p>
+            </div>
+            <label class="toggle">
+              <input 
+                type="checkbox" 
+                v-model="notificationSettings.reminders"
+                @change="updateNotificationSettings"
+              />
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Quiet Hours -->
+      <div class="settings-section">
+        <h3>Тихие часы</h3>
+        <div class="settings-group">
+          <div class="setting-item">
+            <div class="setting-info">
+              <h4>Время начала</h4>
+              <p>{{ notificationSettings.quiet_hours_start || 'Не установлено' }}</p>
+            </div>
+            <button class="btn btn-outline" @click="showQuietHoursStartModal = true">
+              {{ notificationSettings.quiet_hours_start || 'Установить' }}
+            </button>
+          </div>
+          
+          <div class="setting-item">
+            <div class="setting-info">
+              <h4>Время окончания</h4>
+              <p>{{ notificationSettings.quiet_hours_end || 'Не установлено' }}</p>
+            </div>
+            <button class="btn btn-outline" @click="showQuietHoursEndModal = true">
+              {{ notificationSettings.quiet_hours_end || 'Установить' }}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -320,6 +421,50 @@
         </div>
       </div>
     </div>
+
+    <!-- Quiet Hours Start Modal -->
+    <div v-if="showQuietHoursStartModal" class="modal-overlay" @click="showQuietHoursStartModal = false">
+      <div class="modal" @click.stop>
+        <h3>Время начала тихих часов</h3>
+        <div class="time-input">
+          <input 
+            type="time" 
+            v-model="notificationSettings.quiet_hours_start"
+            step="300"
+          />
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" @click="showQuietHoursStartModal = false">
+            Отмена
+          </button>
+          <button class="btn btn-primary" @click="saveQuietHoursStart">
+            Сохранить
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quiet Hours End Modal -->
+    <div v-if="showQuietHoursEndModal" class="modal-overlay" @click="showQuietHoursEndModal = false">
+      <div class="modal" @click.stop>
+        <h3>Время окончания тихих часов</h3>
+        <div class="time-input">
+          <input 
+            type="time" 
+            v-model="notificationSettings.quiet_hours_end"
+            step="300"
+          />
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" @click="showQuietHoursEndModal = false">
+            Отмена
+          </button>
+          <button class="btn btn-primary" @click="saveQuietHoursEnd">
+            Сохранить
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -337,6 +482,8 @@ const showAgeModal = ref(false)
 const showDistanceModal = ref(false)
 const showGenderModal = ref(false)
 const showDeleteModal = ref(false)
+const showQuietHoursStartModal = ref(false)
+const showQuietHoursEndModal = ref(false)
 const deleteConfirmed = ref(false)
 
 const searchPreferences = ref({
@@ -349,7 +496,14 @@ const searchPreferences = ref({
 const notificationSettings = ref({
   new_matches: true,
   new_messages: true,
-  verification: true
+  verification: true,
+  likes: true,
+  super_likes: true,
+  profile_views: false,
+  marketing: false,
+  reminders: true,
+  quiet_hours_start: null,
+  quiet_hours_end: null
 })
 
 const privacySettings = ref({
@@ -443,6 +597,26 @@ const updateNotificationSettings = async () => {
   } catch (error) {
     // Handle error
     showAlert('Не удалось обновить настройки')
+  }
+}
+
+const saveQuietHoursStart = async () => {
+  try {
+    await userStore.updateNotificationSettings(notificationSettings.value)
+    showQuietHoursStartModal.value = false
+    showAlert('Время начала тихих часов сохранено')
+  } catch (error) {
+    showAlert('Не удалось сохранить настройки')
+  }
+}
+
+const saveQuietHoursEnd = async () => {
+  try {
+    await userStore.updateNotificationSettings(notificationSettings.value)
+    showQuietHoursEndModal.value = false
+    showAlert('Время окончания тихих часов сохранено')
+  } catch (error) {
+    showAlert('Не удалось сохранить настройки')
   }
 }
 

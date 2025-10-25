@@ -1177,6 +1177,318 @@ async def get_profiles_count_handler(request: web.Request) -> web.Response:
         return web.json_response({"error": "Internal server error"}, status=500)
 
 
+# ==================== MODERATION HANDLERS ====================
+
+async def get_moderation_queue_handler(request: web.Request) -> web.Response:
+    """Get moderation queue with pagination and filtering."""
+    try:
+        # Get query parameters
+        status = request.query.get('status', 'pending')
+        content_type = request.query.get('content_type')
+        priority = request.query.get('priority')
+        page = int(request.query.get('page', 1))
+        limit = int(request.query.get('limit', 20))
+        
+        # Get database session
+        session_factory = request.app["session_factory"]
+        async with session_factory() as session:
+            from services.data.models.moderation import ModerationQueue
+            from sqlalchemy import select, and_, desc
+            
+            # Build query
+            query = select(ModerationQueue)
+            conditions = [ModerationQueue.status == status]
+            
+            if content_type:
+                conditions.append(ModerationQueue.content_type == content_type)
+            if priority:
+                conditions.append(ModerationQueue.priority == int(priority))
+                
+            query = query.where(and_(*conditions))
+            query = query.order_by(desc(ModerationQueue.priority), desc(ModerationQueue.created_at))
+            
+            # Get total count
+            count_query = select(ModerationQueue.id).where(and_(*conditions))
+            total_result = await session.execute(count_query)
+            total = len(total_result.scalars().all())
+            
+            # Apply pagination
+            offset = (page - 1) * limit
+            query = query.offset(offset).limit(limit)
+            
+            # Execute query
+            result = await session.execute(query)
+            items = result.scalars().all()
+            
+            return web.json_response({
+                "items": [item.to_dict() for item in items],
+                "total": total,
+                "page": page,
+                "limit": limit,
+                "has_more": offset + limit < total
+            })
+            
+    except Exception as e:
+        logger.error(f"Error getting moderation queue: {e}")
+        return web.json_response(
+            {"error": {"code": "INTERNAL_ERROR", "message": "Failed to get moderation queue"}},
+            status=500
+        )
+
+
+async def approve_moderation_handler(request: web.Request) -> web.Response:
+    """Approve moderation item."""
+    try:
+        moderation_id = request.match_info['moderation_id']
+        data = await request.json()
+        moderator_id = data.get('moderator_id')
+        notes = data.get('notes', '')
+        
+        # Get database session
+        session_factory = request.app["session_factory"]
+        async with session_factory() as session:
+            from services.data.models.moderation import ModerationQueue
+            from sqlalchemy import select, update
+            from datetime import datetime
+            
+            # Get moderation item
+            query = select(ModerationQueue).where(ModerationQueue.id == moderation_id)
+            result = await session.execute(query)
+            item = result.scalar_one_or_none()
+            
+            if not item:
+                return web.json_response(
+                    {"error": {"code": "NOT_FOUND", "message": "Moderation item not found"}},
+                    status=404
+                )
+            
+            if item.status != 'pending':
+                return web.json_response(
+                    {"error": {"code": "INVALID_STATE", "message": "Item already moderated"}},
+                    status=400
+                )
+            
+            # Update status
+            update_query = update(ModerationQueue).where(
+                ModerationQueue.id == moderation_id
+            ).values(
+                status='approved',
+                moderator_id=moderator_id,
+                moderation_notes=notes,
+                moderated_at=datetime.utcnow()
+            )
+            
+            await session.execute(update_query)
+            await session.commit()
+            
+            return web.json_response({
+                "message": "Moderation item approved",
+                "moderation_id": moderation_id
+            })
+            
+    except Exception as e:
+        logger.error(f"Error approving moderation: {e}")
+        return web.json_response(
+            {"error": {"code": "INTERNAL_ERROR", "message": "Failed to approve moderation"}},
+            status=500
+        )
+
+
+async def reject_moderation_handler(request: web.Request) -> web.Response:
+    """Reject moderation item."""
+    try:
+        moderation_id = request.match_info['moderation_id']
+        data = await request.json()
+        moderator_id = data.get('moderator_id')
+        notes = data.get('notes', '')
+        
+        # Get database session
+        session_factory = request.app["session_factory"]
+        async with session_factory() as session:
+            from services.data.models.moderation import ModerationQueue
+            from sqlalchemy import select, update
+            from datetime import datetime
+            
+            # Get moderation item
+            query = select(ModerationQueue).where(ModerationQueue.id == moderation_id)
+            result = await session.execute(query)
+            item = result.scalar_one_or_none()
+            
+            if not item:
+                return web.json_response(
+                    {"error": {"code": "NOT_FOUND", "message": "Moderation item not found"}},
+                    status=404
+                )
+            
+            if item.status != 'pending':
+                return web.json_response(
+                    {"error": {"code": "INVALID_STATE", "message": "Item already moderated"}},
+                    status=400
+                )
+            
+            # Update status
+            update_query = update(ModerationQueue).where(
+                ModerationQueue.id == moderation_id
+            ).values(
+                status='rejected',
+                moderator_id=moderator_id,
+                moderation_notes=notes,
+                moderated_at=datetime.utcnow()
+            )
+            
+            await session.execute(update_query)
+            await session.commit()
+            
+            return web.json_response({
+                "message": "Moderation item rejected",
+                "moderation_id": moderation_id
+            })
+            
+    except Exception as e:
+        logger.error(f"Error rejecting moderation: {e}")
+        return web.json_response(
+            {"error": {"code": "INTERNAL_ERROR", "message": "Failed to reject moderation"}},
+            status=500
+        )
+
+
+async def create_moderation_item_handler(request: web.Request) -> web.Response:
+    """Create new moderation item."""
+    try:
+        data = await request.json()
+        content_type = data.get('content_type')
+        content_id = data.get('content_id')
+        user_id = data.get('user_id')
+        reason = data.get('reason', 'upload')
+        priority = data.get('priority', 1)
+        reported_by = data.get('reported_by')
+        
+        # Get database session
+        session_factory = request.app["session_factory"]
+        async with session_factory() as session:
+            from services.data.models.moderation import ModerationQueue
+            
+            # Create moderation item
+            if content_type == 'photo':
+                item = ModerationQueue.create_photo_moderation(
+                    photo_id=content_id,
+                    user_id=user_id,
+                    reason=reason,
+                    priority=priority
+                )
+            elif content_type == 'profile':
+                item = ModerationQueue.create_profile_moderation(
+                    user_id=content_id,
+                    reason=reason,
+                    priority=priority
+                )
+            elif content_type == 'report':
+                item = ModerationQueue.create_report_moderation(
+                    content_type=data.get('report_content_type'),
+                    content_id=content_id,
+                    reported_by=reported_by,
+                    reason=reason,
+                    priority=priority
+                )
+            else:
+                return web.json_response(
+                    {"error": {"code": "INVALID_INPUT", "message": "Invalid content_type"}},
+                    status=400
+                )
+            
+            # Add to database
+            session.add(item)
+            await session.commit()
+            
+            return web.json_response({
+                "message": "Moderation item created",
+                "moderation_id": item.id,
+                "item": item.to_dict()
+            }, status=201)
+            
+    except Exception as e:
+        logger.error(f"Error creating moderation item: {e}")
+        return web.json_response(
+            {"error": {"code": "INTERNAL_ERROR", "message": "Failed to create moderation item"}},
+            status=500
+        )
+
+
+# ==================== NOTIFICATION PREFERENCES HANDLERS ====================
+
+async def get_notification_preferences_handler(request: web.Request) -> web.Response:
+    """Get user's notification preferences."""
+    try:
+        user_id = request.match_info['user_id']
+        
+        # Get database session
+        session_factory = request.app["session_factory"]
+        async with session_factory() as session:
+            from services.data.models.notification_preferences import NotificationPreferences
+            from sqlalchemy import select
+            
+            # Get notification preferences
+            query = select(NotificationPreferences).where(NotificationPreferences.user_id == user_id)
+            result = await session.execute(query)
+            preferences = result.scalar_one_or_none()
+            
+            if not preferences:
+                # Create default preferences if none exist
+                preferences = NotificationPreferences.create_default(user_id)
+                session.add(preferences)
+                await session.commit()
+            
+            return web.json_response(preferences.to_dict())
+            
+    except Exception as e:
+        logger.error(f"Error getting notification preferences: {e}")
+        return web.json_response(
+            {"error": {"code": "INTERNAL_ERROR", "message": "Failed to get notification preferences"}},
+            status=500
+        )
+
+
+async def update_notification_preferences_handler(request: web.Request) -> web.Response:
+    """Update user's notification preferences."""
+    try:
+        user_id = request.match_info['user_id']
+        data = await request.json()
+        
+        # Get database session
+        session_factory = request.app["session_factory"]
+        async with session_factory() as session:
+            from services.data.models.notification_preferences import NotificationPreferences
+            from sqlalchemy import select, update
+            from datetime import datetime
+            
+            # Get existing preferences
+            query = select(NotificationPreferences).where(NotificationPreferences.user_id == user_id)
+            result = await session.execute(query)
+            preferences = result.scalar_one_or_none()
+            
+            if not preferences:
+                # Create new preferences
+                preferences = NotificationPreferences.create_default(user_id)
+                session.add(preferences)
+            
+            # Update preferences
+            for key, value in data.items():
+                if hasattr(preferences, key):
+                    setattr(preferences, key, value)
+            
+            preferences.updated_at = datetime.utcnow()
+            await session.commit()
+            
+            return web.json_response(preferences.to_dict())
+            
+    except Exception as e:
+        logger.error(f"Error updating notification preferences: {e}")
+        return web.json_response(
+            {"error": {"code": "INTERNAL_ERROR", "message": "Failed to update notification preferences"}},
+            status=500
+        )
+
+
 def create_app(config: dict) -> web.Application:
     """Create and configure the Data Service application."""
     app = web.Application()
@@ -1233,6 +1545,16 @@ def create_app(config: dict) -> web.Application:
     app.router.add_get("/data/candidates", find_candidates_handler)
     app.router.add_post("/data/interactions", create_interaction_handler)
     app.router.add_get("/data/matches", get_matches_handler)
+    
+    # Moderation routes
+    app.router.add_get("/moderation/queue", get_moderation_queue_handler)
+    app.router.add_post("/moderation/{moderation_id}/approve", approve_moderation_handler)
+    app.router.add_post("/moderation/{moderation_id}/reject", reject_moderation_handler)
+    app.router.add_post("/moderation/queue", create_moderation_item_handler)
+    
+    # Notification preferences routes
+    app.router.add_get("/data/notification-preferences/{user_id}", get_notification_preferences_handler)
+    app.router.add_put("/data/notification-preferences/{user_id}", update_notification_preferences_handler)
 
     return app
 

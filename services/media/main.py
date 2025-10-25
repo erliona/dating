@@ -28,6 +28,40 @@ from core.middleware.error_handling import setup_error_handling
 
 logger = logging.getLogger(__name__)
 
+
+async def queue_for_moderation(
+    content_type: str,
+    content_id: str,
+    user_id: str,
+    reason: str = "upload",
+    priority: int = 1
+) -> None:
+    """Queue content for moderation via data service."""
+    try:
+        import aiohttp
+        
+        data_service_url = os.getenv("DATA_SERVICE_URL", "http://data-service:8088")
+        url = f"{data_service_url}/moderation/queue"
+        
+        payload = {
+            "content_type": content_type,
+            "content_id": content_id,
+            "user_id": user_id,
+            "reason": reason,
+            "priority": priority
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=payload) as response:
+                if response.status not in [200, 201]:
+                    error_text = await response.text()
+                    logger.error(f"Failed to queue moderation: {response.status} - {error_text}")
+                    raise Exception(f"Moderation queue failed: {response.status}")
+                    
+    except Exception as e:
+        logger.error(f"Error queuing for moderation: {e}")
+        raise
+
 # Security configuration
 ALLOWED_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
 ALLOWED_MIME_TYPES = {
@@ -266,6 +300,20 @@ async def upload_media(request: web.Request) -> web.Response:
             request=request
         )
 
+        # Auto-queue for moderation
+        try:
+            await queue_for_moderation(
+                content_type="photo",
+                content_id=file_id,
+                user_id=str(request.get("user_id", "unknown")),
+                reason="upload",
+                priority=1
+            )
+            logger.info(f"Photo {file_id} queued for moderation")
+        except Exception as e:
+            logger.error(f"Failed to queue photo for moderation: {e}")
+            # Don't fail the upload if moderation queueing fails
+
         logger.info(
             f"File uploaded successfully",
             extra={
@@ -424,7 +472,7 @@ if __name__ == "__main__":
     configure_logging("media-service", os.getenv("LOG_LEVEL", "INFO"))
 
     config = {
-        "jwt_secret": os.getenv("JWT_SECRET", "your-secret-key"),
+        "jwt_secret": os.getenv("JWT_SECRET"),  # SECURITY: No default value
         "storage_path": os.getenv("PHOTO_STORAGE_PATH", "/app/photos"),
         "host": os.getenv("MEDIA_SERVICE_HOST", "0.0.0.0"),
         "port": int(os.getenv("MEDIA_SERVICE_PORT", 8084)),

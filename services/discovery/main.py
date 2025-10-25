@@ -185,6 +185,21 @@ async def get_candidates(request: web.Request) -> web.Response:
         
         candidates = result.get("candidates", [])
         
+        # Filter out blocked users
+        try:
+            blocked_result = await _call_data_service(
+                f"{data_service_url}/data/blocks",
+                "GET",
+                None,
+                {"blocker_id": user_id},
+                request=request
+            )
+            blocked_user_ids = [block["target_user_id"] for block in blocked_result.get("blocks", [])]
+            candidates = [c for c in candidates if c["id"] not in blocked_user_ids]
+        except Exception as e:
+            logger.warning(f"Failed to filter blocked users: {e}")
+            # Continue without filtering if we can't get blocked users
+        
         # If we have less than 5 candidates, expand search radius
         if len(candidates) < 5:
             expanded_params = params.copy()
@@ -467,6 +482,143 @@ async def get_matches(request: web.Request) -> web.Response:
         return web.json_response({"error": "Internal server error"}, status=500)
 
 
+async def block_user_handler(request: web.Request) -> web.Response:
+    """Block a user from discovery.
+    
+    POST /discovery/block/{user_id}
+    """
+    try:
+        user_id = request.match_info['user_id']
+        current_user_id = request.get('user_id')
+        
+        if not current_user_id:
+            return web.json_response({"error": "Authentication required"}, status=401)
+        
+        if user_id == current_user_id:
+            return web.json_response({"error": "Cannot block yourself"}, status=400)
+        
+        # Call data service to create block
+        result = await _call_data_service(
+            f"{DATA_SERVICE_URL}/data/blocks",
+            "POST",
+            {
+                "blocker_id": current_user_id,
+                "target_user_id": user_id,
+                "reason": "user_blocked"
+            },
+            request=request
+        )
+        
+        # Record metrics
+        record_interaction(
+            service="discovery-service",
+            action="block",
+            user_id=str(current_user_id),
+            target_user_id=str(user_id)
+        )
+        
+        logger.info(f"User {current_user_id} blocked user {user_id}")
+        
+        return web.json_response({
+            "message": "User blocked successfully",
+            "blocked_user_id": user_id
+        })
+        
+    except ValidationError as e:
+        logger.warning(f"Validation error in block_user: {e}")
+        return web.json_response({"error": str(e)}, status=400)
+    except ExternalServiceError as e:
+        logger.error(f"Data service error in block_user: {e}")
+        return web.json_response({"error": "Failed to block user"}, status=500)
+    except Exception as e:
+        logger.error(f"Unexpected error in block_user: {e}")
+        return web.json_response({"error": "Internal server error"}, status=500)
+
+
+async def report_user_handler(request: web.Request) -> web.Response:
+    """Report a user for inappropriate behavior.
+    
+    POST /discovery/report/{user_id}
+    Body: { "reason": "spam|abuse|inappropriate|fake|other" }
+    """
+    try:
+        user_id = request.match_info['user_id']
+        current_user_id = request.get('user_id')
+        data = await request.json()
+        
+        if not current_user_id:
+            return web.json_response({"error": "Authentication required"}, status=401)
+        
+        if user_id == current_user_id:
+            return web.json_response({"error": "Cannot report yourself"}, status=400)
+        
+        reason = data.get('reason', 'other')
+        valid_reasons = ['spam', 'abuse', 'inappropriate', 'fake', 'other']
+        
+        if reason not in valid_reasons:
+            return web.json_response({
+                "error": f"Invalid reason. Must be one of: {', '.join(valid_reasons)}"
+            }, status=400)
+        
+        # Call data service to create report
+        result = await _call_data_service(
+            f"{DATA_SERVICE_URL}/data/reports",
+            "POST",
+            {
+                "reporter_id": current_user_id,
+                "reported_user_id": user_id,
+                "reason": reason,
+                "context": "discovery"
+            },
+            request=request
+        )
+        
+        # Send to moderation queue
+        try:
+            await _call_data_service(
+                f"{DATA_SERVICE_URL}/moderation/queue",
+                "POST",
+                {
+                    "content_type": "report",
+                    "content_id": user_id,
+                    "user_id": current_user_id,
+                    "reason": reason,
+                    "priority": 2,  # High priority for user reports
+                    "reported_by": current_user_id
+                },
+                request=request
+            )
+        except Exception as e:
+            logger.warning(f"Failed to queue report for moderation: {e}")
+            # Don't fail the report if moderation queueing fails
+        
+        # Record metrics
+        record_interaction(
+            service="discovery-service",
+            action="report",
+            user_id=str(current_user_id),
+            target_user_id=str(user_id)
+        )
+        
+        logger.info(f"User {current_user_id} reported user {user_id} for {reason}")
+        
+        return web.json_response({
+            "message": "User reported successfully",
+            "reported_user_id": user_id,
+            "reason": reason
+        })
+        
+    except ValidationError as e:
+        logger.warning(f"Validation error in report_user: {e}")
+        return web.json_response({"error": str(e)}, status=400)
+    except ExternalServiceError as e:
+        logger.error(f"Data service error in report_user: {e}")
+        return web.json_response({"error": "Failed to report user"}, status=500)
+    except Exception as e:
+        logger.error(f"Unexpected error in report_user: {e}")
+        return web.json_response({"error": "Internal server error"}, status=500)
+
+
 async def health_check(request: web.Request) -> web.Response:
     """Health check endpoint."""
     return web.json_response({"status": "healthy", "service": "discovery"})
@@ -545,6 +697,8 @@ def create_app(config: dict) -> web.Application:
     app.router.add_post("/discovery/like", like_profile)  # Legacy endpoint
     app.router.add_get("/discovery/matches", get_matches)
     app.router.add_get("/discovery/likes", get_likes)  # Who liked me
+    app.router.add_post("/discovery/block/{user_id}", block_user_handler)
+    app.router.add_post("/discovery/report/{user_id}", report_user_handler)
     app.router.add_get("/health", health_check)
     
     # Add startup/shutdown handlers
