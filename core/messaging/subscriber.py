@@ -90,7 +90,7 @@ class EventSubscriber:
                 )
 
                 # Find and call handler
-                handler = self._find_handler(routing_key)
+                handler = self._find_handler(routing_key or "")
                 if handler:
                     await handler(data, correlation_id=correlation_id)
                 else:

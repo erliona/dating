@@ -96,7 +96,7 @@ def setup_error_handling(app: web.Application, service_name: str):
 
     # Add global exception handler
     app.on_response_prepare.append(_log_response)  # type: ignore[arg-type]
-    app.on_cleanup.append(_cleanup_handler)
+    app.on_cleanup.append(_cleanup_handler)  # type: ignore[arg-type]
 
 
 async def _log_response(request: Request, response: Response):

@@ -261,8 +261,8 @@ if __name__ == "__main__":
     app = create_app(config)
 
     # Add startup and cleanup handlers
-    app.on_startup.append(startup_session)
-    app.on_cleanup.append(cleanup_session)
+    app.on_startup.append(startup_session)  # type: ignore[arg-type]
+    app.on_cleanup.append(cleanup_session)  # type: ignore[arg-type]
 
     web.run_app(
         app, host=str(config.get("host", "0.0.0.0")), port=int(config.get("port", 8080))
