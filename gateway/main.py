@@ -174,8 +174,7 @@ def create_app(config: dict) -> web.Application:
             allow_credentials=True,
             expose_headers="*",
             allow_headers="*",
-            allow_methods="*",
-            allow_origins=allowed_origins
+            allow_methods="*"
         )
     })
     
@@ -196,9 +195,17 @@ def create_app(config: dict) -> web.Application:
     app.router.add_route("*", r"/v1/admin/{tail:.*}", route_admin)
     app.router.add_route("*", r"/v1/notifications/{tail:.*}", route_notifications)
     
-    # Add CORS to all routes
+    # Add CORS to all routes with proper origins
     for route in app.router.routes():
-        cors.add(route)
+        cors.add(route, {
+            "*": ResourceOptions(
+                allow_credentials=True,
+                expose_headers="*",
+                allow_headers="*",
+                allow_methods="*",
+                allow_origins=allowed_origins
+            )
+        })
     
     return app
 
